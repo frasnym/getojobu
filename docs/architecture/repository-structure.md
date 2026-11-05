@@ -57,7 +57,7 @@ go-get-job/
 ## Ownership rules
 
 - `apps/web`: UI and client-side presentation. It may contain form schemas and display logic, but not authoritative business rules.
-- `apps/api`: authoritative HTTP boundary, identity verification, authorization, validation, and short transactions.
+- `apps/backend`: authoritative HTTP boundary, identity verification, authorization, validation, and short transactions.
 - `workers/python`: Python workflows/activities that do not require a dedicated browser isolation boundary.
 - `workers/browser`: browser automation activities, browser contexts, downloads, screenshots, and ATS interactions.
 - `packages/openapi`: API contract source. Generated client output is derived from this.

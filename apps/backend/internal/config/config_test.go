@@ -1,0 +1,97 @@
+package config
+
+import (
+	"os"
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+func TestLoad_applies_default_ports_and_timeouts(t *testing.T) {
+	// Arrange.
+	os.Setenv("DATABASE_URL", "postgres://user:pass@localhost:5432/db?sslmode=require")
+	defer os.Unsetenv("DATABASE_URL")
+	os.Unsetenv("API_SERVER_ADDR")
+	os.Unsetenv("API_SERVER_READ_TIMEOUT")
+	os.Unsetenv("API_SERVER_WRITE_TIMEOUT")
+	os.Unsetenv("API_SERVER_SHUTDOWN_TIMEOUT")
+
+	// Act.
+	cfg, err := Load()
+
+	// Assert.
+	require.NoError(t, err, "unexpected error")
+	assert.Equal(t, ":8080", cfg.Server.Addr, "expected default addr :8080")
+	assert.Equal(t, 5*time.Second, cfg.Server.ReadTimeout, "expected default read timeout 5s")
+	assert.Equal(t, 10*time.Second, cfg.Server.WriteTimeout, "expected default write timeout 10s")
+	assert.Equal(t, 15*time.Second, cfg.Server.ShutdownTimeout, "expected default shutdown timeout 15s")
+	assert.Equal(t, "postgres://user:pass@localhost:5432/db?sslmode=require", cfg.DB.URL, "expected DATABASE_URL to be passed through")
+}
+
+func TestLoad_parses_duration_overrides(t *testing.T) {
+	// Arrange.
+	os.Setenv("DATABASE_URL", "postgres://localhost:5432/db")
+	os.Setenv("API_SERVER_READ_TIMEOUT", "30s")
+	defer os.Unsetenv("DATABASE_URL")
+	defer os.Unsetenv("API_SERVER_READ_TIMEOUT")
+
+	// Act.
+	cfg, err := Load()
+
+	// Assert.
+	require.NoError(t, err, "unexpected error")
+	assert.Equal(t, 30*time.Second, cfg.Server.ReadTimeout, "expected read timeout 30s")
+}
+
+func TestLoad_passes_through_pg_env_fields(t *testing.T) {
+	// Arrange: unset DATABASE_URL, set PG* vars.
+	os.Unsetenv("DATABASE_URL")
+	defer os.Unsetenv("DATABASE_URL")
+	os.Setenv("PG_HOST", "db.example.com")
+	os.Setenv("PG_PORT", "5432")
+	os.Setenv("PG_DATABASE", "mydb")
+	os.Setenv("PG_USER", "myuser")
+	os.Setenv("PG_PASSWORD", "mypass")
+	os.Setenv("PG_SSL_MODE", "require")
+	os.Setenv("PG_CHANNEL_BINDING", "prefer")
+	defer os.Unsetenv("PG_HOST")
+	defer os.Unsetenv("PG_PORT")
+	defer os.Unsetenv("PG_DATABASE")
+	defer os.Unsetenv("PG_USER")
+	defer os.Unsetenv("PG_PASSWORD")
+	defer os.Unsetenv("PG_SSL_MODE")
+	defer os.Unsetenv("PG_CHANNEL_BINDING")
+
+	// Act.
+	cfg, err := Load()
+
+	// Assert.
+	require.NoError(t, err, "unexpected error")
+	assert.Equal(t, "", cfg.DB.URL, "expected DATABASE_URL to be empty when unset")
+	assert.Equal(t, "db.example.com", cfg.DB.Host, "expected PG_HOST")
+	assert.Equal(t, "5432", cfg.DB.Port, "expected PG_PORT")
+	assert.Equal(t, "mydb", cfg.DB.Database, "expected PG_DATABASE")
+	assert.Equal(t, "myuser", cfg.DB.User, "expected PG_USER")
+	assert.Equal(t, "mypass", cfg.DB.Password, "expected PG_PASSWORD")
+	assert.Equal(t, "require", cfg.DB.SSLMode, "expected PG_SSL_MODE")
+	assert.Equal(t, "prefer", cfg.DB.ChannelBinding, "expected PG_CHANNEL_BINDING")
+}
+
+func TestLoad_database_url_takes_precedence_over_pg_env(t *testing.T) {
+	// Arrange: set both DATABASE_URL and PG* vars.
+	os.Setenv("DATABASE_URL", "postgres://explicit:pass@explicit.host:9999/explicitdb?sslmode=disable")
+	os.Setenv("PG_HOST", "pg.example.com")
+	os.Setenv("PG_DATABASE", "pgdb")
+	defer os.Unsetenv("DATABASE_URL")
+	defer os.Unsetenv("PG_HOST")
+	defer os.Unsetenv("PG_DATABASE")
+
+	// Act.
+	cfg, err := Load()
+
+	// Assert.
+	require.NoError(t, err, "unexpected error")
+	assert.Equal(t, "postgres://explicit:pass@explicit.host:9999/explicitdb?sslmode=disable", cfg.DB.URL, "expected DATABASE_URL to take precedence")
+}
