@@ -41,7 +41,7 @@ The existing Supabase system is a legacy reference during transition. The new pr
 
 The four application deployables are:
 1. `apps/web`
-2. `apps/api`
+2. `apps/backend`
 3. `workers/python`
 4. `workers/browser`
 
@@ -93,7 +93,7 @@ Temporal Server, its persistence database, Neon, R2, Caddy, and monitoring are i
 - Do not restart, recreate, or stop existing services unless required and approved where impact is material.
 - Do not expose Temporal UI, database ports, worker ports, metrics endpoints, or browser debugging ports publicly.
 
-## 6. Go backend (`apps/api`)
+## 6. Go backend (`apps/backend`)
 
 - Use Go 1.27.3 as the pinned toolchain baseline unless repository version files specify a deliberate update.
 - Use standard library `net/http` and method-aware `http.ServeMux` for routing.
