@@ -89,7 +89,7 @@ Jobs are shared listing records. Use `is_archived` and `expired_at` to retire ol
 
 ## 8. Migration approach
 
-Use versioned SQL migrations in `apps/api/migrations/`. Use a migration tool such as Goose. Migrations run from a controlled deployment job using a direct Neon connection, not from every API replica at startup.
+Use versioned SQL migrations in `apps/backend/migrations/`. Use a migration tool such as Goose. Migrations run from a controlled deployment job using a direct Neon connection, not from every API replica at startup.
 
 Recommended order:
 1. Users and identity mapping.
