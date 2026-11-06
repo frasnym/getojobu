@@ -58,8 +58,7 @@ func New(c *contract.Contract) (*API, error) {
 
 	// Build router and register routes.
 	rt := router.New()
-	rt.Handle(http.MethodGet, "/health", handler.Health())
-	rt.Handle(http.MethodGet, "/ready", handler.Ready(c.Common))
+	handler.New(c).Route(rt)
 
 	// Assemble middleware chain: envelope (404/405 → JSON) → mux → logging → request ID → recovery.
 	var handlerChain http.Handler = rt.EnvelopeHandler(rt.Mux())

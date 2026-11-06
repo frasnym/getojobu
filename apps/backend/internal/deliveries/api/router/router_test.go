@@ -5,6 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	httperf "github.com/frasnym/getojobu/apps/backend/internal/utils/http"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -12,13 +13,15 @@ import (
 func TestRouter_registers_and_dispatches_GET_and_POST_to_different_handlers(t *testing.T) {
 	// Arrange.
 	rt := New()
-	rt.Handle(http.MethodGet, "/v1/health", func(w http.ResponseWriter, r *http.Request) {
+	rt.GET("/v1/health", func(w http.ResponseWriter, r *http.Request) error {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("get"))
+		_, _ = w.Write([]byte("get"))
+		return nil
 	})
-	rt.Handle(http.MethodPost, "/v1/health", func(w http.ResponseWriter, r *http.Request) {
+	rt.POST("/v1/health", func(w http.ResponseWriter, r *http.Request) error {
 		w.WriteHeader(http.StatusCreated)
-		w.Write([]byte("post"))
+		_, _ = w.Write([]byte("post"))
+		return nil
 	})
 
 	// Act GET.
@@ -41,8 +44,9 @@ func TestRouter_registers_and_dispatches_GET_and_POST_to_different_handlers(t *t
 func TestRouter_405_for_known_path_wrong_method(t *testing.T) {
 	// Arrange.
 	rt := New()
-	rt.Handle(http.MethodGet, "/v1/health", func(w http.ResponseWriter, r *http.Request) {
+	rt.GET("/v1/health", func(w http.ResponseWriter, r *http.Request) error {
 		w.WriteHeader(http.StatusOK)
+		return nil
 	})
 
 	// Act: POST to a GET-only endpoint.
@@ -57,8 +61,9 @@ func TestRouter_405_for_known_path_wrong_method(t *testing.T) {
 func TestRouter_404_for_unknown_path(t *testing.T) {
 	// Arrange.
 	rt := New()
-	rt.Handle(http.MethodGet, "/v1/health", func(w http.ResponseWriter, r *http.Request) {
+	rt.GET("/v1/health", func(w http.ResponseWriter, r *http.Request) error {
 		w.WriteHeader(http.StatusOK)
+		return nil
 	})
 
 	// Act.
@@ -73,10 +78,10 @@ func TestRouter_404_for_unknown_path(t *testing.T) {
 func TestRouter_Introspection_lists_registered_routes(t *testing.T) {
 	// Arrange.
 	rt := New()
-	noop := func(w http.ResponseWriter, r *http.Request) {}
-	rt.Handle(http.MethodGet, "/v1/health", noop)
-	rt.Handle(http.MethodPost, "/v1/health", noop)
-	rt.Handle(http.MethodGet, "/v1/jobs", noop)
+	noop := httperf.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error { return nil })
+	rt.GET("/v1/health", noop)
+	rt.POST("/v1/health", noop)
+	rt.GET("/v1/jobs", noop)
 
 	// Act.
 	routes := rt.Routes()

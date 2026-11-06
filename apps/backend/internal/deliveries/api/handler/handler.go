@@ -1,38 +1,25 @@
 package handler
 
 import (
-	"encoding/json"
-	"net/http"
-
-	httperr "github.com/frasnym/getojobu/apps/backend/internal/utils/http"
+	"github.com/frasnym/getojobu/apps/backend/internal/contract"
+	"github.com/frasnym/getojobu/apps/backend/internal/contract/common"
+	"github.com/frasnym/getojobu/apps/backend/internal/deliveries/api/router"
 )
 
-// Base provides shared request/response helpers for HTTP handlers.
-type Base struct{}
-
-// ParseJSON decodes the request body into v. Returns a 400 error envelope on malformed JSON.
-func (b *Base) ParseJSON(r *http.Request, v any) error {
-	if err := json.NewDecoder(r.Body).Decode(v); err != nil {
-		return httperr.Envelope(httperr.CodeInvalidRequest, "malformed request body", "")
-	}
-	return nil
+// Handler holds shared dependencies for every HTTP handler. Route methods
+// have the signature func(http.ResponseWriter, *http.Request) error, so a
+// handler can return an error instead of writing a response inline.
+type Handler struct {
+	common *common.Contract
 }
 
-// RespondJSON writes v as a JSON response with the given status code.
-func (b *Base) RespondJSON(w http.ResponseWriter, code int, v any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(code)
-	if err := json.NewEncoder(w).Encode(v); err != nil {
-		http.Error(w, `{"code":"internal","message":"failed to write response"}`, http.StatusInternalServerError)
-	}
+// New wires the handler set from the contract.
+func New(c *contract.Contract) *Handler {
+	return &Handler{common: c.Common}
 }
 
-// RespondError writes an *httperr.Error as a JSON response.
-func (b *Base) RespondError(w http.ResponseWriter, err *httperr.Error) {
-	err.WriteJSON(w)
-}
-
-// ExtractPathParam returns the named path parameter from the request.
-func (b *Base) ExtractPathParam(r *http.Request, name string) string {
-	return r.PathValue(name)
+// Route registers every HTTP route for this handler set.
+func (h *Handler) Route(rt *router.Router) {
+	rt.GET("/health", h.Health)
+	rt.GET("/ready", h.Ready)
 }
