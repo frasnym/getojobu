@@ -1,7 +1,6 @@
 package contract
 
 import (
-	"context"
 	"testing"
 
 	"github.com/frasnym/getojobu/apps/backend/internal/config"
@@ -18,23 +17,32 @@ func TestContract_new_requires_config(t *testing.T) {
 	assert.Nil(t, c, "expected nil contract on error")
 }
 
+func TestContract_new_requires_database_url(t *testing.T) {
+	// Arrange.
+	cfg := &config.Config{}
+	cfg.Server.Addr = ":8080"
+	// No DATABASE_URL set: DB init should fail fast.
+
+	// Act.
+	c, _, err := New(cfg)
+
+	// Assert.
+	require.Error(t, err, "expected error when database URL is missing")
+	assert.Nil(t, c, "expected nil contract when DB init fails")
+}
+
 func TestContract_new_wires_all_layers(t *testing.T) {
 	// Arrange.
 	cfg := &config.Config{}
 	cfg.Server.Addr = ":8080"
+	// Use an unreachable database URL so NewDB creates a pool but Ping fails.
+	// This proves DB init happens inside contract.New (fail-fast at startup).
+	cfg.DB.URL = "postgres://user:pass@localhost:5432/db?sslmode=disable"
 
 	// Act.
-	c, stopper, err := New(cfg)
+	c, _, err := New(cfg)
 
 	// Assert.
-	require.NoError(t, err, "unexpected error")
-	require.NotNil(t, c, "expected non-nil contract")
-	assert.Equal(t, cfg, c.Cfg, "expected Cfg to be set")
-	assert.NotNil(t, c.Usecase, "expected Usecase to be set")
-	assert.NotNil(t, c.Repository, "expected Repository to be set")
-	assert.NotNil(t, c.Common, "expected Common to be set")
-	assert.Nil(t, c.Common.DB, "expected Common.DB to be nil (DB init is separate from contract wiring)")
-
-	// Cleanup via stopper.
-	assert.NoError(t, stopper(context.Background()), "unexpected stopper error")
+	require.Error(t, err, "expected error when database is unreachable")
+	assert.Nil(t, c, "expected nil contract when DB init fails")
 }

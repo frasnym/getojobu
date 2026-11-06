@@ -28,10 +28,9 @@ type API struct {
 }
 
 // New assembles the HTTP delivery from the full contract.
-// Contract wiring (contract.New) is separate from DB initialization;
-// New initializes the Neon database pool via common.New into the contract's
-// common layer. The DB stopper is owned by contract.New's stopper and runs
-// last in the shutdown sequence, so pools stay open until nothing uses them.
+// contract.New already initialized the database pool (fail-fast if unreachable);
+// this delivery simply wires routes and middleware on top. The DB pool is
+// closed by contract.New's stopper, which runs last in the shutdown sequence.
 func New(c *contract.Contract) (*API, error) {
 	if c == nil {
 		return nil, errors.New("contract is required")
