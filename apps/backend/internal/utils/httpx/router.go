@@ -111,6 +111,11 @@ func (rec *envelopeRecorder) WriteHeader(code int) {
 }
 
 func (rec *envelopeRecorder) Write(b []byte) (int, error) {
+	// Auto-call WriteHeader(200) if the handler wrote without setting a status,
+	// so the underlying ResponseWriter always gets a valid status code.
+	if !rec.wrote {
+		rec.WriteHeader(http.StatusOK)
+	}
 	rec.buffer = append(rec.buffer, b...)
 	return len(b), nil
 }

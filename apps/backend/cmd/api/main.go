@@ -1,3 +1,16 @@
+// @title GetOJobu API
+// @version 0.1.0
+// @description Job-search and application-assistance platform API.
+// @termsOfService http://example.com/terms/
+// @contact.name API Support
+// @contact.url http://example.com/support
+// @contact.email support@example.com
+// @license.name MIT
+// @license.url https://opensource.org/licenses/MIT
+// @host localhost:8080
+// @BasePath /
+// @schemes http
+
 package main
 
 import (
@@ -10,6 +23,10 @@ import (
 	"github.com/frasnym/getojobu/apps/backend/internal/contract"
 	"github.com/frasnym/getojobu/apps/backend/internal/deliveries/api"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/graceful"
+
+	// Blank import registers the swagger docs instance with swaggo so
+	// httpSwagger.Handler() can read the generated spec.
+	_ "github.com/frasnym/getojobu/apps/backend/docs"
 )
 
 func main() {

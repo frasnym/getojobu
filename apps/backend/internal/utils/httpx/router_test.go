@@ -112,6 +112,45 @@ func TestRouter_EnvelopeHandler_rewrites_405_as_json(t *testing.T) {
 	assert.JSONEq(t, `{"code":"method_not_allowed","message":"method not allowed"}`, w.Body.String(), "expected JSON envelope")
 }
 
+func TestRouter_EnvelopeHandler_passes_through_successful_response(t *testing.T) {
+	// Arrange.
+	rt := New()
+	rt.GET("/v1/static/", func(w http.ResponseWriter, r *http.Request) error {
+		w.Header().Set("Content-Type", "text/html")
+		// Write without calling WriteHeader first, like a static file server.
+		_, _ = w.Write([]byte("<html>ok</html>"))
+		return nil
+	})
+	h := rt.EnvelopeHandler(rt.Mux())
+
+	// Act.
+	req := httptest.NewRequest(http.MethodGet, "/v1/static/index.html", nil)
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, req)
+
+	// Assert: body passes through and status is 200 (not 0).
+	assert.Equal(t, http.StatusOK, w.Code, "expected 200 for successful response")
+	assert.Equal(t, "<html>ok</html>", w.Body.String(), "expected body to pass through")
+}
+
+func TestRouter_trailing_slash_pattern_matches_subpaths(t *testing.T) {
+	// Arrange.
+	rt := New()
+	rt.GET("/swagger/", func(w http.ResponseWriter, r *http.Request) error {
+		_, _ = w.Write([]byte("swagger:" + r.URL.Path))
+		return nil
+	})
+
+	// Act & Assert.
+	for _, path := range []string{"/swagger/doc.json", "/swagger/index.html"} {
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		w := httptest.NewRecorder()
+		rt.Mux().ServeHTTP(w, req)
+		assert.Equal(t, http.StatusOK, w.Code, "expected 200 for %s", path)
+		assert.Equal(t, "swagger:"+path, w.Body.String(), "unexpected body for %s", path)
+	}
+}
+
 func TestRouter_Introspection_lists_registered_routes(t *testing.T) {
 	// Arrange.
 	rt := New()

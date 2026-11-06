@@ -1,0 +1,58 @@
+basePath: /
+host: localhost:8080
+info:
+  contact:
+    email: support@example.com
+    name: API Support
+    url: http://example.com/support
+  description: Job-search and application-assistance platform API.
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  termsOfService: http://example.com/terms/
+  title: GetOJobu API
+  version: 0.1.0
+paths:
+  /health:
+    get:
+      consumes:
+      - application/json
+      description: Returns service status
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Health check
+      tags:
+      - health
+  /ready:
+    get:
+      consumes:
+      - application/json
+      description: Returns 200 when dependencies (database) are reachable, 503 otherwise
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "503":
+          description: Service Unavailable
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Readiness check
+      tags:
+      - health
+schemes:
+- http
+swagger: "2.0"
