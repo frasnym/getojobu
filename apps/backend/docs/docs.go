@@ -46,35 +46,6 @@ const docTemplate = `{
                     }
                 }
             }
-        },
-        "/ready": {
-            "get": {
-                "description": "Returns 200 when dependencies (database) are reachable, 503 otherwise",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "health"
-                ],
-                "summary": "Readiness check",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/handler.StatusResponse"
-                        }
-                    },
-                    "503": {
-                        "description": "Service Unavailable",
-                        "schema": {
-                            "$ref": "#/definitions/handler.StatusResponse"
-                        }
-                    }
-                }
-            }
         }
     },
     "definitions": {

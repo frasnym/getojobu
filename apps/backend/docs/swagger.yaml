@@ -34,25 +34,6 @@ paths:
       summary: Health check
       tags:
       - health
-  /ready:
-    get:
-      consumes:
-      - application/json
-      description: Returns 200 when dependencies (database) are reachable, 503 otherwise
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/handler.StatusResponse'
-        "503":
-          description: Service Unavailable
-          schema:
-            $ref: '#/definitions/handler.StatusResponse'
-      summary: Readiness check
-      tags:
-      - health
 schemes:
 - http
 swagger: "2.0"

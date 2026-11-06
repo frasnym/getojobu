@@ -48,6 +48,13 @@ func NewDB(cfg *config.Config) (DB, graceful.ProcessStopper, error) {
 		return nil, nil, fmt.Errorf("connect to database: %w", err)
 	}
 
+	// Ping eagerly so a misconfigured or unreachable database fails fast at
+	// startup instead of surfacing later through a 503 on the first request.
+	if err := pool.Ping(ctx); err != nil {
+		pool.Close()
+		return nil, nil, fmt.Errorf("ping database: %w", err)
+	}
+
 	stopper := func(ctx context.Context) error {
 		if pool != nil {
 			pool.Close()

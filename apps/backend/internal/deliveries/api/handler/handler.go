@@ -21,5 +21,4 @@ func New(c *contract.Contract) *Handler {
 // Route registers every HTTP route for this handler set.
 func (h *Handler) Route(rt *httpx.Router) {
 	rt.GET("/health", h.Health)
-	rt.GET("/ready", h.Ready)
 }
