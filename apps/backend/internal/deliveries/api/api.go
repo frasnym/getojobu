@@ -9,7 +9,6 @@ import (
 
 	"github.com/frasnym/getojobu/apps/backend/internal/config"
 	"github.com/frasnym/getojobu/apps/backend/internal/contract"
-	"github.com/frasnym/getojobu/apps/backend/internal/contract/common"
 	"github.com/frasnym/getojobu/apps/backend/internal/deliveries/api/handler"
 	"github.com/frasnym/getojobu/apps/backend/internal/deliveries/api/middleware"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/graceful"
@@ -41,16 +40,6 @@ func New(c *contract.Contract) (*API, error) {
 	if cfg == nil {
 		return nil, errors.New("config is required")
 	}
-
-	// Initialize the Neon database pool separately from contract wiring.
-	// common.New returns the pool plus its own stopper, but the stopper is
-	// intentionally not used here — contract.New's stopper closes the DB last
-	// in the shutdown sequence (server stops first, then DB).
-	dbContract, _, err := common.New(cfg)
-	if err != nil {
-		return nil, err
-	}
-	c.Common.DB = dbContract.DB
 
 	// Set up structured logging.
 	logger := logging.New(slog.LevelInfo)
