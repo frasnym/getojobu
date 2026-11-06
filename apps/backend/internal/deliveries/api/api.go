@@ -13,7 +13,7 @@ import (
 	"github.com/frasnym/getojobu/apps/backend/internal/deliveries/api/handler"
 	"github.com/frasnym/getojobu/apps/backend/internal/deliveries/api/middleware"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/graceful"
-	httperf "github.com/frasnym/getojobu/apps/backend/internal/utils/http"
+	"github.com/frasnym/getojobu/apps/backend/internal/utils/httpx"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/logging"
 )
 
@@ -24,7 +24,7 @@ import (
 type API struct {
 	cfg      *config.Config
 	contract *contract.Contract
-	rt       *httperf.Router
+	rt       *httpx.Router
 	server   *http.Server
 }
 
@@ -57,7 +57,7 @@ func New(c *contract.Contract) (*API, error) {
 	slog.SetDefault(logger)
 
 	// Build router and register routes.
-	rt := httperf.New()
+	rt := httpx.New()
 	handler.New(c).Route(rt)
 
 	// Assemble middleware chain: envelope (404/405 → JSON) → mux → logging → request ID → recovery.
@@ -133,7 +133,7 @@ func (a *API) Close() {
 }
 
 // Router returns the registered router for introspection or testing.
-func (a *API) Router() *httperf.Router {
+func (a *API) Router() *httpx.Router {
 	return a.rt
 }
 

@@ -1,4 +1,4 @@
-package http
+package httpx
 
 import (
 	"encoding/json"
@@ -41,13 +41,13 @@ func (b *Base) ExtractPathParam(r *http.Request, name string) string {
 }
 
 // RespondJSON writes v as a JSON response with the given status code.
-// Returns nil so callers can write: return httperf.RespondJSON(w, code, v).
+// Returns nil so callers can write: return RespondJSON(w, code, v).
 func RespondJSON(w http.ResponseWriter, code int, v any) error {
 	return (&Base{}).RespondJSON(w, code, v)
 }
 
 // RespondError writes an *Error as a JSON response.
-// Returns nil so callers can write: return httperf.RespondError(w, err).
+// Returns nil so callers can write: return RespondError(w, err).
 func RespondError(w http.ResponseWriter, err *Error) error {
 	return (&Base{}).RespondError(w, err)
 }
