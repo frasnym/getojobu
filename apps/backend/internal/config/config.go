@@ -3,6 +3,7 @@ package config
 import (
 	"errors"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -14,7 +15,15 @@ type Config struct {
 		WriteTimeout    time.Duration
 		ShutdownTimeout time.Duration
 	}
-	DB DBConfig
+	DB    DBConfig
+	Clerk ClerkConfig
+}
+
+// ClerkConfig holds Clerk authentication settings.
+type ClerkConfig struct {
+	SecretKey         string
+	AuthorizedParties []string
+	WebhookSecret     string
 }
 
 // DBConfig holds database connection settings, populated from DATABASE_URL
@@ -65,6 +74,23 @@ func pgEnv(name string) string {
 	return os.Getenv(name)
 }
 
+// envStringSlice reads name from the environment and splits it by sep,
+// returning an empty slice when unset. Empty entries are trimmed and dropped.
+func envStringSlice(name, sep string) []string {
+	v := os.Getenv(name)
+	if v == "" {
+		return nil
+	}
+	parts := strings.Split(v, sep)
+	result := make([]string, 0, len(parts))
+	for _, p := range parts {
+		if p = strings.TrimSpace(p); p != "" {
+			result = append(result, p)
+		}
+	}
+	return result
+}
+
 // Load reads configuration from the environment and validates it.
 // DATABASE_URL is read as-is; PG* environment variables are stored individually
 // so database.New can construct a connection URL from them when DATABASE_URL is
@@ -85,6 +111,10 @@ func Load() (*Config, error) {
 	cfg.DB.Password = pgEnv("PG_PASSWORD")
 	cfg.DB.SSLMode = pgEnv("PG_SSL_MODE")
 	cfg.DB.ChannelBinding = pgEnv("PG_CHANNEL_BINDING")
+
+	cfg.Clerk.SecretKey = os.Getenv("CLERK_SECRET_KEY")
+	cfg.Clerk.AuthorizedParties = envStringSlice("CLERK_AUTHORIZED_PARTIES", ",")
+	cfg.Clerk.WebhookSecret = os.Getenv("CLERK_WEBHOOK_SECRET")
 
 	return cfg, nil
 }

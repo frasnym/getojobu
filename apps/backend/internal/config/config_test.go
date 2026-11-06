@@ -95,3 +95,37 @@ func TestLoad_database_url_takes_precedence_over_pg_env(t *testing.T) {
 	require.NoError(t, err, "unexpected error")
 	assert.Equal(t, "postgres://explicit:pass@explicit.host:9999/explicitdb?sslmode=disable", cfg.DB.URL, "expected DATABASE_URL to take precedence")
 }
+
+func TestLoad_clerk_config(t *testing.T) {
+	// Arrange.
+	os.Setenv("DATABASE_URL", "postgres://user:pass@localhost:5432/db?sslmode=require")
+	os.Setenv("CLERK_SECRET_KEY", "sk_test_1234567890")
+	os.Setenv("CLERK_AUTHORIZED_PARTIES", "http://localhost:3000, https://app.getojobu.com ,")
+	defer os.Unsetenv("DATABASE_URL")
+	defer os.Unsetenv("CLERK_SECRET_KEY")
+	defer os.Unsetenv("CLERK_AUTHORIZED_PARTIES")
+
+	// Act.
+	cfg, err := Load()
+
+	// Assert.
+	require.NoError(t, err, "unexpected error")
+	assert.Equal(t, "sk_test_1234567890", cfg.Clerk.SecretKey, "expected Clerk secret key")
+	assert.Equal(t, []string{"http://localhost:3000", "https://app.getojobu.com"}, cfg.Clerk.AuthorizedParties, "expected Clerk authorized parties")
+}
+
+func TestLoad_clerk_config_empty_when_unset(t *testing.T) {
+	// Arrange.
+	os.Setenv("DATABASE_URL", "postgres://user:pass@localhost:5432/db?sslmode=require")
+	os.Unsetenv("CLERK_SECRET_KEY")
+	os.Unsetenv("CLERK_AUTHORIZED_PARTIES")
+	defer os.Unsetenv("DATABASE_URL")
+
+	// Act.
+	cfg, err := Load()
+
+	// Assert.
+	require.NoError(t, err, "unexpected error")
+	assert.Empty(t, cfg.Clerk.SecretKey, "expected empty Clerk secret key when unset")
+	assert.Empty(t, cfg.Clerk.AuthorizedParties, "expected empty Clerk authorized parties when unset")
+}

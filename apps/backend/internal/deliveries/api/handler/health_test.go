@@ -7,13 +7,17 @@ import (
 
 	"github.com/frasnym/getojobu/apps/backend/internal/contract"
 	"github.com/frasnym/getojobu/apps/backend/internal/contract/common"
+	contractUsecase "github.com/frasnym/getojobu/apps/backend/internal/contract/usecase"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestHealth_returns_200_with_status_ok(t *testing.T) {
 	// Arrange.
-	h := New(&contract.Contract{Common: &common.Contract{}})
+	h := New(&contract.Contract{
+		Common:  &common.Contract{},
+		Usecase: &contractUsecase.Contract{},
+	})
 	req := httptest.NewRequest(http.MethodGet, "/health", nil)
 	w := httptest.NewRecorder()
 

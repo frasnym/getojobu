@@ -30,9 +30,18 @@ func New() *Router {
 // The method is prefixed to the pattern so ServeMux dispatches on both
 // method and path (method-aware routing, Go 1.22+). Patterns support
 // path wildcards ({name}) as supported by Go 1.22+ ServeMux.
-func (r *Router) Handle(method, pattern string, h HandlerFunc) {
+// Middleware functions are applied in order: the first middleware wraps
+// the handler, the second wraps the result, etc.
+// Usage: rt.GET("/protected", h.HandlerFunc, authMiddleware)
+func (r *Router) Handle(method, pattern string, h HandlerFunc, m ...MiddlewareFunc) {
+	// Apply middleware in reverse so the first listed middleware is outermost.
+	handler := http.Handler(h)
+	for i := len(m) - 1; i >= 0; i-- {
+		handler = m[i](handler)
+	}
+
 	methodPattern := method + " " + pattern
-	r.mux.Handle(methodPattern, h)
+	r.mux.Handle(methodPattern, handler)
 	r.routes = append(r.routes, Route{
 		Method:      method,
 		Pattern:     pattern,
@@ -41,28 +50,33 @@ func (r *Router) Handle(method, pattern string, h HandlerFunc) {
 }
 
 // GET registers a handler for GET method and pattern.
-func (r *Router) GET(pattern string, h HandlerFunc) {
-	r.Handle(http.MethodGet, pattern, h)
+// Middleware functions are applied in order (Echo-style per-route middleware).
+func (r *Router) GET(pattern string, h HandlerFunc, m ...MiddlewareFunc) {
+	r.Handle(http.MethodGet, pattern, h, m...)
 }
 
 // POST registers a handler for POST method and pattern.
-func (r *Router) POST(pattern string, h HandlerFunc) {
-	r.Handle(http.MethodPost, pattern, h)
+// Middleware functions are applied in order (Echo-style per-route middleware).
+func (r *Router) POST(pattern string, h HandlerFunc, m ...MiddlewareFunc) {
+	r.Handle(http.MethodPost, pattern, h, m...)
 }
 
 // PUT registers a handler for PUT method and pattern.
-func (r *Router) PUT(pattern string, h HandlerFunc) {
-	r.Handle(http.MethodPut, pattern, h)
+// Middleware functions are applied in order (Echo-style per-route middleware).
+func (r *Router) PUT(pattern string, h HandlerFunc, m ...MiddlewareFunc) {
+	r.Handle(http.MethodPut, pattern, h, m...)
 }
 
 // PATCH registers a handler for PATCH method and pattern.
-func (r *Router) PATCH(pattern string, h HandlerFunc) {
-	r.Handle(http.MethodPatch, pattern, h)
+// Middleware functions are applied in order (Echo-style per-route middleware).
+func (r *Router) PATCH(pattern string, h HandlerFunc, m ...MiddlewareFunc) {
+	r.Handle(http.MethodPatch, pattern, h, m...)
 }
 
 // DELETE registers a handler for DELETE method and pattern.
-func (r *Router) DELETE(pattern string, h HandlerFunc) {
-	r.Handle(http.MethodDelete, pattern, h)
+// Middleware functions are applied in order (Echo-style per-route middleware).
+func (r *Router) DELETE(pattern string, h HandlerFunc, m ...MiddlewareFunc) {
+	r.Handle(http.MethodDelete, pattern, h, m...)
 }
 
 // Mux returns the underlying ServeMux for server wiring.

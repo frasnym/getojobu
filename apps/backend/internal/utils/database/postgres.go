@@ -11,15 +11,17 @@ import (
 	"github.com/frasnym/getojobu/apps/backend/internal/config"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/graceful"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 // DB is the database connection abstraction. Any provider (Neon, Supabase,
-// self-managed Postgres, ...) that implements Ping and Close can be plugged in
-// without changing the delivery, contract, or repository layers.
+// self-managed Postgres, ...) that implements Ping, Close, and QueryRow can be
+// plugged in without changing the delivery, contract, or repository layers.
 type DB interface {
 	Ping(ctx context.Context) error
 	Close()
+	QueryRow(ctx context.Context, sql string, arguments ...any) pgx.Row
 }
 
 // NewDB creates a connection to a PostgreSQL database using config and returns

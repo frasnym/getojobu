@@ -4,73 +4,21 @@ import (
 	"context"
 	"log/slog"
 	"os"
+
+	"github.com/frasnym/getojobu/apps/backend/internal/utils/ctxval"
 )
-
-// contextKey is an unexported type for context keys to avoid collisions.
-type contextKey int
-
-const (
-	requestIDKey contextKey = iota
-	tenantIDKey
-	workflowIDKey
-)
-
-// WithRequestID returns a context with the given request id stored.
-func WithRequestID(ctx context.Context, reqID string) context.Context {
-	return context.WithValue(ctx, requestIDKey, reqID)
-}
-
-// WithTenantID returns a context with the given tenant id stored.
-func WithTenantID(ctx context.Context, tenantID string) context.Context {
-	return context.WithValue(ctx, tenantIDKey, tenantID)
-}
-
-// WithWorkflowID returns a context with the given workflow id stored.
-func WithWorkflowID(ctx context.Context, workflowID string) context.Context {
-	return context.WithValue(ctx, workflowIDKey, workflowID)
-}
-
-// RequestIDFromContext returns the request id stored in ctx, or "" if none.
-func RequestIDFromContext(ctx context.Context) string {
-	if v := ctx.Value(requestIDKey); v != nil {
-		if s, ok := v.(string); ok {
-			return s
-		}
-	}
-	return ""
-}
-
-// TenantIDFromContext returns the tenant id stored in ctx, or "" if none.
-func TenantIDFromContext(ctx context.Context) string {
-	if v := ctx.Value(tenantIDKey); v != nil {
-		if s, ok := v.(string); ok {
-			return s
-		}
-	}
-	return ""
-}
-
-// WorkflowIDFromContext returns the workflow id stored in ctx, or "" if none.
-func WorkflowIDFromContext(ctx context.Context) string {
-	if v := ctx.Value(workflowIDKey); v != nil {
-		if s, ok := v.(string); ok {
-			return s
-		}
-	}
-	return ""
-}
 
 // FromContext returns a slog.Logger enriched with request, tenant, and workflow ids.
 func FromContext(ctx context.Context) *slog.Logger {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 	attrs := []any{}
-	if reqID := RequestIDFromContext(ctx); reqID != "" {
+	if reqID := ctxval.RequestIDFromContext(ctx); reqID != "" {
 		attrs = append(attrs, "req_id", reqID)
 	}
-	if tenantID := TenantIDFromContext(ctx); tenantID != "" {
+	if tenantID := ctxval.TenantIDFromContext(ctx); tenantID != "" {
 		attrs = append(attrs, "tenant_id", tenantID)
 	}
-	if workflowID := WorkflowIDFromContext(ctx); workflowID != "" {
+	if workflowID := ctxval.WorkflowIDFromContext(ctx); workflowID != "" {
 		attrs = append(attrs, "workflow_id", workflowID)
 	}
 	if len(attrs) > 0 {

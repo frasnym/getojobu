@@ -19,9 +19,9 @@ type Stopper func(context.Context) error
 // mirroring the wiring pattern used by Amartha services (e.g. go-ap-ppob).
 type Contract struct {
 	Cfg        *config.Config
-	Usecase    *usecase.Contract
-	Repository *repository.Contract
 	Common     *common.Contract
+	Repository *repository.Contract
+	Usecase    *usecase.Contract
 }
 
 // New assembles the contract from configuration and initializes the common
@@ -62,6 +62,20 @@ func New(cfg *config.Config) (*Contract, Stopper, error) {
 	}
 	contract.Common = commonContract
 	stoppers = append(stoppers, commonStopper)
+
+	// Initialize the repository layer from the common infrastructure contract.
+	repositoryContract, err := repository.NewRepository(commonContract)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to initialize repository layer: %w", err)
+	}
+	contract.Repository = repositoryContract
+
+	// Initialize the usecase layer from repository contracts.
+	usecaseContract, err := usecase.NewUsecase(repositoryContract)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to initialize usecase layer: %w", err)
+	}
+	contract.Usecase = usecaseContract
 
 	return contract, stopper, nil
 }

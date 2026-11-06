@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/frasnym/getojobu/apps/backend/internal/utils/ctxval"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/logging"
 )
 
@@ -33,7 +34,7 @@ func RequestID(next http.Handler) http.Handler {
 			reqID = generateRequestID()
 		}
 		w.Header().Set("X-Request-Id", reqID)
-		ctx := logging.WithRequestID(r.Context(), reqID)
+		ctx := ctxval.WithRequestID(r.Context(), reqID)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
