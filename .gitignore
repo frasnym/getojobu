@@ -1,1 +1,2 @@
-apps/backend/.env
+apps/backend/config/.env
+*debug*
