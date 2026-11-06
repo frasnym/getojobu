@@ -11,8 +11,8 @@ import (
 // @Tags health
 // @Accept json
 // @Produce json
-// @Success 200 {object} map[string]string
+// @Success 200 {object} StatusResponse
 // @Router /health [get]
 func (h *Handler) Health(w http.ResponseWriter, r *http.Request) error {
-	return httpx.RespondJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+	return httpx.RespondJSON(w, http.StatusOK, StatusResponse{Status: "ok"})
 }

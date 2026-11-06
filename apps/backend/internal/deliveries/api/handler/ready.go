@@ -11,12 +11,12 @@ import (
 // @Tags health
 // @Accept json
 // @Produce json
-// @Success 200 {object} map[string]string
-// @Failure 503 {object} map[string]string
+// @Success 200 {object} StatusResponse
+// @Failure 503 {object} StatusResponse
 // @Router /ready [get]
 func (h *Handler) Ready(w http.ResponseWriter, r *http.Request) error {
 	if err := h.common.Health(r.Context()); err != nil {
-		return httpx.RespondJSON(w, http.StatusServiceUnavailable, map[string]string{"status": "not ready"})
+		return httpx.RespondJSON(w, http.StatusServiceUnavailable, StatusResponse{Status: "not ready"})
 	}
-	return httpx.RespondJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+	return httpx.RespondJSON(w, http.StatusOK, StatusResponse{Status: "ok"})
 }

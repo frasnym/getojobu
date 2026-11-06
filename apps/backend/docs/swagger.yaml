@@ -1,4 +1,10 @@
 basePath: /
+definitions:
+  handler.StatusResponse:
+    properties:
+      status:
+        type: string
+    type: object
 host: localhost:8080
 info:
   contact:
@@ -24,9 +30,7 @@ paths:
         "200":
           description: OK
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/handler.StatusResponse'
       summary: Health check
       tags:
       - health
@@ -41,15 +45,11 @@ paths:
         "200":
           description: OK
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/handler.StatusResponse'
         "503":
           description: Service Unavailable
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/handler.StatusResponse'
       summary: Readiness check
       tags:
       - health
