@@ -40,12 +40,8 @@ vet:
 fmt:
 	$(GO)fmt -w .
 
-# Run the API server (requires DATABASE_URL or PG_* env vars)
+# Run the API server (env vars loaded from .env in this folder)
 run:
-	@if [ -z "$$DATABASE_URL" ] && [ -z "$$PG_HOST" ]; then \
-		echo "ERROR: set DATABASE_URL (or PG_HOST/PG_DATABASE/PG_USER/PG_PASSWORD) before running"; \
-		exit 1; \
-	fi
 	$(GO) run ./cmd/api
 
 # Remove generated docs and build cache
