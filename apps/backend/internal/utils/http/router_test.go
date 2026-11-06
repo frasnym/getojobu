@@ -1,11 +1,10 @@
-package router
+package http
 
 import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
-	httperf "github.com/frasnym/getojobu/apps/backend/internal/utils/http"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -75,10 +74,48 @@ func TestRouter_404_for_unknown_path(t *testing.T) {
 	assert.Equal(t, http.StatusNotFound, w.Code, "expected 404 for unknown path")
 }
 
+func TestRouter_EnvelopeHandler_rewrites_404_as_json(t *testing.T) {
+	// Arrange.
+	rt := New()
+	rt.GET("/v1/health", func(w http.ResponseWriter, r *http.Request) error {
+		w.WriteHeader(http.StatusOK)
+		return nil
+	})
+	h := rt.EnvelopeHandler(rt.Mux())
+
+	// Act.
+	req := httptest.NewRequest(http.MethodGet, "/v1/unknown", nil)
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, req)
+
+	// Assert.
+	assert.Equal(t, http.StatusNotFound, w.Code, "expected 404")
+	assert.JSONEq(t, `{"code":"not_found","message":"route not found"}`, w.Body.String(), "expected JSON envelope")
+}
+
+func TestRouter_EnvelopeHandler_rewrites_405_as_json(t *testing.T) {
+	// Arrange.
+	rt := New()
+	rt.GET("/v1/health", func(w http.ResponseWriter, r *http.Request) error {
+		w.WriteHeader(http.StatusOK)
+		return nil
+	})
+	h := rt.EnvelopeHandler(rt.Mux())
+
+	// Act.
+	req := httptest.NewRequest(http.MethodPost, "/v1/health", nil)
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, req)
+
+	// Assert.
+	assert.Equal(t, http.StatusMethodNotAllowed, w.Code, "expected 405")
+	assert.JSONEq(t, `{"code":"method_not_allowed","message":"method not allowed"}`, w.Body.String(), "expected JSON envelope")
+}
+
 func TestRouter_Introspection_lists_registered_routes(t *testing.T) {
 	// Arrange.
 	rt := New()
-	noop := httperf.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error { return nil })
+	noop := HandlerFunc(func(w http.ResponseWriter, r *http.Request) error { return nil })
 	rt.GET("/v1/health", noop)
 	rt.POST("/v1/health", noop)
 	rt.GET("/v1/jobs", noop)

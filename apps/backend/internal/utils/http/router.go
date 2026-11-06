@@ -1,10 +1,8 @@
-package router
+package http
 
 import (
 	"fmt"
 	"net/http"
-
-	httperf "github.com/frasnym/getojobu/apps/backend/internal/utils/http"
 )
 
 // Route describes a registered route for introspection.
@@ -32,7 +30,7 @@ func New() *Router {
 // The method is prefixed to the pattern so ServeMux dispatches on both
 // method and path (method-aware routing, Go 1.22+). Patterns support
 // path wildcards ({name}) as supported by Go 1.22+ ServeMux.
-func (r *Router) Handle(method, pattern string, h httperf.HandlerFunc) {
+func (r *Router) Handle(method, pattern string, h HandlerFunc) {
 	methodPattern := method + " " + pattern
 	r.mux.Handle(methodPattern, h)
 	r.routes = append(r.routes, Route{
@@ -43,27 +41,27 @@ func (r *Router) Handle(method, pattern string, h httperf.HandlerFunc) {
 }
 
 // GET registers a handler for GET method and pattern.
-func (r *Router) GET(pattern string, h httperf.HandlerFunc) {
+func (r *Router) GET(pattern string, h HandlerFunc) {
 	r.Handle(http.MethodGet, pattern, h)
 }
 
 // POST registers a handler for POST method and pattern.
-func (r *Router) POST(pattern string, h httperf.HandlerFunc) {
+func (r *Router) POST(pattern string, h HandlerFunc) {
 	r.Handle(http.MethodPost, pattern, h)
 }
 
 // PUT registers a handler for PUT method and pattern.
-func (r *Router) PUT(pattern string, h httperf.HandlerFunc) {
+func (r *Router) PUT(pattern string, h HandlerFunc) {
 	r.Handle(http.MethodPut, pattern, h)
 }
 
 // PATCH registers a handler for PATCH method and pattern.
-func (r *Router) PATCH(pattern string, h httperf.HandlerFunc) {
+func (r *Router) PATCH(pattern string, h HandlerFunc) {
 	r.Handle(http.MethodPatch, pattern, h)
 }
 
 // DELETE registers a handler for DELETE method and pattern.
-func (r *Router) DELETE(pattern string, h httperf.HandlerFunc) {
+func (r *Router) DELETE(pattern string, h HandlerFunc) {
 	r.Handle(http.MethodDelete, pattern, h)
 }
 
@@ -86,9 +84,9 @@ func (r *Router) EnvelopeHandler(h http.Handler) http.Handler {
 
 		switch rec.status {
 		case http.StatusNotFound:
-			httperf.Envelope(httperf.CodeNotFound, "route not found", "").WriteJSON(w)
+			Envelope(CodeNotFound, "route not found", "").WriteJSON(w)
 		case http.StatusMethodNotAllowed:
-			httperf.Envelope(httperf.CodeMethodNotAllowed, "method not allowed", "").WriteJSON(w)
+			Envelope(CodeMethodNotAllowed, "method not allowed", "").WriteJSON(w)
 		default:
 			rec.ResponseWriter.WriteHeader(rec.status)
 			if len(rec.buffer) > 0 {
@@ -118,12 +116,6 @@ func (rec *envelopeRecorder) Write(b []byte) (int, error) {
 }
 
 // nameOf returns a best-effort name for a handler, used for route introspection.
-func nameOf(h httperf.HandlerFunc) string {
+func nameOf(h HandlerFunc) string {
 	return fmt.Sprintf("%T", h)
-}
-
-// PathValue extracts the named path parameter from the request,
-// mirroring http.Request.PathValue for patterns with {name} placeholders.
-func PathValue(req *http.Request, name string) string {
-	return req.PathValue(name)
 }

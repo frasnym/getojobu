@@ -3,7 +3,7 @@ package handler
 import (
 	"github.com/frasnym/getojobu/apps/backend/internal/contract"
 	"github.com/frasnym/getojobu/apps/backend/internal/contract/common"
-	"github.com/frasnym/getojobu/apps/backend/internal/deliveries/api/router"
+	httperf "github.com/frasnym/getojobu/apps/backend/internal/utils/http"
 )
 
 // Handler holds shared dependencies for every HTTP handler. Route methods
@@ -19,7 +19,7 @@ func New(c *contract.Contract) *Handler {
 }
 
 // Route registers every HTTP route for this handler set.
-func (h *Handler) Route(rt *router.Router) {
+func (h *Handler) Route(rt *httperf.Router) {
 	rt.GET("/health", h.Health)
 	rt.GET("/ready", h.Ready)
 }
