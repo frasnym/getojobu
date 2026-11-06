@@ -13,7 +13,7 @@ func Recovery(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if rec := recover(); rec != nil {
-				logging.FromContext(r.Context()).Error("http panic recovered", "panic", fmt.Sprint(rec))
+				logging.Error(r.Context(), "http panic recovered", fmt.Errorf("%v", rec))
 				http.Error(w, `{"code":"internal","message":"internal server error"}`, http.StatusInternalServerError)
 			}
 		}()
@@ -46,13 +46,11 @@ func Logging(next http.Handler) http.Handler {
 		next.ServeHTTP(rec, r)
 		latency := time.Since(start)
 
-		logger := logging.FromContext(r.Context())
-		logger.Info("http request",
+		logging.Info(r.Context(), "http request",
 			"method", r.Method,
 			"path", r.URL.Path,
 			"status", rec.status,
 			"latency_ms", latency.Milliseconds(),
-			"req_id", logging.RequestIDFromContext(r.Context()),
 		)
 	})
 }

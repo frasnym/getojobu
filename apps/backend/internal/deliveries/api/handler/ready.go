@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/httpx"
+	"github.com/frasnym/getojobu/apps/backend/internal/utils/logging"
 )
 
 // @Summary Readiness check
@@ -16,6 +17,7 @@ import (
 // @Router /ready [get]
 func (h *Handler) Ready(w http.ResponseWriter, r *http.Request) error {
 	if err := h.common.Health(r.Context()); err != nil {
+		logging.Error(r.Context(), "db health check failed", err)
 		return httpx.RespondJSON(w, http.StatusServiceUnavailable, StatusResponse{Status: "not ready"})
 	}
 	return httpx.RespondJSON(w, http.StatusOK, StatusResponse{Status: "ok"})
