@@ -15,7 +15,6 @@ import (
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/graceful"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/httpx"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/logging"
-	httpSwagger "github.com/swaggo/http-swagger"
 )
 
 // API is the HTTP delivery. It owns the router, middleware chain, and
@@ -60,14 +59,6 @@ func New(c *contract.Contract) (*API, error) {
 	// Build router and register routes.
 	rt := httpx.New()
 	handler.New(c).Route(rt)
-
-	// Swagger UI at /swagger/ (serves docs/swagger.json spec).
-	// Trailing slash acts as a multi-segment wildcard in Go 1.22+ ServeMux,
-	// matching /swagger/, /swagger/index.html, /swagger/doc.json, etc.
-	rt.GET("/swagger/", httpx.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
-		httpSwagger.Handler().ServeHTTP(w, r)
-		return nil
-	}))
 
 	// Assemble middleware chain: envelope (404/405 → JSON) → mux → logging → request ID → recovery.
 	var handlerChain http.Handler = rt.EnvelopeHandler(rt.Mux())
