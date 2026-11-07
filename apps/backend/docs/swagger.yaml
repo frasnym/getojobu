@@ -1,6 +1,6 @@
 basePath: /
 definitions:
-  handler.StatusResponse:
+  webhook.StatusResponse:
     properties:
       status:
         type: string
@@ -30,7 +30,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/handler.StatusResponse'
+            $ref: '#/definitions/webhook.StatusResponse'
       summary: Health check
       tags:
       - health
