@@ -41,7 +41,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/webhook.StatusResponse"
+                            "$ref": "#/definitions/handler.StatusResponse"
                         }
                     }
                 }
@@ -49,7 +49,7 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "webhook.StatusResponse": {
+        "handler.StatusResponse": {
             "type": "object",
             "properties": {
                 "status": {
