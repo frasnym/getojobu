@@ -53,8 +53,9 @@ func (h *handler) Route(rt *httpx.Router) {
 
 	auth := middleware.NewAuthMiddleware(h.cfg, h.userService)
 
-	// Clerk webhook endpoint (no Clerk auth — verified via Svix signature).
-	v1.POST("/webhooks/clerk", h.serveWebhook, auth.ValidClerkSvixSignature)
+	// Clerk webhook under /v1/webhooks group.
+	webhooks := v1.Group("/webhooks")
+	webhooks.POST("/clerk", h.serveWebhook, auth.ValidClerkSvixSignature)
 }
 
 // serveWebhook dispatches the Clerk webhook event. Svix signature verification
