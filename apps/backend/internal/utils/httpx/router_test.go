@@ -203,3 +203,36 @@ func TestRouter_Group_prefixes_patterns(t *testing.T) {
 	assert.Equal(t, "/v1/health", routes[0].Pattern, "introspected pattern should include group prefix")
 	assert.Equal(t, "/v1/webhooks/clerk", routes[1].Pattern, "introspected pattern should include group prefix")
 }
+
+func TestRouter_NestedGroup_compounds_prefixes(t *testing.T) {
+	// Arrange.
+	rt := New()
+	v1 := rt.Group("/v1")
+	webhooks := v1.Group("/webhooks")
+	noop := HandlerFunc(func(w http.ResponseWriter, r *http.Request) error { return nil })
+	webhooks.POST("/clerk", noop)
+
+	// Act: dispatch through the shared mux.
+	req := httptest.NewRequest(http.MethodPost, "/v1/webhooks/clerk", nil)
+	w := httptest.NewRecorder()
+	rt.Mux().ServeHTTP(w, req)
+
+	// Parent-only and unprefixed paths must not match.
+	parentReq := httptest.NewRequest(http.MethodPost, "/v1/clerk", nil)
+	parentW := httptest.NewRecorder()
+	rt.Mux().ServeHTTP(parentW, parentReq)
+
+	rawReq := httptest.NewRequest(http.MethodPost, "/webhooks/clerk", nil)
+	rawW := httptest.NewRecorder()
+	rt.Mux().ServeHTTP(rawW, rawReq)
+
+	// Assert.
+	assert.Equal(t, http.StatusOK, w.Code, "POST /v1/webhooks/clerk via nested group")
+	assert.Equal(t, http.StatusNotFound, parentW.Code, "POST /v1/clerk should be 404 (missing webhooks segment)")
+	assert.Equal(t, http.StatusNotFound, rawW.Code, "POST /webhooks/clerk unprefixed should be 404")
+
+	// Introspection should reflect compounded prefix.
+	routes := rt.Routes()
+	require.Len(t, routes, 1, "expected 1 introspected route")
+	assert.Equal(t, "/v1/webhooks/clerk", routes[0].Pattern, "introspected pattern should include compounded prefixes")
+}
