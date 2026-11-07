@@ -7,45 +7,37 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/frasnym/getojobu/apps/backend/internal/config"
+	"github.com/frasnym/getojobu/apps/backend/internal/contract"
+	"github.com/frasnym/getojobu/apps/backend/internal/deliveries/api/middleware"
 	"github.com/frasnym/getojobu/apps/backend/internal/models"
 	ucUsers "github.com/frasnym/getojobu/apps/backend/internal/usecase/users"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/httpx"
 )
 
-// clerkWebhookEvent is the payload of a Clerk webhook event.
-type clerkWebhookEvent struct {
-	Type string `json:"type"`
-	Data struct {
-		ID                    string `json:"id"`
-		PrimaryEmailAddressID string `json:"primary_email_address_id"`
-		DeletedAt             string `json:"deleted_at"`
-		EmailAddresses        []struct {
-			ID           string `json:"id"`
-			EmailAddress string `json:"email_address"`
-		} `json:"email_addresses"`
-		FirstName string `json:"first_name"`
-		LastName  string `json:"last_name"`
-	} `json:"data"`
-}
-
-// StatusResponse is the body returned by webhook endpoints.
-type StatusResponse struct {
-	Status string `json:"status"`
-}
-
-// Handler handles Clerk webhook events.
-type Handler struct {
+// handler handles Clerk webhook events.
+type handler struct {
+	cfg         *config.Config
 	userService ucUsers.User
 }
 
-// NewHandler constructs a Clerk webhook handler.
-func NewHandler(userService ucUsers.User) *Handler {
-	return &Handler{userService: userService}
+// NewHandler constructs a Clerk webhook handler from the full contract.
+func NewHandler(c *contract.Contract) *handler {
+	return &handler{
+		cfg:         c.Cfg,
+		userService: c.Usecase.User,
+	}
 }
 
-// ServeWebhook dispatches the Clerk webhook event. Svix signature verification
+// Route registers the webhook routes under the given group.
+func (h *handler) Route(g *httpx.Router) {
+	auth := middleware.NewAuthMiddleware(h.cfg, h.userService)
+	g.POST("/clerk", h.serveWebhook, auth.ValidClerkSvixSignature)
+}
+
+// serveWebhook dispatches the Clerk webhook event. Svix signature verification
 // is done by middleware before this handler runs.
-func (h *Handler) ServeWebhook(w http.ResponseWriter, r *http.Request) error {
+func (h *handler) serveWebhook(w http.ResponseWriter, r *http.Request) error {
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		return httpx.Envelope(httpx.CodeInvalidRequest, "failed to read body", "")
@@ -68,7 +60,7 @@ func (h *Handler) ServeWebhook(w http.ResponseWriter, r *http.Request) error {
 	}
 }
 
-func (h *Handler) handleUserCreated(w http.ResponseWriter, ctx context.Context, event clerkWebhookEvent) error {
+func (h *handler) handleUserCreated(w http.ResponseWriter, ctx context.Context, event clerkWebhookEvent) error {
 	email, fullName := extractEmailAndName(event)
 
 	if _, err := h.userService.Create(ctx, event.Data.ID, email, fullName, models.RoleUser); err != nil {
@@ -78,7 +70,7 @@ func (h *Handler) handleUserCreated(w http.ResponseWriter, ctx context.Context, 
 	return httpx.RespondJSON(w, http.StatusOK, StatusResponse{Status: "created"})
 }
 
-func (h *Handler) handleUserUpdated(w http.ResponseWriter, ctx context.Context, event clerkWebhookEvent) error {
+func (h *handler) handleUserUpdated(w http.ResponseWriter, ctx context.Context, event clerkWebhookEvent) error {
 	email, fullName := extractEmailAndName(event)
 
 	if _, err := h.userService.Update(ctx, event.Data.ID, email, fullName); err != nil {
@@ -88,7 +80,7 @@ func (h *Handler) handleUserUpdated(w http.ResponseWriter, ctx context.Context, 
 	return httpx.RespondJSON(w, http.StatusOK, StatusResponse{Status: "updated"})
 }
 
-func (h *Handler) handleUserDeleted(w http.ResponseWriter, ctx context.Context, event clerkWebhookEvent) error {
+func (h *handler) handleUserDeleted(w http.ResponseWriter, ctx context.Context, event clerkWebhookEvent) error {
 	if _, err := h.userService.SoftDelete(ctx, event.Data.ID); err != nil {
 		return httpx.Envelope(httpx.CodeInternal, "failed to delete user", "")
 	}

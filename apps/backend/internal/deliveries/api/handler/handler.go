@@ -3,11 +3,8 @@ package handler
 import (
 	"net/http"
 
-	"github.com/frasnym/getojobu/apps/backend/internal/config"
 	"github.com/frasnym/getojobu/apps/backend/internal/contract"
 	"github.com/frasnym/getojobu/apps/backend/internal/deliveries/api/handler/webhook"
-	"github.com/frasnym/getojobu/apps/backend/internal/deliveries/api/middleware"
-	ucUsers "github.com/frasnym/getojobu/apps/backend/internal/usecase/users"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/httpx"
 	httpSwagger "github.com/swaggo/http-swagger"
 )
@@ -16,17 +13,13 @@ import (
 // have the signature func(http.ResponseWriter, *http.Request) error, so a
 // handler can return an error instead of writing a response inline.
 type handler struct {
-	cfg         *config.Config
-	userService ucUsers.User
+	contract *contract.Contract
 }
 
 // New wires the handler set from the contract. contract.New guarantees Cfg,
 // Common, Repository, and Usecase are non-nil, so they are used directly.
 func New(c *contract.Contract) *handler {
-	return &handler{
-		cfg:         c.Cfg,
-		userService: c.Usecase.User,
-	}
+	return &handler{contract: c}
 }
 
 // Route registers every HTTP route for this handler set.
@@ -47,10 +40,6 @@ func (h *handler) Route(rt *httpx.Router) {
 		return nil
 	}))
 
-	auth := middleware.NewAuthMiddleware(h.cfg, h.userService)
-
 	// Clerk webhook under /v1/webhooks group.
-	webhooks := v1.Group("/webhooks")
-	wh := webhook.NewHandler(h.userService)
-	webhooks.POST("/clerk", wh.ServeWebhook, auth.ValidClerkSvixSignature)
+	webhook.NewHandler(h.contract).Route(v1.Group("/webhooks"))
 }
