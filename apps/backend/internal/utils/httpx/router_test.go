@@ -169,3 +169,37 @@ func TestRouter_Introspection_lists_registered_routes(t *testing.T) {
 	assert.Equal(t, http.MethodPost, routes[1].Method, "unexpected second route method")
 	assert.Equal(t, "/v1/health", routes[1].Pattern, "unexpected second route pattern")
 }
+
+func TestRouter_Group_prefixes_patterns(t *testing.T) {
+	// Arrange.
+	rt := New()
+	v1 := rt.Group("/v1")
+	noop := HandlerFunc(func(w http.ResponseWriter, r *http.Request) error { return nil })
+	v1.GET("/health", noop)
+	v1.POST("/webhooks/clerk", noop)
+
+	// Act: dispatch through the shared mux.
+	getReq := httptest.NewRequest(http.MethodGet, "/v1/health", nil)
+	getW := httptest.NewRecorder()
+	rt.Mux().ServeHTTP(getW, getReq)
+
+	postReq := httptest.NewRequest(http.MethodPost, "/v1/webhooks/clerk", nil)
+	postW := httptest.NewRecorder()
+	rt.Mux().ServeHTTP(postW, postReq)
+
+	// Unprefixed path must not match.
+	rawReq := httptest.NewRequest(http.MethodGet, "/health", nil)
+	rawW := httptest.NewRecorder()
+	rt.Mux().ServeHTTP(rawW, rawReq)
+
+	// Assert.
+	assert.Equal(t, http.StatusOK, getW.Code, "GET /v1/health via group")
+	assert.Equal(t, http.StatusOK, postW.Code, "POST /v1/webhooks/clerk via group")
+	assert.Equal(t, http.StatusNotFound, rawW.Code, "GET /health unprefixed should be 404")
+
+	// Introspection should reflect the prefixed patterns.
+	routes := rt.Routes()
+	require.Len(t, routes, 2, "expected 2 introspected routes")
+	assert.Equal(t, "/v1/health", routes[0].Pattern, "introspected pattern should include group prefix")
+	assert.Equal(t, "/v1/webhooks/clerk", routes[1].Pattern, "introspected pattern should include group prefix")
+}

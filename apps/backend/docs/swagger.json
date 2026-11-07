@@ -21,7 +21,7 @@
     "host": "localhost:8080",
     "basePath": "/",
     "paths": {
-        "/health": {
+        "/v1/health": {
             "get": {
                 "description": "Returns service status",
                 "consumes": [

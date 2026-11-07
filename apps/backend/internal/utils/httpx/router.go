@@ -16,13 +16,31 @@ type Route struct {
 // and route introspection.
 type Router struct {
 	mux    *http.ServeMux
-	routes []Route
+	routes *[]Route
+	prefix string
 }
 
 // New constructs a Router backed by a method-aware http.ServeMux.
 func New() *Router {
+	routes := []Route{}
 	return &Router{
-		mux: http.NewServeMux(),
+		mux:    http.NewServeMux(),
+		routes: &routes,
+	}
+}
+
+// Group returns a new Router that shares the underlying mux and route
+// registry. Every pattern registered through the group is prefixed with
+// prefix, so related routes can be grouped without repeating the prefix:
+//
+//	v1 := rt.Group("/v1")
+//	v1.GET("/health", h.Health)
+//	v1.POST("/webhooks/clerk", h.Webhook, authMiddleware)
+func (r *Router) Group(prefix string) *Router {
+	return &Router{
+		mux:    r.mux,
+		routes: r.routes,
+		prefix: prefix,
 	}
 }
 
@@ -40,11 +58,11 @@ func (r *Router) Handle(method, pattern string, h HandlerFunc, m ...MiddlewareFu
 		handler = m[i](handler)
 	}
 
-	methodPattern := method + " " + pattern
+	methodPattern := method + " " + r.prefix + pattern
 	r.mux.Handle(methodPattern, handler)
-	r.routes = append(r.routes, Route{
+	*r.routes = append(*r.routes, Route{
 		Method:      method,
-		Pattern:     pattern,
+		Pattern:     r.prefix + pattern,
 		HandlerName: nameOf(h),
 	})
 }
@@ -86,7 +104,7 @@ func (r *Router) Mux() *http.ServeMux {
 
 // Routes returns all registered routes for introspection.
 func (r *Router) Routes() []Route {
-	return append([]Route(nil), r.routes...)
+	return append([]Route(nil), *r.routes...)
 }
 
 // EnvelopeHandler wraps h so that ServeMux's 404 and 405 responses are

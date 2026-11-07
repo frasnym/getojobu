@@ -19,7 +19,7 @@ info:
   title: GetOJobu API
   version: 0.1.0
 paths:
-  /health:
+  /v1/health:
     get:
       consumes:
       - application/json

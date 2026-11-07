@@ -38,12 +38,15 @@ func New(c *contract.Contract) *handler {
 // not as a global middleware chain.
 // Usage: rt.GET("/protected", h.ProtectedHandler, auth.ValidClerkSession)
 func (h *handler) Route(rt *httpx.Router) {
-	rt.GET("/health", h.Health)
+	// All API routes are grouped under /v1/.
+	v1 := rt.Group("/v1")
 
-	// Swagger UI at /swagger/ (serves docs/swagger.json spec).
+	v1.GET("/health", h.Health)
+
+	// Swagger UI at /v1/swagger/ (serves docs/swagger.json spec).
 	// Trailing slash acts as a multi-segment wildcard in Go 1.22+ ServeMux,
-	// matching /swagger/, /swagger/index.html, /swagger/doc.json, etc.
-	rt.GET("/swagger/", httpx.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
+	// matching /v1/swagger/, /v1/swagger/index.html, /v1/swagger/doc.json, etc.
+	v1.GET("/swagger/", httpx.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
 		httpSwagger.Handler().ServeHTTP(w, r)
 		return nil
 	}))
@@ -51,7 +54,7 @@ func (h *handler) Route(rt *httpx.Router) {
 	auth := middleware.NewAuthMiddleware(h.cfg, h.userService)
 
 	// Clerk webhook endpoint (no Clerk auth — verified via Svix signature).
-	rt.POST("/webhooks/clerk", h.serveWebhook, auth.ValidClerkSvixSignature)
+	v1.POST("/webhooks/clerk", h.serveWebhook, auth.ValidClerkSvixSignature)
 }
 
 // serveWebhook dispatches the Clerk webhook event. Svix signature verification
