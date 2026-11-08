@@ -46,10 +46,41 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/v1/webhooks/clerk": {
+            "post": {
+                "description": "Receives Clerk user lifecycle events (created, updated, deleted)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "webhook"
+                ],
+                "summary": "Clerk webhook",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/webhook.StatusResponse"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
         "handler.StatusResponse": {
+            "type": "object",
+            "properties": {
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "webhook.StatusResponse": {
             "type": "object",
             "properties": {
                 "status": {

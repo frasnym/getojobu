@@ -35,6 +35,13 @@ func (h *handler) Route(g *httpx.Router) {
 	g.POST("/clerk", h.serveWebhook, auth.ValidClerkSvixSignature)
 }
 
+// @Summary Clerk webhook
+// @Description Receives Clerk user lifecycle events (created, updated, deleted)
+// @Tags webhook
+// @Accept json
+// @Produce json
+// @Success 200 {object} webhook.StatusResponse
+// @Router /v1/webhooks/clerk [post]
 // serveWebhook dispatches the Clerk webhook event. Svix signature verification
 // is done by middleware before this handler runs.
 func (h *handler) serveWebhook(w http.ResponseWriter, r *http.Request) error {

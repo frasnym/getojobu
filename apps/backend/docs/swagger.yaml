@@ -5,6 +5,11 @@ definitions:
       status:
         type: string
     type: object
+  webhook.StatusResponse:
+    properties:
+      status:
+        type: string
+    type: object
 host: localhost:8080
 info:
   contact:
@@ -34,6 +39,21 @@ paths:
       summary: Health check
       tags:
       - health
+  /v1/webhooks/clerk:
+    post:
+      consumes:
+      - application/json
+      description: Receives Clerk user lifecycle events (created, updated, deleted)
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/webhook.StatusResponse'
+      summary: Clerk webhook
+      tags:
+      - webhook
 schemes:
 - http
 swagger: "2.0"
