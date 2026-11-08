@@ -40,6 +40,9 @@ func (h *handler) Route(g *httpx.Router) {
 // @Tags webhook
 // @Accept json
 // @Produce json
+// @Param svix-signature header string true "Svix signature header"
+// @Param svix-timestamp header string true "Svix timestamp header"
+// @Param svix-id header string true "Svix message ID header"
 // @Success 200 {object} webhook.StatusResponse
 // @Router /v1/webhooks/clerk [post]
 // serveWebhook dispatches the Clerk webhook event. Svix signature verification

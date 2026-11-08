@@ -44,6 +44,22 @@ paths:
       consumes:
       - application/json
       description: Receives Clerk user lifecycle events (created, updated, deleted)
+      parameters:
+      - description: Svix signature header
+        in: header
+        name: svix-signature
+        required: true
+        type: string
+      - description: Svix timestamp header
+        in: header
+        name: svix-timestamp
+        required: true
+        type: string
+      - description: Svix message ID header
+        in: header
+        name: svix-id
+        required: true
+        type: string
       produces:
       - application/json
       responses:

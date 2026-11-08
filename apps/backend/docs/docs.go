@@ -60,6 +60,29 @@ const docTemplate = `{
                     "webhook"
                 ],
                 "summary": "Clerk webhook",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Svix signature header",
+                        "name": "svix-signature",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Svix timestamp header",
+                        "name": "svix-timestamp",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Svix message ID header",
+                        "name": "svix-id",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
