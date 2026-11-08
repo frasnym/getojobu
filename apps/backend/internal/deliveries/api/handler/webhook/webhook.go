@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"io"
-	"log/slog"
 	"net/http"
 	"strings"
 
@@ -14,6 +13,7 @@ import (
 	"github.com/frasnym/getojobu/apps/backend/internal/models"
 	ucUsers "github.com/frasnym/getojobu/apps/backend/internal/usecase/users"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/httpx"
+	"github.com/frasnym/getojobu/apps/backend/internal/utils/logging"
 )
 
 // handler handles Clerk webhook events.
@@ -49,35 +49,48 @@ func (h *handler) Route(g *httpx.Router) {
 // serveWebhook dispatches the Clerk webhook event. Svix signature verification
 // is done by middleware before this handler runs.
 func (h *handler) serveWebhook(w http.ResponseWriter, r *http.Request) error {
+	ctx := r.Context()
+
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		slog.Error("webhook: failed to read body", "error", err)
+		logging.Error(ctx, "webhook: failed to read body", err)
 		return httpx.Envelope(httpx.CodeInvalidRequest, "failed to read body", "")
 	}
 
 	var event clerkWebhookEvent
 	if err := json.Unmarshal(body, &event); err != nil {
-		slog.Error("webhook: invalid payload", "error", err)
+		logging.Error(ctx, "webhook: invalid payload", err)
 		return httpx.Envelope(httpx.CodeInvalidRequest, "invalid webhook payload", "")
 	}
 
 	switch event.Type {
 	case "user.created":
-		return h.handleUserCreated(w, r.Context(), event)
+		if err := h.handleUserCreated(w, ctx, event); err != nil {
+			logging.Error(ctx, "webhook: user.created handler failed", err)
+			return err
+		}
 	case "user.updated":
-		return h.handleUserUpdated(w, r.Context(), event)
+		if err := h.handleUserUpdated(w, ctx, event); err != nil {
+			logging.Error(ctx, "webhook: user.updated handler failed", err)
+			return err
+		}
 	case "user.deleted":
-		return h.handleUserDeleted(w, r.Context(), event)
+		if err := h.handleUserDeleted(w, ctx, event); err != nil {
+			logging.Error(ctx, "webhook: user.deleted handler failed", err)
+			return err
+		}
 	default:
 		return httpx.RespondJSON(w, http.StatusOK, StatusResponse{Status: "unhandled"})
 	}
+
+	return nil
 }
 
 func (h *handler) handleUserCreated(w http.ResponseWriter, ctx context.Context, event clerkWebhookEvent) error {
 	email, fullName := extractEmailAndName(event)
 
 	if _, err := h.userService.Create(ctx, event.Data.ID, email, fullName, models.RoleUser); err != nil {
-		slog.Error("webhook: failed to create user", "clerkUserID", event.Data.ID, "error", err)
+		logging.Error(ctx, "webhook: failed to create user", err, "clerkUserID", event.Data.ID)
 		return httpx.Envelope(httpx.CodeInternal, "failed to create user", "")
 	}
 
@@ -88,7 +101,7 @@ func (h *handler) handleUserUpdated(w http.ResponseWriter, ctx context.Context, 
 	email, fullName := extractEmailAndName(event)
 
 	if _, err := h.userService.Update(ctx, event.Data.ID, email, fullName); err != nil {
-		slog.Error("webhook: failed to update user", "clerkUserID", event.Data.ID, "error", err)
+		logging.Error(ctx, "webhook: failed to update user", err, "clerkUserID", event.Data.ID)
 		return httpx.Envelope(httpx.CodeInternal, "failed to update user", "")
 	}
 
@@ -97,7 +110,7 @@ func (h *handler) handleUserUpdated(w http.ResponseWriter, ctx context.Context, 
 
 func (h *handler) handleUserDeleted(w http.ResponseWriter, ctx context.Context, event clerkWebhookEvent) error {
 	if _, err := h.userService.SoftDelete(ctx, event.Data.ID); err != nil {
-		slog.Error("webhook: failed to delete user", "clerkUserID", event.Data.ID, "error", err)
+		logging.Error(ctx, "webhook: failed to delete user", err, "clerkUserID", event.Data.ID)
 		return httpx.Envelope(httpx.CodeInternal, "failed to delete user", "")
 	}
 

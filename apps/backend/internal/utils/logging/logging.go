@@ -33,11 +33,13 @@ func New(level slog.Level) *slog.Logger {
 }
 
 // Error logs msg enriched with request/tenant/workflow context from ctx,
-// attaching the error under the "error" key. It is the single point handlers
-// should call to log failures, so swapping the underlying logging library
-// only requires changing this package.
-func Error(ctx context.Context, msg string, err error) {
-	FromContext(ctx).Error(msg, "error", err)
+// attaching the error under the "error" key. Additional key-value pairs can
+// be passed as args. It is the single point handlers should call to log
+// failures, so swapping the underlying logging library only requires changing
+// this package.
+func Error(ctx context.Context, msg string, err error, args ...any) {
+	allArgs := append([]any{"error", err}, args...)
+	FromContext(ctx).Error(msg, allArgs...)
 }
 
 // Info logs msg enriched with request/tenant/workflow context from ctx,

@@ -2,12 +2,12 @@ package middleware
 
 import (
 	"bytes"
+	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/base64"
 	"errors"
 	"io"
-	"log/slog"
 	"net/http"
 	"strings"
 
@@ -16,6 +16,7 @@ import (
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/constants"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/ctxval"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/httpx"
+	"github.com/frasnym/getojobu/apps/backend/internal/utils/logging"
 )
 
 // ValidClerkSvixSignature verifies Clerk webhook signatures using the Svix
@@ -26,12 +27,12 @@ func (a *authMiddleware) ValidClerkSvixSignature(next http.Handler) http.Handler
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		body, err := io.ReadAll(r.Body)
 		if err != nil {
-			slog.Error("failed to read request body", err)
+			logging.Error(r.Context(), "failed to read request body", err)
 			httpx.Envelope(httpx.CodeInvalidRequest, "failed to read body", "").WriteJSON(w)
 			return
 		}
 
-		if !verifySvixSignature(a.cfg.Clerk.WebhookSecret, r.Header, body) {
+		if !verifySvixSignature(r.Context(), a.cfg.Clerk.WebhookSecret, r.Header, body) {
 			httpx.Envelope(httpx.CodeUnauthorized, "invalid webhook signature", "").WriteJSON(w)
 			return
 		}
@@ -107,13 +108,13 @@ func (a *authMiddleware) isAuthorized(azp string) bool {
 // Message to sign: svix-id + "." + svix-timestamp + "." + raw_body
 // The signing key is the Svix secret with the "whsec_" prefix stripped and the
 // remainder base64-decoded (matching the official svix library behavior).
-func verifySvixSignature(webhookSecret string, header http.Header, body []byte) bool {
+func verifySvixSignature(ctx context.Context, webhookSecret string, header http.Header, body []byte) bool {
 	signature := header.Get("svix-signature")
 	timestamp := header.Get("svix-timestamp")
 	id := header.Get("svix-id")
 
 	if signature == "" || timestamp == "" || id == "" {
-		slog.Warn("webhook signature missing headers",
+		logging.Warn(ctx, "webhook signature missing headers",
 			"hasSignature", signature != "",
 			"hasTimestamp", timestamp != "",
 			"hasID", id != "")
@@ -122,7 +123,7 @@ func verifySvixSignature(webhookSecret string, header http.Header, body []byte) 
 
 	parts := strings.SplitN(signature, ",", 2)
 	if len(parts) != 2 || parts[0] != "v1" {
-		slog.Warn("webhook signature invalid format",
+		logging.Warn(ctx, "webhook signature invalid format",
 			"prefix", parts[0],
 			"partsCount", len(parts))
 		return false
@@ -130,7 +131,7 @@ func verifySvixSignature(webhookSecret string, header http.Header, body []byte) 
 
 	expectedMAC, err := base64.StdEncoding.DecodeString(parts[1])
 	if err != nil {
-		slog.Error("webhook signature base64 decode failed", err)
+		logging.Error(ctx, "webhook signature base64 decode failed", err)
 		return false
 	}
 
@@ -138,7 +139,7 @@ func verifySvixSignature(webhookSecret string, header http.Header, body []byte) 
 	// remainder, not the raw secret string.
 	key, err := svixSigningKey(webhookSecret)
 	if err != nil {
-		slog.Error("webhook secret decode failed", err)
+		logging.Error(ctx, "webhook secret decode failed", err)
 		return false
 	}
 
@@ -147,11 +148,10 @@ func verifySvixSignature(webhookSecret string, header http.Header, body []byte) 
 
 	isEqual := hmac.Equal(expectedMAC, computedMAC)
 	if !isEqual {
-		slog.Warn("webhook signature mismatch",
+		logging.Warn(ctx, "webhook signature mismatch",
 			"expectedMAC", base64.StdEncoding.EncodeToString(expectedMAC),
 			"computedMAC", base64.StdEncoding.EncodeToString(computedMAC))
 	}
-
 	return isEqual
 }
 
