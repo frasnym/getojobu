@@ -40,7 +40,7 @@ func (r *Router) Group(prefix string) *Router {
 	return &Router{
 		mux:    r.mux,
 		routes: r.routes,
-		prefix: prefix,
+		prefix: r.prefix + prefix,
 	}
 }
 

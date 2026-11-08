@@ -1,4 +1,4 @@
-package handler
+package webhook
 
 // clerkWebhookEvent is the payload of a Clerk webhook event.
 type clerkWebhookEvent struct {
