@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"io"
+	"log/slog"
 	"net/http"
 	"strings"
 
@@ -25,6 +26,7 @@ func (a *authMiddleware) ValidClerkSvixSignature(next http.Handler) http.Handler
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		body, err := io.ReadAll(r.Body)
 		if err != nil {
+			slog.Error("failed to read request body", err)
 			httpx.Envelope(httpx.CodeInvalidRequest, "failed to read body", "").WriteJSON(w)
 			return
 		}
@@ -103,29 +105,66 @@ func (a *authMiddleware) isAuthorized(azp string) bool {
 // verifySvixSignature validates the Svix signature header against the raw body.
 // svix-signature header format: v1,<base64_hmac>
 // Message to sign: svix-id + "." + svix-timestamp + "." + raw_body
+// The signing key is the Svix secret with the "whsec_" prefix stripped and the
+// remainder base64-decoded (matching the official svix library behavior).
 func verifySvixSignature(webhookSecret string, header http.Header, body []byte) bool {
 	signature := header.Get("svix-signature")
 	timestamp := header.Get("svix-timestamp")
 	id := header.Get("svix-id")
 
 	if signature == "" || timestamp == "" || id == "" {
+		slog.Warn("webhook signature missing headers",
+			"hasSignature", signature != "",
+			"hasTimestamp", timestamp != "",
+			"hasID", id != "")
 		return false
 	}
 
 	parts := strings.SplitN(signature, ",", 2)
 	if len(parts) != 2 || parts[0] != "v1" {
+		slog.Warn("webhook signature invalid format",
+			"prefix", parts[0],
+			"partsCount", len(parts))
 		return false
 	}
 
 	expectedMAC, err := base64.StdEncoding.DecodeString(parts[1])
 	if err != nil {
+		slog.Error("webhook signature base64 decode failed", err)
+		return false
+	}
+
+	// Svix secrets are "whsec_<base64>"; the HMAC key is the base64-decoded
+	// remainder, not the raw secret string.
+	key, err := svixSigningKey(webhookSecret)
+	if err != nil {
+		slog.Error("webhook secret decode failed", err)
 		return false
 	}
 
 	message := id + "." + timestamp + "." + string(body)
-	computedMAC := hmacSha256([]byte(webhookSecret), []byte(message))
+	computedMAC := hmacSha256(key, []byte(message))
 
-	return hmac.Equal(expectedMAC, computedMAC)
+	isEqual := hmac.Equal(expectedMAC, computedMAC)
+	if !isEqual {
+		slog.Warn("webhook signature mismatch",
+			"expectedMAC", base64.StdEncoding.EncodeToString(expectedMAC),
+			"computedMAC", base64.StdEncoding.EncodeToString(computedMAC))
+	}
+
+	return isEqual
+}
+
+// svixSigningKey derives the raw HMAC key from a Svix webhook secret.
+// The secret is formatted as "whsec_<base64>"; the key is the base64-decoded
+// remainder. A secret without the prefix is used as-is for flexibility.
+func svixSigningKey(secret string) ([]byte, error) {
+	encoded := strings.TrimPrefix(secret, "whsec_")
+	key, err := base64.StdEncoding.DecodeString(encoded)
+	if err != nil {
+		return nil, err
+	}
+	return key, nil
 }
 
 func hmacSha256(key, data []byte) []byte {
