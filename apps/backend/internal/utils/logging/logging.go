@@ -59,3 +59,10 @@ func Warn(ctx context.Context, msg string, args ...any) {
 func Debug(ctx context.Context, msg string, args ...any) {
 	FromContext(ctx).Debug(msg, args...)
 }
+
+// SetDefault sets the given logger as the default slog logger for the process.
+// Used once at startup; after this, callers should use this package instead of
+// slog directly.
+func SetDefault(logger *slog.Logger) {
+	slog.SetDefault(logger)
+}

@@ -3,7 +3,6 @@ package api
 import (
 	"context"
 	"errors"
-	"log/slog"
 	"net/http"
 	"time"
 
@@ -42,7 +41,7 @@ func New(c *contract.Contract) (*API, error) {
 
 	// Set up structured logging.
 	logger := logging.New(cfg.Log.Level)
-	slog.SetDefault(logger)
+	logging.SetDefault(logger)
 
 	// Build router and register routes.
 	rt := httpx.New()
@@ -77,9 +76,9 @@ func New(c *contract.Contract) (*API, error) {
 // contract.New's stopper, which runs after the server stopper.
 func (a *API) StartApi() (func() error, graceful.ProcessStopper) {
 	starter := func() error {
-		slog.Info("api starting", "addr", a.cfg.Server.Addr)
+		logging.Info(context.Background(), "api starting", "addr", a.cfg.Server.Addr)
 		if err := a.server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			slog.Error("server stopped unexpectedly", "error", err)
+			logging.Error(context.Background(), "server stopped unexpectedly", err)
 			return err
 		}
 		return nil
@@ -94,10 +93,10 @@ func (a *API) StartApi() (func() error, graceful.ProcessStopper) {
 		}
 		graceful.MarkShuttingDown()
 		if err := a.server.Shutdown(ctx); err != nil {
-			slog.Error("server shutdown failed", "error", err)
+			logging.Error(ctx, "server shutdown failed", err)
 			return err
 		}
-		slog.Info("server stopped")
+		logging.Info(ctx, "server stopped")
 		return nil
 	})
 

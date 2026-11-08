@@ -2,12 +2,13 @@ package graceful
 
 import (
 	"context"
-	"log/slog"
 	"os"
 	"os/signal"
 	"sync/atomic"
 	"syscall"
 	"time"
+
+	"github.com/frasnym/getojobu/apps/backend/internal/utils/logging"
 )
 
 // defaultStopTimeout bounds the teardown when the caller passes no budget of its
@@ -81,10 +82,10 @@ func WaitForShutdownSignal(ctx context.Context, starterErr <-chan error) error {
 
 	select {
 	case sig := <-ch:
-		slog.WarnContext(ctx, "received signal, starting graceful shutdown", "signal", sig)
+		logging.Warn(ctx, "received signal, starting graceful shutdown", "signal", sig)
 		return nil
 	case err := <-starterErr:
-		slog.ErrorContext(ctx, "starter failed, starting graceful shutdown", "error", err)
+		logging.Error(ctx, "starter failed, starting graceful shutdown", err)
 		return err
 	}
 }
@@ -114,7 +115,7 @@ func StopProcess(ctx context.Context, drainDelay, timeout time.Duration, ps ...P
 	MarkShuttingDown()
 
 	if drainDelay > 0 {
-		slog.InfoContext(ctx, "draining before stopping services", "duration", drainDelay)
+		logging.Info(ctx, "draining before stopping services", "duration", drainDelay)
 		time.Sleep(drainDelay)
 	}
 
@@ -132,7 +133,7 @@ func StopProcess(ctx context.Context, drainDelay, timeout time.Duration, ps ...P
 		}
 
 		if err := ctx.Err(); err != nil {
-			slog.ErrorContext(ctx, "shutdown budget exhausted", "stoppers_left", total-i, "error", err)
+			logging.Error(ctx, "shutdown budget exhausted", err, "stoppers_left", total-i)
 			return
 		}
 
@@ -140,11 +141,11 @@ func StopProcess(ctx context.Context, drainDelay, timeout time.Duration, ps ...P
 		// connection pools, and stranding them leaks the very resources shutdown
 		// exists to release.
 		if err := p(ctx); err != nil {
-			slog.ErrorContext(ctx, "stopper failed", "stopper", i+1, "total", total, "error", err)
+			logging.Error(ctx, "stopper failed", err, "stopper", i+1, "total", total)
 			continue
 		}
 
-		slog.InfoContext(ctx, "stopper stopped", "stopper", i+1, "total", total)
+		logging.Info(ctx, "stopper stopped", "stopper", i+1, "total", total)
 	}
 }
 

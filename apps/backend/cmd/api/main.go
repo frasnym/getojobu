@@ -15,7 +15,6 @@ package main
 
 import (
 	"context"
-	"log/slog"
 	"os"
 	"time"
 
@@ -23,6 +22,7 @@ import (
 	"github.com/frasnym/getojobu/apps/backend/internal/contract"
 	"github.com/frasnym/getojobu/apps/backend/internal/deliveries/api"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/graceful"
+	"github.com/frasnym/getojobu/apps/backend/internal/utils/logging"
 
 	// Blank import registers the swagger docs instance with swaggo so
 	// httpSwagger.Handler() can read the generated spec.
@@ -31,7 +31,7 @@ import (
 
 func main() {
 	if err := run(); err != nil {
-		slog.Error("startup failed", "error", err)
+		logging.Error(context.Background(), "startup failed", err)
 		os.Exit(1)
 	}
 }
