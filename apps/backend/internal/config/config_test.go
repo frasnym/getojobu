@@ -1,6 +1,7 @@
 package config
 
 import (
+	"log/slog"
 	"os"
 	"testing"
 	"time"
@@ -112,6 +113,57 @@ func TestLoad_clerk_config(t *testing.T) {
 	require.NoError(t, err, "unexpected error")
 	assert.Equal(t, "sk_test_1234567890", cfg.Clerk.SecretKey, "expected Clerk secret key")
 	assert.Equal(t, []string{"http://localhost:3000", "https://app.getojobu.com"}, cfg.Clerk.AuthorizedParties, "expected Clerk authorized parties")
+}
+
+func TestLoad_log_level_defaults_to_info(t *testing.T) {
+	// Arrange.
+	os.Setenv("DATABASE_URL", "postgres://user:pass@localhost:5432/db?sslmode=require")
+	os.Unsetenv("LOG_LEVEL")
+	defer os.Unsetenv("DATABASE_URL")
+
+	// Act.
+	cfg, err := Load()
+
+	// Assert.
+	require.NoError(t, err, "unexpected error")
+	assert.Equal(t, slog.LevelInfo, cfg.Log.Level, "expected default log level info")
+}
+
+func TestLoad_log_level_override(t *testing.T) {
+	// Arrange.
+	os.Setenv("DATABASE_URL", "postgres://user:pass@localhost:5432/db?sslmode=require")
+	os.Setenv("LOG_LEVEL", "debug")
+	defer os.Unsetenv("DATABASE_URL")
+	defer os.Unsetenv("LOG_LEVEL")
+
+	// Act.
+	cfg, err := Load()
+
+	// Assert.
+	require.NoError(t, err, "unexpected error")
+	assert.Equal(t, slog.LevelDebug, cfg.Log.Level, "expected log level debug")
+}
+
+func TestLoad_log_level_case_insensitive_and_invalid_falls_back_to_default(t *testing.T) {
+	// Arrange.
+	os.Setenv("DATABASE_URL", "postgres://user:pass@localhost:5432/db?sslmode=require")
+	os.Setenv("LOG_LEVEL", "WARN")
+	defer os.Unsetenv("DATABASE_URL")
+	defer os.Unsetenv("LOG_LEVEL")
+
+	// Act.
+	cfg, err := Load()
+
+	// Assert.
+	require.NoError(t, err, "unexpected error")
+	assert.Equal(t, slog.LevelWarn, cfg.Log.Level, "expected log level warn case-insensitive")
+
+	// Act: invalid level falls back to default.
+	os.Setenv("LOG_LEVEL", "not-a-level")
+	cfg2, err2 := Load()
+
+	require.NoError(t, err2, "unexpected error")
+	assert.Equal(t, slog.LevelInfo, cfg2.Log.Level, "expected default log level info for invalid input")
 }
 
 func TestLoad_clerk_config_empty_when_unset(t *testing.T) {

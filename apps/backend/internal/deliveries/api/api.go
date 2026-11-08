@@ -41,7 +41,7 @@ func New(c *contract.Contract) (*API, error) {
 	}
 
 	// Set up structured logging.
-	logger := logging.New(slog.LevelInfo)
+	logger := logging.New(cfg.Log.Level)
 	slog.SetDefault(logger)
 
 	// Build router and register routes.

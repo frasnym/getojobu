@@ -2,6 +2,7 @@ package config
 
 import (
 	"errors"
+	"log/slog"
 	"os"
 	"strings"
 	"time"
@@ -17,8 +18,14 @@ type Config struct {
 		WriteTimeout    time.Duration
 		ShutdownTimeout time.Duration
 	}
+	Log   LogConfig
 	DB    DBConfig
 	Clerk ClerkConfig
+}
+
+// LogConfig holds logging settings.
+type LogConfig struct {
+	Level slog.Level
 }
 
 // ClerkConfig holds Clerk authentication settings.
@@ -76,6 +83,24 @@ func pgEnv(name string) string {
 	return os.Getenv(name)
 }
 
+// envLogLevel reads name as a slog.Level (debug, info, warn, error),
+// returning defaultValue when unset or invalid. Matching is case-insensitive.
+func envLogLevel(name string, defaultValue slog.Level) slog.Level {
+	if v := os.Getenv(name); v != "" {
+		switch strings.ToLower(strings.TrimSpace(v)) {
+		case "debug":
+			return slog.LevelDebug
+		case "info":
+			return slog.LevelInfo
+		case "warn", "warning":
+			return slog.LevelWarn
+		case "error":
+			return slog.LevelError
+		}
+	}
+	return defaultValue
+}
+
 // envStringSlice reads name from the environment and splits it by sep,
 // returning an empty slice when unset. Empty entries are trimmed and dropped.
 func envStringSlice(name, sep string) []string {
@@ -109,6 +134,8 @@ func Load() (*Config, error) {
 	cfg.Server.ReadTimeout = envDuration("API_SERVER_READ_TIMEOUT", 5*time.Second)
 	cfg.Server.WriteTimeout = envDuration("API_SERVER_WRITE_TIMEOUT", 10*time.Second)
 	cfg.Server.ShutdownTimeout = envDuration("API_SERVER_SHUTDOWN_TIMEOUT", 15*time.Second)
+
+	cfg.Log.Level = envLogLevel("LOG_LEVEL", slog.LevelInfo)
 
 	cfg.DB.URL = os.Getenv("DATABASE_URL")
 	cfg.DB.Host = pgEnv("PG_HOST")
