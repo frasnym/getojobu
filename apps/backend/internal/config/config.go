@@ -5,6 +5,8 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	"github.com/joho/godotenv"
 )
 
 // Config holds runtime configuration for the API.
@@ -94,8 +96,13 @@ func envStringSlice(name, sep string) []string {
 // Load reads configuration from the environment and validates it.
 // DATABASE_URL is read as-is; PG* environment variables are stored individually
 // so database.New can construct a connection URL from them when DATABASE_URL is
-// unset.
+// unset. A .env file is loaded when present (local development); in production
+// environment variables are expected to be set directly.
 func Load() (*Config, error) {
+	// Load .env file if present. Ignore errors so missing .env in production
+	// (where env vars are set directly) does not break startup.
+	_ = godotenv.Load()
+
 	cfg := &Config{}
 
 	cfg.Server.Addr = envString("API_SERVER_ADDR", ":8080")
