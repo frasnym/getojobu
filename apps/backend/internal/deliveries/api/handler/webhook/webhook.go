@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"log/slog"
 	"net/http"
 	"strings"
 
@@ -50,11 +51,13 @@ func (h *handler) Route(g *httpx.Router) {
 func (h *handler) serveWebhook(w http.ResponseWriter, r *http.Request) error {
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
+		slog.Error("webhook: failed to read body", "error", err)
 		return httpx.Envelope(httpx.CodeInvalidRequest, "failed to read body", "")
 	}
 
 	var event clerkWebhookEvent
 	if err := json.Unmarshal(body, &event); err != nil {
+		slog.Error("webhook: invalid payload", "error", err)
 		return httpx.Envelope(httpx.CodeInvalidRequest, "invalid webhook payload", "")
 	}
 
@@ -74,6 +77,7 @@ func (h *handler) handleUserCreated(w http.ResponseWriter, ctx context.Context, 
 	email, fullName := extractEmailAndName(event)
 
 	if _, err := h.userService.Create(ctx, event.Data.ID, email, fullName, models.RoleUser); err != nil {
+		slog.Error("webhook: failed to create user", "clerkUserID", event.Data.ID, "error", err)
 		return httpx.Envelope(httpx.CodeInternal, "failed to create user", "")
 	}
 
@@ -84,6 +88,7 @@ func (h *handler) handleUserUpdated(w http.ResponseWriter, ctx context.Context, 
 	email, fullName := extractEmailAndName(event)
 
 	if _, err := h.userService.Update(ctx, event.Data.ID, email, fullName); err != nil {
+		slog.Error("webhook: failed to update user", "clerkUserID", event.Data.ID, "error", err)
 		return httpx.Envelope(httpx.CodeInternal, "failed to update user", "")
 	}
 
@@ -92,6 +97,7 @@ func (h *handler) handleUserUpdated(w http.ResponseWriter, ctx context.Context, 
 
 func (h *handler) handleUserDeleted(w http.ResponseWriter, ctx context.Context, event clerkWebhookEvent) error {
 	if _, err := h.userService.SoftDelete(ctx, event.Data.ID); err != nil {
+		slog.Error("webhook: failed to delete user", "clerkUserID", event.Data.ID, "error", err)
 		return httpx.Envelope(httpx.CodeInternal, "failed to delete user", "")
 	}
 
