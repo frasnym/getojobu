@@ -6,12 +6,7 @@ repository implementations behind a single container.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from repository.getojobu_api import JobProfiles, NewGetojobuAPI
-
-if TYPE_CHECKING:
-    from contract.common import Contract as CommonContract
 
 
 class Contract:
