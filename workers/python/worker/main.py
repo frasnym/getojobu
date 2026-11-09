@@ -52,8 +52,8 @@ async def run() -> int:
         stopper()
         return 1
 
-    # Initialize the activity container (builds usecase once).
-    init_container()
+    # Initialize the activity container (reuse the contract already built).
+    init_container(contract)
 
     worker = Worker(
         temporal_client.client,

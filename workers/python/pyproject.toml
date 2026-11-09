@@ -9,7 +9,7 @@ description = "Python Temporal worker for Getojobu job matching pipeline (Step 1
 requires-python = ">=3.11"
 dependencies = [
     "temporalio>=1.10.0",
-    "psycopg[binary,pool]>=3.2.0",
+    "httpx>=0.27.0",
     "pydantic>=2.9.0",
     "pydantic-settings>=2.4.0",
     "python-dotenv>=1.0.0",

@@ -2,6 +2,9 @@
 
 Mirrors apps/backend/internal/config/config.go: env-based, fail-fast on
 missing required variables, loaded once at process start.
+
+The worker does NOT access Neon directly. It persists results by calling
+the Go API over the internal Docker network.
 """
 
 from __future__ import annotations
@@ -18,8 +21,9 @@ class TemporalConfig:
 
 
 @dataclass(frozen=True)
-class DatabaseConfig:
-    url: str
+class APIConfig:
+    base_url: str  # e.g. http://api:8080 (internal Docker network)
+    api_key: str  # static key for worker->API auth
 
 
 @dataclass(frozen=True)
@@ -32,7 +36,7 @@ class LLMConfig:
 @dataclass(frozen=True)
 class Config:
     temporal: TemporalConfig
-    database: DatabaseConfig
+    api: APIConfig
     llm: LLMConfig
 
 
@@ -55,8 +59,8 @@ def load() -> Config:
     """Load configuration from the environment.
 
     Reads TEMPORAL_HOST, TEMPORAL_NAMESPACE,
-    TEMPORAL_TASK_QUEUE_JOB_ANALYZE, DATABASE_URL, LLM_PROVIDER,
-    LLM_MODEL, LLM_API_KEY.
+    TEMPORAL_TASK_QUEUE_JOB_ANALYZE, API_BASE_URL, API_KEY,
+    LLM_PROVIDER, LLM_MODEL, LLM_API_KEY.
     """
     return Config(
         temporal=TemporalConfig(
@@ -66,7 +70,10 @@ def load() -> Config:
                 "TEMPORAL_TASK_QUEUE_JOB_ANALYZE", "job-evaluation"
             ),
         ),
-        database=DatabaseConfig(url=_required("DATABASE_URL")),
+        api=APIConfig(
+            base_url=_required("API_BASE_URL"),
+            api_key=_required("API_KEY"),
+        ),
         llm=LLMConfig(
             provider=_optional("LLM_PROVIDER", "openai"),
             model=_optional("LLM_MODEL", "gpt-4o-mini"),

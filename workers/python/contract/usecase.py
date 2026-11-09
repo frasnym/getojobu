@@ -8,11 +8,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from usecase.analyze_job.llm_client import OpenAIClient
+from deliveries.client.api_client import APIClient
 from usecase.analyze_job.service import AnalyzeJob
 
 if TYPE_CHECKING:
-    from contract.repository import Contract as RepositoryContract
+    pass
 
 
 class Contract:
@@ -21,14 +21,16 @@ class Contract:
 
 
 def new(
-    repository: "RepositoryContract",
+    api_client: APIClient,
     llm_provider: str,
     llm_model: str,
     llm_api_key: str,
 ) -> Contract:
-    """Build the usecase contract from the repository contract.
+    """Build the usecase contract from the API client.
 
     Wires an OpenAI LLM client into the analyze_job usecase.
     """
+    from usecase.analyze_job.llm_client import OpenAIClient
+
     llm = OpenAIClient(api_key=llm_api_key, model=llm_model)
-    return Contract(analyze_job=AnalyzeJob(repo=repository.job_profiles, llm=llm))
+    return Contract(analyze_job=AnalyzeJob(api_client=api_client, llm=llm))

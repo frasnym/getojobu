@@ -20,16 +20,19 @@ from config.config import load as config_load
 _container: Contract | None = None
 
 
-def init_container() -> Contract:
-    """Build the dependency container. Called from worker.main before
-    starting the Temporal worker."""
+def init_container(contract: Contract | None = None) -> Contract:
+    """Build (or reuse) the dependency container. Called from worker.main
+    before starting the Temporal worker."""
     global _container
     if _container is None:
-        cfg = config_load()
-        contract, _stopper, err = contract_new(cfg)
-        if err is not None or contract is None:
-            raise err or RuntimeError("contract initialization failed")
-        _container = contract
+        if contract is not None:
+            _container = contract
+        else:
+            cfg = config_load()
+            c, _stopper, err = contract_new(cfg)
+            if err is not None or c is None:
+                raise err or RuntimeError("contract initialization failed")
+            _container = c
     return _container
 
 

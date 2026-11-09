@@ -1,7 +1,10 @@
 """Aggregate contract: the single dependency container for the worker.
 
-Mirrors apps/backend/internal/contract/contract.go: config → common →
-repository → usecase, with a combined stopper for graceful shutdown.
+Mirrors apps/backend/internal/contract/contract.go: config → api client →
+usecase, with a combined stopper for graceful shutdown.
+
+The worker persists results via the Go API (internal Docker network), not
+direct database access.
 """
 
 from __future__ import annotations
@@ -9,13 +12,9 @@ from __future__ import annotations
 from typing import Callable, TYPE_CHECKING
 
 from config.config import Config
-from contract.common import new as common_new
-from contract.repository import new as repository_new
-from contract.usecase import new as usecase_new
+from deliveries.client.api_client import APIClient, HTTPAPIClient
 
 if TYPE_CHECKING:
-    from contract.common import Contract as CommonContract
-    from contract.repository import Contract as RepositoryContract
     from contract.usecase import Contract as UsecaseContract
 
 
@@ -26,13 +25,11 @@ class Contract:
     def __init__(
         self,
         cfg: Config,
-        common: "CommonContract",
-        repository: "RepositoryContract",
+        api_client: APIClient,
         usecase: "UsecaseContract",
     ) -> None:
         self.cfg = cfg
-        self.common = common
-        self.repository = repository
+        self.api_client = api_client
         self.usecase = usecase
 
 
@@ -45,10 +42,15 @@ def new(cfg: Config | None) -> tuple[Contract, Stopper, Exception | None]:
     if cfg is None:
         return None, None, ValueError("config is required")  # type: ignore[return-value]
 
-    common_contract, common_stopper = common_new(cfg.database.url)
-    repository_contract = repository_new(common_contract)
+    api_client = HTTPAPIClient(
+        base_url=cfg.api.base_url,
+        api_key=cfg.api.api_key,
+    )
+
+    from contract.usecase import new as usecase_new
+
     usecase_contract = usecase_new(
-        repository_contract,
+        api_client=api_client,
         llm_provider=cfg.llm.provider,
         llm_model=cfg.llm.model,
         llm_api_key=cfg.llm.api_key,
@@ -56,12 +58,16 @@ def new(cfg: Config | None) -> tuple[Contract, Stopper, Exception | None]:
 
     contract = Contract(
         cfg=cfg,
-        common=common_contract,
-        repository=repository_contract,
+        api_client=api_client,
         usecase=usecase_contract,
     )
 
-    stoppers: list[Stopper] = [common_stopper]
+    stoppers: list[Stopper] = []
+
+    async def _stop_api_client() -> None:
+        await api_client.aclose()
+
+    stoppers.append(_stop_api_client)
 
     def stopper() -> None:
         # Run every stopper even when one fails.

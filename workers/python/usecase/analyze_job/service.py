@@ -1,17 +1,18 @@
 """Business logic for Step 1B: Analyze Job Description.
 
 Mirrors apps/backend/internal/usecase/users/users.go: a thin service that
-validates input, delegates to an LLM, and persists via the repository.
+validates input, delegates to an LLM, and persists via the Go API.
 
 This is the "actual flow" the user asked to pick: Step 1B.
 """
 
 from __future__ import annotations
 
+import uuid
 from typing import Any, Protocol, runtime_checkable
 
 from models.job_profile import JobProfile
-from repository.job_profiles import JobProfiles
+from deliveries.client.api_client import APIClient
 
 
 class LLMClient(Protocol):
@@ -25,14 +26,14 @@ class LLMClient(Protocol):
 class AnalyzeJob:
     def __init__(
         self,
-        repo: JobProfiles,
+        api_client: APIClient,
         llm: LLMClient,
         *,
         prompt_version: str = "extract-job-v1",
         provider: str = "openai",
         model: str = "gpt-4o-mini",
     ) -> None:
-        self._repo = repo
+        self._api_client = api_client
         self._llm = llm
         self._prompt_version = prompt_version
         self._provider = provider
@@ -43,6 +44,7 @@ class AnalyzeJob:
         *,
         job_description: str,
         job_id: str | None = None,
+        idempotency_key: str | None = None,
     ) -> JobProfile:
         """Run Step 1B end to end.
 
@@ -50,7 +52,7 @@ class AnalyzeJob:
         2. Call the LLM with the extract-job-v1 prompt to obtain a
            normalized job profile.
         3. Parse and validate the LLM output into JobProfile.
-        4. Persist via the repository.
+        4. Persist via the Go API (internal Docker network).
         5. Return the stored profile.
         """
         if not job_description or not job_description.strip():
@@ -72,7 +74,14 @@ class AnalyzeJob:
         profile.model = self._model
         profile.prompt_version = self._prompt_version
 
-        # 4. Persist.
-        stored = await self._repo.create(profile)
+        # 4. Persist via the Go API (not direct DB access).
+        key = idempotency_key or str(uuid.uuid4())
+        stored = await self._api_client.create_job_profile(
+            job_description=job_description,
+            job_id=job_id,
+            profile=profile.model_dump(),
+            idempotency_key=key,
+        )
 
-        return stored
+        # 5. Return the stored profile as returned by the API.
+        return JobProfile.model_validate(stored)
