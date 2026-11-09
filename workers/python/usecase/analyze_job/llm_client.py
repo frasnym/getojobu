@@ -7,6 +7,7 @@ to match the JobProfile schema. No manual json.loads() needed.
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Any
 
@@ -28,7 +29,7 @@ class OpenAIClient:
         base_url: str,
         model: str,
     ) -> None:
-        self._client = AsyncOpenAI(api_key=api_key, base_url=base_url)
+        self._client: AsyncOpenAI = AsyncOpenAI(api_key=api_key, base_url=base_url)
         self._model = model
 
     async def extract_job_profile(
@@ -62,8 +63,6 @@ class OpenAIClient:
             raise RuntimeError("extract job profile: empty LLM response")
 
         # OmniRoute returns structured output as a JSON string.
-        import json
-
         return json.loads(content)
 
     def _render_prompt(self, prompt_version: str, job_description: str) -> str:
