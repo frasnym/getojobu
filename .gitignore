@@ -1,2 +1,22 @@
 apps/backend/config/.env
+workers/python/.env
+
 *debug*
+
+# Python
+__pycache__/
+*.py[cod]
+$py.class
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+.env
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
