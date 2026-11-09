@@ -55,6 +55,7 @@ func (h *handler) Route(g *httpx.Router) {
 // @Success 200 {object} models.CreateJobResult
 // @Failure 400 {object} httpx.Error
 // @Failure 401 {object} httpx.Error
+// @security ApiKeyAuth
 // @Router /v1/jobs [post]
 func (h *handler) CreateJob(w http.ResponseWriter, r *http.Request) error {
 	ctx := r.Context()
@@ -114,6 +115,7 @@ func (h *handler) CreateJob(w http.ResponseWriter, r *http.Request) error {
 // @Success 200 {array} models.BulkCreateJobResult
 // @Failure 400 {object} httpx.Error
 // @Failure 401 {object} httpx.Error
+// @security ApiKeyAuth
 // @Router /v1/jobs/bulk [post]
 func (h *handler) BulkCreateJob(w http.ResponseWriter, r *http.Request) error {
 	ctx := r.Context()
@@ -178,6 +180,7 @@ func (h *handler) BulkCreateJob(w http.ResponseWriter, r *http.Request) error {
 // @Param company query string false "Filter by company name (case-insensitive substring)"
 // @Success 200 {array} models.Job
 // @Failure 401 {object} httpx.Error
+// @security ApiKeyAuth
 // @Router /v1/jobs [get]
 func (h *handler) ListJobs(w http.ResponseWriter, r *http.Request) error {
 	ctx := r.Context()
@@ -227,6 +230,7 @@ func (h *handler) ListJobs(w http.ResponseWriter, r *http.Request) error {
 // @Success 200 {object} models.Job
 // @Failure 401 {object} httpx.Error
 // @Failure 404 {object} httpx.Error
+// @security ApiKeyAuth
 // @Router /v1/jobs/{slug} [get]
 func (h *handler) GetJob(w http.ResponseWriter, r *http.Request) error {
 	ctx := r.Context()
@@ -268,6 +272,7 @@ func (h *handler) GetJob(w http.ResponseWriter, r *http.Request) error {
 // @Failure 401 {object} httpx.Error
 // @Failure 404 {object} httpx.Error
 // @Failure 409 {object} httpx.Error
+// @security ApiKeyAuth
 // @Router /v1/jobs/{slug} [patch]
 func (h *handler) UpdateJobDescription(w http.ResponseWriter, r *http.Request) error {
 	ctx := r.Context()

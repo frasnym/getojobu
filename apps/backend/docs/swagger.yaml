@@ -83,6 +83,59 @@ definitions:
       message:
         type: string
     type: object
+  jobs.bulkCreateJobRequest:
+    properties:
+      jobs:
+        items:
+          $ref: '#/definitions/jobs.createJobRequest'
+        type: array
+    type: object
+  jobs.createJobRequest:
+    properties:
+      apply_url:
+        type: string
+      company:
+        type: string
+      description:
+        type: string
+      external_id:
+        type: string
+      is_remote:
+        type: boolean
+      location:
+        type: string
+      posted_date:
+        type: string
+      slug:
+        type: string
+      source:
+        type: string
+      source_url:
+        type: string
+      title:
+        type: string
+      visa_relocation:
+        type: boolean
+    type: object
+  jobs.updateJobDescriptionRequest:
+    properties:
+      description:
+        type: string
+    type: object
+  models.BulkCreateJobResult:
+    properties:
+      created:
+        type: boolean
+      slug:
+        type: string
+    type: object
+  models.CreateJobResult:
+    properties:
+      created:
+        type: boolean
+      job:
+        $ref: '#/definitions/models.Job'
+    type: object
   models.Experience:
     properties:
       createdAt:
@@ -124,6 +177,49 @@ definitions:
     - ExperienceTypeInternship
     - ExperienceTypeVolunteer
     - ExperienceTypeOther
+  models.Job:
+    properties:
+      analyze_result:
+        type: string
+      apply_url:
+        type: string
+      company:
+        type: string
+      created_at:
+        type: string
+      description:
+        type: string
+      external_id:
+        type: string
+      failure_message:
+        type: string
+      id:
+        type: integer
+      is_remote:
+        type: boolean
+      location:
+        type: string
+      posted_date:
+        type: string
+      slug:
+        type: string
+      source:
+        type: string
+      source_url:
+        type: string
+      status:
+        type: string
+      title:
+        type: string
+      updated_at:
+        type: string
+      updated_by_id:
+        type: string
+      updated_by_type:
+        type: string
+      visa_relocation:
+        type: boolean
+    type: object
   models.Project:
     properties:
       achievements:
@@ -248,6 +344,8 @@ paths:
           description: Unauthorized
           schema:
             $ref: '#/definitions/httpx.Error'
+      security:
+      - ApiKeyAuth: []
       summary: List experiences
       tags:
       - experiences
@@ -277,6 +375,8 @@ paths:
           description: Unauthorized
           schema:
             $ref: '#/definitions/httpx.Error'
+      security:
+      - ApiKeyAuth: []
       summary: Create experience
       tags:
       - experiences
@@ -304,6 +404,8 @@ paths:
           description: Not Found
           schema:
             $ref: '#/definitions/httpx.Error'
+      security:
+      - ApiKeyAuth: []
       summary: Get experience
       tags:
       - experiences
@@ -342,6 +444,8 @@ paths:
           description: Not Found
           schema:
             $ref: '#/definitions/httpx.Error'
+      security:
+      - ApiKeyAuth: []
       summary: Update experience
       tags:
       - experiences
@@ -360,6 +464,182 @@ paths:
       summary: Health check
       tags:
       - health
+  /v1/jobs:
+    get:
+      description: List recent jobs ordered by created_at descending. Optional limit
+        (default 20, max 100) and company ILIKE filter.
+      parameters:
+      - description: Maximum number of jobs to return (default 20, max 100)
+        in: query
+        name: limit
+        type: integer
+      - description: Filter by company name (case-insensitive substring)
+        in: query
+        name: company
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.Job'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpx.Error'
+      security:
+      - ApiKeyAuth: []
+      summary: List jobs
+      tags:
+      - jobs
+    post:
+      consumes:
+      - application/json
+      description: Create a single job listing. On slug conflict the existing row
+        is kept and returned with Created=false.
+      parameters:
+      - description: Job data
+        in: body
+        name: job
+        required: true
+        schema:
+          $ref: '#/definitions/jobs.createJobRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.CreateJobResult'
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.CreateJobResult'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpx.Error'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpx.Error'
+      security:
+      - ApiKeyAuth: []
+      summary: Create job
+      tags:
+      - jobs
+  /v1/jobs/{slug}:
+    get:
+      description: Get a job listing by slug.
+      parameters:
+      - description: Job slug
+        in: path
+        name: slug
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Job'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpx.Error'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httpx.Error'
+      security:
+      - ApiKeyAuth: []
+      summary: Get job
+      tags:
+      - jobs
+    patch:
+      consumes:
+      - application/json
+      description: Update a job's description. Blocked with 409 when the job already
+        has a description and status 'analyzed'.
+      parameters:
+      - description: Job slug
+        in: path
+        name: slug
+        required: true
+        type: string
+      - description: Description
+        in: body
+        name: description
+        required: true
+        schema:
+          $ref: '#/definitions/jobs.updateJobDescriptionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Job'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpx.Error'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpx.Error'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httpx.Error'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/httpx.Error'
+      security:
+      - ApiKeyAuth: []
+      summary: Update job description
+      tags:
+      - jobs
+  /v1/jobs/bulk:
+    post:
+      consumes:
+      - application/json
+      description: Create many job listings at once (max 100). Conflicting slugs are
+        skipped.
+      parameters:
+      - description: Job listings
+        in: body
+        name: jobs
+        required: true
+        schema:
+          $ref: '#/definitions/jobs.bulkCreateJobRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.BulkCreateJobResult'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpx.Error'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpx.Error'
+      security:
+      - ApiKeyAuth: []
+      summary: Bulk create jobs
+      tags:
+      - jobs
   /v1/projects:
     get:
       description: List all projects for the authenticated user
@@ -376,6 +656,8 @@ paths:
           description: Unauthorized
           schema:
             $ref: '#/definitions/httpx.Error'
+      security:
+      - ApiKeyAuth: []
       summary: List projects
       tags:
       - projects
@@ -405,6 +687,8 @@ paths:
           description: Unauthorized
           schema:
             $ref: '#/definitions/httpx.Error'
+      security:
+      - ApiKeyAuth: []
       summary: Create project
       tags:
       - projects
@@ -432,6 +716,8 @@ paths:
           description: Not Found
           schema:
             $ref: '#/definitions/httpx.Error'
+      security:
+      - ApiKeyAuth: []
       summary: Get project
       tags:
       - projects
@@ -470,6 +756,8 @@ paths:
           description: Not Found
           schema:
             $ref: '#/definitions/httpx.Error'
+      security:
+      - ApiKeyAuth: []
       summary: Update project
       tags:
       - projects
@@ -495,6 +783,8 @@ paths:
           description: Unauthorized
           schema:
             $ref: '#/definitions/httpx.Error'
+      security:
+      - ApiKeyAuth: []
       summary: List project skills
       tags:
       - project-skills
@@ -531,6 +821,8 @@ paths:
           description: Unauthorized
           schema:
             $ref: '#/definitions/httpx.Error'
+      security:
+      - ApiKeyAuth: []
       summary: Link project skills
       tags:
       - project-skills
@@ -567,4 +859,11 @@ paths:
       - webhook
 schemes:
 - http
+securityDefinitions:
+  ApiKeyAuth:
+    description: 'Enter your Clerk session JWT or machine API key. Format: Bearer
+      <token>'
+    in: header
+    name: Authorization
+    type: apiKey
 swagger: "2.0"

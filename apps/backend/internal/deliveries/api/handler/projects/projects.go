@@ -83,6 +83,7 @@ type linkProjectSkillsRequest struct {
 // @Success 201 {object} models.Project
 // @Failure 400 {object} httpx.Error
 // @Failure 401 {object} httpx.Error
+// @security ApiKeyAuth
 // @Router /v1/projects [post]
 func (h *handler) CreateProject(w http.ResponseWriter, r *http.Request) error {
 	p := ctxval.PrincipalFromContext(r.Context())
@@ -126,6 +127,7 @@ func (h *handler) CreateProject(w http.ResponseWriter, r *http.Request) error {
 // @Success 200 {object} models.Project
 // @Failure 401 {object} httpx.Error
 // @Failure 404 {object} httpx.Error
+// @security ApiKeyAuth
 // @Router /v1/projects/{id} [get]
 func (h *handler) GetProject(w http.ResponseWriter, r *http.Request) error {
 	p := ctxval.PrincipalFromContext(r.Context())
@@ -159,6 +161,7 @@ func (h *handler) GetProject(w http.ResponseWriter, r *http.Request) error {
 // @Produce json
 // @Success 200 {array} models.Project
 // @Failure 401 {object} httpx.Error
+// @security ApiKeyAuth
 // @Router /v1/projects [get]
 func (h *handler) ListProjects(w http.ResponseWriter, r *http.Request) error {
 	p := ctxval.PrincipalFromContext(r.Context())
@@ -186,6 +189,7 @@ func (h *handler) ListProjects(w http.ResponseWriter, r *http.Request) error {
 // @Failure 400 {object} httpx.Error
 // @Failure 401 {object} httpx.Error
 // @Failure 404 {object} httpx.Error
+// @security ApiKeyAuth
 // @Router /v1/projects/{id} [put]
 func (h *handler) UpdateProject(w http.ResponseWriter, r *http.Request) error {
 	p := ctxval.PrincipalFromContext(r.Context())
@@ -240,6 +244,7 @@ func (h *handler) UpdateProject(w http.ResponseWriter, r *http.Request) error {
 // @Success 200 {object} map[string]string
 // @Failure 400 {object} httpx.Error
 // @Failure 401 {object} httpx.Error
+// @security ApiKeyAuth
 // @Router /v1/projects/{id}/skills [post]
 func (h *handler) LinkProjectSkills(w http.ResponseWriter, r *http.Request) error {
 	p := ctxval.PrincipalFromContext(r.Context())
@@ -280,6 +285,7 @@ func (h *handler) LinkProjectSkills(w http.ResponseWriter, r *http.Request) erro
 // @Param id path string true "Project ID"
 // @Success 200 {array} models.UserSkill
 // @Failure 401 {object} httpx.Error
+// @security ApiKeyAuth
 // @Router /v1/projects/{id}/skills [get]
 func (h *handler) ListProjectSkills(w http.ResponseWriter, r *http.Request) error {
 	p := ctxval.PrincipalFromContext(r.Context())

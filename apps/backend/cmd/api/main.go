@@ -10,6 +10,14 @@
 // @host localhost:8080
 // @BasePath /
 // @schemes http
+//
+// API key security scheme for all authenticated API routes.
+// Both Clerk session JWTs and machine API keys are sent as
+// `Authorization: Bearer <token>` and validated by the ClerkOrAPIKey middleware.
+// @securitydefinitions.apikey ApiKeyAuth
+// @in header
+// @name Authorization
+// @description Enter your Clerk session JWT or machine API key. Format: Bearer <token>
 
 package main
 

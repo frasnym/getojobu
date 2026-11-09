@@ -26,6 +26,11 @@ const docTemplate = `{
     "paths": {
         "/v1/experiences": {
             "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
                 "description": "List all career experiences for the authenticated user",
                 "produces": [
                     "application/json"
@@ -53,6 +58,11 @@ const docTemplate = `{
                 }
             },
             "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
                 "description": "Create a new career experience for the authenticated user",
                 "consumes": [
                     "application/json"
@@ -99,6 +109,11 @@ const docTemplate = `{
         },
         "/v1/experiences/{id}": {
             "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
                 "description": "Get a career experience by id",
                 "produces": [
                     "application/json"
@@ -138,6 +153,11 @@ const docTemplate = `{
                 }
             },
             "put": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
                 "description": "Update a career experience by id",
                 "consumes": [
                     "application/json"
@@ -218,8 +238,284 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/jobs": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "List recent jobs ordered by created_at descending. Optional limit (default 20, max 100) and company ILIKE filter.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "jobs"
+                ],
+                "summary": "List jobs",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Maximum number of jobs to return (default 20, max 100)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by company name (case-insensitive substring)",
+                        "name": "company",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/models.Job"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/httpx.Error"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Create a single job listing. On slug conflict the existing row is kept and returned with Created=false.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "jobs"
+                ],
+                "summary": "Create job",
+                "parameters": [
+                    {
+                        "description": "Job data",
+                        "name": "job",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/jobs.createJobRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.CreateJobResult"
+                        }
+                    },
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/models.CreateJobResult"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpx.Error"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/httpx.Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/jobs/bulk": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Create many job listings at once (max 100). Conflicting slugs are skipped.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "jobs"
+                ],
+                "summary": "Bulk create jobs",
+                "parameters": [
+                    {
+                        "description": "Job listings",
+                        "name": "jobs",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/jobs.bulkCreateJobRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/models.BulkCreateJobResult"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpx.Error"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/httpx.Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/jobs/{slug}": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Get a job listing by slug.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "jobs"
+                ],
+                "summary": "Get job",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Job slug",
+                        "name": "slug",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.Job"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/httpx.Error"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httpx.Error"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Update a job's description. Blocked with 409 when the job already has a description and status 'analyzed'.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "jobs"
+                ],
+                "summary": "Update job description",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Job slug",
+                        "name": "slug",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Description",
+                        "name": "description",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/jobs.updateJobDescriptionRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.Job"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpx.Error"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/httpx.Error"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httpx.Error"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/httpx.Error"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/projects": {
             "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
                 "description": "List all projects for the authenticated user",
                 "produces": [
                     "application/json"
@@ -247,6 +543,11 @@ const docTemplate = `{
                 }
             },
             "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
                 "description": "Create a new project for the authenticated user",
                 "consumes": [
                     "application/json"
@@ -293,6 +594,11 @@ const docTemplate = `{
         },
         "/v1/projects/{id}": {
             "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
                 "description": "Get a project by id",
                 "produces": [
                     "application/json"
@@ -332,6 +638,11 @@ const docTemplate = `{
                 }
             },
             "put": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
                 "description": "Update a project by id",
                 "consumes": [
                     "application/json"
@@ -391,6 +702,11 @@ const docTemplate = `{
         },
         "/v1/projects/{id}/skills": {
             "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
                 "description": "List skills linked to a project",
                 "produces": [
                     "application/json"
@@ -427,6 +743,11 @@ const docTemplate = `{
                 }
             },
             "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
                 "description": "Associate skills with a project",
                 "consumes": [
                     "application/json"
@@ -522,254 +843,6 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/webhook.StatusResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/v1/jobs": {
-            "get": {
-                "description": "List recent jobs ordered by created_at descending. Optional limit (default 20, max 100) and company ILIKE filter.",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "jobs"
-                ],
-                "summary": "List jobs",
-                "parameters": [
-                    {
-                        "description": "Maximum number of jobs to return (default 20, max 100)",
-                        "name": "limit",
-                        "in": "query",
-                        "required": false,
-                        "type": "integer"
-                    },
-                    {
-                        "description": "Filter by company name (case-insensitive substring)",
-                        "name": "company",
-                        "in": "query",
-                        "required": false,
-                        "type": "string"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/models.Job"
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/httpx.Error"
-                        }
-                    }
-                }
-            },
-            "post": {
-                "description": "Create a single job listing. On slug conflict the existing row is kept and returned with Created=false.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "jobs"
-                ],
-                "summary": "Create job",
-                "parameters": [
-                    {
-                        "description": "Job data",
-                        "name": "job",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/jobs.createJobRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Created",
-                        "schema": {
-                            "$ref": "#/definitions/models.CreateJobResult"
-                        }
-                    },
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/models.CreateJobResult"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/httpx.Error"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/httpx.Error"
-                        }
-                    }
-                }
-            }
-        },
-        "/v1/jobs/bulk": {
-            "post": {
-                "description": "Create many job listings at once (max 100). Conflicting slugs are skipped without rolling back the whole batch.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "jobs"
-                ],
-                "summary": "Bulk create jobs",
-                "parameters": [
-                    {
-                        "description": "Job listings",
-                        "name": "jobs",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/jobs.bulkCreateJobRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/models.BulkCreateJobResult"
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/httpx.Error"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/httpx.Error"
-                        }
-                    }
-                }
-            }
-        },
-        "/v1/jobs/{slug}": {
-            "get": {
-                "description": "Get a job listing by slug.",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "jobs"
-                ],
-                "summary": "Get job",
-                "parameters": [
-                    {
-                        "description": "Job slug",
-                        "name": "slug",
-                        "in": "path",
-                        "required": true,
-                        "type": "string"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/models.Job"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/httpx.Error"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/httpx.Error"
-                        }
-                    }
-                }
-            },
-            "patch": {
-                "description": "Update a job's description. Blocked with 409 when the job already has a description and status 'analyzed'.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "jobs"
-                ],
-                "summary": "Update job description",
-                "parameters": [
-                    {
-                        "description": "Job slug",
-                        "name": "slug",
-                        "in": "path",
-                        "required": true,
-                        "type": "string"
-                    },
-                    {
-                        "description": "Description",
-                        "name": "description",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/jobs.updateJobDescriptionRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/models.Job"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/httpx.Error"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/httpx.Error"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/httpx.Error"
-                        }
-                    },
-                    "409": {
-                        "description": "Conflict",
-                        "schema": {
-                            "$ref": "#/definitions/httpx.Error"
                         }
                     }
                 }
@@ -897,6 +970,88 @@ const docTemplate = `{
                 }
             }
         },
+        "jobs.bulkCreateJobRequest": {
+            "type": "object",
+            "properties": {
+                "jobs": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/jobs.createJobRequest"
+                    }
+                }
+            }
+        },
+        "jobs.createJobRequest": {
+            "type": "object",
+            "properties": {
+                "apply_url": {
+                    "type": "string"
+                },
+                "company": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "external_id": {
+                    "type": "string"
+                },
+                "is_remote": {
+                    "type": "boolean"
+                },
+                "location": {
+                    "type": "string"
+                },
+                "posted_date": {
+                    "type": "string"
+                },
+                "slug": {
+                    "type": "string"
+                },
+                "source": {
+                    "type": "string"
+                },
+                "source_url": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "visa_relocation": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "jobs.updateJobDescriptionRequest": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.BulkCreateJobResult": {
+            "type": "object",
+            "properties": {
+                "created": {
+                    "type": "boolean"
+                },
+                "slug": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.CreateJobResult": {
+            "type": "object",
+            "properties": {
+                "created": {
+                    "type": "boolean"
+                },
+                "job": {
+                    "$ref": "#/definitions/models.Job"
+                }
+            }
+        },
         "models.Experience": {
             "type": "object",
             "properties": {
@@ -954,6 +1109,71 @@ const docTemplate = `{
                 "ExperienceTypeVolunteer",
                 "ExperienceTypeOther"
             ]
+        },
+        "models.Job": {
+            "type": "object",
+            "properties": {
+                "analyze_result": {
+                    "type": "string"
+                },
+                "apply_url": {
+                    "type": "string"
+                },
+                "company": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "external_id": {
+                    "type": "string"
+                },
+                "failure_message": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "is_remote": {
+                    "type": "boolean"
+                },
+                "location": {
+                    "type": "string"
+                },
+                "posted_date": {
+                    "type": "string"
+                },
+                "slug": {
+                    "type": "string"
+                },
+                "source": {
+                    "type": "string"
+                },
+                "source_url": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "updated_by_id": {
+                    "type": "string"
+                },
+                "updated_by_type": {
+                    "type": "string"
+                },
+                "visa_relocation": {
+                    "type": "boolean"
+                }
+            }
         },
         "models.Project": {
             "type": "object",
@@ -1091,150 +1311,6 @@ const docTemplate = `{
                 }
             }
         },
-        "jobs.createJobRequest": {
-            "type": "object",
-            "properties": {
-                "apply_url": {
-                    "type": "string"
-                },
-                "company": {
-                    "type": "string"
-                },
-                "description": {
-                    "type": "string"
-                },
-                "external_id": {
-                    "type": "string"
-                },
-                "is_remote": {
-                    "type": "boolean"
-                },
-                "location": {
-                    "type": "string"
-                },
-                "posted_date": {
-                    "type": "string"
-                },
-                "slug": {
-                    "type": "string"
-                },
-                "source": {
-                    "type": "string"
-                },
-                "source_url": {
-                    "type": "string"
-                },
-                "title": {
-                    "type": "string"
-                },
-                "visa_relocation": {
-                    "type": "boolean"
-                }
-            }
-        },
-        "jobs.bulkCreateJobRequest": {
-            "type": "object",
-            "properties": {
-                "jobs": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/jobs.createJobRequest"
-                    }
-                }
-            }
-        },
-        "jobs.updateJobDescriptionRequest": {
-            "type": "object",
-            "properties": {
-                "description": {
-                    "type": "string"
-                }
-            }
-        },
-        "models.BulkCreateJobResult": {
-            "type": "object",
-            "properties": {
-                "created": {
-                    "type": "boolean"
-                },
-                "slug": {
-                    "type": "string"
-                }
-            }
-        },
-        "models.CreateJobResult": {
-            "type": "object",
-            "properties": {
-                "created": {
-                    "type": "boolean"
-                },
-                "job": {
-                    "$ref": "#/definitions/models.Job"
-                }
-            }
-        },
-        "models.Job": {
-            "type": "object",
-            "properties": {
-                "analyze_result": {
-                    "type": "string"
-                },
-                "apply_url": {
-                    "type": "string"
-                },
-                "company": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "description": {
-                    "type": "string"
-                },
-                "failure_message": {
-                    "type": "string"
-                },
-                "external_id": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "is_remote": {
-                    "type": "boolean"
-                },
-                "location": {
-                    "type": "string"
-                },
-                "posted_date": {
-                    "type": "string"
-                },
-                "source": {
-                    "type": "string"
-                },
-                "source_url": {
-                    "type": "string"
-                },
-                "status": {
-                    "type": "string"
-                },
-                "title": {
-                    "type": "string"
-                },
-                "updated_at": {
-                    "type": "string"
-                },
-                "updated_by_id": {
-                    "type": "string"
-                },
-                "updated_by_type": {
-                    "type": "string"
-                },
-                "visa_relocation": {
-                    "type": "boolean"
-                }
-            }
-        },
         "webhook.StatusResponse": {
             "type": "object",
             "properties": {
@@ -1242,6 +1318,14 @@ const docTemplate = `{
                     "type": "string"
                 }
             }
+        }
+    },
+    "securityDefinitions": {
+        "ApiKeyAuth": {
+            "description": "Enter your Clerk session JWT or machine API key. Format: Bearer \u003ctoken\u003e",
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
         }
     }
 }`

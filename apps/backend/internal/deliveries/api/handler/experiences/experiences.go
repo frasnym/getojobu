@@ -73,6 +73,7 @@ type updateExperienceRequest struct {
 // @Success 201 {object} models.Experience
 // @Failure 400 {object} httpx.Error
 // @Failure 401 {object} httpx.Error
+// @security ApiKeyAuth
 // @Router /v1/experiences [post]
 func (h *handler) CreateExperience(w http.ResponseWriter, r *http.Request) error {
 	p := ctxval.PrincipalFromContext(r.Context())
@@ -120,6 +121,7 @@ func (h *handler) CreateExperience(w http.ResponseWriter, r *http.Request) error
 // @Success 200 {object} models.Experience
 // @Failure 401 {object} httpx.Error
 // @Failure 404 {object} httpx.Error
+// @security ApiKeyAuth
 // @Router /v1/experiences/{id} [get]
 func (h *handler) GetExperience(w http.ResponseWriter, r *http.Request) error {
 	p := ctxval.PrincipalFromContext(r.Context())
@@ -153,6 +155,7 @@ func (h *handler) GetExperience(w http.ResponseWriter, r *http.Request) error {
 // @Produce json
 // @Success 200 {array} models.Experience
 // @Failure 401 {object} httpx.Error
+// @security ApiKeyAuth
 // @Router /v1/experiences [get]
 func (h *handler) ListExperiences(w http.ResponseWriter, r *http.Request) error {
 	p := ctxval.PrincipalFromContext(r.Context())
@@ -180,6 +183,7 @@ func (h *handler) ListExperiences(w http.ResponseWriter, r *http.Request) error 
 // @Failure 400 {object} httpx.Error
 // @Failure 401 {object} httpx.Error
 // @Failure 404 {object} httpx.Error
+// @security ApiKeyAuth
 // @Router /v1/experiences/{id} [put]
 func (h *handler) UpdateExperience(w http.ResponseWriter, r *http.Request) error {
 	p := ctxval.PrincipalFromContext(r.Context())
