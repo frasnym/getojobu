@@ -26,14 +26,14 @@ class LLMClient(Protocol):
 class AnalyzeJob:
     def __init__(
         self,
-        api_client: JobProfiles,
+        job_profiles: JobProfiles,
         llm: LLMClient,
         *,
         prompt_version: str = "extract-job-v1",
         provider: str = "openai",
         model: str = "gpt-4o-mini",
     ) -> None:
-        self._api_client = api_client
+        self._job_profiles = job_profiles
         self._llm = llm
         self._prompt_version = prompt_version
         self._provider = provider
@@ -76,7 +76,7 @@ class AnalyzeJob:
 
         # 4. Persist via the Go API (not direct DB access).
         key = idempotency_key or str(uuid.uuid4())
-        stored = await self._api_client.create_job_profile(
+        stored = await self._job_profiles.create_job_profile(
             job_description=job_description,
             job_id=job_id,
             profile=profile.model_dump(),

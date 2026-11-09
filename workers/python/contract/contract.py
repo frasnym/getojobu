@@ -46,7 +46,7 @@ def new(cfg: Config | None) -> tuple[WorkerContainer, Stopper, Exception | None]
 
     repository_contract = repository_new(cfg)
     usecase_contract = usecase_new(
-        api_client=repository_contract.api_client,
+        job_profiles=repository_contract.job_profiles,
         omni_base_url=cfg.omni_route.base_url,
         omni_api_key=cfg.omni_route.api_key,
         omni_model=cfg.omni_route.model,
@@ -60,8 +60,8 @@ def new(cfg: Config | None) -> tuple[WorkerContainer, Stopper, Exception | None]
 
     stoppers: List[Stopper] = []
 
-    async def _stop_api_client() -> None:
-        await repository_contract.api_client.aclose()
+    async def _stop_job_profiles() -> None:
+        await repository_contract.job_profiles.aclose()
 
     stoppers.append(_stop_api_client)
 

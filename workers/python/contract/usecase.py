@@ -16,7 +16,7 @@ class UsecaseContract:
 
 
 def new(
-    api_client: JobProfiles,
+    job_profiles: JobProfiles,
     omni_base_url: str,
     omni_api_key: str,
     omni_model: str,
@@ -28,4 +28,4 @@ def new(
     from usecase.analyze_job.llm_client import OpenAIClient
 
     llm = OpenAIClient(api_key=omni_api_key, base_url=omni_base_url, model=omni_model)
-    return UsecaseContract(analyze_job=AnalyzeJob(api_client=api_client, llm=llm))
+    return UsecaseContract(analyze_job=AnalyzeJob(job_profiles=job_profiles, llm=llm))

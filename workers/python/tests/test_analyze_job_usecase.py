@@ -18,7 +18,7 @@ class _FakeLLM:
         return dict(self._payload)
 
 
-class _FakeAPIClient:
+class _FakeJobProfiles:
     def __init__(self):
         self.created = None
         self.idempotency_keys = []
@@ -47,20 +47,20 @@ class _FakeAPIClient:
 
 @pytest.mark.asyncio
 async def test_execute_rejects_empty_job_description():
-    api = _FakeAPIClient()
+    job_profiles = _FakeJobProfiles()
     llm = _FakeLLM({"family": "technology", "seniority": "unknown"})
-    svc = AnalyzeJob(api_client=api, llm=llm)
+    svc = AnalyzeJob(job_profiles=job_profiles, llm=llm)
 
     with pytest.raises(ValueError, match="job_description is required"):
         await svc.execute(job_description="   ", job_id="job-1")
 
-    assert api.created is None
+    assert job_profiles.created is None
     assert llm.calls == 0
 
 
 @pytest.mark.asyncio
 async def test_execute_calls_api_with_profile():
-    api = _FakeAPIClient()
+    job_profiles = _FakeJobProfiles()
     llm = _FakeLLM(
         {
             "family": "technology",
@@ -76,7 +76,7 @@ async def test_execute_calls_api_with_profile():
             ],
         }
     )
-    svc = AnalyzeJob(api_client=api, llm=llm)
+    svc = AnalyzeJob(job_profiles=job_profiles, llm=llm)
 
     profile = await svc.execute(
         job_description="We need a Senior Backend Engineer with Golang.",
@@ -84,9 +84,9 @@ async def test_execute_calls_api_with_profile():
         idempotency_key="idem-key-abc",
     )
 
-    assert api.created is not None
-    assert api.created["job_id"] == "job-1"
-    assert api.created["idempotency_key"] == "idem-key-abc"
+    assert job_profiles.created is not None
+    assert job_profiles.created["job_id"] == "job-1"
+    assert job_profiles.created["idempotency_key"] == "idem-key-abc"
     assert profile.family == "technology"
     assert profile.job_id == "job-1"
     assert llm.calls == 1
@@ -94,12 +94,12 @@ async def test_execute_calls_api_with_profile():
 
 @pytest.mark.asyncio
 async def test_execute_generates_idempotency_key_when_not_provided():
-    api = _FakeAPIClient()
+    job_profiles = _FakeJobProfiles()
     llm = _FakeLLM({"family": "technology", "seniority": "unknown"})
-    svc = AnalyzeJob(api_client=api, llm=llm)
+    svc = AnalyzeJob(job_profiles=job_profiles, llm=llm)
 
     await svc.execute(job_description="We need an engineer.")
 
-    assert api.created is not None
-    assert api.created["idempotency_key"] is not None
-    assert len(api.created["idempotency_key"]) > 0
+    assert job_profiles.created is not None
+    assert job_profiles.created["idempotency_key"] is not None
+    assert len(job_profiles.created["idempotency_key"]) > 0
