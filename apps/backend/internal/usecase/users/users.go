@@ -23,11 +23,11 @@ type User interface {
 // userService resolves Clerk identities to local users.
 // Users are created exclusively via Clerk webhook, never on first request.
 type userService struct {
-	repo *repository.UsersRepository
+	repo repository.Users
 }
 
 // NewUserService creates a user service backed by a repository.
-func NewUserService(repo *repository.UsersRepository) User {
+func NewUserService(repo repository.Users) User {
 	return &userService{repo: repo}
 }
 

@@ -10,7 +10,10 @@ import (
 // Contract is the repository layer contract. Repository implementations
 // attach their data-access methods here as the domain model grows.
 type Contract struct {
-	UsersRepository *repo.UsersRepository
+	UsersRepository         repo.Users
+	ExperiencesRepository   repo.Experiences
+	ProjectsRepository      repo.Projects
+	ProjectSkillsRepository repo.ProjectSkills
 }
 
 // NewRepository creates the repository layer contract from the common
@@ -22,7 +25,10 @@ func NewRepository(comm *common.Contract) (*Contract, error) {
 	}
 
 	c := &Contract{
-		UsersRepository: repo.NewUsersRepository(comm.DB),
+		UsersRepository:         repo.NewUsersRepository(comm.DB),
+		ExperiencesRepository:   repo.NewExperiencesRepository(comm.DB),
+		ProjectsRepository:      repo.NewProjectsRepository(comm.DB),
+		ProjectSkillsRepository: repo.NewProjectSkillsRepository(comm.DB),
 	}
 	return c, nil
 }

@@ -60,7 +60,7 @@ func (m *mockUserService) SoftDelete(ctx context.Context, id string) (*models.Us
 
 func newHandlerWithMock(mock *mockUserService) *handler {
 	return NewHandler(&contract.Contract{
-		Usecase: &contractUsecase.Contract{User: mock},
+		Usecase: &contractUsecase.Contract{Users: mock},
 	})
 }
 

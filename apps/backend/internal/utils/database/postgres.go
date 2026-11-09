@@ -16,12 +16,14 @@ import (
 )
 
 // DB is the database connection abstraction. Any provider (Neon, Supabase,
-// self-managed Postgres, ...) that implements Ping, Close, and QueryRow can be
-// plugged in without changing the delivery, contract, or repository layers.
+// self-managed Postgres, ...) that implements Ping, Close, QueryRow, and Query
+// can be plugged in without changing the delivery, contract, or repository
+// layers.
 type DB interface {
 	Ping(ctx context.Context) error
 	Close()
 	QueryRow(ctx context.Context, sql string, arguments ...any) pgx.Row
+	Query(ctx context.Context, sql string, arguments ...any) (pgx.Rows, error)
 }
 
 // NewDB creates a connection to a PostgreSQL database using config and returns

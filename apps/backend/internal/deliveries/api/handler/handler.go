@@ -4,6 +4,8 @@ import (
 	"net/http"
 
 	"github.com/frasnym/getojobu/apps/backend/internal/contract"
+	"github.com/frasnym/getojobu/apps/backend/internal/deliveries/api/handler/experiences"
+	"github.com/frasnym/getojobu/apps/backend/internal/deliveries/api/handler/projects"
 	"github.com/frasnym/getojobu/apps/backend/internal/deliveries/api/handler/webhook"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/httpx"
 	httpSwagger "github.com/swaggo/http-swagger"
@@ -33,8 +35,6 @@ func (h *handler) Route(rt *httpx.Router) {
 	v1.GET("/health", h.Health)
 
 	// Swagger UI at /v1/swagger/ (serves docs/swagger.json spec).
-	// Trailing slash acts as a multi-segment wildcard in Go 1.22+ ServeMux,
-	// matching /v1/swagger/, /v1/swagger/index.html, /v1/swagger/doc.json, etc.
 	v1.GET("/swagger/", httpx.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
 		httpSwagger.Handler().ServeHTTP(w, r)
 		return nil
@@ -42,4 +42,10 @@ func (h *handler) Route(rt *httpx.Router) {
 
 	// Clerk webhook under /v1/webhooks group.
 	webhook.NewHandler(h.contract).Route(v1.Group("/webhooks"))
+
+	// Experience routes (CRU only; no DELETE).
+	experiences.NewHandler(h.contract).Route(v1.Group("/experiences"))
+
+	// Project routes (CRU only; no DELETE).
+	projects.NewHandler(h.contract).Route(v1.Group("/projects"))
 }

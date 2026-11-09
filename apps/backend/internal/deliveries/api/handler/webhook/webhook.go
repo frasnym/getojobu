@@ -26,7 +26,7 @@ type handler struct {
 func NewHandler(c *contract.Contract) *handler {
 	return &handler{
 		cfg:         c.Cfg,
-		userService: c.Usecase.User,
+		userService: c.Usecase.Users,
 	}
 }
 
