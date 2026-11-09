@@ -9,7 +9,6 @@ calling the Go API over the internal Docker network.
 
 from __future__ import annotations
 
-import json
 import uuid
 from typing import Any, Protocol, runtime_checkable
 
