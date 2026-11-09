@@ -22,6 +22,7 @@ class _FakeAPIClient:
     def __init__(self):
         self.created = None
         self.idempotency_keys = []
+        self.closed = False
 
     async def create_job_profile(
         self,
@@ -39,6 +40,9 @@ class _FakeAPIClient:
         }
         self.idempotency_keys.append(idempotency_key)
         return {"id": "stored-id-123", **profile}
+
+    async def aclose(self) -> None:
+        self.closed = True
 
 
 @pytest.mark.asyncio

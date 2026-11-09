@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from deliveries.client.api_client import APIClient
+from repository.getojobu_api import JobProfiles
 from usecase.analyze_job.service import AnalyzeJob
 
 if TYPE_CHECKING:

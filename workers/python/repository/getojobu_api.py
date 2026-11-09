@@ -1,30 +1,26 @@
-"""HTTP client for calling the Go API from the Python worker.
+"""Repository for persisting job profiles via the Go API.
 
-The worker does not access Neon directly. It sends extracted JobProfile
-data to the Go API's internal endpoint over the Docker network, which
-handles validation, authorization, and persistence.
+Mirrors apps/backend/internal/repository/experiences.go: interface +
+implementation, parameterized requests, explicit error handling.
 
-Endpoints called:
-  POST {base_url}/api/v1/internal/job-profiles
-
-Auth:
-  X-API-Key: {static worker key}
-
-Idempotency:
-  Idempotency-Key: {unique per evaluation attempt}
+The worker does NOT access Neon directly. It persists JobProfile data by
+calling the Go API over the internal Docker network.
 """
 
 from __future__ import annotations
 
+import json
 import uuid
 from typing import Any, Protocol, runtime_checkable
 
 import httpx
 
+from models.job_profile import JobProfile
+
 
 @runtime_checkable
-class APIClient(Protocol):
-    """Protocol for the Go API client used by the analyze_job usecase."""
+class JobProfiles(Protocol):
+    """Data access for normalized job profiles via the Go API."""
 
     async def create_job_profile(
         self,
@@ -33,16 +29,13 @@ class APIClient(Protocol):
         job_id: str | None,
         profile: dict[str, Any],
         idempotency_key: str | None = None,
-    ) -> dict[str, Any]:
-        """Persist a normalized job profile via the Go API.
+    ) -> dict[str, Any]: ...
 
-        Returns the stored profile as a dict.
-        """
-        ...
+    async def aclose(self) -> None: ...
 
 
-class HTTPAPIClient:
-    """httpx-backed implementation of APIClient."""
+class _getojobuAPIRepository:
+    """httpx-backed implementation of JobProfiles via the Go API."""
 
     def __init__(
         self,
@@ -91,3 +84,15 @@ class HTTPAPIClient:
 
     async def aclose(self) -> None:
         await self._client.aclose()
+
+
+def NewGetojobuAPI(
+    *,
+    base_url: str,
+    api_key: str,
+) -> JobProfiles:
+    """Create a JobProfiles repository backed by the Go API.
+
+    Mirrors NewExperiencesRepository in apps/backend/internal/repository.
+    """
+    return _getojobuAPIRepository(base_url=base_url, api_key=api_key)

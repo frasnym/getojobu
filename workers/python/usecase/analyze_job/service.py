@@ -12,7 +12,7 @@ import uuid
 from typing import Any, Protocol, runtime_checkable
 
 from models.job_profile import JobProfile
-from deliveries.client.api_client import APIClient
+from repository.getojobu_api import JobProfiles
 
 
 class LLMClient(Protocol):
