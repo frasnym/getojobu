@@ -63,7 +63,7 @@ def new(cfg: Config | None) -> tuple[WorkerContainer, Stopper, Exception | None]
     async def _stop_api() -> None:
         await repository_contract.api.aclose()
 
-    stoppers.append(_stop_api_client)
+    stoppers.append(_stop_api)
 
     def stopper() -> None:
         # Run every stopper even when one fails.
