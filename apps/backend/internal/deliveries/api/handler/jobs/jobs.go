@@ -67,10 +67,9 @@ type updateJobDescriptionRequest struct {
 	Description string `json:"description"`
 }
 
-// validateCreateJobRequest checks the fields required for every job
-// listing: slug, source, title, company, and location. Shared by CreateJob
-// and BulkCreateJob so validation rules are defined in one place.
-func validateCreateJobRequest(j createJobRequest) error {
+// Validate checks the fields required for every job listing: slug, source,
+// title, company, and location.
+func (j createJobRequest) Validate() error {
 	if j.Slug == "" || j.Source == "" || j.Title == "" || j.Company == "" || j.Location == "" {
 		return httpx.Envelope(httpx.CodeInvalidRequest, "slug, source, title, company, and location are required", "")
 	}
@@ -103,7 +102,7 @@ func (h *handler) CreateJob(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	if err := validateCreateJobRequest(req); err != nil {
+	if err := req.Validate(); err != nil {
 		return err
 	}
 
@@ -178,7 +177,7 @@ func (h *handler) BulkCreateJob(w http.ResponseWriter, r *http.Request) error {
 		Jobs: make([]models.CreateJobParams, len(req.Jobs)),
 	}
 	for i, j := range req.Jobs {
-		if err := validateCreateJobRequest(j); err != nil {
+		if err := j.Validate(); err != nil {
 			return err
 		}
 
