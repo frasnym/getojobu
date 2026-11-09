@@ -16,8 +16,13 @@ import httpx
 
 
 @runtime_checkable
-class JobProfiles(Protocol):
-    """Data access for normalized job profiles via the Go API."""
+class GetojobuAPI(Protocol):
+    """General data access client for the Go API (internal Docker network).
+
+    Currently exposes job profile persistence; more endpoints (applications,
+    evaluations, activities) can be added as the worker expands beyond
+    Step 1B.
+    """
 
     async def create_job_profile(
         self,
@@ -31,8 +36,8 @@ class JobProfiles(Protocol):
     async def aclose(self) -> None: ...
 
 
-class _getojobuAPIRepository:
-    """httpx-backed implementation of JobProfiles via the Go API."""
+class _getojobuAPI:
+    """httpx-backed implementation of GetojobuAPI via the Go API."""
 
     def __init__(
         self,
@@ -87,9 +92,9 @@ def NewGetojobuAPI(
     *,
     base_url: str,
     api_key: str,
-) -> JobProfiles:
-    """Create a JobProfiles repository backed by the Go API.
+) -> GetojobuAPI:
+    """Create a GetojobuAPI client backed by the Go API.
 
     Mirrors NewExperiencesRepository in apps/backend/internal/repository.
     """
-    return _getojobuAPIRepository(base_url=base_url, api_key=api_key)
+    return _getojobuAPI(base_url=base_url, api_key=api_key)

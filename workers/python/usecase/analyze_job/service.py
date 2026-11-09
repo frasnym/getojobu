@@ -12,7 +12,7 @@ import uuid
 from typing import Any, Protocol, runtime_checkable
 
 from models.job_profile import JobProfile
-from repository.getojobu_api import JobProfiles
+from repository.getojobu_api import GetojobuAPI
 
 
 class LLMClient(Protocol):
@@ -26,14 +26,14 @@ class LLMClient(Protocol):
 class AnalyzeJob:
     def __init__(
         self,
-        job_profiles: JobProfiles,
+        api: GetojobuAPI,
         llm: LLMClient,
         *,
         prompt_version: str = "extract-job-v1",
         provider: str = "openai",
         model: str = "gpt-4o-mini",
     ) -> None:
-        self._job_profiles = job_profiles
+        self._api = api
         self._llm = llm
         self._prompt_version = prompt_version
         self._provider = provider
@@ -76,7 +76,7 @@ class AnalyzeJob:
 
         # 4. Persist via the Go API (not direct DB access).
         key = idempotency_key or str(uuid.uuid4())
-        stored = await self._job_profiles.create_job_profile(
+        stored = await self._api.create_job_profile(
             job_description=job_description,
             job_id=job_id,
             profile=profile.model_dump(),
