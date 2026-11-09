@@ -15,8 +15,6 @@ from typing import Any, Protocol, runtime_checkable
 
 import httpx
 
-from models.job_profile import JobProfile
-
 
 @runtime_checkable
 class JobProfiles(Protocol):
