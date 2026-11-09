@@ -9,7 +9,7 @@ This is the "actual flow" the user asked to pick: Step 1B.
 from __future__ import annotations
 
 import uuid
-from typing import Any, Protocol, runtime_checkable
+from typing import Any, Protocol
 
 from models.job_profile import JobProfile
 from repository.getojobu_api import GetojobuAPI
