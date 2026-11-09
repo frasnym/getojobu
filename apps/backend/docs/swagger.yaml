@@ -1,8 +1,216 @@
 basePath: /
 definitions:
+  experiences.createExperienceRequest:
+    properties:
+      description:
+        type: string
+      ended_at:
+        type: string
+      experience_type:
+        type: string
+      is_current:
+        type: boolean
+      location:
+        type: string
+      organization:
+        type: string
+      role_title:
+        type: string
+      started_at:
+        type: string
+    type: object
+  experiences.updateExperienceRequest:
+    properties:
+      description:
+        type: string
+      ended_at:
+        type: string
+      experience_type:
+        type: string
+      is_current:
+        type: boolean
+      location:
+        type: string
+      organization:
+        type: string
+      role_title:
+        type: string
+      started_at:
+        type: string
+    type: object
   handler.StatusResponse:
     properties:
       status:
+        type: string
+    type: object
+  httpx.Code:
+    enum:
+    - internal
+    - invalid_request
+    - not_found
+    - unauthorized
+    - forbidden
+    - conflict
+    - too_many_requests
+    - method_not_allowed
+    type: string
+    x-enum-varnames:
+    - CodeInternal
+    - CodeInvalidRequest
+    - CodeNotFound
+    - CodeUnauthorized
+    - CodeForbidden
+    - CodeConflict
+    - CodeTooManyRequests
+    - CodeMethodNotAllowed
+  httpx.Error:
+    properties:
+      code:
+        $ref: '#/definitions/httpx.Code'
+      fields:
+        items:
+          $ref: '#/definitions/httpx.FieldError'
+        type: array
+      message:
+        type: string
+      request_id:
+        type: string
+    type: object
+  httpx.FieldError:
+    properties:
+      field:
+        type: string
+      message:
+        type: string
+    type: object
+  models.Experience:
+    properties:
+      createdAt:
+        type: string
+      description:
+        type: string
+      endedAt:
+        type: string
+      experienceType:
+        $ref: '#/definitions/models.ExperienceType'
+      id:
+        type: string
+      isCurrent:
+        type: boolean
+      location:
+        type: string
+      organization:
+        type: string
+      roleTitle:
+        type: string
+      startedAt:
+        type: string
+      updatedAt:
+        type: string
+      userID:
+        type: string
+    type: object
+  models.ExperienceType:
+    enum:
+    - professional
+    - freelance
+    - internship
+    - volunteer
+    - other
+    type: string
+    x-enum-varnames:
+    - ExperienceTypeProfessional
+    - ExperienceTypeFreelance
+    - ExperienceTypeInternship
+    - ExperienceTypeVolunteer
+    - ExperienceTypeOther
+  models.Project:
+    properties:
+      achievements:
+        type: string
+      createdAt:
+        type: string
+      description:
+        type: string
+      endedAt:
+        type: string
+      id:
+        type: string
+      isCurrent:
+        type: boolean
+      name:
+        type: string
+      responsibilities:
+        type: string
+      startedAt:
+        type: string
+      updatedAt:
+        type: string
+      userExperienceID:
+        type: string
+      userID:
+        type: string
+    type: object
+  models.UserSkill:
+    properties:
+      createdAt:
+        type: string
+      id:
+        type: string
+      proficiency:
+        type: string
+      skillKey:
+        type: string
+      skillName:
+        type: string
+      updatedAt:
+        type: string
+      userID:
+        type: string
+    type: object
+  projects.createProjectRequest:
+    properties:
+      achievements:
+        type: string
+      description:
+        type: string
+      ended_at:
+        type: string
+      is_current:
+        type: boolean
+      name:
+        type: string
+      responsibilities:
+        type: string
+      started_at:
+        type: string
+      user_experience_id:
+        type: string
+    type: object
+  projects.linkProjectSkillsRequest:
+    properties:
+      skill_ids:
+        items:
+          type: string
+        type: array
+    type: object
+  projects.updateProjectRequest:
+    properties:
+      achievements:
+        type: string
+      description:
+        type: string
+      ended_at:
+        type: string
+      is_current:
+        type: boolean
+      name:
+        type: string
+      responsibilities:
+        type: string
+      started_at:
+        type: string
+      user_experience_id:
         type: string
     type: object
   webhook.StatusResponse:
@@ -24,6 +232,119 @@ info:
   title: GetOJobu API
   version: 0.1.0
 paths:
+  /v1/experiences:
+    get:
+      description: List all career experiences for the authenticated user
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.Experience'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpx.Error'
+      summary: List experiences
+      tags:
+      - experiences
+    post:
+      consumes:
+      - application/json
+      description: Create a new career experience for the authenticated user
+      parameters:
+      - description: Experience data
+        in: body
+        name: experience
+        required: true
+        schema:
+          $ref: '#/definitions/experiences.createExperienceRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.Experience'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpx.Error'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpx.Error'
+      summary: Create experience
+      tags:
+      - experiences
+  /v1/experiences/{id}:
+    get:
+      description: Get a career experience by id
+      parameters:
+      - description: Experience ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Experience'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpx.Error'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httpx.Error'
+      summary: Get experience
+      tags:
+      - experiences
+    put:
+      consumes:
+      - application/json
+      description: Update a career experience by id
+      parameters:
+      - description: Experience ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Experience data
+        in: body
+        name: experience
+        required: true
+        schema:
+          $ref: '#/definitions/experiences.updateExperienceRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Experience'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpx.Error'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpx.Error'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httpx.Error'
+      summary: Update experience
+      tags:
+      - experiences
   /v1/health:
     get:
       consumes:
@@ -39,6 +360,180 @@ paths:
       summary: Health check
       tags:
       - health
+  /v1/projects:
+    get:
+      description: List all projects for the authenticated user
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.Project'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpx.Error'
+      summary: List projects
+      tags:
+      - projects
+    post:
+      consumes:
+      - application/json
+      description: Create a new project for the authenticated user
+      parameters:
+      - description: Project data
+        in: body
+        name: project
+        required: true
+        schema:
+          $ref: '#/definitions/projects.createProjectRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.Project'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpx.Error'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpx.Error'
+      summary: Create project
+      tags:
+      - projects
+  /v1/projects/{id}:
+    get:
+      description: Get a project by id
+      parameters:
+      - description: Project ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Project'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpx.Error'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httpx.Error'
+      summary: Get project
+      tags:
+      - projects
+    put:
+      consumes:
+      - application/json
+      description: Update a project by id
+      parameters:
+      - description: Project ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Project data
+        in: body
+        name: project
+        required: true
+        schema:
+          $ref: '#/definitions/projects.updateProjectRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Project'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpx.Error'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpx.Error'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httpx.Error'
+      summary: Update project
+      tags:
+      - projects
+  /v1/projects/{id}/skills:
+    get:
+      description: List skills linked to a project
+      parameters:
+      - description: Project ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.UserSkill'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpx.Error'
+      summary: List project skills
+      tags:
+      - project-skills
+    post:
+      consumes:
+      - application/json
+      description: Associate skills with a project
+      parameters:
+      - description: Project ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Skill IDs
+        in: body
+        name: skills
+        required: true
+        schema:
+          $ref: '#/definitions/projects.linkProjectSkillsRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpx.Error'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpx.Error'
+      summary: Link project skills
+      tags:
+      - project-skills
   /v1/webhooks/clerk:
     post:
       consumes:
