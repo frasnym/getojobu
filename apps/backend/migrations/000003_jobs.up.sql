@@ -22,6 +22,6 @@ CREATE TABLE jobs (
 
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_by_type TEXT NOT NULL DEFAULT 'system',
-    updated_by_id TEXT NOT NULL DEFAULT 'system'
+    updated_by_type TEXT NOT NULL,
+    updated_by_id TEXT NOT NULL
 );
