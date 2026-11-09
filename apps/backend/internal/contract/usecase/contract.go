@@ -5,6 +5,7 @@ import (
 
 	"github.com/frasnym/getojobu/apps/backend/internal/contract/repository"
 	ucExperiences "github.com/frasnym/getojobu/apps/backend/internal/usecase/experiences"
+	ucJobs "github.com/frasnym/getojobu/apps/backend/internal/usecase/jobs"
 	ucProjects "github.com/frasnym/getojobu/apps/backend/internal/usecase/projects"
 	ucProjectSkills "github.com/frasnym/getojobu/apps/backend/internal/usecase/projectskills"
 	ucUsers "github.com/frasnym/getojobu/apps/backend/internal/usecase/users"
@@ -17,6 +18,7 @@ type Contract struct {
 	Experiences   ucExperiences.Experience
 	Projects      ucProjects.Project
 	ProjectSkills ucProjectSkills.ProjectSkill
+	Jobs          ucJobs.Job
 }
 
 // NewUsecase creates the usecase layer contract from the repository contract.
@@ -31,6 +33,7 @@ func NewUsecase(r *repository.Contract) (*Contract, error) {
 		Experiences:   ucExperiences.NewExperienceService(r.ExperiencesRepository),
 		Projects:      ucProjects.NewProjectService(r.ProjectsRepository),
 		ProjectSkills: ucProjectSkills.NewProjectSkillService(r.ProjectSkillsRepository),
+		Jobs:          ucJobs.NewJobService(r.JobsRepository),
 	}
 	return c, nil
 }

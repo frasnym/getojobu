@@ -5,6 +5,7 @@ import (
 
 	"github.com/frasnym/getojobu/apps/backend/internal/contract"
 	"github.com/frasnym/getojobu/apps/backend/internal/deliveries/api/handler/experiences"
+	"github.com/frasnym/getojobu/apps/backend/internal/deliveries/api/handler/jobs"
 	"github.com/frasnym/getojobu/apps/backend/internal/deliveries/api/handler/projects"
 	"github.com/frasnym/getojobu/apps/backend/internal/deliveries/api/handler/webhook"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/httpx"
@@ -48,4 +49,7 @@ func (h *handler) Route(rt *httpx.Router) {
 
 	// Project routes (CRU only; no DELETE).
 	projects.NewHandler(h.contract).Route(v1.Group("/projects"))
+
+	// Job routes (CRUD + bulk create).
+	jobs.NewHandler(h.contract).Route(v1.Group("/jobs"))
 }
