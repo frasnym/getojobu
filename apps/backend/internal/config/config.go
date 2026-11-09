@@ -16,9 +16,21 @@ type Config struct {
 		WriteTimeout    time.Duration
 		ShutdownTimeout time.Duration
 	}
-	Log   LogConfig
-	DB    DBConfig
-	Clerk ClerkConfig
+	Log         LogConfig
+	DB          DBConfig
+	Clerk       ClerkConfig
+	MachineAuth MachineAuth
+}
+
+// MachineKey maps a machine API key to the caller principal it represents.
+type MachineKey struct {
+	ActorType string
+	ActorID   string
+}
+
+// MachineAuth holds the mapping of machine API keys to principals.
+type MachineAuth struct {
+	APIKeys map[string]MachineKey
 }
 
 // LogConfig holds logging settings.
@@ -143,6 +155,17 @@ func Load() (*Config, error) {
 	cfg.Clerk.SecretKey = os.Getenv("CLERK_SECRET_KEY")
 	cfg.Clerk.AuthorizedParties = envStringSlice("CLERK_AUTHORIZED_PARTIES", ",")
 	cfg.Clerk.WebhookSecret = os.Getenv("CLERK_WEBHOOK_SECRET")
+
+	cfg.MachineAuth.APIKeys = map[string]MachineKey{}
+	if v := os.Getenv("CRON_API_KEY"); v != "" {
+		cfg.MachineAuth.APIKeys[v] = MachineKey{ActorType: "cron", ActorID: "cron-scrape"}
+	}
+	if v := os.Getenv("HERMES_API_KEY"); v != "" {
+		cfg.MachineAuth.APIKeys[v] = MachineKey{ActorType: "agent", ActorID: "hermes"}
+	}
+	if v := os.Getenv("PLAYWRIGHT_API_KEY"); v != "" {
+		cfg.MachineAuth.APIKeys[v] = MachineKey{ActorType: "worker", ActorID: "playwright-worker"}
+	}
 
 	return cfg, nil
 }
