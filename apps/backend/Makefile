@@ -7,6 +7,7 @@
 #   make generate-swagger   regenerate OpenAPI docs from swag annotations
 #   make build              compile the API binary
 #   make test               run all tests
+#   make test-integration   run integration tests with Docker PostgreSQL
 #   make vet                run go vet
 #   make fmt                gofmt all Go files
 #   make run                run the API server (needs DATABASE_URL)
@@ -15,7 +16,7 @@
 SWAG ?= swag
 GO   ?= go
 
-.PHONY: all generate-swagger build test vet fmt run clean
+.PHONY: all generate-swagger build test test-integration vet fmt run clean
 
 all: build
 
@@ -35,6 +36,12 @@ test:
 # Run go vet
 vet:
 	$(GO) vet ./...
+
+# Run integration tests with Docker PostgreSQL
+test-integration:
+	@docker compose -f ../../docker-compose.integration.yml up -d --wait
+	TEST_PG_DSN="postgres://postgres:postgres@localhost:5432/getojobu_test?sslmode=disable" $(GO) test ./... -count=1 -timeout 300s
+	docker compose -f ../../docker-compose.integration.yml down
 
 # Format all Go files
 fmt:
