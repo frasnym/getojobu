@@ -14,7 +14,6 @@ from typing import Any
 from openai import AsyncOpenAI
 
 from models.job_profile import JobProfile
-from usecase.analyze_job.service import LLMClient
 
 _PROMPTS_DIR = Path(__file__).resolve().parents[2] / "prompts"
 
