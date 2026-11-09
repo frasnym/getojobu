@@ -5,8 +5,6 @@ validation. Uses pydantic so LLM JSON output can be parsed and validated
 in one step.
 """
 
-from __future__ import annotations
-
 from datetime import datetime
 from typing import Optional
 from uuid import UUID, uuid4
