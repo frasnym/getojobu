@@ -48,6 +48,7 @@ async def analyze_job_activity(input: dict[str, Any]) -> dict[str, Any]:
 
     Output: the stored JobProfile as a dict.
     """
+    global _container
     if _container is None:
         _container = init_container()
 
