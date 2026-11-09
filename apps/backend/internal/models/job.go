@@ -44,8 +44,9 @@ type CreateJobParams struct {
 	PostedDate     time.Time `json:"posted_date,omitempty"`
 	IsRemote       *bool     `json:"is_remote,omitempty"`
 	VisaRelocation *bool     `json:"visa_relocation,omitempty"`
-	// Audit attribution for the actor creating the listing. Defaults to
-	// ("system", "system") when not supplied.
+	// Audit attribution for the actor creating the listing. Columns are NOT NULL
+	// with no server default; the handler always supplies them (defaults to
+	// ("system", "system") via actorTypeID() in the repository when empty).
 	UpdatedByType string `json:"-"`
 	UpdatedByID   string `json:"-"`
 }
