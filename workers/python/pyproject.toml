@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "getojobu-worker-python"
+version = "0.1.0"
+description = "Python Temporal worker for Getojobu job matching pipeline (Step 1B: Analyze Job Description)"
+requires-python = ">=3.11"
+dependencies = [
+    "temporalio>=1.10.0",
+    "httpx>=0.27.0",
+    "pydantic>=2.9.0",
+    "pydantic-settings>=2.4.0",
+    "python-dotenv>=1.0.0",
+    "structlog>=24.4.0",
+    "openai>=1.40.0",
+    "pytest-asyncio>=0.24.0",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = [
+    "config*",
+    "contract*",
+    "models*",
+    "repository*",
+    "usecase*",
+    "deliveries*",
+    "workflows*",
+    "utils*",
+    "worker*",
+]
