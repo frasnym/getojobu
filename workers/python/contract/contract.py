@@ -9,7 +9,7 @@ direct database access.
 
 from __future__ import annotations
 
-from typing import Callable, List, TYPE_CHECKING
+from typing import Any, Callable, Coroutine, List, TYPE_CHECKING
 
 from config.config import Config
 from contract.repository import new as repository_new
@@ -20,7 +20,7 @@ if TYPE_CHECKING:
     from contract.usecase import UsecaseContract
 
 
-Stopper = Callable[[], None]
+Stopper = Callable[[], Coroutine[Any, Any, None]]
 
 
 class WorkerContainer:
@@ -35,14 +35,16 @@ class WorkerContainer:
         self.usecase = usecase
 
 
-def new(cfg: Config | None) -> tuple[WorkerContainer, Stopper, Exception | None]:
+def new(
+    cfg: Config | None,
+) -> tuple[WorkerContainer | None, Stopper | None, Exception | None]:
     """Assemble the full dependency container from configuration.
 
     Returns (container, stopper, error). On failure, container is None and
     error describes why initialization failed (fail-fast).
     """
     if cfg is None:
-        return None, None, ValueError("config is required")  # type: ignore[return-value]
+        return None, None, ValueError("config is required")
 
     repository_contract = repository_new(cfg)
     usecase_contract = usecase_new(
@@ -65,13 +67,13 @@ def new(cfg: Config | None) -> tuple[WorkerContainer, Stopper, Exception | None]
 
     stoppers.append(_stop_api)
 
-    def stopper() -> None:
+    async def stopper() -> None:
         # Run every stopper even when one fails.
         for st in stoppers:
             if st is None:
                 continue
             try:
-                st()
+                await st()
             except Exception:
                 pass
 

@@ -94,7 +94,7 @@ async def run() -> int:
                 pass
 
     logger.info("worker_stopped")
-    stopper()
+    await stopper()
     return 0
 
 

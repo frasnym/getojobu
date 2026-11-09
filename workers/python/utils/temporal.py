@@ -26,7 +26,7 @@ class TemporalClient:
         task_queue: str,
     ) -> WorkflowHandle:
         """Start a workflow and return its handle (not the result)."""
-        return await self._client.start_workflow(
+        return await self.client.start_workflow(
             workflow.run,
             input,
             id=id,
