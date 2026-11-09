@@ -51,9 +51,9 @@ def new(cfg: Config | None) -> tuple[Contract, Stopper, Exception | None]:
 
     usecase_contract = usecase_new(
         api_client=api_client,
-        llm_provider=cfg.llm.provider,
-        llm_model=cfg.llm.model,
-        llm_api_key=cfg.llm.api_key,
+        omni_base_url=cfg.omni_route.base_url,
+        omni_api_key=cfg.omni_route.api_key,
+        omni_model=cfg.omni_route.model,
     )
 
     contract = Contract(

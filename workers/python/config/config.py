@@ -27,17 +27,17 @@ class APIConfig:
 
 
 @dataclass(frozen=True)
-class LLMConfig:
-    provider: str  # "openai" | "anthropic"
-    model: str
+class OmniRouteConfig:
+    base_url: str  # e.g. http://omniroute:20128 (internal Docker network)
     api_key: str
+    model: str  # e.g. "use-combo"
 
 
 @dataclass(frozen=True)
 class Config:
     temporal: TemporalConfig
     api: APIConfig
-    llm: LLMConfig
+    omni_route: OmniRouteConfig
 
 
 class MissingEnvError(ValueError):
@@ -60,7 +60,7 @@ def load() -> Config:
 
     Reads TEMPORAL_HOST, TEMPORAL_NAMESPACE,
     TEMPORAL_TASK_QUEUE_JOB_ANALYZE, API_BASE_URL, API_KEY,
-    LLM_PROVIDER, LLM_MODEL, LLM_API_KEY.
+    OMNIROUTE_BASE_URL, OMNIROUTE_API_KEY, OMNIROUTE_MODEL.
     """
     return Config(
         temporal=TemporalConfig(
@@ -74,9 +74,9 @@ def load() -> Config:
             base_url=_required("API_BASE_URL"),
             api_key=_required("API_KEY"),
         ),
-        llm=LLMConfig(
-            provider=_optional("LLM_PROVIDER", "openai"),
-            model=_optional("LLM_MODEL", "gpt-4o-mini"),
-            api_key=_required("LLM_API_KEY"),
+        omni_route=OmniRouteConfig(
+            base_url=_required("OMNIROUTE_BASE_URL"),
+            api_key=_required("OMNIROUTE_API_KEY"),
+            model=_required("OMNIROUTE_MODEL"),
         ),
     )

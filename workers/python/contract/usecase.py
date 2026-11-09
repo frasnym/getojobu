@@ -22,15 +22,15 @@ class Contract:
 
 def new(
     api_client: APIClient,
-    llm_provider: str,
-    llm_model: str,
-    llm_api_key: str,
+    omni_base_url: str,
+    omni_api_key: str,
+    omni_model: str,
 ) -> Contract:
     """Build the usecase contract from the API client.
 
-    Wires an OpenAI LLM client into the analyze_job usecase.
+    Wires an OmniRoute-backed LLM client into the analyze_job usecase.
     """
     from usecase.analyze_job.llm_client import OpenAIClient
 
-    llm = OpenAIClient(api_key=llm_api_key, model=llm_model)
+    llm = OpenAIClient(api_key=omni_api_key, base_url=omni_base_url, model=omni_model)
     return Contract(analyze_job=AnalyzeJob(api_client=api_client, llm=llm))
