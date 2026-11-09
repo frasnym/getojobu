@@ -2,7 +2,7 @@
 CREATE TABLE jobs (
     id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
 
-    slug TEXT NOT NULL UNIQUE,
+    slug VARCHAR(255) NOT NULL UNIQUE,
     status VARCHAR(32) NOT NULL DEFAULT 'new',
     analyze_result JSONB,
     failure_message TEXT,
