@@ -16,14 +16,19 @@ import (
 )
 
 // DB is the database connection abstraction. Any provider (Neon, Supabase,
-// self-managed Postgres, ...) that implements Ping, Close, QueryRow, and Query
-// can be plugged in without changing the delivery, contract, or repository
-// layers.
+// self-managed Postgres, ...) that implements Ping, Close, QueryRow, Query,
+// and Begin can be plugged in without changing the delivery, contract, or
+// repository layers.
+//
+// Begin returns pgx.Tx directly because pgx.Pool.Begin(ctx) returns pgx.Tx.
+// pgx is already a dependency of this package (pgx.Row, pgx.Rows), so this
+// adds no new coupling.
 type DB interface {
 	Ping(ctx context.Context) error
 	Close()
 	QueryRow(ctx context.Context, sql string, arguments ...any) pgx.Row
 	Query(ctx context.Context, sql string, arguments ...any) (pgx.Rows, error)
+	Begin(ctx context.Context) (pgx.Tx, error)
 }
 
 // NewDB creates a connection to a PostgreSQL database using config and returns
