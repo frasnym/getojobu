@@ -1,7 +1,6 @@
 -- +goose Up
 CREATE TABLE users (
     id UUID PRIMARY KEY,
-
     clerk_user_id VARCHAR(64) NOT NULL UNIQUE,
     email VARCHAR(128),
     full_name VARCHAR(128),

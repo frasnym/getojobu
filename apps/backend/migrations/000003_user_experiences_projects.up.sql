@@ -1,18 +1,4 @@
 -- +goose Up
-CREATE TABLE user_skills (
-    id UUID PRIMARY KEY,
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
-
-    skill_name VARCHAR(128) NOT NULL,
-    skill_key VARCHAR(64) NOT NULL,
-    proficiency VARCHAR(32),
-
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-
-    CONSTRAINT uq_user_skills_id_user UNIQUE (id, user_id)
-);
-
 CREATE TABLE user_experiences (
     id UUID PRIMARY KEY,
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
@@ -31,8 +17,7 @@ CREATE TABLE user_experiences (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
-    CONSTRAINT uq_user_experiences_id_user
-        UNIQUE (id, user_id)
+    CONSTRAINT uq_user_experiences_id_user UNIQUE (id, user_id)
 );
 
 CREATE TABLE user_projects (
@@ -41,8 +26,7 @@ CREATE TABLE user_projects (
 
     user_experience_id UUID,
 
-    name VARCHAR(255) NOT NULL
-        CHECK (BTRIM(name) <> ''),
+    name VARCHAR(255) NOT NULL CHECK (BTRIM(name) <> ''),
 
     description TEXT,
     responsibilities TEXT,
@@ -55,8 +39,7 @@ CREATE TABLE user_projects (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
-    CONSTRAINT uq_user_projects_id_user
-        UNIQUE (id, user_id),
+    CONSTRAINT uq_user_projects_id_user UNIQUE (id, user_id),
 
     CONSTRAINT fk_user_projects_experience_owner
         FOREIGN KEY (user_experience_id, user_id)
