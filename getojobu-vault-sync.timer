@@ -1,0 +1,17 @@
+# GetOJobu Vault Sync Timer
+# Triggers vault-sync.service every 5 minutes to sync secrets from Vault
+#
+# Installed to /etc/systemd/system/ by hermes-deploy
+
+[Unit]
+Description=GetOJobu Vault Secret Sync Timer
+Requires=getojobu-vault-sync.service
+
+[Timer]
+OnUnitActiveSec=300
+Persistent=true
+WakeSec=0
+Enable=true
+
+[Install]
+WantedBy=timers.target
