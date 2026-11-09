@@ -6,7 +6,7 @@ in one step.
 """
 
 from datetime import datetime
-from typing import Optional
+from typing import List, Optional
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field, field_validator
@@ -47,8 +47,8 @@ class JobProfile(BaseModel):
         str  # entry | junior | mid | senior | lead | manager | executive | unknown
     )
     minimum_years_experience: Optional[int] = Field(default=None, ge=0)
-    requirements: list[JobRequirement] = Field(default_factory=list)
-    responsibilities: list[str] = Field(default_factory=list)
+    requirements: List[JobRequirement] = Field(default_factory=list)
+    responsibilities: List[str] = Field(default_factory=list)
     profile_data: dict = Field(default_factory=dict)  # raw normalized JSONB payload
     prompt_version: str = "extract-job-v1"
     provider: str = "openai"
