@@ -36,7 +36,7 @@ class Contract:
         self.usecase = usecase
 
 
-def new(cfg: Config) -> tuple[Contract, Stopper, Exception | None]:
+def new(cfg: Config | None) -> tuple[Contract, Stopper, Exception | None]:
     """Assemble the full contract from configuration.
 
     Returns (contract, stopper, error). On failure, contract is None and
