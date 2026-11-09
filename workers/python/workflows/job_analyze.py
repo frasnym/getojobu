@@ -19,7 +19,6 @@ from typing import Any
 
 from temporalio import workflow
 
-
 with workflow.unsafe.imports_passed_through():
     from deliveries.consumer.activities.analyze_job import (
         analyze_job_activity,

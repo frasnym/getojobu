@@ -9,7 +9,11 @@ direct database access.
 
 from __future__ import annotations
 
-from typing import Any, Callable, Coroutine, List, TYPE_CHECKING
+import logging
+from collections.abc import Callable, Coroutine
+from typing import TYPE_CHECKING, Any
+
+logger = logging.getLogger(__name__)
 
 from config.config import Config
 from contract.repository import new as repository_new
@@ -27,8 +31,8 @@ class WorkerContainer:
     def __init__(
         self,
         cfg: Config,
-        repository: "RepositoryContract",
-        usecase: "UsecaseContract",
+        repository: RepositoryContract,
+        usecase: UsecaseContract,
     ) -> None:
         self.cfg = cfg
         self.repository = repository
@@ -60,7 +64,7 @@ def new(
         usecase=usecase_contract,
     )
 
-    stoppers: List[Stopper] = []
+    stoppers: list[Stopper] = []
 
     async def _stop_api() -> None:
         await repository_contract.api.aclose()
@@ -74,7 +78,7 @@ def new(
                 continue
             try:
                 await st()
-            except Exception:
-                pass
+            except Exception as exc:  # noqa: BLE001 - intentional: log and continue
+                logger.warning("stopper_failed", error=str(exc))
 
     return container, stopper, None

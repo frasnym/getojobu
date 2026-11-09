@@ -11,9 +11,9 @@ from typing import Any
 
 from temporalio import activity
 
-from contract.contract import WorkerContainer, new as contract_new
 from config.config import load as config_load
-
+from contract.contract import WorkerContainer
+from contract.contract import new as contract_new
 
 # The container is built once per worker process (in worker.main) and
 # attached to the module so activities can reuse the usecase.

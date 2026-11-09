@@ -6,8 +6,6 @@ and signal workflows. The worker itself uses the temporalio Worker API.
 
 from __future__ import annotations
 
-from typing import Optional
-
 from temporalio.client import Client, WorkflowHandle
 
 
@@ -36,7 +34,7 @@ class TemporalClient:
     async def get_handle(
         self,
         workflow_id: str,
-        run_id: Optional[str] = None,
+        run_id: str | None = None,
     ) -> WorkflowHandle:
         """Get a handle to an existing workflow run."""
         return self._client.get_workflow_handle(workflow_id, run_id=run_id)

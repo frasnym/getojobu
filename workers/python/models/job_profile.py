@@ -6,7 +6,7 @@ in one step.
 """
 
 from datetime import datetime
-from typing import Any, List, Optional
+from typing import Any
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field, field_validator
@@ -16,10 +16,10 @@ class JobRequirement(BaseModel):
     """A single requirement extracted from a job description."""
 
     original_name: str = Field(..., min_length=1)
-    normalized_name: Optional[str] = None
+    normalized_name: str | None = None
     category: str = Field(..., min_length=1)
     importance: str  # required | preferred | optional | unknown
-    source_excerpt: Optional[str] = None
+    source_excerpt: str | None = None
 
     @field_validator("importance")
     @classmethod
@@ -34,26 +34,26 @@ class JobProfile(BaseModel):
     """Normalized job description output of Step 1B (extract-job-v1)."""
 
     id: UUID = Field(default_factory=uuid4)
-    job_id: Optional[str] = None  # reference to shared jobs table slug/id
+    job_id: str | None = None  # reference to shared jobs table slug/id
     version: int = 1
     schema_version: str = "1.0"
     family: str  # technology | administration | ... | other
-    title: Optional[str] = None
-    company: Optional[str] = None
-    location: Optional[str] = None
-    work_arrangement: Optional[str] = None  # remote | hybrid | onsite | unknown
-    employment_type: Optional[str] = None
+    title: str | None = None
+    company: str | None = None
+    location: str | None = None
+    work_arrangement: str | None = None  # remote | hybrid | onsite | unknown
+    employment_type: str | None = None
     seniority: (
         str  # entry | junior | mid | senior | lead | manager | executive | unknown
     )
-    minimum_years_experience: Optional[int] = Field(default=None, ge=0)
-    requirements: List[JobRequirement] = []
-    responsibilities: List[str] = []
+    minimum_years_experience: int | None = Field(default=None, ge=0)
+    requirements: list[JobRequirement] = []
+    responsibilities: list[str] = []
     profile_data: dict[str, Any] = {}  # raw normalized JSONB payload
     prompt_version: str = "extract-job-v1"
     provider: str = "openai"
     model: str = "gpt-4o-mini"
-    created_at: Optional[datetime] = None
+    created_at: datetime | None = None
 
     @field_validator("family")
     @classmethod
