@@ -6,5 +6,8 @@
   "python.analysis.diagnosticSeverityOverrides": {
     "reportMissingImports": "error",
     "reportUnusedImport": "error"
-  }
+  },
+  "cSpell.words": [
+    "Getojobu"
+  ]
 }
