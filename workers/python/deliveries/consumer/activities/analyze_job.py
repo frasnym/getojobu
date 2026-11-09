@@ -49,12 +49,18 @@ async def analyze_job_activity(input: dict[str, Any]) -> dict[str, Any]:
     Output: the stored JobProfile as a dict.
     """
     if _container is None:
-        init_container()
+        _container = init_container()
 
+    assert _container is not None
     usecase = _container.usecase.analyze_job
 
     job_description = input.get("job_description")
+    if not isinstance(job_description, str) or not job_description.strip():
+        raise ValueError("job_description is required")
+
     job_id = input.get("job_id")
+    if job_id is not None and not isinstance(job_id, str):
+        raise ValueError("job_id must be a string")
 
     profile = await usecase.execute(
         job_description=job_description,
