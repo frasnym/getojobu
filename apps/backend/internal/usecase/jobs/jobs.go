@@ -21,11 +21,6 @@ type Job interface {
 	UpdateDescription(ctx context.Context, slug, description, updatedByType, updatedByID string) (*models.Job, error)
 }
 
-// ErrDescriptionBlocked is returned when a description update is rejected
-// because the job already has a description and status 'analyzed'. The HTTP
-// layer maps this to 409 Conflict.
-var ErrDescriptionBlocked = errors.New("description update blocked: job status is analyzed")
-
 type jobService struct {
 	repo repository.Jobs
 }
@@ -88,7 +83,7 @@ func (s *jobService) UpdateDescription(ctx context.Context, slug, description, u
 	job, err := s.repo.UpdateDescription(ctx, slug, description, updatedByType, updatedByID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrDescriptionBlocked
+			return nil, constants.ErrDescriptionBlocked
 		}
 		return nil, fmt.Errorf("update job description: %w", err)
 	}

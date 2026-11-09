@@ -67,6 +67,16 @@ type updateJobDescriptionRequest struct {
 	Description string `json:"description"`
 }
 
+// validateCreateJobRequest checks the fields required for every job
+// listing: slug, source, title, company, and location. Shared by CreateJob
+// and BulkCreateJob so validation rules are defined in one place.
+func validateCreateJobRequest(j createJobRequest) error {
+	if j.Slug == "" || j.Source == "" || j.Title == "" || j.Company == "" || j.Location == "" {
+		return httpx.Envelope(httpx.CodeInvalidRequest, "slug, source, title, company, and location are required", "")
+	}
+	return nil
+}
+
 // CreateJob creates a single job listing. Returns 201 Created when inserted,
 // or 200 OK with Created=false when the slug already exists (first-source-wins).
 // @Summary Create job
@@ -93,8 +103,8 @@ func (h *handler) CreateJob(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	if req.Slug == "" || req.Source == "" || req.Title == "" || req.Company == "" || req.Location == "" {
-		return httpx.Envelope(httpx.CodeInvalidRequest, "slug, source, title, company, and location are required", "")
+	if err := validateCreateJobRequest(req); err != nil {
+		return err
 	}
 
 	var postedDate time.Time
@@ -168,8 +178,8 @@ func (h *handler) BulkCreateJob(w http.ResponseWriter, r *http.Request) error {
 		Jobs: make([]models.CreateJobParams, len(req.Jobs)),
 	}
 	for i, j := range req.Jobs {
-		if j.Slug == "" || j.Source == "" || j.Title == "" || j.Company == "" || j.Location == "" {
-			return httpx.Envelope(httpx.CodeInvalidRequest, "slug, source, title, company, and location are required for every job", "")
+		if err := validateCreateJobRequest(j); err != nil {
+			return err
 		}
 
 		var postedDate time.Time
@@ -336,7 +346,7 @@ func (h *handler) UpdateJobDescription(w http.ResponseWriter, r *http.Request) e
 		if err == constants.ErrNotFound {
 			return httpx.Envelope(httpx.CodeNotFound, "job not found", "")
 		}
-		if err == ucJobs.ErrDescriptionBlocked {
+		if err == constants.ErrDescriptionBlocked {
 			return httpx.Envelope(httpx.CodeConflict, "description update blocked: job is already analyzed", "")
 		}
 		logging.Error(ctx, "update job description failed", err,

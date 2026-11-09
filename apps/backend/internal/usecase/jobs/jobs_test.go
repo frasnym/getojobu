@@ -189,7 +189,7 @@ func TestUpdateDescription_blocked_when_analyzed(t *testing.T) {
 	_, err := s.UpdateDescription(context.Background(), slug, "New description.", "cron", "cron-scrape")
 
 	require.Error(t, err)
-	assert.True(t, errors.Is(err, ErrDescriptionBlocked), "expected ErrDescriptionBlocked, got %v", err)
+	assert.True(t, errors.Is(err, constants.ErrDescriptionBlocked), "expected ErrDescriptionBlocked, got %v", err)
 }
 
 func strPtr(s string) *string {

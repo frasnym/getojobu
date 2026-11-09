@@ -9,7 +9,6 @@ import (
 
 	"github.com/frasnym/getojobu/apps/backend/internal/config"
 	"github.com/frasnym/getojobu/apps/backend/internal/models"
-	ucJobs "github.com/frasnym/getojobu/apps/backend/internal/usecase/jobs"
 	"github.com/frasnym/getojobu/apps/backend/internal/usecase/jobs/mocks"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/constants"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/ctxval"
@@ -369,7 +368,7 @@ func TestUpdateJobDescription_blocked(t *testing.T) {
 	slug := "update-blocked-jakarta"
 	mockJob.EXPECT().
 		UpdateDescription(gomock.Any(), slug, "New description.", "cron", "cron-scrape").
-		Return(nil, ucJobs.ErrDescriptionBlocked)
+		Return(nil, constants.ErrDescriptionBlocked)
 
 	mux := http.NewServeMux()
 	mux.Handle("PATCH /jobs/{slug}", httpx.HandlerFunc(h.UpdateJobDescription))
