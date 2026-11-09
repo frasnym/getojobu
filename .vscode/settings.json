@@ -1,5 +1,10 @@
 {
-    "cSpell.words": [
-        "getojobu"
-    ]
+  "python.defaultInterpreterPath": "${workspaceFolder}/workers/python/.venv/bin/python",
+  "python.analysis.extraPaths": [
+    "${workspaceFolder}/workers/python"
+  ],
+  "python.analysis.diagnosticSeverityOverrides": {
+    "reportMissingImports": "error",
+    "reportUnusedImport": "error"
+  }
 }
