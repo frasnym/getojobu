@@ -6,13 +6,8 @@ usecase services behind a single container.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from repository.getojobu_api import JobProfiles
 from usecase.analyze_job.service import AnalyzeJob
-
-if TYPE_CHECKING:
-    pass
 
 
 class Contract:
@@ -21,7 +16,7 @@ class Contract:
 
 
 def new(
-    api_client: APIClient,
+    api_client: JobProfiles,
     omni_base_url: str,
     omni_api_key: str,
     omni_model: str,

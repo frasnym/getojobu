@@ -9,7 +9,7 @@ direct database access.
 
 from __future__ import annotations
 
-from typing import Callable, TYPE_CHECKING
+from typing import Callable, List, TYPE_CHECKING
 
 from config.config import Config
 from contract.repository import new as repository_new
@@ -58,7 +58,7 @@ def new(cfg: Config | None) -> tuple[Contract, Stopper, Exception | None]:
         usecase=usecase_contract,
     )
 
-    stoppers: list[Stopper] = []
+    stoppers: List[Stopper] = []
 
     async def _stop_api_client() -> None:
         await repository_contract.api_client.aclose()

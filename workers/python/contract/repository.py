@@ -6,6 +6,7 @@ repository implementations behind a single container.
 
 from __future__ import annotations
 
+from config.config import Config
 from repository.getojobu_api import JobProfiles, NewGetojobuAPI
 
 
@@ -14,7 +15,7 @@ class Contract:
         self.api_client = api_client
 
 
-def new(cfg) -> Contract:
+def new(cfg: Config) -> Contract:
     """Build the repository contract from configuration.
 
     Creates a GetojobuAPI-backed JobProfiles repository.

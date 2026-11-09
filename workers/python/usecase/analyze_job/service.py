@@ -26,7 +26,7 @@ class LLMClient(Protocol):
 class AnalyzeJob:
     def __init__(
         self,
-        api_client: APIClient,
+        api_client: JobProfiles,
         llm: LLMClient,
         *,
         prompt_version: str = "extract-job-v1",
