@@ -40,6 +40,7 @@ async def run() -> int:
         return 1
 
     assert contract is not None
+    assert stopper is not None
 
     # Connect to Temporal (reuses existing Hermes Temporal via a dedicated
     # getojobu namespace; no new Temporal deployment needed).
@@ -49,7 +50,7 @@ async def run() -> int:
         )
     except Exception as exc:  # noqa: BLE001
         logger.error("temporal_connect_failed", error=str(exc))
-        stopper()
+        await stopper()
         return 1
 
     # Initialize the activity container (reuse the contract already built).
