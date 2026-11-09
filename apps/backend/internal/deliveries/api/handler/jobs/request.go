@@ -1,6 +1,8 @@
 package jobs
 
 import (
+	"time"
+
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/httpx"
 )
 
@@ -28,10 +30,20 @@ type updateJobDescriptionRequest struct {
 }
 
 // Validate checks the fields required for every job listing: slug, source,
-// title, company, and location.
-func (j createJobRequest) Validate() error {
+// title, company, and location. It also parses posted_date (YYYY-MM-DD)
+// into a time.Time, returning the zero value when empty.
+func (j createJobRequest) Validate() (time.Time, error) {
 	if j.Slug == "" || j.Source == "" || j.Title == "" || j.Company == "" || j.Location == "" {
-		return httpx.Envelope(httpx.CodeInvalidRequest, "slug, source, title, company, and location are required", "")
+		return time.Time{}, httpx.Envelope(httpx.CodeInvalidRequest, "slug, source, title, company, and location are required", "")
 	}
-	return nil
+
+	if j.PostedDate == "" {
+		return time.Time{}, nil
+	}
+
+	t, err := time.Parse("2006-01-02", j.PostedDate)
+	if err != nil {
+		return time.Time{}, httpx.Envelope(httpx.CodeInvalidRequest, "posted_date must be in YYYY-MM-DD format", "")
+	}
+	return t, nil
 }

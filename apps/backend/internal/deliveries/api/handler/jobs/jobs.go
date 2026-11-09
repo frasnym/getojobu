@@ -3,7 +3,6 @@ package jobs
 import (
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/frasnym/getojobu/apps/backend/internal/config"
 	"github.com/frasnym/getojobu/apps/backend/internal/contract"
@@ -70,17 +69,9 @@ func (h *handler) CreateJob(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	if err := req.Validate(); err != nil {
+	postedDate, err := req.Validate()
+	if err != nil {
 		return err
-	}
-
-	var postedDate time.Time
-	if req.PostedDate != "" {
-		t, err := time.Parse("2006-01-02", req.PostedDate)
-		if err != nil {
-			return httpx.Envelope(httpx.CodeInvalidRequest, "posted_date must be in YYYY-MM-DD format", "")
-		}
-		postedDate = t
 	}
 
 	result, err := h.ucJobs.Create(ctx, models.CreateJobParams{
@@ -145,17 +136,9 @@ func (h *handler) BulkCreateJob(w http.ResponseWriter, r *http.Request) error {
 		Jobs: make([]models.CreateJobParams, len(req.Jobs)),
 	}
 	for i, j := range req.Jobs {
-		if err := j.Validate(); err != nil {
+		postedDate, err := j.Validate()
+		if err != nil {
 			return err
-		}
-
-		var postedDate time.Time
-		if j.PostedDate != "" {
-			t, err := time.Parse("2006-01-02", j.PostedDate)
-			if err != nil {
-				return httpx.Envelope(httpx.CodeInvalidRequest, "posted_date must be in YYYY-MM-DD format", "")
-			}
-			postedDate = t
 		}
 
 		params.Jobs[i] = models.CreateJobParams{
