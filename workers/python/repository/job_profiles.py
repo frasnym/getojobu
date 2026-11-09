@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Optional, Protocol, runtime_checkable
 
-from models.job_profile import JobProfile
+from models.job_profile import JobProfile, JobRequirement
 from utils.database import Database
 
 

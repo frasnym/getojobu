@@ -11,24 +11,24 @@ from typing import Any
 
 from temporalio import activity
 
-from contract.contract import new as contract_new
+from contract.contract import Contract, new as contract_new
 from config.config import load as config_load
 
 
 # The container is built once per worker process (in worker.main) and
 # attached to the module so activities can reuse the usecase.
-_container: Any = None
+_container: Contract | None = None
 
 
-def init_container() -> Any:
+def init_container() -> Contract:
     """Build the dependency container. Called from worker.main before
     starting the Temporal worker."""
     global _container
     if _container is None:
         cfg = config_load()
         contract, _stopper, err = contract_new(cfg)
-        if err is not None:
-            raise err
+        if err is not None or contract is None:
+            raise err or RuntimeError("contract initialization failed")
         _container = contract
     return _container
 

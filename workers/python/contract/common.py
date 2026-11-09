@@ -5,9 +5,12 @@ Mirrors apps/backend/internal/contract/common/contract.go.
 
 from __future__ import annotations
 
-from typing import Callable
+from typing import Callable, TYPE_CHECKING
 
 from utils.database import Database
+
+if TYPE_CHECKING:
+    pass
 
 
 class Contract:
@@ -23,7 +26,7 @@ def new(cfg_db_url: str) -> tuple[Contract, Stopper]:
 
     Fail-fast: if the database cannot be reached at startup, this raises.
     """
-    from ..utils.database import new_database_sync
+    from utils.database import new_database_sync
 
     db, stopper = new_database_sync(cfg_db_url)
     return Contract(db=db), stopper

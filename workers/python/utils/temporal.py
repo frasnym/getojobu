@@ -15,7 +15,7 @@ class TemporalClient:
     """Thin wrapper around the temporalio SDK client."""
 
     def __init__(self, client: Client) -> None:
-        self._client = client
+        self.client = client
 
     async def start_workflow(
         self,

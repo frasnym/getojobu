@@ -6,8 +6,13 @@ usecase services behind a single container.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from usecase.analyze_job.llm_client import OpenAIClient
 from usecase.analyze_job.service import AnalyzeJob
+
+if TYPE_CHECKING:
+    from contract.repository import Contract as RepositoryContract
 
 
 class Contract:
@@ -15,7 +20,12 @@ class Contract:
         self.analyze_job = analyze_job
 
 
-def new(repository, llm_provider: str, llm_model: str, llm_api_key: str) -> Contract:
+def new(
+    repository: "RepositoryContract",
+    llm_provider: str,
+    llm_model: str,
+    llm_api_key: str,
+) -> Contract:
     """Build the usecase contract from the repository contract.
 
     Wires an OpenAI LLM client into the analyze_job usecase.

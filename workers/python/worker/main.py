@@ -23,6 +23,7 @@ from deliveries.consumer.activities.analyze_job import (
     init_container,
 )
 from utils.logging import configure, get_logger
+from utils.temporal import connect as temporal_connect
 from workflows.job_analyze import JobAnalyzeWorkflow
 
 logger = get_logger("worker.main")
@@ -38,10 +39,10 @@ async def run() -> int:
         logger.error("contract_init_failed", error=str(err))
         return 1
 
+    assert contract is not None
+
     # Connect to Temporal (reuses existing Hermes Temporal via a dedicated
     # getojobu namespace; no new Temporal deployment needed).
-    from .utils.temporal import connect as temporal_connect
-
     try:
         temporal_client = await temporal_connect(
             host=cfg.temporal.host, namespace=cfg.temporal.namespace
@@ -55,7 +56,7 @@ async def run() -> int:
     init_container()
 
     worker = Worker(
-        temporal_client._client,  # type: ignore[attr-defined]
+        temporal_client.client,
         task_queue=cfg.temporal.task_queue_job_analyze,
         activities=[analyze_job_activity],
         workflows=[JobAnalyzeWorkflow],

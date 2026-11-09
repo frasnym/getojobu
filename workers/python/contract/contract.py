@@ -6,19 +6,30 @@ repository → usecase, with a combined stopper for graceful shutdown.
 
 from __future__ import annotations
 
-from typing import Callable
+from typing import Callable, TYPE_CHECKING
 
 from config.config import Config
 from contract.common import new as common_new
 from contract.repository import new as repository_new
 from contract.usecase import new as usecase_new
 
+if TYPE_CHECKING:
+    from contract.common import Contract as CommonContract
+    from contract.repository import Contract as RepositoryContract
+    from contract.usecase import Contract as UsecaseContract
+
 
 Stopper = Callable[[], None]
 
 
 class Contract:
-    def __init__(self, cfg, common, repository, usecase) -> None:
+    def __init__(
+        self,
+        cfg: Config,
+        common: "CommonContract",
+        repository: "RepositoryContract",
+        usecase: "UsecaseContract",
+    ) -> None:
         self.cfg = cfg
         self.common = common
         self.repository = repository
@@ -50,7 +61,7 @@ def new(cfg: Config) -> tuple[Contract, Stopper, Exception | None]:
         usecase=usecase_contract,
     )
 
-    stoppers = [common_stopper]
+    stoppers: list[Stopper] = [common_stopper]
 
     def stopper() -> None:
         # Run every stopper even when one fails.
