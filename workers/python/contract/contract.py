@@ -9,19 +9,20 @@ direct database access.
 
 from __future__ import annotations
 
-import logging
 from collections.abc import Callable, Coroutine
 from typing import TYPE_CHECKING, Any
-
-logger = logging.getLogger(__name__)
 
 from config.config import Config
 from contract.repository import new as repository_new
 from contract.usecase import new as usecase_new
+from utils.logging import get_logger
 
 if TYPE_CHECKING:
     from contract.repository import RepositoryContract
     from contract.usecase import UsecaseContract
+
+
+logger = get_logger(__name__)
 
 
 Stopper = Callable[[], Coroutine[Any, Any, None]]
