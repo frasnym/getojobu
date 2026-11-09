@@ -10,12 +10,12 @@ from config.config import Config
 from repository.getojobu_api import JobProfiles, NewGetojobuAPI
 
 
-class Contract:
+class RepositoryContract:
     def __init__(self, api_client: JobProfiles) -> None:
         self.api_client = api_client
 
 
-def new(cfg: Config) -> Contract:
+def new(cfg: Config) -> RepositoryContract:
     """Build the repository contract from configuration.
 
     Creates a GetojobuAPI-backed JobProfiles repository.
@@ -24,4 +24,4 @@ def new(cfg: Config) -> Contract:
         base_url=cfg.api.base_url,
         api_key=cfg.api.api_key,
     )
-    return Contract(api_client=api_client)
+    return RepositoryContract(api_client=api_client)

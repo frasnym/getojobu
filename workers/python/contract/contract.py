@@ -1,4 +1,4 @@
-"""Aggregate contract: the single dependency container for the worker.
+"""Aggregate dependency container for the worker.
 
 Mirrors apps/backend/internal/contract/contract.go: config → repository →
 usecase, with a combined stopper for graceful shutdown.
@@ -16,14 +16,14 @@ from contract.repository import new as repository_new
 from contract.usecase import new as usecase_new
 
 if TYPE_CHECKING:
-    from contract.repository import Contract as RepositoryContract
-    from contract.usecase import Contract as UsecaseContract
+    from contract.repository import RepositoryContract
+    from contract.usecase import UsecaseContract
 
 
 Stopper = Callable[[], None]
 
 
-class Contract:
+class WorkerContainer:
     def __init__(
         self,
         cfg: Config,
@@ -35,10 +35,10 @@ class Contract:
         self.usecase = usecase
 
 
-def new(cfg: Config | None) -> tuple[Contract, Stopper, Exception | None]:
-    """Assemble the full contract from configuration.
+def new(cfg: Config | None) -> tuple[WorkerContainer, Stopper, Exception | None]:
+    """Assemble the full dependency container from configuration.
 
-    Returns (contract, stopper, error). On failure, contract is None and
+    Returns (container, stopper, error). On failure, container is None and
     error describes why initialization failed (fail-fast).
     """
     if cfg is None:
@@ -52,7 +52,7 @@ def new(cfg: Config | None) -> tuple[Contract, Stopper, Exception | None]:
         omni_model=cfg.omni_route.model,
     )
 
-    contract = Contract(
+    container = WorkerContainer(
         cfg=cfg,
         repository=repository_contract,
         usecase=usecase_contract,
@@ -75,4 +75,4 @@ def new(cfg: Config | None) -> tuple[Contract, Stopper, Exception | None]:
             except Exception:
                 pass
 
-    return contract, stopper, None
+    return container, stopper, None

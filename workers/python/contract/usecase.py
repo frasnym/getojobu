@@ -10,7 +10,7 @@ from repository.getojobu_api import JobProfiles
 from usecase.analyze_job.service import AnalyzeJob
 
 
-class Contract:
+class UsecaseContract:
     def __init__(self, analyze_job: AnalyzeJob) -> None:
         self.analyze_job = analyze_job
 
@@ -20,7 +20,7 @@ def new(
     omni_base_url: str,
     omni_api_key: str,
     omni_model: str,
-) -> Contract:
+) -> UsecaseContract:
     """Build the usecase contract from the API client.
 
     Wires an OmniRoute-backed LLM client into the analyze_job usecase.
@@ -28,4 +28,4 @@ def new(
     from usecase.analyze_job.llm_client import OpenAIClient
 
     llm = OpenAIClient(api_key=omni_api_key, base_url=omni_base_url, model=omni_model)
-    return Contract(analyze_job=AnalyzeJob(api_client=api_client, llm=llm))
+    return UsecaseContract(analyze_job=AnalyzeJob(api_client=api_client, llm=llm))
