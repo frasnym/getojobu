@@ -14,6 +14,7 @@ import (
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/constants"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/ctxval"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/httpx"
+	"github.com/frasnym/getojobu/apps/backend/internal/utils/logging"
 )
 
 // handler handles job CRUD operations.
@@ -80,7 +81,9 @@ type updateJobDescriptionRequest struct {
 // @Failure 401 {object} httpx.Error
 // @Router /v1/jobs [post]
 func (h *handler) CreateJob(w http.ResponseWriter, r *http.Request) error {
-	p := ctxval.PrincipalFromContext(r.Context())
+	ctx := r.Context()
+
+	p := ctxval.PrincipalFromContext(ctx)
 	if p == nil {
 		return httpx.Envelope(httpx.CodeUnauthorized, "unauthenticated", "")
 	}
@@ -103,7 +106,7 @@ func (h *handler) CreateJob(w http.ResponseWriter, r *http.Request) error {
 		postedDate = t
 	}
 
-	result, err := h.ucJobs.Create(r.Context(), models.CreateJobParams{
+	result, err := h.ucJobs.Create(ctx, models.CreateJobParams{
 		Slug:           req.Slug,
 		Source:         req.Source,
 		ExternalID:     req.ExternalID,
@@ -120,6 +123,8 @@ func (h *handler) CreateJob(w http.ResponseWriter, r *http.Request) error {
 		UpdatedByID:    p.ActorID,
 	})
 	if err != nil {
+		logging.Error(ctx, "create job failed", err,
+			"slug", req.Slug, "actor_type", p.ActorType, "actor_id", p.ActorID)
 		return err
 	}
 
@@ -143,7 +148,9 @@ func (h *handler) CreateJob(w http.ResponseWriter, r *http.Request) error {
 // @Failure 401 {object} httpx.Error
 // @Router /v1/jobs/bulk [post]
 func (h *handler) BulkCreateJob(w http.ResponseWriter, r *http.Request) error {
-	p := ctxval.PrincipalFromContext(r.Context())
+	ctx := r.Context()
+
+	p := ctxval.PrincipalFromContext(ctx)
 	if p == nil {
 		return httpx.Envelope(httpx.CodeUnauthorized, "unauthenticated", "")
 	}
@@ -192,8 +199,10 @@ func (h *handler) BulkCreateJob(w http.ResponseWriter, r *http.Request) error {
 		}
 	}
 
-	results, err := h.ucJobs.CreateBulk(r.Context(), params)
+	results, err := h.ucJobs.CreateBulk(ctx, params)
 	if err != nil {
+		logging.Error(ctx, "bulk create jobs failed", err,
+			"job_count", len(params.Jobs), "actor_type", p.ActorType, "actor_id", p.ActorID)
 		return err
 	}
 
@@ -211,7 +220,9 @@ func (h *handler) BulkCreateJob(w http.ResponseWriter, r *http.Request) error {
 // @Failure 401 {object} httpx.Error
 // @Router /v1/jobs [get]
 func (h *handler) ListJobs(w http.ResponseWriter, r *http.Request) error {
-	p := ctxval.PrincipalFromContext(r.Context())
+	ctx := r.Context()
+
+	p := ctxval.PrincipalFromContext(ctx)
 	if p == nil {
 		return httpx.Envelope(httpx.CodeUnauthorized, "unauthenticated", "")
 	}
@@ -230,11 +241,13 @@ func (h *handler) ListJobs(w http.ResponseWriter, r *http.Request) error {
 	var jobs []*models.Job
 	var err error
 	if company != "" {
-		jobs, err = h.ucJobs.SearchByCompany(r.Context(), company, limit)
+		jobs, err = h.ucJobs.SearchByCompany(ctx, company, limit)
 	} else {
-		jobs, err = h.ucJobs.ListRecent(r.Context(), limit)
+		jobs, err = h.ucJobs.ListRecent(ctx, limit)
 	}
 	if err != nil {
+		logging.Error(ctx, "list jobs failed", err,
+			"company", company, "limit", limit, "actor_type", p.ActorType, "actor_id", p.ActorID)
 		return err
 	}
 
@@ -256,7 +269,9 @@ func (h *handler) ListJobs(w http.ResponseWriter, r *http.Request) error {
 // @Failure 404 {object} httpx.Error
 // @Router /v1/jobs/{slug} [get]
 func (h *handler) GetJob(w http.ResponseWriter, r *http.Request) error {
-	p := ctxval.PrincipalFromContext(r.Context())
+	ctx := r.Context()
+
+	p := ctxval.PrincipalFromContext(ctx)
 	if p == nil {
 		return httpx.Envelope(httpx.CodeUnauthorized, "unauthenticated", "")
 	}
@@ -266,11 +281,13 @@ func (h *handler) GetJob(w http.ResponseWriter, r *http.Request) error {
 		return httpx.Envelope(httpx.CodeInvalidRequest, "job slug is required", "")
 	}
 
-	job, err := h.ucJobs.GetBySlug(r.Context(), slug)
+	job, err := h.ucJobs.GetBySlug(ctx, slug)
 	if err != nil {
 		if err == constants.ErrNotFound {
 			return httpx.Envelope(httpx.CodeNotFound, "job not found", "")
 		}
+		logging.Error(ctx, "get job failed", err,
+			"slug", slug, "actor_type", p.ActorType, "actor_id", p.ActorID)
 		return err
 	}
 
@@ -293,7 +310,9 @@ func (h *handler) GetJob(w http.ResponseWriter, r *http.Request) error {
 // @Failure 409 {object} httpx.Error
 // @Router /v1/jobs/{slug} [patch]
 func (h *handler) UpdateJobDescription(w http.ResponseWriter, r *http.Request) error {
-	p := ctxval.PrincipalFromContext(r.Context())
+	ctx := r.Context()
+
+	p := ctxval.PrincipalFromContext(ctx)
 	if p == nil {
 		return httpx.Envelope(httpx.CodeUnauthorized, "unauthenticated", "")
 	}
@@ -312,7 +331,7 @@ func (h *handler) UpdateJobDescription(w http.ResponseWriter, r *http.Request) e
 		return httpx.Envelope(httpx.CodeInvalidRequest, "description is required", "")
 	}
 
-	job, err := h.ucJobs.UpdateDescription(r.Context(), slug, req.Description, p.ActorType, p.ActorID)
+	job, err := h.ucJobs.UpdateDescription(ctx, slug, req.Description, p.ActorType, p.ActorID)
 	if err != nil {
 		if err == constants.ErrNotFound {
 			return httpx.Envelope(httpx.CodeNotFound, "job not found", "")
@@ -320,6 +339,8 @@ func (h *handler) UpdateJobDescription(w http.ResponseWriter, r *http.Request) e
 		if err == ucJobs.ErrDescriptionBlocked {
 			return httpx.Envelope(httpx.CodeConflict, "description update blocked: job is already analyzed", "")
 		}
+		logging.Error(ctx, "update job description failed", err,
+			"slug", slug, "actor_type", p.ActorType, "actor_id", p.ActorID)
 		return err
 	}
 
