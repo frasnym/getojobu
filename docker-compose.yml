@@ -19,7 +19,7 @@ services:
     restart: unless-stopped
     mem_limit: 512m
     ports:
-      - "127.0.0.1:8080:8080"  # localhost-only on host; Caddy reaches via docker network
+      - "8080"   # container-only; Caddy reaches via docker network DNS
     env_file:
       - /srv/apps/getojobu/apps/backend/config/.env  # loaded via env_file so os.Getenv() works (vault-synced)
     networks:
