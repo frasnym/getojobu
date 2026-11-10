@@ -124,6 +124,8 @@ definitions:
     type: object
   models.BulkCreateJobResult:
     properties:
+      added_to_user_list:
+        type: boolean
       created:
         type: boolean
       slug:
@@ -131,6 +133,8 @@ definitions:
     type: object
   models.CreateJobResult:
     properties:
+      addedToUserList:
+        type: boolean
       created:
         type: boolean
       job:
@@ -328,6 +332,21 @@ info:
   title: GetOJobu API
   version: 0.1.0
 paths:
+  /health:
+    get:
+      consumes:
+      - application/json
+      description: Returns service status
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.StatusResponse'
+      summary: Health check
+      tags:
+      - health
   /v1/experiences:
     get:
       description: List all career experiences for the authenticated user
@@ -449,21 +468,6 @@ paths:
       summary: Update experience
       tags:
       - experiences
-  /v1/health:
-    get:
-      consumes:
-      - application/json
-      description: Returns service status
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/handler.StatusResponse'
-      summary: Health check
-      tags:
-      - health
   /v1/jobs:
     get:
       description: List recent jobs ordered by created_at descending. Optional limit

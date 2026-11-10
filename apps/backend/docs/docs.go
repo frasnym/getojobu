@@ -24,6 +24,29 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/health": {
+            "get": {
+                "description": "Returns service status",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "health"
+                ],
+                "summary": "Health check",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handler.StatusResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/experiences": {
             "get": {
                 "security": [
@@ -210,29 +233,6 @@ const docTemplate = `{
                         "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/httpx.Error"
-                        }
-                    }
-                }
-            }
-        },
-        "/v1/health": {
-            "get": {
-                "description": "Returns service status",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "health"
-                ],
-                "summary": "Health check",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/handler.StatusResponse"
                         }
                     }
                 }
@@ -1033,6 +1033,9 @@ const docTemplate = `{
         "models.BulkCreateJobResult": {
             "type": "object",
             "properties": {
+                "added_to_user_list": {
+                    "type": "boolean"
+                },
                 "created": {
                     "type": "boolean"
                 },
@@ -1044,6 +1047,9 @@ const docTemplate = `{
         "models.CreateJobResult": {
             "type": "object",
             "properties": {
+                "addedToUserList": {
+                    "type": "boolean"
+                },
                 "created": {
                     "type": "boolean"
                 },
