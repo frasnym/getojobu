@@ -83,18 +83,23 @@ async def run() -> int:
             pass
 
     # Run the worker until a shutdown signal is received.
-    async with worker:
-        task = asyncio.create_task(worker.run())
+    # NOTE: do NOT use `async with worker:` — Worker.__aenter__ calls start()
+    # which sets Temporal TaskLocals on the event loop; worker.run() then tries
+    # to set them again in validate() and panics ("must only be set once:
+    # TaskLocals"). Match the working pattern in apps/temporal/worker: just
+    # create a task from worker.run() and cancel on shutdown.
+    worker_task = asyncio.create_task(worker.run())
+    try:
+        await stop_event.wait()
+    finally:
+        worker_task.cancel()
         try:
-            await stop_event.wait()
-        finally:
-            task.cancel()
-            try:
-                await task
-            except asyncio.CancelledError:
-                pass
+            await worker_task
+        except asyncio.CancelledError:
+            pass
 
     logger.info("worker_stopped")
+    await worker.shutdown()
     await stopper()
     return 0
 
