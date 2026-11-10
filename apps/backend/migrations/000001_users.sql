@@ -13,3 +13,6 @@ CREATE TABLE users (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     deleted_at TIMESTAMPTZ
 );
+
+-- +goose Down
+DROP TABLE IF EXISTS users;
