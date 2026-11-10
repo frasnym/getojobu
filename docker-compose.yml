@@ -5,8 +5,7 @@
 # - Caddy reverse-proxies api.getojobu.web.id → getojobu-api:8080
 #   (upstream is the container name on the "web" network, not "go-api")
 # - Vault syncs secrets to both config/.env files every 5 min
-# - .env is loaded via docker compose env_file: so os.Getenv() /
-#   os.getenv() see the values as real environment variables.
+# - .env is loaded via docker compose env_file (os.Getenv compatible)
 # - Python worker reads TEMPORAL_HOST, API_BASE_URL, etc. from env
 # - Both services on the "web" Docker network
 # - On .env change: vault-sync restarts only the affected container

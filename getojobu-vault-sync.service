@@ -1,0 +1,18 @@
+# GetOJobu Vault Sync Service
+# Fetches secrets from Vault and writes .env file
+# Restarts getojobu containers when secrets change
+#
+# Installed to /etc/systemd/system/ by hermes-deploy
+# Triggered by getojobu-vault-sync.timer
+
+[Unit]
+Description=GetOJobu Vault Secret Sync
+After=vault.service
+Wants=vault.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/getojobu-vault-sync.sh
+Restart=on-failure
+StandardOutput=journal
+StandardError=journal

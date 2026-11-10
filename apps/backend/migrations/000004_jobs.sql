@@ -25,3 +25,6 @@ CREATE TABLE jobs (
     updated_by_type VARCHAR(32) NOT NULL,
     updated_by_id VARCHAR(255) NOT NULL
 );
+
+-- +goose Down
+DROP TABLE IF EXISTS jobs;

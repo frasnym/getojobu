@@ -1,36 +1,40 @@
 # GetOJobu Go API Dockerfile
 # Multi-stage build: build -> runtime
+# Go 1.27.3 baseline as per project toolchain
 #
 # Build stage
 FROM golang:1.27.3-alpine AS builder
 
-WORKDIR /src
+WORKDIR /app
 
-# Install build dependencies
-RUN apk add --no-cache git ca-certificates tzdata
+# Install build dependencies (git for swag, gcc for CGO)
+RUN apk add --no-cache git gcc musl-dev
 
-# Copy go mod files first for caching
-COPY go.mod go.sum ./
+# Copy go module files first for caching
+go.mod go.sum ./
+
+# Download dependencies
 RUN go mod download
 
 # Copy source code
 COPY . .
 
-# Build the API binary
-RUN go build -o /bin/getojobu-api ./cmd/api
+# Build the binary
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+    go build -o /getojobu-api ./cmd/api
 
 # Runtime stage
-FROM alpine:latest
+FROM alpine:3.20
+
+RUN apk add --no-cache ca-certificates
 
 WORKDIR /app
 
-# Install runtime dependencies
-RUN apk add --no-cache ca-certificates tzdata
+# Copy binary from builder
+COPY --from=builder /getojobu-api /getojobu-api
 
-# Copy the built binary from builder
-COPY --from=builder /bin/getojobu-api /bin/getojobu-api
-
+# Expose the API port
 EXPOSE 8080
 
 # Entry point
-CMD ["/bin/getojobu-api"]
+CMD ["/getojobu-api"]

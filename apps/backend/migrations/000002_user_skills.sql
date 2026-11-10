@@ -11,3 +11,6 @@ CREATE TABLE user_skills (
 
     CONSTRAINT uq_user_skills_id_user UNIQUE (id, user_id)
 );
+
+-- +goose Down
+DROP TABLE IF EXISTS user_skills;
