@@ -215,6 +215,7 @@ Before reporting completion:
 - Phase gates and rollout: `docs/rollout/`.
 - Update docs when implementation changes a documented decision.
 - Mark unresolved decisions as open; do not present assumptions as approved decisions.
+- Swagger/OpenAPI must be generated from Go struct comments (e.g. `swag init`) — never manually edit `docs/swagger.json`/`docs/swagger.yaml`. Update handler request/response models first, then regenerate the spec.
 
 ## 13. Agent workflow
 
