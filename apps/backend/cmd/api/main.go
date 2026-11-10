@@ -24,6 +24,7 @@ package main
 import (
 	"context"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/frasnym/getojobu/apps/backend/internal/config"
@@ -32,9 +33,8 @@ import (
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/graceful"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/logging"
 
-	// Blank import registers the swagger docs instance with swaggo so
-	// httpSwagger.Handler() can read the generated spec.
-	_ "github.com/frasnym/getojobu/apps/backend/docs"
+	// Imported (not blank) so main can override SwaggerInfo.Host at runtime.
+	docs "github.com/frasnym/getojobu/apps/backend/docs"
 )
 
 func main() {
@@ -49,6 +49,17 @@ func run() error {
 	cfg, err := config.Load()
 	if err != nil {
 		return err
+	}
+
+	// Swagger host: public API domain in production, localhost in local dev.
+	// API_BASE_URL (e.g. https://api.getojobu.web.id) is set by vault in production;
+	// when unset (local), SwaggerInfo keeps its generated default of localhost:8080.
+	if baseURL := os.Getenv("API_BASE_URL"); baseURL != "" {
+		host := strings.TrimPrefix(strings.TrimPrefix(baseURL, "https://"), "http://")
+		host = strings.TrimSuffix(host, "/")
+		if host != "" {
+			docs.SwaggerInfo.Host = host
+		}
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())

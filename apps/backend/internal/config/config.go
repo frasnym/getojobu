@@ -15,6 +15,7 @@ type Config struct {
 		ReadTimeout     time.Duration
 		WriteTimeout    time.Duration
 		ShutdownTimeout time.Duration
+		SwaggerToken    string // bearer token required to open Swagger UI; empty = no auth (local dev)
 	}
 	Log         LogConfig
 	DB          DBConfig
@@ -140,6 +141,7 @@ func Load() (*Config, error) {
 	cfg.Server.ReadTimeout = envDuration("API_SERVER_READ_TIMEOUT", 5*time.Second)
 	cfg.Server.WriteTimeout = envDuration("API_SERVER_WRITE_TIMEOUT", 10*time.Second)
 	cfg.Server.ShutdownTimeout = envDuration("API_SERVER_SHUTDOWN_TIMEOUT", 15*time.Second)
+	cfg.Server.SwaggerToken = envString("SWAGGER_TOKEN", "")
 
 	cfg.Log.Level = envLogLevel("LOG_LEVEL", slog.LevelInfo)
 
