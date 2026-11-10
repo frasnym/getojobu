@@ -1,0 +1,50 @@
+# GetOJobu Docker Compose
+# Go API + Python Temporal worker, exposed via Caddy at api.getojobu.web.id
+#
+# Infrastructure notes:
+# - Caddy reverse-proxies api.getojobu.web.id → getojobu-api:8080
+#   (upstream is the container name on the "web" network, not "go-api")
+# - Vault syncs secrets to both config/.env files every 5 min
+# - .env is loaded via docker compose env_file: so os.Getenv() /
+#   os.getenv() see the values as real environment variables.
+# - Python worker reads TEMPORAL_HOST, API_BASE_URL, etc. from env
+# - Both services on the "web" Docker network
+# - On .env change: vault-sync restarts only the affected container
+
+services:
+  go-api:
+    build:
+      context: ./apps/backend
+      dockerfile: Dockerfile
+    container_name: getojobu-api
+    restart: unless-stopped
+    mem_limit: 512m
+    ports:
+      - "127.0.0.1:8080:8080"  # localhost-only on host; Caddy reaches via docker network
+    env_file:
+      - /srv/apps/getojobu/apps/backend/config/.env  # loaded via env_file so os.Getenv() works (vault-synced)
+    networks:
+      - web
+
+  python-worker:
+    build:
+      context: ./workers/python
+      dockerfile: Dockerfile
+    container_name: getojobu-worker
+    restart: unless-stopped
+    mem_limit: 512m
+    command: ["python", "-m", "worker.main"]
+    env_file:
+      - /srv/apps/getojobu/workers/python/config/.env  # loaded via env_file so os.Getenv() works (vault-synced)
+    networks:
+      - web
+
+networks:
+  web:
+    external: true
+    # The "web" network must exist and be shared with Caddy and other services
+    # It is created by the hermes-deploy process or pre-existing infrastructure
+
+volumes:
+  getojobu_api_data:
+  getojobu_worker_data:
