@@ -172,7 +172,7 @@ func TestCreateJob_validation_error(t *testing.T) {
 
 	mockJob.EXPECT().Create(gomock.Any(), gomock.Any()).Times(0)
 
-	body := strings.NewReader(`{"slug":"","source":"linkedin","title":"T","company":"C","location":"L"}`)
+	body := strings.NewReader(`{"source":"","title":"T","company":"C","location":"L"}`)
 	req := httptest.NewRequest(http.MethodPost, "/jobs", body)
 	req = req.WithContext(ctxval.ContextWithPrincipal(req.Context(), principalCtx("", "user_1")))
 	w := httptest.NewRecorder()
@@ -180,6 +180,33 @@ func TestCreateJob_validation_error(t *testing.T) {
 	httpx.HandlerFunc(h.CreateJob).ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestCreateJob_generates_slug_internally(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	h, mockJob, _ := newHandlerWithMock(ctrl)
+
+	expectedSlug := "senior-backend-engineer-acme-jakarta"
+	mockJob.EXPECT().
+		Create(gomock.Any(), gomock.Cond(func(x any) bool {
+			params, ok := x.(models.CreateJobParams)
+			return ok && params.Slug == expectedSlug
+		})).
+		Return(&models.CreateJobResult{
+			Job:     &models.Job{Slug: expectedSlug, Status: "new"},
+			Created: true,
+		}, nil)
+
+	// Body without slug - slug is generated internally from title, company, location
+	body := strings.NewReader(`{"source":"linkedin","title":"Senior Backend Engineer","company":"Acme","location":"Jakarta"}`)
+	req := httptest.NewRequest(http.MethodPost, "/jobs", body)
+	req = req.WithContext(ctxval.ContextWithPrincipal(req.Context(), principalCtx("", "user_1")))
+	w := httptest.NewRecorder()
+
+	httpx.HandlerFunc(h.CreateJob).ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusCreated, w.Code)
 }
 
 func TestCreateJob_malformed_body(t *testing.T) {

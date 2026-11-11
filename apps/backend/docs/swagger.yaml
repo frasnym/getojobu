@@ -106,8 +106,6 @@ definitions:
         type: string
       posted_date:
         type: string
-      slug:
-        type: string
       source:
         type: string
       source_url:

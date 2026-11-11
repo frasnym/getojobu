@@ -7,7 +7,6 @@ import (
 )
 
 type createJobRequest struct {
-	Slug           string  `json:"slug"`
 	Source         string  `json:"source"`
 	ExternalID     *string `json:"external_id,omitempty"`
 	SourceURL      *string `json:"source_url,omitempty"`
@@ -33,12 +32,12 @@ type updateJobDescriptionRequest struct {
 	Description string `json:"description"`
 }
 
-// Validate checks the fields required for every job listing: slug, source,
-// title, company, and location. It also parses posted_date (YYYY-MM-DD)
+// Validate checks the fields required for every job listing: source, title,
+// company, and location. It also parses posted_date (YYYY-MM-DD)
 // into a time.Time, returning the zero value when empty.
 func (j createJobRequest) Validate() (time.Time, error) {
-	if j.Slug == "" || j.Source == "" || j.Title == "" || j.Company == "" || j.Location == "" {
-		return time.Time{}, httpx.Envelope(httpx.CodeInvalidRequest, "slug, source, title, company, and location are required", "")
+	if j.Source == "" || j.Title == "" || j.Company == "" || j.Location == "" {
+		return time.Time{}, httpx.Envelope(httpx.CodeInvalidRequest, "source, title, company, and location are required", "")
 	}
 
 	if j.PostedDate == "" {

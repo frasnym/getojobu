@@ -39,6 +39,10 @@ func NewJobService(r *repository.Contract) Job {
 // (first-source-wins) and returned with Created=false. If the ownership row
 // already exists, AddedToUserList is false.
 func (s *jobService) Create(ctx context.Context, params models.CreateJobParams) (*models.CreateJobResult, error) {
+	if params.Slug == "" {
+		params.Slug = models.BuildJobSlug(params.Title, params.Company, params.Location)
+	}
+
 	var result *models.CreateJobResult
 	operation := func(ctx context.Context) error {
 		var err error
@@ -71,6 +75,13 @@ func (s *jobService) CreateBulk(ctx context.Context, params models.BulkCreateJob
 	if len(jobs) > repo.MaxBulkCreate {
 		return nil, fmt.Errorf("bulk create: maximum %d jobs per request, got %d", repo.MaxBulkCreate, len(jobs))
 	}
+
+	for i := range params.Jobs {
+		if params.Jobs[i].Slug == "" {
+			params.Jobs[i].Slug = models.BuildJobSlug(params.Jobs[i].Title, params.Jobs[i].Company, params.Jobs[i].Location)
+		}
+	}
+	jobs = params.Jobs
 
 	results := make([]models.BulkCreateJobResult, len(jobs))
 	operation := func(ctx context.Context) error {

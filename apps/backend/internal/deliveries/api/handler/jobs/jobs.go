@@ -87,7 +87,7 @@ func (h *handler) CreateJob(w http.ResponseWriter, r *http.Request) error {
 
 	actorType, actorID := p.AuditActor()
 	params := models.CreateJobParams{
-		Slug:           req.Slug,
+		Slug:           models.BuildJobSlug(req.Title, req.Company, req.Location),
 		Source:         req.Source,
 		ExternalID:     req.ExternalID,
 		SourceURL:      req.SourceURL,
@@ -107,7 +107,7 @@ func (h *handler) CreateJob(w http.ResponseWriter, r *http.Request) error {
 	result, err := h.ucJobs.Create(ctx, params)
 	if err != nil {
 		logging.Error(ctx, "create job failed", err,
-			"slug", req.Slug, "actor_type", p.ActorType, "actor_id", p.ActorID)
+			"slug", params.Slug, "actor_type", p.ActorType, "actor_id", p.ActorID)
 		return err
 	}
 
@@ -165,7 +165,7 @@ func (h *handler) BulkCreateJob(w http.ResponseWriter, r *http.Request) error {
 		}
 
 		params.Jobs[i] = models.CreateJobParams{
-			Slug:           j.Slug,
+			Slug:           models.BuildJobSlug(j.Title, j.Company, j.Location),
 			Source:         j.Source,
 			ExternalID:     j.ExternalID,
 			SourceURL:      j.SourceURL,

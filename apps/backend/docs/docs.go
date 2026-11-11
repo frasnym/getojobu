@@ -1002,9 +1002,6 @@ const docTemplate = `{
                 "posted_date": {
                     "type": "string"
                 },
-                "slug": {
-                    "type": "string"
-                },
                 "source": {
                     "type": "string"
                 },
