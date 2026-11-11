@@ -9,16 +9,7 @@ const docTemplate = `{
     "info": {
         "description": "{{escape .Description}}",
         "title": "{{.Title}}",
-        "termsOfService": "http://example.com/terms/",
-        "contact": {
-            "name": "API Support",
-            "url": "http://example.com/support",
-            "email": "support@example.com"
-        },
-        "license": {
-            "name": "MIT",
-            "url": "https://opensource.org/licenses/MIT"
-        },
+        "contact": {},
         "version": "{{.Version}}"
     },
     "host": "{{.Host}}",
@@ -1351,7 +1342,7 @@ var SwaggerInfo = &swag.Spec{
 	Version:          "0.1.0",
 	Host:             "localhost:8080",
 	BasePath:         "/",
-	Schemes:          []string{"http"},
+	Schemes:          []string{"https", "http"},
 	Title:            "GetOJobu API",
 	Description:      "Job-search and application-assistance platform API.",
 	InfoInstanceName: "swagger",

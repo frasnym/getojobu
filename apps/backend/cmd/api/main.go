@@ -1,15 +1,9 @@
 // @title GetOJobu API
 // @version 0.1.0
 // @description Job-search and application-assistance platform API.
-// @termsOfService http://example.com/terms/
-// @contact.name API Support
-// @contact.url http://example.com/support
-// @contact.email support@example.com
-// @license.name MIT
-// @license.url https://opensource.org/licenses/MIT
 // @host localhost:8080
 // @BasePath /
-// @schemes http
+// @schemes https http
 //
 // API key security scheme for all authenticated API routes.
 // Both Clerk session JWTs and machine API keys are sent as
@@ -55,10 +49,15 @@ func run() error {
 	// API_BASE_URL (e.g. https://api.getojobu.web.id) is set by vault in production;
 	// when unset (local), SwaggerInfo keeps its generated default of localhost:8080.
 	if baseURL := os.Getenv("API_BASE_URL"); baseURL != "" {
+		scheme := "https"
+		if strings.HasPrefix(baseURL, "http://") {
+			scheme = "http"
+		}
 		host := strings.TrimPrefix(strings.TrimPrefix(baseURL, "https://"), "http://")
 		host = strings.TrimSuffix(host, "/")
 		if host != "" {
 			docs.SwaggerInfo.Host = host
+			docs.SwaggerInfo.Schemes = []string{scheme}
 		}
 	}
 

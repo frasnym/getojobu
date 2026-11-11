@@ -326,15 +326,8 @@ definitions:
     type: object
 host: localhost:8080
 info:
-  contact:
-    email: support@example.com
-    name: API Support
-    url: http://example.com/support
+  contact: {}
   description: Job-search and application-assistance platform API.
-  license:
-    name: MIT
-    url: https://opensource.org/licenses/MIT
-  termsOfService: http://example.com/terms/
   title: GetOJobu API
   version: 0.1.0
 paths:
@@ -873,6 +866,7 @@ paths:
       tags:
       - webhook
 schemes:
+- https
 - http
 securityDefinitions:
   ApiKeyAuth:
