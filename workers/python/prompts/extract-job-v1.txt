@@ -47,7 +47,6 @@ Initial supported families:
 - marketing
 - finance
 - human_resources
-- engineering
 - healthcare
 - hospitality
 - education
