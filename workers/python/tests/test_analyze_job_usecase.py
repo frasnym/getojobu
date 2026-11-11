@@ -91,12 +91,29 @@ async def test_analyze_sets_metadata_defaults():
         "description": "We need an engineer.",
     })
     llm = _FakeLLM({"family": "technology", "seniority": "mid"})
-    svc = AnalyzeJob(api=fake_api, llm=llm, provider="openai", model="gpt-4o-mini", prompt_version="extract-job-v1")
+    svc = AnalyzeJob(api=fake_api, llm=llm, model="gpt-4o-mini", prompt_version="extract-job-v1")
 
     analysis = await svc.analyze(slug="job-42")
 
     assert analysis.job_id == "42"
-    assert analysis.provider == "openai"
     assert analysis.model == "gpt-4o-mini"
     assert analysis.prompt_version == "extract-job-v1"
     assert llm.calls == 1
+
+
+@pytest.mark.asyncio
+async def test_analyze_metadata_empty_when_unset():
+    fake_api = _FakeAPI({
+        "id": 42,
+        "slug": "job-42",
+        "status": "new",
+        "description": "We need an engineer.",
+    })
+    llm = _FakeLLM({"family": "technology", "seniority": "mid"})
+    svc = AnalyzeJob(api=fake_api, llm=llm)
+
+    analysis = await svc.analyze(slug="job-42")
+
+    assert analysis.job_id == "42"
+    assert analysis.model is None
+    assert analysis.prompt_version == "extract-job-v1"

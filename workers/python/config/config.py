@@ -30,7 +30,7 @@ class APIConfig:
 class OmniRouteConfig:
     base_url: str  # e.g. http://omniroute:20128 (internal Docker network)
     api_key: str
-    model: str  # e.g. "use-combo"
+    model: str | None = None  # e.g. "use-combo"
 
 
 @dataclass(frozen=True)
@@ -77,6 +77,6 @@ def load() -> Config:
         omni_route=OmniRouteConfig(
             base_url=_required("OMNIROUTE_BASE_URL"),
             api_key=_required("OMNIROUTE_API_KEY"),
-            model=_required("OMNIROUTE_MODEL"),
+            model=os.getenv("OMNIROUTE_MODEL") or os.getenv("LLM_MODEL") or os.getenv("MODEL") or None,
         ),
     )

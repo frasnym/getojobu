@@ -35,13 +35,11 @@ class AnalyzeJob:
         llm: LLMClient | None = None,
         *,
         prompt_version: str = "extract-job-v1",
-        provider: str = "openai",
-        model: str = "gpt-4o-mini",
+        model: str | None = None,
     ) -> None:
         self._api = api
         self._llm = llm
         self._prompt_version = prompt_version
-        self._provider = provider
         self._model = model
 
     async def analyze(
@@ -126,7 +124,6 @@ class AnalyzeJob:
         analysis = JobAnalysis.model_validate(raw)
         if job_id:
             analysis.job_id = job_id
-        analysis.provider = self._provider
         analysis.model = self._model
         analysis.prompt_version = self._prompt_version
         return analysis

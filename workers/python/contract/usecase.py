@@ -19,7 +19,7 @@ def new(
     api: GetojobuAPI,
     omni_base_url: str,
     omni_api_key: str,
-    omni_model: str,
+    omni_model: str | None = None,
 ) -> UsecaseContract:
     """Build the usecase contract from the Go API client.
 
@@ -27,5 +27,13 @@ def new(
     """
     from usecase.analyze_job.llm_client import OpenAIClient
 
-    llm = OpenAIClient(api_key=omni_api_key, base_url=omni_base_url, model=omni_model)
-    return UsecaseContract(analyze_job=AnalyzeJob(api=api, llm=llm))
+    llm = OpenAIClient(
+        api_key=omni_api_key, base_url=omni_base_url, model=omni_model or ""
+    )
+    return UsecaseContract(
+        analyze_job=AnalyzeJob(
+            api=api,
+            llm=llm,
+            model=omni_model,
+        )
+    )

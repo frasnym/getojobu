@@ -51,8 +51,7 @@ class JobAnalysis(BaseModel):
     responsibilities: list[str] = []
     profile_data: dict[str, Any] = {}  # raw normalized JSONB payload
     prompt_version: str = "extract-job-v1"
-    provider: str = "openai"
-    model: str = "gpt-4o-mini"
+    model: str | None = None
     created_at: datetime | None = None
 
     @field_validator("family")
