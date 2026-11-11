@@ -34,9 +34,11 @@ func principalCtx(id string) *models.Principal {
 }
 
 func bodyAsMap(t *testing.T, w *httptest.ResponseRecorder) map[string]interface{} {
-	var m map[string]interface{}
-	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &m))
-	return m
+	t.Helper()
+	var resp httpx.Response[map[string]interface{}]
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+	require.True(t, resp.Success)
+	return resp.Data
 }
 
 func TestCreateProject_success(t *testing.T) {
@@ -207,11 +209,12 @@ func TestListProjects_success(t *testing.T) {
 
 	// Assert.
 	assert.Equal(t, http.StatusOK, w.Code)
-	var arr []map[string]interface{}
-	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &arr))
-	require.Len(t, arr, 1)
-	assert.Equal(t, "proj_1", arr[0]["ID"])
-	assert.Equal(t, "user_1", arr[0]["UserID"])
+	var resp httpx.Response[[]map[string]interface{}]
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+	require.True(t, resp.Success)
+	require.Len(t, resp.Data, 1)
+	assert.Equal(t, "proj_1", resp.Data[0]["ID"])
+	assert.Equal(t, "user_1", resp.Data[0]["UserID"])
 }
 
 func TestUpdateProject_success(t *testing.T) {
@@ -443,12 +446,13 @@ func TestListProjectSkills_success(t *testing.T) {
 
 	// Assert.
 	assert.Equal(t, http.StatusOK, w.Code)
-	var arr []map[string]interface{}
-	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &arr))
-	require.Len(t, arr, 1)
-	assert.Equal(t, "skill_1", arr[0]["ID"])
-	assert.Equal(t, "user_1", arr[0]["UserID"])
-	assert.Equal(t, "Go", arr[0]["SkillName"])
+	var resp httpx.Response[[]map[string]interface{}]
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+	require.True(t, resp.Success)
+	require.Len(t, resp.Data, 1)
+	assert.Equal(t, "skill_1", resp.Data[0]["ID"])
+	assert.Equal(t, "user_1", resp.Data[0]["UserID"])
+	assert.Equal(t, "Go", resp.Data[0]["SkillName"])
 }
 
 func TestRoute_registers_projects_under_group(t *testing.T) {

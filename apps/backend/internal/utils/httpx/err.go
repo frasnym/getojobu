@@ -4,34 +4,45 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 )
 
 // Code is a machine-readable error code.
 type Code string
 
 const (
-	CodeInternal         Code = "internal"
-	CodeInvalidRequest   Code = "invalid_request"
-	CodeNotFound         Code = "not_found"
-	CodeUnauthorized     Code = "unauthorized"
-	CodeForbidden        Code = "forbidden"
-	CodeConflict         Code = "conflict"
-	CodeTooManyRequests  Code = "too_many_requests"
-	CodeMethodNotAllowed Code = "method_not_allowed"
+	CodeInternal         Code = "INTERNAL_SERVER_ERROR"
+	CodeInvalidRequest   Code = "VALIDATION_FAILED"
+	CodeNotFound         Code = "NOT_FOUND"
+	CodeUnauthorized     Code = "UNAUTHORIZED"
+	CodeForbidden        Code = "FORBIDDEN"
+	CodeConflict         Code = "CONFLICT"
+	CodeTooManyRequests  Code = "TOO_MANY_REQUESTS"
+	CodeMethodNotAllowed Code = "METHOD_NOT_ALLOWED"
 )
 
-// FieldError describes a single invalid request field.
-type FieldError struct {
-	Field   string `json:"field"`
-	Message string `json:"message"`
+// ErrorDetail describes a single field-level issue.
+type ErrorDetail struct {
+	Field string `json:"field"`
+	Issue string `json:"issue"`
 }
 
-// Error is the canonical API error envelope.
+// FieldError is an alias for ErrorDetail for backward compatibility.
+type FieldError = ErrorDetail
+
+// ErrorPayload describes the error in an error response.
+type ErrorPayload struct {
+	Code    Code          `json:"code"`
+	Message string        `json:"message"`
+	Details []ErrorDetail `json:"details,omitempty"`
+}
+
+// Error is the canonical API error envelope representation.
 type Error struct {
-	Code      Code         `json:"code"`
-	Message   string       `json:"message"`
-	RequestID string       `json:"request_id,omitempty"`
-	Fields    []FieldError `json:"fields,omitempty"`
+	Code      Code          `json:"code"`
+	Message   string        `json:"message"`
+	RequestID string        `json:"request_id,omitempty"`
+	Details   []ErrorDetail `json:"details,omitempty"`
 }
 
 // Envelope constructs an Error with the given code, message, and request id.
@@ -43,9 +54,14 @@ func Envelope(code Code, message string, requestID string) *Error {
 	}
 }
 
-// AddField appends a field-level validation error.
+// AddDetail appends a field-level issue.
+func (e *Error) AddDetail(field, issue string) {
+	e.Details = append(e.Details, ErrorDetail{Field: field, Issue: issue})
+}
+
+// AddField appends a field-level validation issue (alias for AddDetail).
 func (e *Error) AddField(field, message string) {
-	e.Fields = append(e.Fields, FieldError{Field: field, Message: message})
+	e.AddDetail(field, message)
 }
 
 // Error implements the error interface.
@@ -80,10 +96,35 @@ func (e *Error) StatusCode() int {
 
 // WriteJSON writes the error as a JSON response with the mapped status code.
 func (e *Error) WriteJSON(w http.ResponseWriter) {
+	e.writeJSON(w, nil)
+}
+
+func (e *Error) writeJSON(w http.ResponseWriter, r *http.Request) {
+	reqID := e.RequestID
+	if reqID == "" {
+		reqID = extractRequestID(w, r)
+	}
+
+	meta := Meta{
+		Timestamp: time.Now().UTC().Format(time.RFC3339),
+		RequestID: reqID,
+	}
+
+	payload := Response[any]{
+		Success: false,
+		Data:    nil,
+		Meta:    meta,
+		Error: &ErrorPayload{
+			Code:    e.Code,
+			Message: e.Message,
+			Details: e.Details,
+		},
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(e.StatusCode())
-	if err := json.NewEncoder(w).Encode(e); err != nil {
-		http.Error(w, `{"code":"internal","message":"failed to write error response"}`, http.StatusInternalServerError)
+	if err := json.NewEncoder(w).Encode(payload); err != nil {
+		http.Error(w, `{"success":false,"data":null,"meta":{"timestamp":"","requestId":""},"error":{"code":"INTERNAL_SERVER_ERROR","message":"failed to write error response"}}`, http.StatusInternalServerError)
 	}
 }
 

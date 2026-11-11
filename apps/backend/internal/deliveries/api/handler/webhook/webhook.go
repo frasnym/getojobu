@@ -65,28 +65,28 @@ func (h *handler) serveWebhook(w http.ResponseWriter, r *http.Request) error {
 
 	switch event.Type {
 	case "user.created":
-		if err := h.handleUserCreated(w, ctx, event); err != nil {
+		if err := h.handleUserCreated(w, r, ctx, event); err != nil {
 			logging.Error(ctx, "webhook: user.created handler failed", err)
 			return err
 		}
 	case "user.updated":
-		if err := h.handleUserUpdated(w, ctx, event); err != nil {
+		if err := h.handleUserUpdated(w, r, ctx, event); err != nil {
 			logging.Error(ctx, "webhook: user.updated handler failed", err)
 			return err
 		}
 	case "user.deleted":
-		if err := h.handleUserDeleted(w, ctx, event); err != nil {
+		if err := h.handleUserDeleted(w, r, ctx, event); err != nil {
 			logging.Error(ctx, "webhook: user.deleted handler failed", err)
 			return err
 		}
 	default:
-		return httpx.RespondJSON(w, http.StatusOK, StatusResponse{Status: "unhandled"})
+		return httpx.RespondJSON(w, r, http.StatusOK, StatusResponse{Status: "unhandled"})
 	}
 
 	return nil
 }
 
-func (h *handler) handleUserCreated(w http.ResponseWriter, ctx context.Context, event clerkWebhookEvent) error {
+func (h *handler) handleUserCreated(w http.ResponseWriter, r *http.Request, ctx context.Context, event clerkWebhookEvent) error {
 	email, fullName := extractEmailAndName(event)
 
 	if _, err := h.userService.Create(ctx, event.Data.ID, email, fullName, models.RoleUser); err != nil {
@@ -94,10 +94,10 @@ func (h *handler) handleUserCreated(w http.ResponseWriter, ctx context.Context, 
 		return httpx.Envelope(httpx.CodeInternal, "failed to create user", "")
 	}
 
-	return httpx.RespondJSON(w, http.StatusOK, StatusResponse{Status: "created"})
+	return httpx.RespondJSON(w, r, http.StatusOK, StatusResponse{Status: "created"})
 }
 
-func (h *handler) handleUserUpdated(w http.ResponseWriter, ctx context.Context, event clerkWebhookEvent) error {
+func (h *handler) handleUserUpdated(w http.ResponseWriter, r *http.Request, ctx context.Context, event clerkWebhookEvent) error {
 	email, fullName := extractEmailAndName(event)
 
 	if _, err := h.userService.Update(ctx, event.Data.ID, email, fullName); err != nil {
@@ -105,16 +105,16 @@ func (h *handler) handleUserUpdated(w http.ResponseWriter, ctx context.Context, 
 		return httpx.Envelope(httpx.CodeInternal, "failed to update user", "")
 	}
 
-	return httpx.RespondJSON(w, http.StatusOK, StatusResponse{Status: "updated"})
+	return httpx.RespondJSON(w, r, http.StatusOK, StatusResponse{Status: "updated"})
 }
 
-func (h *handler) handleUserDeleted(w http.ResponseWriter, ctx context.Context, event clerkWebhookEvent) error {
+func (h *handler) handleUserDeleted(w http.ResponseWriter, r *http.Request, ctx context.Context, event clerkWebhookEvent) error {
 	if _, err := h.userService.SoftDelete(ctx, event.Data.ID); err != nil {
 		logging.Error(ctx, "webhook: failed to delete user", err, "clerkUserID", event.Data.ID)
 		return httpx.Envelope(httpx.CodeInternal, "failed to delete user", "")
 	}
 
-	return httpx.RespondJSON(w, http.StatusOK, StatusResponse{Status: "deleted"})
+	return httpx.RespondJSON(w, r, http.StatusOK, StatusResponse{Status: "deleted"})
 }
 
 func extractEmailAndName(event clerkWebhookEvent) (email, fullName string) {

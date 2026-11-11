@@ -116,9 +116,9 @@ func (r *Router) EnvelopeHandler(h http.Handler) http.Handler {
 
 		switch rec.status {
 		case http.StatusNotFound:
-			Envelope(CodeNotFound, "route not found", "").WriteJSON(w)
+			Envelope(CodeNotFound, "route not found", "").writeJSON(w, req)
 		case http.StatusMethodNotAllowed:
-			Envelope(CodeMethodNotAllowed, "method not allowed", "").WriteJSON(w)
+			Envelope(CodeMethodNotAllowed, "method not allowed", "").writeJSON(w, req)
 		default:
 			rec.ResponseWriter.WriteHeader(rec.status)
 			if len(rec.buffer) > 0 {

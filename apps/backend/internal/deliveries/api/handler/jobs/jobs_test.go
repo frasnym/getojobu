@@ -37,9 +37,10 @@ func principalCtx(actorType, actorID string) *models.Principal {
 
 func bodyAsMap(t *testing.T, w *httptest.ResponseRecorder) map[string]interface{} {
 	t.Helper()
-	var m map[string]interface{}
-	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &m))
-	return m
+	var resp httpx.Response[map[string]interface{}]
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+	require.True(t, resp.Success)
+	return resp.Data
 }
 
 func TestCreateJob_success(t *testing.T) {
@@ -247,8 +248,10 @@ func TestBulkCreateJob_success(t *testing.T) {
 	httpx.HandlerFunc(h.BulkCreateJob).ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusOK, w.Code)
-	var got []models.BulkCreateJobResult
-	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &got))
+	var resp httpx.Response[[]models.BulkCreateJobResult]
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+	require.True(t, resp.Success)
+	got := resp.Data
 	require.Len(t, got, 2)
 	assert.Equal(t, "job-1", got[0].Slug)
 	assert.True(t, got[0].Created)
@@ -289,8 +292,10 @@ func TestListJobs_default(t *testing.T) {
 	httpx.HandlerFunc(h.ListJobs).ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusOK, w.Code)
-	var got []*models.Job
-	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &got))
+	var resp httpx.Response[[]*models.Job]
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+	require.True(t, resp.Success)
+	got := resp.Data
 	require.Len(t, got, 2)
 }
 
@@ -310,7 +315,10 @@ func TestListJobs_empty_returns_empty_array(t *testing.T) {
 	httpx.HandlerFunc(h.ListJobs).ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusOK, w.Code)
-	assert.Equal(t, `[]`, strings.TrimSpace(w.Body.String()))
+	var resp httpx.Response[[]*models.Job]
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+	assert.True(t, resp.Success)
+	assert.Empty(t, resp.Data)
 }
 
 func TestListJobs_clerk_returns_owned(t *testing.T) {
@@ -330,8 +338,10 @@ func TestListJobs_clerk_returns_owned(t *testing.T) {
 	httpx.HandlerFunc(h.ListJobs).ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusOK, w.Code)
-	var got []*models.Job
-	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &got))
+	var resp httpx.Response[[]*models.Job]
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+	require.True(t, resp.Success)
+	got := resp.Data
 	require.Len(t, got, 2)
 	assert.Equal(t, "job-1", got[0].Slug)
 }
@@ -353,8 +363,10 @@ func TestListJobs_api_key_returns_all(t *testing.T) {
 	httpx.HandlerFunc(h.ListJobs).ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusOK, w.Code)
-	var got []*models.Job
-	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &got))
+	var resp httpx.Response[[]*models.Job]
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+	require.True(t, resp.Success)
+	got := resp.Data
 	require.Len(t, got, 2)
 }
 
@@ -609,11 +621,12 @@ func TestBulkQueueAnalyzeJob_success(t *testing.T) {
 	httpx.HandlerFunc(h.BulkQueueAnalyzeJob).ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusAccepted, w.Code)
-	var resp bulkQueueAnalyzeResponse
+	var resp httpx.Response[bulkQueueAnalyzeResponse]
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
-	require.Len(t, resp.WorkflowIDs, 2)
-	assert.Equal(t, "job-analyze-1", resp.WorkflowIDs[0])
-	assert.Equal(t, "job-analyze-2-force-abcdef123456", resp.WorkflowIDs[1])
+	require.True(t, resp.Success)
+	require.Len(t, resp.Data.WorkflowIDs, 2)
+	assert.Equal(t, "job-analyze-1", resp.Data.WorkflowIDs[0])
+	assert.Equal(t, "job-analyze-2-force-abcdef123456", resp.Data.WorkflowIDs[1])
 }
 
 func TestBulkQueueAnalyzeJob_empty_array(t *testing.T) {

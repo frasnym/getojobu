@@ -1,6 +1,7 @@
 package httpx
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -90,7 +91,13 @@ func TestRouter_EnvelopeHandler_rewrites_404_as_json(t *testing.T) {
 
 	// Assert.
 	assert.Equal(t, http.StatusNotFound, w.Code, "expected 404")
-	assert.JSONEq(t, `{"code":"not_found","message":"route not found"}`, w.Body.String(), "expected JSON envelope")
+	var resp Response[any]
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+	assert.False(t, resp.Success)
+	assert.Nil(t, resp.Data)
+	require.NotNil(t, resp.Error)
+	assert.Equal(t, CodeNotFound, resp.Error.Code)
+	assert.Equal(t, "route not found", resp.Error.Message)
 }
 
 func TestRouter_EnvelopeHandler_rewrites_405_as_json(t *testing.T) {
@@ -109,7 +116,13 @@ func TestRouter_EnvelopeHandler_rewrites_405_as_json(t *testing.T) {
 
 	// Assert.
 	assert.Equal(t, http.StatusMethodNotAllowed, w.Code, "expected 405")
-	assert.JSONEq(t, `{"code":"method_not_allowed","message":"method not allowed"}`, w.Body.String(), "expected JSON envelope")
+	var resp Response[any]
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+	assert.False(t, resp.Success)
+	assert.Nil(t, resp.Data)
+	require.NotNil(t, resp.Error)
+	assert.Equal(t, CodeMethodNotAllowed, resp.Error.Code)
+	assert.Equal(t, "method not allowed", resp.Error.Message)
 }
 
 func TestRouter_EnvelopeHandler_passes_through_successful_response(t *testing.T) {

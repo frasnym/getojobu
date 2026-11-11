@@ -45,14 +45,14 @@ definitions:
     type: object
   httpx.Code:
     enum:
-    - internal
-    - invalid_request
-    - not_found
-    - unauthorized
-    - forbidden
-    - conflict
-    - too_many_requests
-    - method_not_allowed
+    - INTERNAL_SERVER_ERROR
+    - VALIDATION_FAILED
+    - NOT_FOUND
+    - UNAUTHORIZED
+    - FORBIDDEN
+    - CONFLICT
+    - TOO_MANY_REQUESTS
+    - METHOD_NOT_ALLOWED
     type: string
     x-enum-varnames:
     - CodeInternal
@@ -67,20 +67,20 @@ definitions:
     properties:
       code:
         $ref: '#/definitions/httpx.Code'
-      fields:
+      details:
         items:
-          $ref: '#/definitions/httpx.FieldError'
+          $ref: '#/definitions/httpx.ErrorDetail'
         type: array
       message:
         type: string
       request_id:
         type: string
     type: object
-  httpx.FieldError:
+  httpx.ErrorDetail:
     properties:
       field:
         type: string
-      message:
+      issue:
         type: string
     type: object
   jobs.bulkCreateJobRequest:

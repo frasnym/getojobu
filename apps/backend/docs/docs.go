@@ -982,14 +982,14 @@ const docTemplate = `{
         "httpx.Code": {
             "type": "string",
             "enum": [
-                "internal",
-                "invalid_request",
-                "not_found",
-                "unauthorized",
-                "forbidden",
-                "conflict",
-                "too_many_requests",
-                "method_not_allowed"
+                "INTERNAL_SERVER_ERROR",
+                "VALIDATION_FAILED",
+                "NOT_FOUND",
+                "UNAUTHORIZED",
+                "FORBIDDEN",
+                "CONFLICT",
+                "TOO_MANY_REQUESTS",
+                "METHOD_NOT_ALLOWED"
             ],
             "x-enum-varnames": [
                 "CodeInternal",
@@ -1008,10 +1008,10 @@ const docTemplate = `{
                 "code": {
                     "$ref": "#/definitions/httpx.Code"
                 },
-                "fields": {
+                "details": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/httpx.FieldError"
+                        "$ref": "#/definitions/httpx.ErrorDetail"
                     }
                 },
                 "message": {
@@ -1022,13 +1022,13 @@ const docTemplate = `{
                 }
             }
         },
-        "httpx.FieldError": {
+        "httpx.ErrorDetail": {
             "type": "object",
             "properties": {
                 "field": {
                     "type": "string"
                 },
-                "message": {
+                "issue": {
                     "type": "string"
                 }
             }

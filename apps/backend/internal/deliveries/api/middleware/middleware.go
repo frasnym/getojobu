@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/ctxval"
+	"github.com/frasnym/getojobu/apps/backend/internal/utils/httpx"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/logging"
 )
 
@@ -15,7 +16,7 @@ func Recovery(next http.Handler) http.Handler {
 		defer func() {
 			if rec := recover(); rec != nil {
 				logging.Error(r.Context(), "http panic recovered", fmt.Errorf("%v", rec))
-				http.Error(w, `{"code":"internal","message":"internal server error"}`, http.StatusInternalServerError)
+				httpx.Envelope(httpx.CodeInternal, "internal server error", "").WriteJSON(w)
 			}
 		}()
 		next.ServeHTTP(w, r)

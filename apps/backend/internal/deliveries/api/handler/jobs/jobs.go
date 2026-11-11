@@ -114,9 +114,9 @@ func (h *handler) CreateJob(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	if result.Created {
-		return httpx.RespondJSON(w, http.StatusCreated, result)
+		return httpx.RespondJSON(w, r, http.StatusCreated, result)
 	}
-	return httpx.RespondJSON(w, http.StatusOK, result)
+	return httpx.RespondJSON(w, r, http.StatusOK, result)
 }
 
 // @Tags jobs
@@ -192,7 +192,7 @@ func (h *handler) BulkCreateJob(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	return httpx.RespondJSON(w, http.StatusOK, results)
+	return httpx.RespondJSON(w, r, http.StatusOK, results)
 }
 
 // @Tags jobs
@@ -252,7 +252,7 @@ func (h *handler) BulkQueueAnalyzeJob(w http.ResponseWriter, r *http.Request) er
 		return err
 	}
 
-	return httpx.RespondJSON(w, http.StatusAccepted, bulkQueueAnalyzeResponse{
+	return httpx.RespondJSON(w, r, http.StatusAccepted, bulkQueueAnalyzeResponse{
 		WorkflowIDs: workflowIDs,
 	})
 }
@@ -304,7 +304,7 @@ func (h *handler) ListJobs(w http.ResponseWriter, r *http.Request) error {
 		jobs = []*models.Job{}
 	}
 
-	return httpx.RespondJSON(w, http.StatusOK, jobs)
+	return httpx.RespondJSON(w, r, http.StatusOK, jobs)
 }
 
 // @Tags jobs
@@ -357,7 +357,7 @@ func (h *handler) GetJob(w http.ResponseWriter, r *http.Request) error {
 		}
 	}
 
-	return httpx.RespondJSON(w, http.StatusOK, job)
+	return httpx.RespondJSON(w, r, http.StatusOK, job)
 }
 
 // @Tags jobs
@@ -412,7 +412,7 @@ func (h *handler) UpdateJob(w http.ResponseWriter, r *http.Request) error {
 		}
 		return err
 	}
-	return httpx.RespondJSON(w, http.StatusOK, job)
+	return httpx.RespondJSON(w, r, http.StatusOK, job)
 }
 
 // resolveOwnerUserID returns the internal user id that owns the job being

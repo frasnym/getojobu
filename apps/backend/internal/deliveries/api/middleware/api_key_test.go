@@ -2,15 +2,18 @@ package middleware
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/frasnym/getojobu/apps/backend/internal/config"
 	"github.com/frasnym/getojobu/apps/backend/internal/models"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/ctxval"
+	"github.com/frasnym/getojobu/apps/backend/internal/utils/httpx"
 )
 
 type stubUserUC struct{}
@@ -45,7 +48,13 @@ func TestClerkOrAPIKey_missing_authorization_header(t *testing.T) {
 
 	assert.Equal(t, http.StatusUnauthorized, w.Code)
 	assert.False(t, called)
-	assert.JSONEq(t, `{"code":"unauthorized","message":"missing authorization header"}`, w.Body.String())
+	var resp httpx.Response[any]
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+	assert.False(t, resp.Success)
+	assert.Nil(t, resp.Data)
+	require.NotNil(t, resp.Error)
+	assert.Equal(t, httpx.CodeUnauthorized, resp.Error.Code)
+	assert.Equal(t, "missing authorization header", resp.Error.Message)
 }
 
 func TestClerkOrAPIKey_invalid_bearer_scheme(t *testing.T) {

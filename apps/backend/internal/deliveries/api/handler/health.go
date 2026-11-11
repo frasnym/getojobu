@@ -14,5 +14,5 @@ import (
 // @Success 200 {object} StatusResponse
 // @Router /health [get]
 func (h *handler) Health(w http.ResponseWriter, r *http.Request) error {
-	return httpx.RespondJSON(w, http.StatusOK, StatusResponse{Status: "ok"})
+	return httpx.RespondJSON(w, r, http.StatusOK, StatusResponse{Status: "ok"})
 }

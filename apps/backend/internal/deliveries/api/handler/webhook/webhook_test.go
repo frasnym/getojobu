@@ -2,6 +2,7 @@ package webhook
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -82,7 +83,10 @@ func TestServeWebhook_user_created(t *testing.T) {
 	// Assert.
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, w.Code)
-	assert.JSONEq(t, `{"status":"created"}`, w.Body.String())
+	var createdResp httpx.Response[StatusResponse]
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &createdResp))
+	assert.True(t, createdResp.Success)
+	assert.Equal(t, "created", createdResp.Data.Status)
 	assert.True(t, mock.createCalled)
 	assert.Equal(t, "user_123", mock.lastClerkID)
 	assert.Equal(t, "alice@example.com", mock.lastEmail)
@@ -104,7 +108,10 @@ func TestServeWebhook_user_updated(t *testing.T) {
 	// Assert.
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, w.Code)
-	assert.JSONEq(t, `{"status":"updated"}`, w.Body.String())
+	var updatedResp httpx.Response[StatusResponse]
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &updatedResp))
+	assert.True(t, updatedResp.Success)
+	assert.Equal(t, "updated", updatedResp.Data.Status)
 	assert.True(t, mock.updateCalled)
 	assert.Equal(t, "user_123", mock.lastUpdateID)
 	assert.Equal(t, "bob@example.com", mock.lastEmail)
@@ -125,7 +132,10 @@ func TestServeWebhook_user_deleted(t *testing.T) {
 	// Assert.
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, w.Code)
-	assert.JSONEq(t, `{"status":"deleted"}`, w.Body.String())
+	var deletedResp httpx.Response[StatusResponse]
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &deletedResp))
+	assert.True(t, deletedResp.Success)
+	assert.Equal(t, "deleted", deletedResp.Data.Status)
 	assert.True(t, mock.deleteCalled)
 	assert.Equal(t, "user_123", mock.lastDeleteID)
 }

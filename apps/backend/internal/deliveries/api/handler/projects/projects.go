@@ -115,7 +115,7 @@ func (h *handler) CreateProject(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	return httpx.RespondJSON(w, http.StatusCreated, proj)
+	return httpx.RespondJSON(w, r, http.StatusCreated, proj)
 }
 
 // GetProject returns a single project by id for the authenticated user.
@@ -151,7 +151,7 @@ func (h *handler) GetProject(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	return httpx.RespondJSON(w, http.StatusOK, proj)
+	return httpx.RespondJSON(w, r, http.StatusOK, proj)
 }
 
 // ListProjects returns all projects for the authenticated user.
@@ -174,7 +174,7 @@ func (h *handler) ListProjects(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	return httpx.RespondJSON(w, http.StatusOK, projects)
+	return httpx.RespondJSON(w, r, http.StatusOK, projects)
 }
 
 // UpdateProject modifies an existing project for the authenticated user.
@@ -230,7 +230,7 @@ func (h *handler) UpdateProject(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	return httpx.RespondJSON(w, http.StatusOK, proj)
+	return httpx.RespondJSON(w, r, http.StatusOK, proj)
 }
 
 // LinkProjectSkills associates skills with a project owned by the authenticated user.
@@ -274,7 +274,7 @@ func (h *handler) LinkProjectSkills(w http.ResponseWriter, r *http.Request) erro
 		return err
 	}
 
-	return httpx.RespondJSON(w, http.StatusOK, map[string]string{"status": "linked"})
+	return httpx.RespondJSON(w, r, http.StatusOK, map[string]string{"status": "linked"})
 }
 
 // ListProjectSkills returns the skills linked to a project owned by the authenticated user.
@@ -306,5 +306,5 @@ func (h *handler) ListProjectSkills(w http.ResponseWriter, r *http.Request) erro
 		return err
 	}
 
-	return httpx.RespondJSON(w, http.StatusOK, skills)
+	return httpx.RespondJSON(w, r, http.StatusOK, skills)
 }

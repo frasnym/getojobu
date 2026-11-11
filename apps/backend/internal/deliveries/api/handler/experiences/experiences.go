@@ -109,7 +109,7 @@ func (h *handler) CreateExperience(w http.ResponseWriter, r *http.Request) error
 		return err
 	}
 
-	return httpx.RespondJSON(w, http.StatusCreated, e)
+	return httpx.RespondJSON(w, r, http.StatusCreated, e)
 }
 
 // GetExperience returns a single experience by id for the authenticated user.
@@ -145,7 +145,7 @@ func (h *handler) GetExperience(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	return httpx.RespondJSON(w, http.StatusOK, e)
+	return httpx.RespondJSON(w, r, http.StatusOK, e)
 }
 
 // ListExperiences returns all experiences for the authenticated user.
@@ -168,7 +168,7 @@ func (h *handler) ListExperiences(w http.ResponseWriter, r *http.Request) error 
 		return err
 	}
 
-	return httpx.RespondJSON(w, http.StatusOK, experiences)
+	return httpx.RespondJSON(w, r, http.StatusOK, experiences)
 }
 
 // UpdateExperience modifies an existing experience for the authenticated user.
@@ -228,5 +228,5 @@ func (h *handler) UpdateExperience(w http.ResponseWriter, r *http.Request) error
 		return err
 	}
 
-	return httpx.RespondJSON(w, http.StatusOK, e)
+	return httpx.RespondJSON(w, r, http.StatusOK, e)
 }
