@@ -53,7 +53,20 @@ func NewDB(cfg *config.Config) (DB, graceful.ProcessStopper, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	pool, err := pgxpool.New(ctx, connectionURL)
+	poolConfig, err := pgxpool.ParseConfig(connectionURL)
+	if err != nil {
+		return nil, nil, fmt.Errorf("parse pool config: %w", err)
+	}
+
+	// Default to QueryExecModeExec if not explicitly overridden in the connection string.
+	// This ensures compatibility with Neon's connection pooler (PgBouncer in transaction mode)
+	// and prevents "ERROR: cached plan must not change result type (SQLSTATE 0A000)" when
+	// schema changes occur or connections are multiplexed.
+	if poolConfig.ConnConfig.DefaultQueryExecMode == pgx.QueryExecModeCacheStatement {
+		poolConfig.ConnConfig.DefaultQueryExecMode = pgx.QueryExecModeExec
+	}
+
+	pool, err := pgxpool.NewWithConfig(ctx, poolConfig)
 	if err != nil {
 		return nil, nil, fmt.Errorf("connect to database: %w", err)
 	}

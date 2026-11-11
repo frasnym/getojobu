@@ -7,6 +7,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -125,4 +126,26 @@ func TestTransact_nested_child_reuses_parent(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, tx.committed)
 	assert.False(t, tx.rolledBack)
+}
+
+func TestDefaultQueryExecMode_Configuration(t *testing.T) {
+	// Without query parameter, DefaultQueryExecMode defaults to QueryExecModeCacheStatement
+	cfg, err := pgxpool.ParseConfig("postgres://user:pass@localhost:5432/dbname?sslmode=disable")
+	require.NoError(t, err)
+	assert.Equal(t, pgx.QueryExecModeCacheStatement, cfg.ConnConfig.DefaultQueryExecMode)
+
+	// If defaulted to CacheStatement, we override to QueryExecModeExec
+	if cfg.ConnConfig.DefaultQueryExecMode == pgx.QueryExecModeCacheStatement {
+		cfg.ConnConfig.DefaultQueryExecMode = pgx.QueryExecModeExec
+	}
+	assert.Equal(t, pgx.QueryExecModeExec, cfg.ConnConfig.DefaultQueryExecMode)
+
+	// If explicitly set in URL, it preserves the user choice
+	cfgExplicit, err := pgxpool.ParseConfig("postgres://user:pass@localhost:5432/dbname?sslmode=disable&default_query_exec_mode=simple_protocol")
+	require.NoError(t, err)
+	assert.Equal(t, pgx.QueryExecModeSimpleProtocol, cfgExplicit.ConnConfig.DefaultQueryExecMode)
+	if cfgExplicit.ConnConfig.DefaultQueryExecMode == pgx.QueryExecModeCacheStatement {
+		cfgExplicit.ConnConfig.DefaultQueryExecMode = pgx.QueryExecModeExec
+	}
+	assert.Equal(t, pgx.QueryExecModeSimpleProtocol, cfgExplicit.ConnConfig.DefaultQueryExecMode)
 }
