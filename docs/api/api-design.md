@@ -47,6 +47,17 @@ POST   /v1/me/jobs/sync
 
 The job listing is shared data, but the response may include the current user's latest verdict/application summary. The query must join only rows belonging to the authenticated user.
 
+### Shared job listings and analysis
+
+```text
+POST   /v1/jobs
+POST   /v1/jobs/bulk
+POST   /v1/jobs/bulk-queue-analyze
+GET    /v1/jobs
+GET    /v1/jobs/{slug}
+PATCH  /v1/jobs/{slug}
+```
+
 ### Applications and documents
 
 ```text
@@ -83,13 +94,72 @@ For work that runs asynchronously, return `202 Accepted`:
 
 The exact response schema should be defined in OpenAPI. The API should use stable workflow IDs or explicit idempotency keys to prevent duplicate workflow starts from client retries.
 
-## 5. Error conventions
+## 5. API response and error contract
 
-Use a consistent error envelope with:
-- machine-readable `code`,
-- safe human-readable `message`,
-- optional `request_id`,
-- optional field-level validation errors.
+All API responses follow a unified envelope format:
+
+### Success (single item)
+```json
+{
+  "success": true,
+  "data": {
+    "id": "usr_12345",
+    "name": "Jane Doe",
+    "email": "jane@example.com"
+  },
+  "meta": {
+    "timestamp": "2026-11-11T08:57:00Z",
+    "requestId": "req_88jfkd99"
+  },
+  "error": null
+}
+```
+
+### Error
+```json
+{
+  "success": false,
+  "data": null,
+  "meta": {
+    "timestamp": "2026-11-11T08:58:00Z",
+    "requestId": "req_99abc123"
+  },
+  "error": {
+    "code": "VALIDATION_FAILED",
+    "message": "The input provided is invalid.",
+    "details": [
+      {
+        "field": "email",
+        "issue": "Format is invalid."
+      }
+    ]
+  }
+}
+```
+
+### Success (paginated list)
+```json
+{
+  "success": true,
+  "data": [
+    { "id": 1, "name": "Item A" },
+    { "id": 2, "name": "Item B" }
+  ],
+  "meta": {
+    "timestamp": "2026-11-11T08:57:00Z",
+    "requestId": "req_88jfkd99",
+    "pagination": {
+      "page": 1,
+      "limit": 20,
+      "totalItems": 145,
+      "totalPages": 8,
+      "hasNext": true,
+      "hasPrev": false
+    }
+  },
+  "error": null
+}
+```
 
 Never return stack traces, SQL errors, secrets, internal file paths, or raw provider responses to clients.
 

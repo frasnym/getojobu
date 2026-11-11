@@ -1,19 +1,17 @@
 """Temporal activity wrappers for Step 1B.
 
 Thin layer: validates the activity input, delegates to the usecase, and
-returns a JSON-serializable result. Mirrors the handler/ layer in
-apps/backend/internal/deliveries/api/handler/.
+returns a JSON-serializable result.
 """
 
 from __future__ import annotations
 
 from typing import Any
 
-from temporalio import activity
-
 from config.config import load as config_load
 from contract.contract import WorkerContainer
 from contract.contract import new as contract_new
+from temporalio import activity
 
 # The container is built once per worker process (in worker.main) and
 # attached to the module so activities can reuse the usecase.
@@ -24,15 +22,16 @@ def init_container(container: WorkerContainer | None = None) -> WorkerContainer:
     """Build (or reuse) the dependency container. Called from worker.main
     before starting the Temporal worker."""
     global _container
+    if container is not None:
+        _container = container
+        return _container
+
     if _container is None:
-        if container is not None:
-            _container = container
-        else:
-            cfg = config_load()
-            c, _stopper, err = contract_new(cfg)
-            if err is not None or c is None:
-                raise err or RuntimeError("container initialization failed")
-            _container = c
+        cfg = config_load()
+        c, _stopper, err = contract_new(cfg)
+        if err is not None or c is None:
+            raise err or RuntimeError("container initialization failed")
+        _container = c
     return _container
 
 
@@ -42,30 +41,21 @@ async def analyze_job_activity(input: dict[str, Any]) -> dict[str, Any]:
 
     Input:
         {
-            "job_description": str,  # required
+            "slug": str,             # required slug of the job listing
+            "job_description": str,  # optional (fetched from Go API if omitted)
             "job_id": str | None,    # optional reference to shared jobs table
         }
 
-    Output: the stored JobProfile as a dict.
+    Output: the stored JobAnalysis as a dict.
     """
-    global _container
-    if _container is None:
-        _container = init_container()
+    container = init_container()
+    slug = input.get("slug")
+    if not slug or not isinstance(slug, str):
+        raise ValueError("slug is required")
 
-    assert _container is not None
-    usecase = _container.usecase.analyze_job
-
-    job_description = input.get("job_description")
-    if not isinstance(job_description, str) or not job_description.strip():
-        raise ValueError("job_description is required")
-
-    job_id = input.get("job_id")
-    if job_id is not None and not isinstance(job_id, str):
-        raise ValueError("job_id must be a string")
-
-    profile = await usecase.execute(
-        job_description=job_description,
-        job_id=job_id,
+    analysis = await container.usecase.analyze_job.analyze(
+        slug=slug,
+        job_description=input.get("job_description"),
+        job_id=input.get("job_id"),
     )
-
-    return profile.model_dump()
+    return analysis.model_dump()

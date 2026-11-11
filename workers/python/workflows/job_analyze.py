@@ -35,12 +35,14 @@ class JobAnalyzeWorkflow:
             {
                 "job_description": str,  # required for Step 1B
                 "job_id": str | None,    # optional reference to shared jobs table
+                "slug": str | None,      # optional slug of the job listing
             }
 
         Returns a dict with step results and overall status.
         """
         job_description = input.get("job_description")
         job_id = input.get("job_id")
+        slug = input.get("slug")
 
         results: dict[str, Any] = {}
         status = "partial"
@@ -48,7 +50,7 @@ class JobAnalyzeWorkflow:
         # Step 1B: Analyze job description (real activity).
         step_1b = await workflow.execute_activity(
             analyze_job_activity,
-            {"job_description": job_description, "job_id": job_id},
+            {"job_description": job_description, "job_id": job_id, "slug": slug},
             start_to_close_timeout=timedelta(minutes=10),
             schedule_to_close_timeout=timedelta(minutes=15),
         )
@@ -65,5 +67,6 @@ class JobAnalyzeWorkflow:
             "workflow": "JobAnalyzeWorkflow",
             "status": status,
             "job_id": job_id,
+            "slug": slug,
             "results": results,
         }

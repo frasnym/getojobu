@@ -2,7 +2,7 @@
 
 Calls OmniRoute's OpenAI-compatible chat completions endpoint with
 structured output (JSON Schema) so the model's response is guaranteed
-to match the JobProfile schema. No manual json.loads() needed.
+to match the JobAnalysis schema. No manual json.loads() needed.
 """
 
 from __future__ import annotations
@@ -11,9 +11,8 @@ import json
 from pathlib import Path
 from typing import Any
 
+from models.job_analysis import JobAnalysis
 from openai import AsyncOpenAI
-
-from models.job_profile import JobProfile
 
 _PROMPTS_DIR = Path(__file__).resolve().parents[2] / "prompts"
 
@@ -31,12 +30,12 @@ class OpenAIClient:
         self._client: AsyncOpenAI = AsyncOpenAI(api_key=api_key, base_url=base_url)
         self._model = model
 
-    async def extract_job_profile(
+    async def extract_job_analysis(
         self, *, job_description: str, prompt_version: str
     ) -> dict[str, Any]:
         prompt = self._render_prompt(prompt_version, job_description)
 
-        # Structured output: JSON Schema guarantees the response matches JobProfile.
+        # Structured output: JSON Schema guarantees the response matches JobAnalysis.
         response = await self._client.chat.completions.create(
             model=self._model,
             messages=[
@@ -50,8 +49,8 @@ class OpenAIClient:
             response_format={
                 "type": "json_schema",
                 "json_schema": {
-                    "name": "job_profile",
-                    "schema": JobProfile.model_json_schema(),
+                    "name": "job_analysis",
+                    "schema": JobAnalysis.model_json_schema(),
                     "strict": True,
                 },
             },
@@ -59,7 +58,7 @@ class OpenAIClient:
 
         content = response.choices[0].message.content
         if not content:
-            raise RuntimeError("extract job profile: empty LLM response")
+            raise RuntimeError("extract job analysis: empty LLM response")
 
         # OmniRoute returns structured output as a JSON string.
         return json.loads(content)

@@ -1,15 +1,11 @@
-"""Repository for persisting job profiles via the Go API.
+"""Repository for getting job data and updating status via the Go API.
 
-Mirrors apps/backend/internal/repository/experiences.go: interface +
-implementation, parameterized requests, explicit error handling.
-
-The worker does NOT access Neon directly. It persists JobProfile data by
-calling the Go API over the internal Docker network.
+The worker interacts with jobs by calling the Go API
+over the internal Docker network.
 """
 
 from __future__ import annotations
 
-import uuid
 from typing import Any, Protocol, runtime_checkable
 
 import httpx
@@ -17,20 +13,17 @@ import httpx
 
 @runtime_checkable
 class GetojobuAPI(Protocol):
-    """General data access client for the Go API (internal Docker network).
+    """General data access client for the Go API (internal Docker network)."""
 
-    Currently exposes job profile persistence; more endpoints (applications,
-    evaluations, activities) can be added as the worker expands beyond
-    Step 1B.
-    """
+    async def get_job(self, slug: str) -> dict[str, Any]: ...
 
-    async def create_job_profile(
+    async def patch_job_status(
         self,
+        slug: str,
+        status: str,
         *,
-        job_description: str,
-        job_id: str | None,
-        profile: dict[str, Any],
-        idempotency_key: str | None = None,
+        analyze_result: str | None = None,
+        failure_message: str | None = None,
     ) -> dict[str, Any]: ...
 
     async def aclose(self) -> None: ...
@@ -52,37 +45,55 @@ class _getojobuAPI:
             base_url=self._base_url,
             timeout=httpx.Timeout(timeout_seconds),
             headers={
-                "X-API-Key": self._api_key,
+                "Authorization": f"Bearer {self._api_key}",
                 "Content-Type": "application/json",
             },
         )
 
-    async def create_job_profile(
+    async def get_job(self, slug: str) -> dict[str, Any]:
+        response = await self._client.get(f"/v1/jobs/{slug}")
+        response.raise_for_status()
+        raw = response.json()
+        return self._unwrap_response(raw, operation=f"get job {slug!r}")
+
+    async def patch_job_status(
         self,
+        slug: str,
+        status: str,
         *,
-        job_description: str,
-        job_id: str | None,
-        profile: dict[str, Any],
-        idempotency_key: str | None = None,
+        analyze_result: str | None = None,
+        failure_message: str | None = None,
     ) -> dict[str, Any]:
-        key = idempotency_key or str(uuid.uuid4())
-        headers = {"Idempotency-Key": key}
+        payload: dict[str, Any] = {"status": status}
+        if analyze_result is not None:
+            payload["analyze_result"] = analyze_result
+        if failure_message is not None:
+            payload["failure_message"] = failure_message
 
-        payload: dict[str, Any] = {
-            "job_description": job_description,
-            "profile": profile,
-        }
-        if job_id is not None:
-            payload["job_id"] = job_id
-
-        response = await self._client.post(
-            "/api/v1/internal/job-profiles",
+        response = await self._client.patch(
+            f"/v1/jobs/{slug}",
             json=payload,
-            headers=headers,
         )
         response.raise_for_status()
-        data = response.json()
-        return data.get("profile", data)
+        raw = response.json()
+        return self._unwrap_response(raw, operation=f"patch job {slug!r} status")
+
+    def _unwrap_response(self, raw: Any, *, operation: str) -> dict[str, Any]:
+        if not isinstance(raw, dict):
+            raise RuntimeError(f"{operation}: response is not a valid JSON object: {raw!r}")
+
+        if "success" in raw:
+            if not raw.get("success"):
+                err = raw.get("error") or {}
+                code = err.get("code", "UNKNOWN_ERROR")
+                message = err.get("message", "API returned failure")
+                raise RuntimeError(f"{operation} failed with API error ({code}): {message}")
+            data = raw.get("data")
+            if not isinstance(data, dict):
+                raise RuntimeError(f"{operation}: 'data' is not an object: {data!r}")
+            return data
+
+        return raw
 
     async def aclose(self) -> None:
         await self._client.aclose()
@@ -93,8 +104,5 @@ def NewGetojobuAPI(
     base_url: str,
     api_key: str,
 ) -> GetojobuAPI:
-    """Create a GetojobuAPI client backed by the Go API.
-
-    Mirrors NewExperiencesRepository in apps/backend/internal/repository.
-    """
+    """Create a GetojobuAPI client backed by the Go API."""
     return _getojobuAPI(base_url=base_url, api_key=api_key)

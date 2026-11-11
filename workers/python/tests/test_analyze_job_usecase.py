@@ -1,7 +1,4 @@
-"""Tests for the analyze_job usecase validation (Step 1B business logic).
-
-Mirrors the backend's usecase test patterns.
-"""
+"""Tests for the analyze_job usecase validation (Step 1B business logic)."""
 
 import pytest
 
@@ -13,54 +10,49 @@ class _FakeLLM:
         self._payload = payload
         self.calls = 0
 
-    async def extract_job_profile(self, *, job_description: str, prompt_version: str):
+    async def extract_job_analysis(self, *, job_description: str, prompt_version: str):
         self.calls += 1
         return dict(self._payload)
 
 
 class _FakeAPI:
-    def __init__(self):
-        self.created = None
-        self.idempotency_keys = []
-        self.closed = False
-
-    async def create_job_profile(
-        self,
-        *,
-        job_description: str,
-        job_id: str | None,
-        profile: dict,
-        idempotency_key: str | None = None,
-    ) -> dict:
-        self.created = {
-            "job_description": job_description,
-            "job_id": job_id,
-            "profile": profile,
-            "idempotency_key": idempotency_key,
+    def __init__(self, job_data: dict | None = None):
+        self.job_data = job_data or {
+            "id": 1,
+            "slug": "job-1",
+            "status": "new",
+            "description": "We need a Senior Backend Engineer with Golang.",
         }
-        self.idempotency_keys.append(idempotency_key)
-        return {"id": "stored-id-123", **profile}
+        self.patched = None
 
-    async def aclose(self) -> None:
-        self.closed = True
+    async def get_job(self, slug: str) -> dict:
+        return dict(self.job_data)
+
+    async def patch_job_status(self, slug: str, status: str, **kwargs) -> dict:
+        self.patched = {"slug": slug, "status": status, **kwargs}
+        return {"slug": slug, "status": status}
 
 
 @pytest.mark.asyncio
-async def test_execute_rejects_empty_job_description():
-    api = _FakeAPI()
+async def test_analyze_rejects_empty_job_description():
+    fake_api = _FakeAPI({"id": 1, "slug": "job-1", "status": "new", "description": "   "})
     llm = _FakeLLM({"family": "technology", "seniority": "unknown"})
-    svc = AnalyzeJob(api=api, llm=llm)
+    svc = AnalyzeJob(api=fake_api, llm=llm)
 
-    with pytest.raises(ValueError, match="job_description is required"):
-        await svc.execute(job_description="   ", job_id="job-1")
+    with pytest.raises(ValueError, match="has no description to analyze"):
+        await svc.analyze(slug="job-1")
 
-    assert api.created is None
     assert llm.calls == 0
 
 
 @pytest.mark.asyncio
-async def test_execute_calls_api_with_profile():
-    api = _FakeAPI()
+async def test_analyze_returns_parsed_analysis():
+    fake_api = _FakeAPI({
+        "id": 1,
+        "slug": "job-1",
+        "status": "new",
+        "description": "We need a Senior Backend Engineer with Golang.",
+    })
     llm = _FakeLLM(
         {
             "family": "technology",
@@ -76,30 +68,35 @@ async def test_execute_calls_api_with_profile():
             ],
         }
     )
-    svc = AnalyzeJob(api=api, llm=llm)
+    svc = AnalyzeJob(api=fake_api, llm=llm)
 
-    profile = await svc.execute(
-        job_description="We need a Senior Backend Engineer with Golang.",
-        job_id="job-1",
-        idempotency_key="idem-key-abc",
-    )
+    analysis = await svc.analyze(slug="job-1")
 
-    assert api.created is not None
-    assert api.created["job_id"] == "job-1"
-    assert api.created["idempotency_key"] == "idem-key-abc"
-    assert profile.family == "technology"
-    assert profile.job_id == "job-1"
+    assert analysis.family == "technology"
+    assert analysis.seniority == "senior"
+    assert analysis.title == "Senior Backend Engineer"
+    assert analysis.job_id == "1"
+    assert len(analysis.requirements) == 1
+    assert analysis.requirements[0].original_name == "Golang"
+    assert analysis.requirements[0].importance == "required"
     assert llm.calls == 1
 
 
 @pytest.mark.asyncio
-async def test_execute_generates_idempotency_key_when_not_provided():
-    api = _FakeAPI()
-    llm = _FakeLLM({"family": "technology", "seniority": "unknown"})
-    svc = AnalyzeJob(api=api, llm=llm)
+async def test_analyze_sets_metadata_defaults():
+    fake_api = _FakeAPI({
+        "id": 42,
+        "slug": "job-42",
+        "status": "new",
+        "description": "We need an engineer.",
+    })
+    llm = _FakeLLM({"family": "technology", "seniority": "mid"})
+    svc = AnalyzeJob(api=fake_api, llm=llm, provider="openai", model="gpt-4o-mini", prompt_version="extract-job-v1")
 
-    await svc.execute(job_description="We need an engineer.")
+    analysis = await svc.analyze(slug="job-42")
 
-    assert api.created is not None
-    assert api.created["idempotency_key"] is not None
-    assert len(api.created["idempotency_key"]) > 0
+    assert analysis.job_id == "42"
+    assert analysis.provider == "openai"
+    assert analysis.model == "gpt-4o-mini"
+    assert analysis.prompt_version == "extract-job-v1"
+    assert llm.calls == 1

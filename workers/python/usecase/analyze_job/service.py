@@ -1,33 +1,38 @@
-"""Business logic for Step 1B: Analyze Job Description.
+"""Business logic for job analysis (Step 1B).
 
-Mirrors apps/backend/internal/usecase/users/users.go: a thin service that
-validates input, delegates to an LLM, and persists via the Go API.
-
-This is the "actual flow" the user asked to pick: Step 1B.
+Flow:
+1. Check status via Go API GET /v1/jobs/{slug}.
+2. If status is not 'new' or 'failed', reject.
+3. Update status to 'analyze_pending' via PATCH /v1/jobs/{slug}.
+4. Analyze job description using LLM.
+5. Update status based on result:
+   - On success: 'analyzed' with JobAnalysis JSON.
+   - On failure: 'failed' with error message.
 """
 
 from __future__ import annotations
 
-import uuid
 from typing import Any, Protocol
 
-from models.job_profile import JobProfile
+from models.job_analysis import JobAnalysis
 from repository.getojobu_api import GetojobuAPI
 
 
 class LLMClient(Protocol):
-    """Protocol for an LLM client used by Step 1B."""
+    """Protocol for an LLM client used to extract job analysis."""
 
-    async def extract_job_profile(
+    async def extract_job_analysis(
         self, *, job_description: str, prompt_version: str
     ) -> dict[str, Any]: ...
 
 
 class AnalyzeJob:
+    """Service that coordinates job analysis with the Go API and LLM."""
+
     def __init__(
         self,
-        api: GetojobuAPI,
-        llm: LLMClient,
+        api: GetojobuAPI | None = None,
+        llm: LLMClient | None = None,
         *,
         prompt_version: str = "extract-job-v1",
         provider: str = "openai",
@@ -39,49 +44,89 @@ class AnalyzeJob:
         self._provider = provider
         self._model = model
 
-    async def execute(
+    async def analyze(
         self,
+        slug: str,
         *,
-        job_description: str,
+        job_description: str | None = None,
         job_id: str | None = None,
-        idempotency_key: str | None = None,
-    ) -> JobProfile:
-        """Run Step 1B end to end.
+    ) -> JobAnalysis:
+        """Run the complete 5-step job analysis lifecycle for a given job slug."""
+        if not slug or not slug.strip():
+            raise ValueError("slug is required")
 
-        1. Validate the JD input is non-empty.
-        2. Call the LLM with the extract-job-v1 prompt to obtain a
-           normalized job profile.
-        3. Parse and validate the LLM output into JobProfile.
-        4. Persist via the Go API (internal Docker network).
-        5. Return the stored profile.
-        """
-        if not job_description or not job_description.strip():
-            raise ValueError("job_description is required")
+        if self._api is None:
+            raise RuntimeError("api client is required for job analysis lifecycle")
 
-        # 2. Ask the LLM to extract and normalize the job description.
-        raw = await self._llm.extract_job_profile(
+        # 1. Check current status from Go API
+        job = await self._api.get_job(slug)
+        current_status = job.get("status")
+        if not current_status:
+            raise RuntimeError(f"job {slug!r} response missing 'status' field")
+
+        # 2. Reject if not 'new' or 'failed'
+        if current_status not in ("new", "failed"):
+            raise ValueError(
+                f"job {slug!r} cannot be analyzed: current status is {current_status!r} (must be 'new' or 'failed')"
+            )
+
+        # 3. Transition status to 'analyze_pending' and verify response
+        pending_resp = await self._api.patch_job_status(slug=slug, status="analyze_pending")
+        if pending_resp.get("status") != "analyze_pending":
+            actual_status = pending_resp.get("status")
+            raise RuntimeError(
+                f"failed to transition job {slug!r} to 'analyze_pending': API returned status {actual_status!r}"
+            )
+
+        # Resolve job description from input or fetched job record
+        jd = job_description or job.get("description")
+        if not jd or not jd.strip():
+            err_msg = f"job {slug!r} has no description to analyze"
+            await self._api.patch_job_status(slug=slug, status="failed", failure_message=err_msg)
+            raise ValueError(err_msg)
+
+        resolved_job_id = job_id or str(job.get("id", ""))
+
+        # 4. Perform LLM analysis
+        try:
+            analysis = await self._call_llm(job_description=jd, job_id=resolved_job_id)
+        except Exception as exc:
+            # 5b. Transition status to 'failed' on error
+            try:
+                fail_resp = await self._api.patch_job_status(slug=slug, status="failed", failure_message=str(exc))
+                if fail_resp.get("status") != "failed":
+                    pass  # keep underlying LLM error as primary exception
+            except Exception:
+                pass  # do not swallow the underlying LLM error
+            raise
+
+        # 5a. Transition status to 'analyzed' and verify response
+        analyzed_resp = await self._api.patch_job_status(
+            slug=slug,
+            status="analyzed",
+            analyze_result=analysis.model_dump_json(),
+        )
+        if analyzed_resp.get("status") != "analyzed":
+            actual_status = analyzed_resp.get("status")
+            raise RuntimeError(
+                f"failed to transition job {slug!r} to 'analyzed': API returned status {actual_status!r}"
+            )
+
+        return analysis
+
+    async def _call_llm(self, *, job_description: str, job_id: str) -> JobAnalysis:
+        if self._llm is None:
+            raise ValueError("llm client is required")
+
+        raw = await self._llm.extract_job_analysis(
             job_description=job_description,
             prompt_version=self._prompt_version,
         )
 
-        # 3. Parse into the domain model (validates family, seniority, etc.).
-        profile = JobProfile.model_validate(raw)
-
-        # Override metadata fields the caller should control.
-        if job_id is not None:
-            profile.job_id = job_id
-        profile.provider = self._provider
-        profile.model = self._model
-        profile.prompt_version = self._prompt_version
-
-        # 4. Persist via the Go API (not direct DB access).
-        key = idempotency_key or str(uuid.uuid4())
-        stored = await self._api.create_job_profile(
-            job_description=job_description,
-            job_id=job_id,
-            profile=profile.model_dump(),
-            idempotency_key=key,
-        )
-
-        # 5. Return the stored profile as returned by the API.
-        return JobProfile.model_validate(stored)
+        analysis = JobAnalysis.model_validate(raw)
+        if job_id:
+            analysis.job_id = job_id
+        analysis.provider = self._provider
+        analysis.model = self._model
+        analysis.prompt_version = self._prompt_version
+        return analysis

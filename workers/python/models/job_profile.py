@@ -1,95 +1,12 @@
-"""Domain models for job profile extraction (Step 1B).
+"""Deprecated: JobProfile has been renamed to JobAnalysis.
 
-Mirrors apps/backend/internal/models/: plain data structures with
-validation. Uses pydantic so LLM JSON output can be parsed and validated
-in one step.
+This module re-exports JobAnalysis as JobProfile for backward compatibility.
+Use models.job_analysis.JobAnalysis in new code.
 """
 
-from datetime import datetime
-from typing import Any
-from uuid import UUID, uuid4
+from models.job_analysis import JobAnalysis, JobRequirement
 
-from pydantic import BaseModel, Field, field_validator
+# Backward-compatible alias
+JobProfile = JobAnalysis
 
-
-class JobRequirement(BaseModel):
-    """A single requirement extracted from a job description."""
-
-    original_name: str = Field(..., min_length=1)
-    normalized_name: str | None = None
-    category: str = Field(..., min_length=1)
-    importance: str  # required | preferred | optional | unknown
-    source_excerpt: str | None = None
-
-    @field_validator("importance")
-    @classmethod
-    def _validate_importance(cls, v: str) -> str:
-        allowed = {"required", "preferred", "optional", "unknown"}
-        if v not in allowed:
-            raise ValueError(f"importance must be one of {sorted(allowed)}")
-        return v
-
-
-class JobProfile(BaseModel):
-    """Normalized job description output of Step 1B (extract-job-v1)."""
-
-    id: UUID = Field(default_factory=uuid4)
-    job_id: str | None = None  # reference to shared jobs table slug/id
-    version: int = 1
-    schema_version: str = "1.0"
-    family: str  # technology | administration | ... | other
-    title: str | None = None
-    company: str | None = None
-    location: str | None = None
-    work_arrangement: str | None = None  # remote | hybrid | onsite | unknown
-    employment_type: str | None = None
-    seniority: (
-        str  # entry | junior | mid | senior | lead | manager | executive | unknown
-    )
-    minimum_years_experience: int | None = Field(default=None, ge=0)
-    requirements: list[JobRequirement] = []
-    responsibilities: list[str] = []
-    profile_data: dict[str, Any] = {}  # raw normalized JSONB payload
-    prompt_version: str = "extract-job-v1"
-    provider: str = "openai"
-    model: str = "gpt-4o-mini"
-    created_at: datetime | None = None
-
-    @field_validator("family")
-    @classmethod
-    def _validate_family(cls, v: str) -> str:
-        allowed = {
-            "technology",
-            "administration",
-            "customer_operations",
-            "transportation",
-            "sales",
-            "marketing",
-            "finance",
-            "human_resources",
-            "engineering",
-            "healthcare",
-            "hospitality",
-            "education",
-            "other",
-        }
-        if v not in allowed:
-            raise ValueError(f"family must be one of {sorted(allowed)}")
-        return v
-
-    @field_validator("seniority")
-    @classmethod
-    def _validate_seniority(cls, v: str) -> str:
-        allowed = {
-            "entry",
-            "junior",
-            "mid",
-            "senior",
-            "lead",
-            "manager",
-            "executive",
-            "unknown",
-        }
-        if v not in allowed:
-            raise ValueError(f"seniority must be one of {sorted(allowed)}")
-        return v
+__all__ = ["JobAnalysis", "JobProfile", "JobRequirement"]
