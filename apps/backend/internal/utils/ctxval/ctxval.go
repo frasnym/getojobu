@@ -4,6 +4,8 @@ import (
 	"context"
 
 	"github.com/frasnym/getojobu/apps/backend/internal/models"
+	"github.com/frasnym/getojobu/apps/backend/internal/utils/constants"
+	"github.com/jackc/pgx/v5"
 )
 
 // contextKey is an unexported type for context keys to avoid collisions.
@@ -14,6 +16,7 @@ const (
 	tenantIDKey
 	workflowIDKey
 	principalKey
+	primaryTransactionKey
 )
 
 // WithRequestID returns a context with the given request id stored.
@@ -70,4 +73,22 @@ func ContextWithPrincipal(ctx context.Context, p *models.Principal) context.Cont
 func PrincipalFromContext(ctx context.Context) *models.Principal {
 	p, _ := ctx.Value(principalKey).(*models.Principal)
 	return p
+}
+
+// SetPrimaryTransaction stores a primary transaction in ctx.
+func SetPrimaryTransaction(ctx context.Context, tx pgx.Tx) context.Context {
+	return context.WithValue(ctx, primaryTransactionKey, tx)
+}
+
+// GetPrimaryTransaction retrieves the primary transaction from ctx, or returns
+// constants.ErrNoActiveConnections when no transaction is stored.
+func GetPrimaryTransaction(ctx context.Context) (pgx.Tx, error) {
+	if ctx == nil {
+		return nil, constants.ErrNoActiveConnections
+	}
+	tx, ok := ctx.Value(primaryTransactionKey).(pgx.Tx)
+	if !ok || tx == nil {
+		return nil, constants.ErrNoActiveConnections
+	}
+	return tx, nil
 }

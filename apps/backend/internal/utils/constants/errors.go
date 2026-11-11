@@ -17,3 +17,7 @@ var ErrNotFound = errors.New("not found")
 // because the job already has a description and status 'analyzed'. The HTTP
 // layer maps this to 409 Conflict.
 var ErrDescriptionBlocked = errors.New("description update blocked: job status is analyzed")
+
+// ErrNoActiveConnections is returned when no transaction is stored in context.
+var ErrNoActiveConnections = errors.New("no active connections")
+

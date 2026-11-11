@@ -49,12 +49,22 @@ type CreateJobParams struct {
 	// ("system", "system") via actorTypeID() in the repository when empty).
 	UpdatedByType string `json:"-"`
 	UpdatedByID   string `json:"-"`
+	// UserID is the internal user id that owns this job listing. Required for
+	// all job creates so ownership can be tracked in user_jobs.
+	UserID string `json:"-"`
 }
 
 // CreateJobResult is the outcome of creating a job listing.
 type CreateJobResult struct {
-	Job     *Job
-	Created bool
+	Job             *Job
+	Created         bool
+	AddedToUserList bool
+}
+
+// UserJobLink links a user to a job in user_jobs.
+type UserJobLink struct {
+	UserID string
+	JobID  int64
 }
 
 // BulkCreateJobParams holds parameters for creating many job listings at once.
@@ -64,8 +74,9 @@ type BulkCreateJobParams struct {
 
 // BulkCreateJobResult is the outcome of creating a single job in a bulk create.
 type BulkCreateJobResult struct {
-	Slug    string `json:"slug"`
-	Created bool   `json:"created"`
+	Slug            string `json:"slug"`
+	Created         bool   `json:"created"`
+	AddedToUserList bool   `json:"added_to_user_list"`
 }
 
 // UpdateJobParams holds parameters for updating a job listing. Slug is taken

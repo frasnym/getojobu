@@ -35,6 +35,10 @@ func (m *mockUserService) FindByClerkUserID(ctx context.Context, clerkUserID str
 	return nil, nil
 }
 
+func (m *mockUserService) FindByID(ctx context.Context, id string) (*models.User, error) {
+	return nil, nil
+}
+
 func (m *mockUserService) Create(ctx context.Context, clerkUserID string, email, fullName string, role models.Role) (*models.User, error) {
 	m.createCalled = true
 	m.lastClerkID = clerkUserID

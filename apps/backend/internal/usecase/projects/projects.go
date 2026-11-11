@@ -2,7 +2,6 @@ package projects
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 
@@ -46,7 +45,7 @@ func (s *projectService) Create(ctx context.Context, params models.CreateProject
 func (s *projectService) GetByID(ctx context.Context, params models.GetProjectParams) (*models.Project, error) {
 	p, err := s.repo.GetByID(ctx, params)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, constants.ErrNotFound) {
 			return nil, constants.ErrNotFound
 		}
 		return nil, fmt.Errorf("get project: %w", err)
@@ -71,7 +70,7 @@ func (s *projectService) Update(ctx context.Context, params models.UpdateProject
 
 	p, err := s.repo.Update(ctx, params)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, constants.ErrNotFound) {
 			return nil, constants.ErrNotFound
 		}
 		return nil, fmt.Errorf("update project: %w", err)

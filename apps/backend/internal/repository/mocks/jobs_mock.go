@@ -21,6 +21,7 @@ import (
 type MockJobs struct {
 	ctrl     *gomock.Controller
 	recorder *MockJobsMockRecorder
+	isgomock struct{}
 }
 
 // MockJobsMockRecorder is the mock recorder for MockJobs.
@@ -41,10 +42,10 @@ func (m *MockJobs) EXPECT() *MockJobsMockRecorder {
 }
 
 // BulkCreate mocks base method.
-func (m *MockJobs) BulkCreate(ctx context.Context, params models.BulkCreateJobParams) ([]models.BulkCreateJobResult, error) {
+func (m *MockJobs) BulkCreate(ctx context.Context, params models.BulkCreateJobParams) ([]*models.CreateJobResult, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "BulkCreate", ctx, params)
-	ret0, _ := ret[0].([]models.BulkCreateJobResult)
+	ret0, _ := ret[0].([]*models.CreateJobResult)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -85,19 +86,19 @@ func (mr *MockJobsMockRecorder) GetBySlug(ctx, slug any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBySlug", reflect.TypeOf((*MockJobs)(nil).GetBySlug), ctx, slug)
 }
 
-// ListRecent mocks base method.
-func (m *MockJobs) ListRecent(ctx context.Context, limit int) ([]*models.Job, error) {
+// List mocks base method.
+func (m *MockJobs) List(ctx context.Context, limit int, userID string) ([]*models.Job, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ListRecent", ctx, limit)
+	ret := m.ctrl.Call(m, "List", ctx, limit, userID)
 	ret0, _ := ret[0].([]*models.Job)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// ListRecent indicates an expected call of ListRecent.
-func (mr *MockJobsMockRecorder) ListRecent(ctx, limit any) *gomock.Call {
+// List indicates an expected call of List.
+func (mr *MockJobsMockRecorder) List(ctx, limit, userID any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListRecent", reflect.TypeOf((*MockJobs)(nil).ListRecent), ctx, limit)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "List", reflect.TypeOf((*MockJobs)(nil).List), ctx, limit, userID)
 }
 
 // SearchByCompany mocks base method.

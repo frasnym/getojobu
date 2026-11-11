@@ -18,6 +18,9 @@ type stubUserUC struct{}
 func (stubUserUC) FindByClerkUserID(context.Context, string) (*models.Principal, error) {
 	return nil, nil
 }
+func (stubUserUC) FindByID(context.Context, string) (*models.User, error) {
+	return nil, nil
+}
 func (stubUserUC) Create(context.Context, string, string, string, models.Role) (*models.User, error) {
 	return nil, nil
 }

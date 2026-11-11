@@ -245,7 +245,10 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "List recent jobs ordered by created_at descending. Optional limit (default 20, max 100) and company ILIKE filter.",
+                "description": "List recent jobs ordered by created_at descending. Optional limit (default 20, max 100). Clerk callers see only their owned jobs; API key callers see all jobs.",
+                "consumes": [
+                    "application/json"
+                ],
                 "produces": [
                     "application/json"
                 ],
@@ -258,12 +261,6 @@ const docTemplate = `{
                         "type": "integer",
                         "description": "Maximum number of jobs to return (default 20, max 100)",
                         "name": "limit",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Filter by company name (case-insensitive substring)",
-                        "name": "company",
                         "in": "query"
                     }
                 ],
@@ -403,6 +400,9 @@ const docTemplate = `{
                     }
                 ],
                 "description": "Get a job listing by slug.",
+                "consumes": [
+                    "application/json"
+                ],
                 "produces": [
                     "application/json"
                 ],
@@ -424,6 +424,12 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/models.Job"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpx.Error"
                         }
                     },
                     "401": {
@@ -1015,6 +1021,10 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "title": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "description": "UserID is the internal user id that owns this job listing.\nRequired for API key callers. Clerk callers must not send it (it is\nresolved from the token); sending it is a 400 error.",
                     "type": "string"
                 },
                 "visa_relocation": {

@@ -21,6 +21,7 @@ import (
 type MockUsers struct {
 	ctrl     *gomock.Controller
 	recorder *MockUsersMockRecorder
+	isgomock struct{}
 }
 
 // MockUsersMockRecorder is the mock recorder for MockUsers.
@@ -68,6 +69,21 @@ func (m *MockUsers) FindByClerkUserID(ctx context.Context, clerkUserID string) (
 func (mr *MockUsersMockRecorder) FindByClerkUserID(ctx, clerkUserID any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindByClerkUserID", reflect.TypeOf((*MockUsers)(nil).FindByClerkUserID), ctx, clerkUserID)
+}
+
+// FindByID mocks base method.
+func (m *MockUsers) FindByID(ctx context.Context, id string) (*models.User, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FindByID", ctx, id)
+	ret0, _ := ret[0].(*models.User)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FindByID indicates an expected call of FindByID.
+func (mr *MockUsersMockRecorder) FindByID(ctx, id any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindByID", reflect.TypeOf((*MockUsers)(nil).FindByID), ctx, id)
 }
 
 // SoftDelete mocks base method.

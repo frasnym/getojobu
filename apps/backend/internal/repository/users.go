@@ -2,17 +2,21 @@ package repository
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 
 	"github.com/google/uuid"
 
 	"github.com/frasnym/getojobu/apps/backend/internal/models"
+	"github.com/frasnym/getojobu/apps/backend/internal/utils/constants"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/database"
 )
 
 // Users finds and creates local user records.
 type Users interface {
 	FindByClerkUserID(ctx context.Context, clerkUserID string) (*models.User, error)
+	FindByID(ctx context.Context, id string) (*models.User, error)
 	Create(ctx context.Context, clerkUserID string, email, fullName string, role models.Role) (*models.User, error)
 	Update(ctx context.Context, id string, email, fullName string) (*models.User, error)
 	SoftDelete(ctx context.Context, id string) (*models.User, error)
@@ -45,7 +49,38 @@ func (r *usersRepository) FindByClerkUserID(ctx context.Context, clerkUserID str
 		&u.OnboardingCompletedAt,
 		&u.DeletedAt,
 	); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, constants.ErrUserNotFound
+		}
 		return nil, fmt.Errorf("find user by clerk id: %w", err)
+	}
+	return &u, nil
+}
+
+// FindByID returns the local user record with the given internal user id,
+// or constants.ErrUserNotFound when no such user exists.
+func (r *usersRepository) FindByID(ctx context.Context, id string) (*models.User, error) {
+	query := `
+		SELECT id, clerk_user_id, email, full_name, role, onboarding_completed_at, deleted_at
+		FROM users
+		WHERE id = $1
+	`
+	row := r.db.QueryRow(ctx, query, id)
+
+	var u models.User
+	if err := row.Scan(
+		&u.ID,
+		&u.ClerkUserID,
+		&u.Email,
+		&u.FullName,
+		&u.Role,
+		&u.OnboardingCompletedAt,
+		&u.DeletedAt,
+	); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, constants.ErrUserNotFound
+		}
+		return nil, fmt.Errorf("find user by id: %w", err)
 	}
 	return &u, nil
 }

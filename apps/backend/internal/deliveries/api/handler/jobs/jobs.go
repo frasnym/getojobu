@@ -1,6 +1,7 @@
 package jobs
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 
@@ -57,6 +58,8 @@ func (h *handler) Route(g *httpx.Router) {
 // @Failure 401 {object} httpx.Error
 // @security ApiKeyAuth
 // @Router /v1/jobs [post]
+// For Clerk callers, user_id is resolved from the token and any user_id in the
+// body is rejected. For API key callers, user_id is required in the request body.
 func (h *handler) CreateJob(w http.ResponseWriter, r *http.Request) error {
 	ctx := r.Context()
 
@@ -70,12 +73,20 @@ func (h *handler) CreateJob(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
+	// Resolve the owning user ID. Clerk → from token principal (reject body
+	// user_id). API key → from request body (required).
+	userID, err := resolveOwnerUserID(p, req.UserID)
+	if err != nil {
+		return err
+	}
+
 	postedDate, err := req.Validate()
 	if err != nil {
 		return err
 	}
 
-	result, err := h.ucJobs.Create(ctx, models.CreateJobParams{
+	actorType, actorID := p.AuditActor()
+	params := models.CreateJobParams{
 		Slug:           req.Slug,
 		Source:         req.Source,
 		ExternalID:     req.ExternalID,
@@ -88,9 +99,12 @@ func (h *handler) CreateJob(w http.ResponseWriter, r *http.Request) error {
 		PostedDate:     postedDate,
 		IsRemote:       req.IsRemote,
 		VisaRelocation: req.VisaRelocation,
-		UpdatedByType:  p.ActorType,
-		UpdatedByID:    p.ActorID,
-	})
+		UpdatedByType:  actorType,
+		UpdatedByID:    actorID,
+		UserID:         userID,
+	}
+
+	result, err := h.ucJobs.Create(ctx, params)
 	if err != nil {
 		logging.Error(ctx, "create job failed", err,
 			"slug", req.Slug, "actor_type", p.ActorType, "actor_id", p.ActorID)
@@ -103,12 +117,9 @@ func (h *handler) CreateJob(w http.ResponseWriter, r *http.Request) error {
 	return httpx.RespondJSON(w, http.StatusOK, result)
 }
 
-// BulkCreateJob creates many job listings in one request. Each row uses
-// ON CONFLICT (slug) DO NOTHING, so conflicting rows are skipped without
-// rolling back the whole batch. Maximum 100 jobs per request.
+// @Tags jobs
 // @Summary Bulk create jobs
 // @Description Create many job listings at once (max 100). Conflicting slugs are skipped.
-// @Tags jobs
 // @Accept json
 // @Produce json
 // @Param jobs body bulkCreateJobRequest true "Job listings"
@@ -117,6 +128,10 @@ func (h *handler) CreateJob(w http.ResponseWriter, r *http.Request) error {
 // @Failure 401 {object} httpx.Error
 // @security ApiKeyAuth
 // @Router /v1/jobs/bulk [post]
+// BulkCreateJob creates many job listings in one request. Each row may belong
+// to a different user (each row carries its own user_id). For Clerk callers,
+// any user_id in a row body is rejected. For API key callers, each row must
+// carry its own user_id.
 func (h *handler) BulkCreateJob(w http.ResponseWriter, r *http.Request) error {
 	ctx := r.Context()
 
@@ -134,10 +149,16 @@ func (h *handler) BulkCreateJob(w http.ResponseWriter, r *http.Request) error {
 		return httpx.Envelope(httpx.CodeInvalidRequest, "at least one job is required", "")
 	}
 
+	actorType, actorID := p.AuditActor()
 	params := models.BulkCreateJobParams{
 		Jobs: make([]models.CreateJobParams, len(req.Jobs)),
 	}
 	for i, j := range req.Jobs {
+		userID, err := resolveOwnerUserID(p, j.UserID)
+		if err != nil {
+			return err
+		}
+
 		postedDate, err := j.Validate()
 		if err != nil {
 			return err
@@ -156,8 +177,9 @@ func (h *handler) BulkCreateJob(w http.ResponseWriter, r *http.Request) error {
 			PostedDate:     postedDate,
 			IsRemote:       j.IsRemote,
 			VisaRelocation: j.VisaRelocation,
-			UpdatedByType:  p.ActorType,
-			UpdatedByID:    p.ActorID,
+			UpdatedByType:  actorType,
+			UpdatedByID:    actorID,
+			UserID:         userID,
 		}
 	}
 
@@ -171,17 +193,18 @@ func (h *handler) BulkCreateJob(w http.ResponseWriter, r *http.Request) error {
 	return httpx.RespondJSON(w, http.StatusOK, results)
 }
 
-// ListJobs returns recent jobs, optionally filtered by company.
-// @Summary List jobs
-// @Description List recent jobs ordered by created_at descending. Optional limit (default 20, max 100) and company ILIKE filter.
 // @Tags jobs
+// @Summary List jobs
+// @Description List recent jobs ordered by created_at descending. Optional limit (default 20, max 100). Clerk callers see only their owned jobs; API key callers see all jobs.
+// @Accept json
 // @Produce json
-// @Param limit query int false "Maximum number of jobs to return (default 20, max 100)"
-// @Param company query string false "Filter by company name (case-insensitive substring)"
+// @Param limit query integer false "Maximum number of jobs to return (default 20, max 100)"
 // @Success 200 {array} models.Job
 // @Failure 401 {object} httpx.Error
 // @security ApiKeyAuth
 // @Router /v1/jobs [get]
+// ListJobs returns jobs. Clerk callers see only their owned jobs; API key
+// callers see all jobs.
 func (h *handler) ListJobs(w http.ResponseWriter, r *http.Request) error {
 	ctx := r.Context()
 
@@ -196,21 +219,20 @@ func (h *handler) ListJobs(w http.ResponseWriter, r *http.Request) error {
 		if err != nil || n < 1 {
 			return httpx.Envelope(httpx.CodeInvalidRequest, "limit must be a positive integer", "")
 		}
-		limit = n
+		limit = clampLimit(n)
 	}
-
-	company := r.URL.Query().Get("company")
 
 	var jobs []*models.Job
 	var err error
-	if company != "" {
-		jobs, err = h.ucJobs.SearchByCompany(ctx, company, limit)
-	} else {
-		jobs, err = h.ucJobs.ListRecent(ctx, limit)
+	// Clerk: return only jobs owned by this user. API key: return all jobs.
+	userID := ""
+	if p.ActorType == "" {
+		userID = p.ID
 	}
+	jobs, err = h.ucJobs.List(ctx, limit, userID)
 	if err != nil {
 		logging.Error(ctx, "list jobs failed", err,
-			"company", company, "limit", limit, "actor_type", p.ActorType, "actor_id", p.ActorID)
+			"limit", limit, "actor_type", p.ActorType, "actor_id", p.ActorID)
 		return err
 	}
 
@@ -221,17 +243,20 @@ func (h *handler) ListJobs(w http.ResponseWriter, r *http.Request) error {
 	return httpx.RespondJSON(w, http.StatusOK, jobs)
 }
 
-// GetJob returns a single job by slug.
+// @Tags jobs
 // @Summary Get job
 // @Description Get a job listing by slug.
-// @Tags jobs
+// @Accept json
 // @Produce json
 // @Param slug path string true "Job slug"
 // @Success 200 {object} models.Job
+// @Failure 400 {object} httpx.Error
 // @Failure 401 {object} httpx.Error
 // @Failure 404 {object} httpx.Error
 // @security ApiKeyAuth
 // @Router /v1/jobs/{slug} [get]
+// GetJob returns a single job by slug. API key callers may read any job.
+// Clerk callers may read only jobs they own.
 func (h *handler) GetJob(w http.ResponseWriter, r *http.Request) error {
 	ctx := r.Context()
 
@@ -247,22 +272,33 @@ func (h *handler) GetJob(w http.ResponseWriter, r *http.Request) error {
 
 	job, err := h.ucJobs.GetBySlug(ctx, slug)
 	if err != nil {
+		logging.Error(ctx, "get job failed", err,
+			"slug", slug, "actor_type", p.ActorType, "actor_id", p.ActorID)
 		if err == constants.ErrNotFound {
 			return httpx.Envelope(httpx.CodeNotFound, "job not found", "")
 		}
-		logging.Error(ctx, "get job failed", err,
-			"slug", slug, "actor_type", p.ActorType, "actor_id", p.ActorID)
 		return err
+	}
+
+	if p.ActorType == "" {
+		// Clerk: ensure the caller owns this job.
+		owned, err := h.ucJobs.IsOwned(ctx, p.ID, job.ID)
+		if err != nil {
+			logging.Error(ctx, "check job ownership failed", err,
+				"slug", slug, "user_id", p.ID, "job_id", job.ID)
+			return err
+		}
+		if !owned {
+			return httpx.Envelope(httpx.CodeNotFound, "job not found", "")
+		}
 	}
 
 	return httpx.RespondJSON(w, http.StatusOK, job)
 }
 
-// UpdateJobDescription updates only the description of a job. Allowed only
-// when the existing description IS NULL or the status is not 'analyzed'.
+// @Tags jobs
 // @Summary Update job description
 // @Description Update a job's description. Blocked with 409 when the job already has a description and status 'analyzed'.
-// @Tags jobs
 // @Accept json
 // @Produce json
 // @Param slug path string true "Job slug"
@@ -274,6 +310,8 @@ func (h *handler) GetJob(w http.ResponseWriter, r *http.Request) error {
 // @Failure 409 {object} httpx.Error
 // @security ApiKeyAuth
 // @Router /v1/jobs/{slug} [patch]
+// UpdateJobDescription updates only the description of a job. Allowed only
+// when the existing description IS NULL or the status is not 'analyzed'.
 func (h *handler) UpdateJobDescription(w http.ResponseWriter, r *http.Request) error {
 	ctx := r.Context()
 
@@ -296,18 +334,77 @@ func (h *handler) UpdateJobDescription(w http.ResponseWriter, r *http.Request) e
 		return httpx.Envelope(httpx.CodeInvalidRequest, "description is required", "")
 	}
 
-	job, err := h.ucJobs.UpdateDescription(ctx, slug, req.Description, p.ActorType, p.ActorID)
+	actorType, actorID := p.AuditActor()
+	if p.ActorType == "" {
+		// Clerk callers may only update jobs they own.
+		existing, err := h.ucJobs.GetBySlug(ctx, slug)
+		if err != nil {
+			if errors.Is(err, constants.ErrNotFound) {
+				return httpx.Envelope(httpx.CodeNotFound, "job not found", "")
+			}
+			return err
+		}
+		owned, err := h.ucJobs.IsOwned(ctx, p.ID, existing.ID)
+		if err != nil {
+			logging.Error(ctx, "check job ownership failed", err,
+				"slug", slug, "user_id", p.ID, "job_id", existing.ID)
+			return err
+		}
+		if !owned {
+			return httpx.Envelope(httpx.CodeNotFound, "job not found", "")
+		}
+	}
+
+	job, err := h.ucJobs.UpdateDescription(ctx, slug, req.Description, actorType, actorID)
 	if err != nil {
+		logging.Error(ctx, "update job description failed", err,
+			"slug", slug, "actor_type", p.ActorType, "actor_id", p.ActorID)
 		if err == constants.ErrNotFound {
 			return httpx.Envelope(httpx.CodeNotFound, "job not found", "")
 		}
 		if err == constants.ErrDescriptionBlocked {
 			return httpx.Envelope(httpx.CodeConflict, "description update blocked: job is already analyzed", "")
 		}
-		logging.Error(ctx, "update job description failed", err,
-			"slug", slug, "actor_type", p.ActorType, "actor_id", p.ActorID)
 		return err
 	}
 
 	return httpx.RespondJSON(w, http.StatusOK, job)
 }
+
+// resolveOwnerUserID returns the internal user id that owns the job being
+// created.
+//
+// For Clerk callers, user_id comes from the token principal and any user_id
+// sent in the body is rejected (400). For API key callers, user_id must come
+// from the request body.
+func resolveOwnerUserID(p *models.Principal, bodyUserID string) (string, error) {
+	if p.ActorType == "" {
+		// Clerk caller: resolve user_id from the principal (internal user id).
+		if bodyUserID != "" {
+			return "", httpx.Envelope(httpx.CodeInvalidRequest, "user_id not allowed for Clerk authentication", "")
+		}
+		if p.ID == "" {
+			return "", httpx.Envelope(httpx.CodeUnauthorized, "internal user id not available", "")
+		}
+		return p.ID, nil
+	}
+
+	// API key caller: user_id is required in the body.
+	if bodyUserID == "" {
+		return "", httpx.Envelope(httpx.CodeInvalidRequest, "user_id is required for API key authentication", "")
+	}
+	return bodyUserID, nil
+}
+
+// clampLimit clamps limit to the inclusive range [1, 100], defaulting to 20
+// when non-positive.
+func clampLimit(limit int) int {
+	if limit <= 0 {
+		return 20
+	}
+	if limit > 100 {
+		return 100
+	}
+	return limit
+}
+

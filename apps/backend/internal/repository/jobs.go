@@ -5,34 +5,64 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"time"
+	"strings"
 
 	"github.com/jackc/pgx/v5"
 
 	"github.com/frasnym/getojobu/apps/backend/internal/models"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils"
+	"github.com/frasnym/getojobu/apps/backend/internal/utils/constants"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/database"
 )
 
 const (
-	// maxBulkCreate is the maximum number of jobs accepted in a single bulk
+	// MaxBulkCreate is the maximum number of jobs accepted in a single bulk
 	// create request.
-	maxBulkCreate = 100
+	MaxBulkCreate = 100
+)
 
-	// insertJobColumns is the column list used by both single and bulk inserts.
-	insertJobColumns = `
-		slug, source, external_id, source_url, apply_url,
-		title, company, location, description, posted_date,
-		is_remote, visa_relocation,
-		updated_by_type, updated_by_id
-	`
+// Jobs is the interface for jobs data access. All methods run their own
+// transaction internally; there are no Tx variants on the public interface.
+type Jobs interface {
+	Create(ctx context.Context, params models.CreateJobParams) (*models.CreateJobResult, error)
+	BulkCreate(ctx context.Context, params models.BulkCreateJobParams) ([]*models.CreateJobResult, error)
+	GetBySlug(ctx context.Context, slug string) (*models.Job, error)
+	List(ctx context.Context, limit int, userID string) ([]*models.Job, error)
+	SearchByCompany(ctx context.Context, company string, limit int) ([]*models.Job, error)
+	UpdateDescription(ctx context.Context, slug, description, updatedByType, updatedByID string) (*models.Job, error)
+}
 
-	// insertJobReturningQuery inserts one job, keeping the first discovered
-	// record on slug conflict (first-source-wins). It returns the inserted
-	// row, or no rows when the slug already exists.
-	insertJobReturningQuery = `
-		INSERT INTO jobs (` + insertJobColumns + `)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+type jobsRepository struct {
+	*database.PG
+}
+
+// NewJobsRepository creates a Jobs backed by the given PG transaction manager.
+func NewJobsRepository(pg *database.PG) Jobs {
+	return &jobsRepository{
+		PG: pg,
+	}
+}
+
+// Create inserts a single job listing. On slug conflict the existing row is
+// kept (first-source-wins) and returned with Created=false.
+func (r *jobsRepository) Create(ctx context.Context, params models.CreateJobParams) (result *models.CreateJobResult, err error) {
+	tx, err := r.StartTrx(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("create job start trx: %w", err)
+	}
+	defer r.Committer(ctx, tx, &err)
+
+	ut, uid := actorTypeID(params.UpdatedByType, params.UpdatedByID)
+
+	query := `
+		INSERT INTO jobs (
+			slug, source, external_id, source_url, apply_url,
+			title, company, location, description, posted_date,
+			is_remote, visa_relocation,
+			updated_by_type, updated_by_id
+		) VALUES (
+			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14
+		)
 		ON CONFLICT (slug) DO NOTHING
 		RETURNING id, slug, status, analyze_result, failure_message,
 			source, external_id, source_url, apply_url,
@@ -40,53 +70,10 @@ const (
 			is_remote, visa_relocation,
 			created_at, updated_at, updated_by_type, updated_by_id
 	`
-
-	// insertJobQuery inserts one job without RETURNING, used inside a
-	// pgx.Batch for bulk create. RowsAffected() reports 1 when inserted,
-	// 0 when skipped due to a slug conflict.
-	insertJobQuery = `
-		INSERT INTO jobs (` + insertJobColumns + `)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
-		ON CONFLICT (slug) DO NOTHING
-	`
-
-	jobSelectColumns = `
-		id, slug, status, analyze_result, failure_message,
-		source, external_id, source_url, apply_url,
-		title, company, location, description, posted_date,
-		is_remote, visa_relocation,
-		created_at, updated_at, updated_by_type, updated_by_id
-	`
-)
-
-// Jobs is the interface for jobs data access.
-type Jobs interface {
-	Create(ctx context.Context, params models.CreateJobParams) (*models.CreateJobResult, error)
-	BulkCreate(ctx context.Context, params models.BulkCreateJobParams) ([]models.BulkCreateJobResult, error)
-	GetBySlug(ctx context.Context, slug string) (*models.Job, error)
-	ListRecent(ctx context.Context, limit int) ([]*models.Job, error)
-	SearchByCompany(ctx context.Context, company string, limit int) ([]*models.Job, error)
-	UpdateDescription(ctx context.Context, slug, description, updatedByType, updatedByID string) (*models.Job, error)
-}
-
-type jobsRepository struct {
-	db database.DB
-}
-
-// NewJobsRepository creates a Jobs backed by the given database.
-func NewJobsRepository(db database.DB) Jobs {
-	return &jobsRepository{db: db}
-}
-
-// Create inserts a single job listing. On slug conflict the existing row is
-// kept (first-source-wins) and returned with Created=false.
-func (r *jobsRepository) Create(ctx context.Context, params models.CreateJobParams) (*models.CreateJobResult, error) {
-	ut, uid := actorTypeID(params.UpdatedByType, params.UpdatedByID)
-
-	row := r.db.QueryRow(ctx, insertJobReturningQuery,
+	row := tx.QueryRow(ctx, query,
 		params.Slug, params.Source, params.ExternalID, params.SourceURL, params.ApplyURL,
 		params.Title, params.Company, params.Location, params.Description,
-		postedDateArg(params.PostedDate),
+		utils.TimeOrNil(params.PostedDate),
 		params.IsRemote, params.VisaRelocation,
 		ut, uid,
 	)
@@ -95,7 +82,7 @@ func (r *jobsRepository) Create(ctx context.Context, params models.CreateJobPara
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			// Slug conflict: the existing row wins. Return it with Created=false.
-			existing, err := r.GetBySlug(ctx, params.Slug)
+			existing, err := r.getBySlug(ctx, tx, params.Slug)
 			if err != nil {
 				return nil, fmt.Errorf("create job conflict: %w", err)
 			}
@@ -106,85 +93,222 @@ func (r *jobsRepository) Create(ctx context.Context, params models.CreateJobPara
 	return &models.CreateJobResult{Job: job, Created: true}, nil
 }
 
-// BulkCreate inserts many job listings in one transaction using a pgx.Batch.
-// Each row uses ON CONFLICT (slug) DO NOTHING, so conflicting rows are
-// skipped without rolling back the whole batch. Per-row {Slug, Created}
-// results are returned. A payload larger than maxBulkCreate is rejected.
-func (r *jobsRepository) BulkCreate(ctx context.Context, params models.BulkCreateJobParams) ([]models.BulkCreateJobResult, error) {
-	jobs := params.Jobs
-	if len(jobs) == 0 {
-		return nil, nil
-	}
-	if len(jobs) > maxBulkCreate {
-		return nil, fmt.Errorf("bulk create: maximum %d jobs per request, got %d", maxBulkCreate, len(jobs))
-	}
-
-	tx, err := r.db.Begin(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("bulk create begin transaction: %w", err)
-	}
-	// Rollback is a no-op once Commit succeeds.
-	defer tx.Rollback(ctx)
-
-	batch := &pgx.Batch{}
-	for _, j := range jobs {
-		ut, uid := actorTypeID(j.UpdatedByType, j.UpdatedByID)
-		batch.Queue(insertJobQuery,
-			j.Slug, j.Source, j.ExternalID, j.SourceURL, j.ApplyURL,
-			j.Title, j.Company, j.Location, j.Description,
-			postedDateArg(j.PostedDate),
-			j.IsRemote, j.VisaRelocation,
-			ut, uid,
-		)
-	}
-
-	br := tx.SendBatch(ctx, batch)
-	defer br.Close()
-
-	results := make([]models.BulkCreateJobResult, len(jobs))
-	for i, j := range jobs {
-		results[i].Slug = j.Slug
-		result, err := br.Exec()
-		if err != nil {
-			// Individual row failure: record as not created and continue
-			// with the remaining rows instead of rolling back the batch.
-			results[i].Created = false
-			continue
-		}
-		results[i].Created = result.RowsAffected() == 1
-	}
-
-	if err := tx.Commit(ctx); err != nil {
-		return nil, fmt.Errorf("bulk create commit: %w", err)
-	}
-	return results, nil
-}
-
-// GetBySlug returns the job with the given slug, or sql.ErrNoRows when it
+// GetBySlug returns the job with the given slug, or constants.ErrNotFound when it
 // does not exist.
 func (r *jobsRepository) GetBySlug(ctx context.Context, slug string) (*models.Job, error) {
-	query := `SELECT ` + jobSelectColumns + ` FROM jobs WHERE slug = $1`
-	row := r.db.QueryRow(ctx, query, slug)
+	query := `
+		SELECT id, slug, status, analyze_result, failure_message,
+			source, external_id, source_url, apply_url,
+			title, company, location, description, posted_date,
+			is_remote, visa_relocation,
+			created_at, updated_at, updated_by_type, updated_by_id
+		FROM jobs
+		WHERE slug = $1
+	`
+	row := r.QueryRow(ctx, query, slug)
 
 	job, err := scanJob(row)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, sql.ErrNoRows
+			return nil, constants.ErrNotFound
 		}
 		return nil, fmt.Errorf("get job by slug: %w", err)
 	}
 	return job, nil
 }
 
-// ListRecent returns the most recent jobs, ordered by created_at descending,
-// limited to limit (clamped to [1, 100]).
-func (r *jobsRepository) ListRecent(ctx context.Context, limit int) ([]*models.Job, error) {
-	limit = clampLimit(limit)
+func (r *jobsRepository) getBySlug(ctx context.Context, tx pgx.Tx, slug string) (*models.Job, error) {
+	query := `
+		SELECT id, slug, status, analyze_result, failure_message,
+			source, external_id, source_url, apply_url,
+			title, company, location, description, posted_date,
+			is_remote, visa_relocation,
+			created_at, updated_at, updated_by_type, updated_by_id
+		FROM jobs
+		WHERE slug = $1
+	`
+	row := tx.QueryRow(ctx, query, slug)
 
-	query := `SELECT ` + jobSelectColumns + ` FROM jobs ORDER BY created_at DESC LIMIT $1`
-	rows, err := r.db.Query(ctx, query, limit)
+	job, err := scanJob(row)
 	if err != nil {
-		return nil, fmt.Errorf("list recent jobs: %w", err)
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, constants.ErrNotFound
+		}
+		return nil, fmt.Errorf("get job by slug: %w", err)
+	}
+	return job, nil
+}
+
+// BulkCreate inserts many job listings in multi-row batches using ChunkBy.
+// Each row uses ON CONFLICT (slug) DO NOTHING. For any conflicting slugs,
+// the existing job records are fetched so callers receive full Job information
+// for all requested listings along with Created boolean.
+func (r *jobsRepository) BulkCreate(ctx context.Context, params models.BulkCreateJobParams) (results []*models.CreateJobResult, err error) {
+	jobs := params.Jobs
+	if len(jobs) == 0 {
+		return nil, nil
+	}
+	if len(jobs) > MaxBulkCreate {
+		return nil, fmt.Errorf("bulk create: maximum %d jobs per request, got %d", MaxBulkCreate, len(jobs))
+	}
+
+	tx, err := r.StartTrx(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("bulk create start trx: %w", err)
+	}
+	defer r.Committer(ctx, tx, &err)
+
+	results = make([]*models.CreateJobResult, len(jobs))
+	jobBySlug := make(map[string]*models.Job, len(jobs))
+	createdMap := make(map[string]bool, len(jobs))
+
+	chunks := database.ChunkBy(jobs, 50)
+	for _, chunk := range chunks {
+		if len(chunk) == 0 {
+			continue
+		}
+
+		var (
+			valuesPlaceholders []string
+			args               []any
+		)
+
+		for i, j := range chunk {
+			ut, uid := actorTypeID(j.UpdatedByType, j.UpdatedByID)
+			offset := i * 14
+			valuesPlaceholders = append(valuesPlaceholders, fmt.Sprintf(
+				"($%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d)",
+				offset+1, offset+2, offset+3, offset+4, offset+5, offset+6, offset+7,
+				offset+8, offset+9, offset+10, offset+11, offset+12, offset+13, offset+14,
+			))
+			args = append(args,
+				j.Slug, j.Source, j.ExternalID, j.SourceURL, j.ApplyURL,
+				j.Title, j.Company, j.Location, j.Description,
+				utils.TimeOrNil(j.PostedDate),
+				j.IsRemote, j.VisaRelocation,
+				ut, uid,
+			)
+		}
+
+		insertQuery := fmt.Sprintf(`
+			INSERT INTO jobs (
+				slug, source, external_id, source_url, apply_url,
+				title, company, location, description, posted_date,
+				is_remote, visa_relocation,
+				updated_by_type, updated_by_id
+			) VALUES %s
+			ON CONFLICT (slug) DO NOTHING
+			RETURNING id, slug, status, analyze_result, failure_message,
+				source, external_id, source_url, apply_url,
+				title, company, location, description, posted_date,
+				is_remote, visa_relocation,
+				created_at, updated_at, updated_by_type, updated_by_id
+		`, strings.Join(valuesPlaceholders, ", "))
+
+		rows, err := tx.Query(ctx, insertQuery, args...)
+		if err != nil {
+			return nil, fmt.Errorf("bulk insert jobs: %w", err)
+		}
+
+		insertedJobs, err := scanJobs(rows)
+		rows.Close()
+		if err != nil {
+			return nil, fmt.Errorf("scan inserted jobs: %w", err)
+		}
+
+		for _, j := range insertedJobs {
+			jobBySlug[j.Slug] = j
+			createdMap[j.Slug] = true
+		}
+
+		// Find any slugs that had conflicts and were not inserted
+		var missingSlugs []string
+		for _, j := range chunk {
+			if _, ok := jobBySlug[j.Slug]; !ok {
+				missingSlugs = append(missingSlugs, j.Slug)
+			}
+		}
+
+		if len(missingSlugs) > 0 {
+			selectQuery := `
+				SELECT id, slug, status, analyze_result, failure_message,
+					source, external_id, source_url, apply_url,
+					title, company, location, description, posted_date,
+					is_remote, visa_relocation,
+					created_at, updated_at, updated_by_type, updated_by_id
+				FROM jobs
+				WHERE slug = ANY($1)
+			`
+			rows, err := tx.Query(ctx, selectQuery, missingSlugs)
+			if err != nil {
+				return nil, fmt.Errorf("select existing jobs by slug: %w", err)
+			}
+			existingJobs, err := scanJobs(rows)
+			rows.Close()
+			if err != nil {
+				return nil, fmt.Errorf("scan existing jobs: %w", err)
+			}
+
+			for _, j := range existingJobs {
+				jobBySlug[j.Slug] = j
+				createdMap[j.Slug] = false
+			}
+		}
+	}
+
+	seenSlugs := make(map[string]bool, len(jobs))
+	for i, j := range jobs {
+		job := jobBySlug[j.Slug]
+		isFirst := !seenSlugs[j.Slug]
+		seenSlugs[j.Slug] = true
+		results[i] = &models.CreateJobResult{
+			Job:     job,
+			Created: isFirst && createdMap[j.Slug],
+		}
+	}
+
+	return results, nil
+}
+
+// List returns the most recent jobs, ordered by created_at descending,
+// limited to limit. When userID is not empty, only jobs owned by that
+// user (via user_jobs) are returned.
+func (r *jobsRepository) List(ctx context.Context, limit int, userID string) (jobs []*models.Job, err error) {
+	var query string
+	if userID != "" {
+		query = `
+			SELECT j.id, j.slug, j.status, j.analyze_result, j.failure_message,
+				j.source, j.external_id, j.source_url, j.apply_url,
+				j.title, j.company, j.location, j.description, j.posted_date,
+				j.is_remote, j.visa_relocation,
+				j.created_at, j.updated_at, j.updated_by_type, j.updated_by_id
+			FROM user_jobs uj
+			JOIN jobs j ON j.id = uj.job_id
+			WHERE uj.user_id = $1
+			ORDER BY j.created_at DESC
+			LIMIT $2
+		`
+	} else {
+		query = `
+			SELECT id, slug, status, analyze_result, failure_message,
+				source, external_id, source_url, apply_url,
+				title, company, location, description, posted_date,
+				is_remote, visa_relocation,
+				created_at, updated_at, updated_by_type, updated_by_id
+			FROM jobs
+			ORDER BY created_at DESC
+			LIMIT $1
+		`
+	}
+
+	var rows pgx.Rows
+	if userID != "" {
+		rows, err = r.Query(ctx, query, userID, limit)
+	} else {
+		rows, err = r.Query(ctx, query, limit)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("list jobs: %w", err)
 	}
 	defer rows.Close()
 
@@ -194,11 +318,19 @@ func (r *jobsRepository) ListRecent(ctx context.Context, limit int) ([]*models.J
 // SearchByCompany returns jobs whose company matches the given substring
 // case-insensitively (ILIKE), ordered by created_at descending, limited to
 // limit (clamped to [1, 100]).
-func (r *jobsRepository) SearchByCompany(ctx context.Context, company string, limit int) ([]*models.Job, error) {
-	limit = clampLimit(limit)
-
-	query := `SELECT ` + jobSelectColumns + ` FROM jobs WHERE company ILIKE '%' || $1 || '%' ORDER BY created_at DESC LIMIT $2`
-	rows, err := r.db.Query(ctx, query, company, limit)
+func (r *jobsRepository) SearchByCompany(ctx context.Context, company string, limit int) (jobs []*models.Job, err error) {
+	query := `
+		SELECT id, slug, status, analyze_result, failure_message,
+			source, external_id, source_url, apply_url,
+			title, company, location, description, posted_date,
+			is_remote, visa_relocation,
+			created_at, updated_at, updated_by_type, updated_by_id
+		FROM jobs
+		WHERE company ILIKE '%' || $1 || '%'
+		ORDER BY created_at DESC
+		LIMIT $2
+	`
+	rows, err := r.Query(ctx, query, company, limit)
 	if err != nil {
 		return nil, fmt.Errorf("search jobs by company: %w", err)
 	}
@@ -209,10 +341,16 @@ func (r *jobsRepository) SearchByCompany(ctx context.Context, company string, li
 
 // UpdateDescription updates only the description of the job with the given
 // slug. The update is allowed only when the existing description IS NULL or
-// the status is not 'analyzed'. It returns sql.ErrNoRows both when the slug
+// the status is not 'analyzed'. It returns constants.ErrNotFound both when the slug
 // does not exist and when the guard blocks the update; the usecase layer
 // calls GetBySlug first to distinguish 404 from 409.
-func (r *jobsRepository) UpdateDescription(ctx context.Context, slug, description, updatedByType, updatedByID string) (*models.Job, error) {
+func (r *jobsRepository) UpdateDescription(ctx context.Context, slug, description, updatedByType, updatedByID string) (job *models.Job, err error) {
+	tx, err := r.StartTrx(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("update description start trx: %w", err)
+	}
+	defer r.Committer(ctx, tx, &err)
+
 	ut, uid := actorTypeID(updatedByType, updatedByID)
 
 	query := `
@@ -225,12 +363,12 @@ func (r *jobsRepository) UpdateDescription(ctx context.Context, slug, descriptio
 			is_remote, visa_relocation,
 			created_at, updated_at, updated_by_type, updated_by_id
 	`
-	row := r.db.QueryRow(ctx, query, slug, description, ut, uid)
+	row := tx.QueryRow(ctx, query, slug, description, ut, uid)
 
-	job, err := scanJob(row)
+	job, err = scanJob(row)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, sql.ErrNoRows
+			return nil, constants.ErrNotFound
 		}
 		return nil, fmt.Errorf("update job description: %w", err)
 	}
@@ -254,15 +392,15 @@ func scanJob(row pgx.Row) (*models.Job, error) {
 	if err != nil {
 		return nil, err
 	}
-	j.ExternalID = nullStringPtr(externalID)
-	j.SourceURL = nullStringPtr(sourceURL)
-	j.ApplyURL = nullStringPtr(applyURL)
-	j.Description = nullStringPtr(description)
-	j.FailureMessage = nullStringPtr(failureMessage)
-	j.AnalyzeResult = nullStringPtr(analyzeResult)
+	j.ExternalID = utils.NullStringPtr(externalID)
+	j.SourceURL = utils.NullStringPtr(sourceURL)
+	j.ApplyURL = utils.NullStringPtr(applyURL)
+	j.Description = utils.NullStringPtr(description)
+	j.FailureMessage = utils.NullStringPtr(failureMessage)
+	j.AnalyzeResult = utils.NullStringPtr(analyzeResult)
 	j.PostedDate = utils.NullTime(postedDate)
-	j.IsRemote = nullBoolPtr(isRemote)
-	j.VisaRelocation = nullBoolPtr(visaRelocation)
+	j.IsRemote = utils.NullBoolPtr(isRemote)
+	j.VisaRelocation = utils.NullBoolPtr(visaRelocation)
 	return &j, nil
 }
 
@@ -292,41 +430,4 @@ func actorTypeID(actorType, actorID string) (string, string) {
 		actorID = "system"
 	}
 	return actorType, actorID
-}
-
-// postedDateArg returns nil when the posted date is the zero value so the
-// column is stored as NULL, otherwise the time itself.
-func postedDateArg(t time.Time) any {
-	if t.IsZero() {
-		return nil
-	}
-	return t
-}
-
-// clampLimit clamps limit to the inclusive range [1, 100], defaulting to 20
-// when non-positive.
-func clampLimit(limit int) int {
-	if limit <= 0 {
-		return 20
-	}
-	if limit > 100 {
-		return 100
-	}
-	return limit
-}
-
-// nullStringPtr converts a sql.NullString to *string, returning nil when null.
-func nullStringPtr(ns sql.NullString) *string {
-	if !ns.Valid {
-		return nil
-	}
-	return &ns.String
-}
-
-// nullBoolPtr converts a sql.NullBool to *bool, returning nil when null.
-func nullBoolPtr(nb sql.NullBool) *bool {
-	if !nb.Valid {
-		return nil
-	}
-	return &nb.Bool
 }

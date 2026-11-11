@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/frasnym/getojobu/apps/backend/internal/config"
+	"github.com/frasnym/getojobu/apps/backend/internal/utils/ctxval"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/graceful"
 
 	"github.com/jackc/pgx/v5"
@@ -73,6 +74,50 @@ func NewDB(cfg *config.Config) (DB, graceful.ProcessStopper, error) {
 
 	var db DB = pool
 	return db, stopper, nil
+}
+
+// Transact executes operation inside a transaction.
+// If ctx already has an active transaction (from an outer Transact call),
+// it reuses it without beginning a new one (nested/child transaction).
+// Otherwise, it begins a new transaction on db, binds it to ctx,
+// and commits on success or rolls back on error/panic.
+//
+// This mirrors go-ewallet-core's autotx.Transact: the caller supplies one
+// operation closure func(ctx context.Context) error that does all the work
+// inside the transaction, and begin/commit/rollback is centralized here.
+func Transact(ctx context.Context, db DB, operation func(ctx context.Context) error) (err error) {
+	var (
+		child = true
+		tx    pgx.Tx
+	)
+	_, err = ctxval.GetPrimaryTransaction(ctx)
+	if err != nil {
+		tx, err = db.Begin(ctx)
+		if err != nil {
+			return fmt.Errorf("begin transaction: %w", err)
+		}
+		ctx = ctxval.SetPrimaryTransaction(ctx, tx)
+		child = false
+	}
+
+	defer func() {
+		if !child {
+			if p := recover(); p != nil {
+				_ = tx.Rollback(ctx)
+				panic(p)
+			} else if err != nil {
+				if rerr := tx.Rollback(ctx); rerr != nil {
+					err = fmt.Errorf("rollback failed: %w; original: %w", rerr, err)
+				}
+			} else {
+				if cerr := tx.Commit(ctx); cerr != nil {
+					err = fmt.Errorf("commit: %w", cerr)
+				}
+			}
+		}
+	}()
+	err = operation(ctx)
+	return err
 }
 
 // buildURLFromPGEnv constructs a PostgreSQL connection URL from PG* fields.

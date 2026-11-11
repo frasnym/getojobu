@@ -2,7 +2,6 @@ package jobs
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"testing"
 
@@ -14,15 +13,23 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
-func newServiceWithMock(repo *mocks.MockJobs) *jobService {
-	return &jobService{repo: repo}
+// dummyTransactor executes the operation closure directly without a real database.
+type dummyTransactor struct{}
+
+func (dummyTransactor) Transact(ctx context.Context, fn func(context.Context) error) error {
+	return fn(ctx)
+}
+
+func newServiceWithMock(repo *mocks.MockJobs, userJobs *mocks.MockUserJobs) *jobService {
+	return &jobService{tx: dummyTransactor{}, repo: repo, userJobs: userJobs}
 }
 
 func TestCreate_passes_through(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	repo := mocks.NewMockJobs(ctrl)
-	s := newServiceWithMock(repo)
+	userJobs := mocks.NewMockUserJobs(ctrl)
+	s := newServiceWithMock(repo, userJobs)
 
 	params := models.CreateJobParams{
 		Slug:        "senior-backend-engineer-acme-jakarta",
@@ -32,24 +39,103 @@ func TestCreate_passes_through(t *testing.T) {
 		Location:    "Jakarta",
 		Description: strPtr("We build backend systems"),
 	}
-	expected := &models.CreateJobResult{Job: &models.Job{Slug: params.Slug}, Created: true}
+	expected := &models.CreateJobResult{Job: &models.Job{Slug: params.Slug, ID: 1}, Created: true}
 
 	repo.EXPECT().
 		Create(gomock.Any(), params).
 		Return(expected, nil)
+	userJobs.EXPECT().
+		Create(gomock.Any(), params.UserID, int64(1)).
+		Return(true, nil)
 
 	got, err := s.Create(context.Background(), params)
 
 	require.NoError(t, err)
 	assert.True(t, got.Created)
+	assert.True(t, got.AddedToUserList)
 	assert.Equal(t, params.Slug, got.Job.Slug)
+}
+
+func TestCreate_conflict_returns_existing(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	repo := mocks.NewMockJobs(ctrl)
+	userJobs := mocks.NewMockUserJobs(ctrl)
+	s := newServiceWithMock(repo, userJobs)
+
+	params := models.CreateJobParams{
+		Slug:     "senior-backend-engineer-acme-jakarta",
+		Source:   "linkedin",
+		Title:    "Senior Backend Engineer",
+		Company:  "Acme",
+		Location: "Jakarta",
+		UserID:   "user_1",
+	}
+	existing := &models.Job{Slug: params.Slug, ID: 7}
+	expected := &models.CreateJobResult{Job: existing, Created: false}
+
+	repo.EXPECT().
+		Create(gomock.Any(), params).
+		Return(expected, nil)
+	userJobs.EXPECT().
+		Create(gomock.Any(), params.UserID, int64(7)).
+		Return(false, nil)
+
+	got, err := s.Create(context.Background(), params)
+
+	require.NoError(t, err)
+	assert.False(t, got.Created)
+	assert.False(t, got.AddedToUserList)
+	assert.Equal(t, int64(7), got.Job.ID)
+}
+
+func TestCreateBulk_passes_through(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	repo := mocks.NewMockJobs(ctrl)
+	userJobs := mocks.NewMockUserJobs(ctrl)
+	s := newServiceWithMock(repo, userJobs)
+
+	jobs := []models.CreateJobParams{
+		{Slug: "job-1", Source: "linkedin", Title: "Job 1", Company: "Acme", Location: "Jakarta", UserID: "user_1"},
+		{Slug: "job-2", Source: "linkedin", Title: "Job 2", Company: "Acme", Location: "Jakarta", UserID: "user_2"},
+	}
+	params := models.BulkCreateJobParams{Jobs: jobs}
+
+	repo.EXPECT().
+		BulkCreate(gomock.Any(), params).
+		Return([]*models.CreateJobResult{
+			{Job: &models.Job{Slug: "job-1", ID: 1}, Created: true},
+			{Job: &models.Job{Slug: "job-2", ID: 2}, Created: false},
+		}, nil)
+	userJobs.EXPECT().
+		BulkCreate(gomock.Any(), []models.UserJobLink{
+			{UserID: "user_1", JobID: 1},
+			{UserID: "user_2", JobID: 2},
+		}).
+		Return(map[string]bool{
+			"user_1:1": true,
+			"user_2:2": false,
+		}, nil)
+
+	got, err := s.CreateBulk(context.Background(), params)
+
+	require.NoError(t, err)
+	require.Len(t, got, 2)
+	assert.Equal(t, "job-1", got[0].Slug)
+	assert.True(t, got[0].Created)
+	assert.True(t, got[0].AddedToUserList)
+	assert.Equal(t, "job-2", got[1].Slug)
+	assert.False(t, got[1].Created)
+	assert.False(t, got[1].AddedToUserList)
 }
 
 func TestGetBySlug_found(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	repo := mocks.NewMockJobs(ctrl)
-	s := newServiceWithMock(repo)
+	userJobs := mocks.NewMockUserJobs(ctrl)
+	s := newServiceWithMock(repo, userJobs)
 
 	expected := &models.Job{Slug: "golang-developer-google-singapore"}
 	repo.EXPECT().
@@ -66,11 +152,12 @@ func TestGetBySlug_not_found(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	repo := mocks.NewMockJobs(ctrl)
-	s := newServiceWithMock(repo)
+	userJobs := mocks.NewMockUserJobs(ctrl)
+	s := newServiceWithMock(repo, userJobs)
 
 	repo.EXPECT().
 		GetBySlug(gomock.Any(), "does-not-exist").
-		Return(nil, sql.ErrNoRows)
+		Return(nil, constants.ErrNotFound)
 
 	_, err := s.GetBySlug(context.Background(), "does-not-exist")
 
@@ -82,7 +169,8 @@ func TestGetBySlug_other_error(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	repo := mocks.NewMockJobs(ctrl)
-	s := newServiceWithMock(repo)
+	userJobs := mocks.NewMockUserJobs(ctrl)
+	s := newServiceWithMock(repo, userJobs)
 
 	repo.EXPECT().
 		GetBySlug(gomock.Any(), "slug").
@@ -95,29 +183,80 @@ func TestGetBySlug_other_error(t *testing.T) {
 	assert.Contains(t, err.Error(), "db connection lost")
 }
 
-func TestListRecent_passes_through(t *testing.T) {
+func TestIsOwned_true(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	repo := mocks.NewMockJobs(ctrl)
-	s := newServiceWithMock(repo)
+	userJobs := mocks.NewMockUserJobs(ctrl)
+	s := newServiceWithMock(repo, userJobs)
 
-	expected := []*models.Job{{Slug: "job-1"}, {Slug: "job-2"}}
-	repo.EXPECT().
-		ListRecent(gomock.Any(), 5).
-		Return(expected, nil)
+	userJobs.EXPECT().
+		IsOwned(gomock.Any(), "user_1", int64(42)).
+		Return(true, nil)
 
-	got, err := s.ListRecent(context.Background(), 5)
+	owned, err := s.IsOwned(context.Background(), "user_1", 42)
 
 	require.NoError(t, err)
-	require.Len(t, got, 2)
-	assert.Equal(t, "job-1", got[0].Slug)
+	assert.True(t, owned)
+}
+
+func TestIsOwned_false(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	repo := mocks.NewMockJobs(ctrl)
+	userJobs := mocks.NewMockUserJobs(ctrl)
+	s := newServiceWithMock(repo, userJobs)
+
+	userJobs.EXPECT().
+		IsOwned(gomock.Any(), "user_1", int64(42)).
+		Return(false, nil)
+
+	owned, err := s.IsOwned(context.Background(), "user_1", 42)
+
+	require.NoError(t, err)
+	assert.False(t, owned)
+}
+
+func TestList_passes_through(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	repo := mocks.NewMockJobs(ctrl)
+	userJobs := mocks.NewMockUserJobs(ctrl)
+	s := newServiceWithMock(repo, userJobs)
+
+	expected := []*models.Job{{Slug: "job-1"}, {Slug: "job-2"}}
+
+	t.Run("owned_by_user", func(t *testing.T) {
+		repo.EXPECT().
+			List(gomock.Any(), 20, "user_1").
+			Return(expected, nil)
+
+		got, err := s.List(context.Background(), 20, "user_1")
+
+		require.NoError(t, err)
+		require.Len(t, got, 2)
+		assert.Equal(t, "job-1", got[0].Slug)
+	})
+
+	t.Run("all_jobs", func(t *testing.T) {
+		repo.EXPECT().
+			List(gomock.Any(), 5, "").
+			Return(expected, nil)
+
+		got, err := s.List(context.Background(), 5, "")
+
+		require.NoError(t, err)
+		require.Len(t, got, 2)
+		assert.Equal(t, "job-1", got[0].Slug)
+	})
 }
 
 func TestSearchByCompany_passes_through(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	repo := mocks.NewMockJobs(ctrl)
-	s := newServiceWithMock(repo)
+	userJobs := mocks.NewMockUserJobs(ctrl)
+	s := newServiceWithMock(repo, userJobs)
 
 	expected := []*models.Job{{Slug: "job-1", Company: "Acme Corp"}}
 	repo.EXPECT().
@@ -135,7 +274,8 @@ func TestUpdateDescription_allowed(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	repo := mocks.NewMockJobs(ctrl)
-	s := newServiceWithMock(repo)
+	userJobs := mocks.NewMockUserJobs(ctrl)
+	s := newServiceWithMock(repo, userJobs)
 
 	slug := "update-null-desc-jakarta"
 	existing := &models.Job{Slug: slug, Status: "new"}
@@ -158,11 +298,12 @@ func TestUpdateDescription_not_found(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	repo := mocks.NewMockJobs(ctrl)
-	s := newServiceWithMock(repo)
+	userJobs := mocks.NewMockUserJobs(ctrl)
+	s := newServiceWithMock(repo, userJobs)
 
 	repo.EXPECT().
 		GetBySlug(gomock.Any(), "missing").
-		Return(nil, sql.ErrNoRows)
+		Return(nil, constants.ErrNotFound)
 
 	_, err := s.UpdateDescription(context.Background(), "missing", "New description.", "cron", "cron-scrape")
 
@@ -174,7 +315,8 @@ func TestUpdateDescription_blocked_when_analyzed(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	repo := mocks.NewMockJobs(ctrl)
-	s := newServiceWithMock(repo)
+	userJobs := mocks.NewMockUserJobs(ctrl)
+	s := newServiceWithMock(repo, userJobs)
 
 	slug := "update-blocked-jakarta"
 	existing := &models.Job{Slug: slug, Status: "analyzed", Description: strPtr("Existing")}
@@ -184,7 +326,7 @@ func TestUpdateDescription_blocked_when_analyzed(t *testing.T) {
 		Return(existing, nil)
 	repo.EXPECT().
 		UpdateDescription(gomock.Any(), slug, "New description.", "cron", "cron-scrape").
-		Return(nil, sql.ErrNoRows)
+		Return(nil, constants.ErrNotFound)
 
 	_, err := s.UpdateDescription(context.Background(), slug, "New description.", "cron", "cron-scrape")
 

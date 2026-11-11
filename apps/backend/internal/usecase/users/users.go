@@ -2,7 +2,6 @@ package users
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 
@@ -15,6 +14,7 @@ import (
 // Users are created exclusively via Clerk webhook, never on first request.
 type User interface {
 	FindByClerkUserID(ctx context.Context, clerkUserID string) (*models.Principal, error)
+	FindByID(ctx context.Context, id string) (*models.User, error)
 	Create(ctx context.Context, clerkUserID string, email, fullName string, role models.Role) (*models.User, error)
 	Update(ctx context.Context, id string, email, fullName string) (*models.User, error)
 	SoftDelete(ctx context.Context, id string) (*models.User, error)
@@ -37,7 +37,7 @@ func NewUserService(repo repository.Users) User {
 func (s *userService) FindByClerkUserID(ctx context.Context, clerkUserID string) (*models.Principal, error) {
 	u, err := s.repo.FindByClerkUserID(ctx, clerkUserID)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, constants.ErrUserNotFound) {
 			return nil, constants.ErrUserNotFound
 		}
 		return nil, fmt.Errorf("find user: %w", err)
@@ -49,6 +49,18 @@ func (s *userService) FindByClerkUserID(ctx context.Context, clerkUserID string)
 	}
 
 	return models.NewPrincipalFromUser(u), nil
+}
+
+// FindByID returns the local user record with the given internal user id.
+func (s *userService) FindByID(ctx context.Context, id string) (*models.User, error) {
+	u, err := s.repo.FindByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, constants.ErrUserNotFound) {
+			return nil, constants.ErrUserNotFound
+		}
+		return nil, fmt.Errorf("find user by id: %w", err)
+	}
+	return u, nil
 }
 
 // Create creates a new local user via Clerk webhook.

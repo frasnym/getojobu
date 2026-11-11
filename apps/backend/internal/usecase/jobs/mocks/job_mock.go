@@ -21,6 +21,7 @@ import (
 type MockJob struct {
 	ctrl     *gomock.Controller
 	recorder *MockJobMockRecorder
+	isgomock struct{}
 }
 
 // MockJobMockRecorder is the mock recorder for MockJob.
@@ -85,19 +86,34 @@ func (mr *MockJobMockRecorder) GetBySlug(ctx, slug any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBySlug", reflect.TypeOf((*MockJob)(nil).GetBySlug), ctx, slug)
 }
 
-// ListRecent mocks base method.
-func (m *MockJob) ListRecent(ctx context.Context, limit int) ([]*models.Job, error) {
+// IsOwned mocks base method.
+func (m *MockJob) IsOwned(ctx context.Context, userID string, jobID int64) (bool, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ListRecent", ctx, limit)
+	ret := m.ctrl.Call(m, "IsOwned", ctx, userID, jobID)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// IsOwned indicates an expected call of IsOwned.
+func (mr *MockJobMockRecorder) IsOwned(ctx, userID, jobID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsOwned", reflect.TypeOf((*MockJob)(nil).IsOwned), ctx, userID, jobID)
+}
+
+// List mocks base method.
+func (m *MockJob) List(ctx context.Context, limit int, userID string) ([]*models.Job, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "List", ctx, limit, userID)
 	ret0, _ := ret[0].([]*models.Job)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// ListRecent indicates an expected call of ListRecent.
-func (mr *MockJobMockRecorder) ListRecent(ctx, limit any) *gomock.Call {
+// List indicates an expected call of List.
+func (mr *MockJobMockRecorder) List(ctx, limit, userID any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListRecent", reflect.TypeOf((*MockJob)(nil).ListRecent), ctx, limit)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "List", reflect.TypeOf((*MockJob)(nil).List), ctx, limit, userID)
 }
 
 // SearchByCompany mocks base method.

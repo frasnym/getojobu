@@ -2,12 +2,13 @@ package repository
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"os"
 	"testing"
 
 	"github.com/frasnym/getojobu/apps/backend/internal/models"
+	"github.com/frasnym/getojobu/apps/backend/internal/utils/constants"
+	"github.com/frasnym/getojobu/apps/backend/internal/utils/database"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -30,7 +31,7 @@ func testJobDB(t *testing.T) *pgxpool.Pool {
 
 func TestCreate_inserted_returns_created_true(t *testing.T) {
 	db := testJobDB(t)
-	repo := NewJobsRepository(db)
+	repo := NewJobsRepository(database.NewPG(db))
 
 	slug := "senior-backend-engineer-acme-jakarta"
 	params := models.CreateJobParams{
@@ -55,7 +56,7 @@ func TestCreate_inserted_returns_created_true(t *testing.T) {
 
 func TestCreate_duplicate_slug_returns_created_false(t *testing.T) {
 	db := testJobDB(t)
-	repo := NewJobsRepository(db)
+	repo := NewJobsRepository(database.NewPG(db))
 
 	slug := "senior-backend-engineer-acme-jakarta"
 	base := models.CreateJobParams{
@@ -77,9 +78,47 @@ func TestCreate_duplicate_slug_returns_created_false(t *testing.T) {
 	assert.Equal(t, slug, got.Job.Slug)
 }
 
+func TestBulkCreate_duplicate_slug_within_batch(t *testing.T) {
+	db := testJobDB(t)
+	repo := NewJobsRepository(database.NewPG(db))
+
+	slug := "bulk-dup-slug-jakarta"
+	params := models.BulkCreateJobParams{
+		Jobs: []models.CreateJobParams{
+			{
+				Slug:          slug,
+				Source:        "linkedin",
+				Title:         "Job 1",
+				Company:       "Acme",
+				Location:      "Jakarta",
+				UpdatedByType: "user",
+				UpdatedByID:   "user_1",
+			},
+			{
+				Slug:          slug,
+				Source:        "linkedin",
+				Title:         "Job 1 Duplicate",
+				Company:       "Acme",
+				Location:      "Jakarta",
+				UpdatedByType: "user",
+				UpdatedByID:   "user_2",
+			},
+		},
+	}
+
+	results, err := repo.BulkCreate(context.Background(), params)
+	require.NoError(t, err)
+	require.Len(t, results, 2)
+	assert.True(t, results[0].Created, "first occurrence should report created=true")
+	assert.False(t, results[1].Created, "second occurrence of same slug within batch should report created=false")
+	assert.Equal(t, slug, results[0].Job.Slug)
+	assert.Equal(t, slug, results[1].Job.Slug)
+	assert.Equal(t, results[0].Job.ID, results[1].Job.ID)
+}
+
 func TestGetBySlug_found_and_not_found(t *testing.T) {
 	db := testJobDB(t)
-	repo := NewJobsRepository(db)
+	repo := NewJobsRepository(database.NewPG(db))
 
 	slug := "golang-developer-google-singapore"
 	_, err := repo.Create(context.Background(), models.CreateJobParams{
@@ -99,12 +138,12 @@ func TestGetBySlug_found_and_not_found(t *testing.T) {
 
 	_, err = repo.GetBySlug(context.Background(), "does-not-exist")
 	require.Error(t, err)
-	assert.True(t, errors.Is(err, sql.ErrNoRows), "expected sql.ErrNoRows for missing slug, got %v", err)
+	assert.True(t, errors.Is(err, constants.ErrNotFound), "expected ErrNotFound for missing slug, got %v", err)
 }
 
-func TestListRecent_ordering_and_limit(t *testing.T) {
+func TestList_ordering_and_limit(t *testing.T) {
 	db := testJobDB(t)
-	repo := NewJobsRepository(db)
+	repo := NewJobsRepository(database.NewPG(db))
 
 	for i := 0; i < 5; i++ {
 		_, err := repo.Create(context.Background(), models.CreateJobParams{
@@ -119,7 +158,7 @@ func TestListRecent_ordering_and_limit(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	got, err := repo.ListRecent(context.Background(), 3)
+	got, err := repo.List(context.Background(), 3, "")
 	require.NoError(t, err)
 	require.Len(t, got, 3)
 	assert.LessOrEqual(t, got[0].CreatedAt.Unix(), got[0].CreatedAt.Unix())
@@ -127,7 +166,7 @@ func TestListRecent_ordering_and_limit(t *testing.T) {
 
 func TestSearchByCompany_ILIKE(t *testing.T) {
 	db := testJobDB(t)
-	repo := NewJobsRepository(db)
+	repo := NewJobsRepository(database.NewPG(db))
 
 	_, err := repo.Create(context.Background(), models.CreateJobParams{
 		Slug:          "search-by-acme-jakarta",
@@ -162,7 +201,7 @@ func TestSearchByCompany_ILIKE(t *testing.T) {
 
 func TestUpdateDescription_allowed_when_null(t *testing.T) {
 	db := testJobDB(t)
-	repo := NewJobsRepository(db)
+	repo := NewJobsRepository(database.NewPG(db))
 
 	slug := "update-null-desc-jakarta"
 	_, err := repo.Create(context.Background(), models.CreateJobParams{
@@ -185,7 +224,7 @@ func TestUpdateDescription_allowed_when_null(t *testing.T) {
 
 func TestUpdateDescription_blocked_when_analyzed(t *testing.T) {
 	db := testJobDB(t)
-	repo := NewJobsRepository(db)
+	repo := NewJobsRepository(database.NewPG(db))
 
 	slug := "update-blocked-jakarta"
 	_, err := repo.Create(context.Background(), models.CreateJobParams{
@@ -206,7 +245,7 @@ func TestUpdateDescription_blocked_when_analyzed(t *testing.T) {
 
 	_, err = repo.UpdateDescription(context.Background(), slug, "New description.", "cron", "cron-scrape")
 	require.Error(t, err)
-	assert.True(t, errors.Is(err, sql.ErrNoRows), "expected sql.ErrNoRows when guard blocks update, got %v", err)
+	assert.True(t, errors.Is(err, constants.ErrNotFound), "expected ErrNotFound when guard blocks update, got %v", err)
 }
 
 func strPtr(s string) *string {

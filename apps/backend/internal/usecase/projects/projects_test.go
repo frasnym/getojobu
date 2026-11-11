@@ -2,7 +2,6 @@ package projects
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"testing"
 
@@ -104,7 +103,7 @@ func TestGetByID_not_found(t *testing.T) {
 
 	repo.EXPECT().
 		GetByID(gomock.Any(), models.GetProjectParams{UserID: "user_1", ID: "proj_1"}).
-		Return(nil, sql.ErrNoRows)
+		Return(nil, constants.ErrNotFound)
 
 	// Act.
 	_, err := s.GetByID(context.Background(), models.GetProjectParams{UserID: "user_1", ID: "proj_1"})
@@ -258,7 +257,7 @@ func TestUpdateProject_not_found(t *testing.T) {
 
 	repo.EXPECT().
 		Update(gomock.Any(), gomock.Any()).
-		Return(nil, sql.ErrNoRows)
+		Return(nil, constants.ErrNotFound)
 
 	// Act. Use a valid project so validation passes and we reach the repo.
 	_, err := s.Update(context.Background(), models.UpdateProjectParams{

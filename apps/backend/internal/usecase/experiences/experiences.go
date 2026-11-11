@@ -2,7 +2,6 @@ package experiences
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 
@@ -50,7 +49,7 @@ func (s *experienceService) Create(ctx context.Context, params models.CreateExpe
 func (s *experienceService) GetByID(ctx context.Context, params models.GetExperienceParams) (*models.Experience, error) {
 	e, err := s.repo.GetByID(ctx, params)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, constants.ErrNotFound) {
 			return nil, constants.ErrNotFound
 		}
 		return nil, fmt.Errorf("get experience: %w", err)
@@ -79,7 +78,7 @@ func (s *experienceService) Update(ctx context.Context, params models.UpdateExpe
 
 	e, err := s.repo.Update(ctx, params)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, constants.ErrNotFound) {
 			return nil, constants.ErrNotFound
 		}
 		return nil, fmt.Errorf("update experience: %w", err)

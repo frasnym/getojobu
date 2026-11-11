@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	"github.com/frasnym/getojobu/apps/backend/internal/models"
+	"github.com/frasnym/getojobu/apps/backend/internal/utils/constants"
+	"github.com/jackc/pgx/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -44,4 +46,21 @@ func TestContextWithPrincipal_and_PrincipalFromContext(t *testing.T) {
 
 	// Assert: nil when no principal is set.
 	assert.Nil(t, PrincipalFromContext(context.Background()))
+}
+
+type dummyTx struct{ pgx.Tx }
+
+func TestPrimaryTransaction_stores_and_retrieves(t *testing.T) {
+	// Assert: no active transaction on fresh context.
+	_, err := GetPrimaryTransaction(context.Background())
+	assert.ErrorIs(t, err, constants.ErrNoActiveConnections)
+
+	// Act.
+	tx := dummyTx{}
+	ctx := SetPrimaryTransaction(context.Background(), tx)
+
+	// Assert.
+	got, err := GetPrimaryTransaction(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, tx, got)
 }

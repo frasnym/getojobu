@@ -10,6 +10,7 @@ import (
 
 	"github.com/frasnym/getojobu/apps/backend/internal/models"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils"
+	"github.com/frasnym/getojobu/apps/backend/internal/utils/constants"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/database"
 )
 
@@ -86,7 +87,7 @@ func (r *projectsRepository) GetByID(ctx context.Context, params models.GetProje
 		&ach, &started, &ended, &p.IsCurrent, &created, &updated,
 	); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, sql.ErrNoRows
+			return nil, constants.ErrNotFound
 		}
 		return nil, fmt.Errorf("get project: %w", err)
 	}
@@ -166,7 +167,7 @@ func (r *projectsRepository) Update(ctx context.Context, params models.UpdatePro
 		&ach, &started, &ended, &p.IsCurrent, &created, &updated,
 	); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, sql.ErrNoRows
+			return nil, constants.ErrNotFound
 		}
 		return nil, fmt.Errorf("update project: %w", err)
 	}
