@@ -59,7 +59,10 @@ type AuthMiddleware interface {
 	//   - 401: missing or invalid token, untrusted authorized party, no local user
 	//   - 403: local account deactivated
 	ValidClerkSession(next http.Handler) http.Handler
-	// ClerkOrAPIKey authenticates with either a machine API key (fast path,
+	// ValidClerkOrAPIKey authenticates with either a machine API key (fast path,
 	// server-side key-to-identity mapping) or a Clerk session JWT.
-	ClerkOrAPIKey(next http.Handler) http.Handler
+	ValidClerkOrAPIKey(next http.Handler) http.Handler
+	// ValidAPIKey authenticates strictly with a machine API key.
+	// Clerk session tokens and unauthenticated requests are rejected with 401 Unauthorized.
+	ValidAPIKey(next http.Handler) http.Handler
 }

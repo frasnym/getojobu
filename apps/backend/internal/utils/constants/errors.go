@@ -19,3 +19,9 @@ var ErrInvalidTransition = errors.New("invalid status transition")
 
 // ErrNoActiveConnections is returned when no transaction is stored in context.
 var ErrNoActiveConnections = errors.New("no active connections")
+
+// ErrScoringConfigNotFound is returned when no scoring configuration is found.
+var ErrScoringConfigNotFound = errors.New("scoring configuration not found")
+
+// ErrDuplicateScoringConfigVersion is returned when a scoring configuration with the same family and version already exists.
+var ErrDuplicateScoringConfigVersion = errors.New("scoring configuration version already exists")

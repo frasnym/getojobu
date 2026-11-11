@@ -2,28 +2,40 @@ package middleware
 
 import (
 	"crypto/subtle"
-	"errors"
 	"net/http"
-
-	"github.com/clerk/clerk-sdk-go/v2/jwt"
 
 	"github.com/frasnym/getojobu/apps/backend/internal/config"
 	"github.com/frasnym/getojobu/apps/backend/internal/models"
-	"github.com/frasnym/getojobu/apps/backend/internal/utils/constants"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/ctxval"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/httpx"
 )
 
-// ClerkOrAPIKey authenticates a request with either a machine API key or a
+// ValidClerkOrAPIKey authenticates a request with either a machine API key or a
 // Clerk session JWT.
 //
 // Machine keys are checked first (fast path). On a match the request is
-// attributed to the machine actor mapped in cfg.MachineAuth.APIKeys
-// (actor_type, actor_id) and no Clerk verification is performed. Otherwise the
-// token is verified as a Clerk session JWT and resolved to a local user.
+// attributed to the machine actor mapped in cfg.MachineAuth.APIKeys.
+// Otherwise, it delegates directly to ValidClerkSession.
 //
 // Client headers such as X-User-Name are never read for identity.
-func (a *authMiddleware) ClerkOrAPIKey(next http.Handler) http.Handler {
+func (a *authMiddleware) ValidClerkOrAPIKey(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Fast path: machine API key -> server-side key-to-identity mapping.
+		if principal, ok := a.tryMachineAuth(r); ok {
+			ctx := ctxval.ContextWithPrincipal(r.Context(), principal)
+			next.ServeHTTP(w, r.WithContext(ctx))
+			return
+		}
+
+		// Fallback: Clerk session JWT -> local user.
+		a.ValidClerkSession(next).ServeHTTP(w, r)
+	})
+}
+
+// ValidAPIKey authenticates a request strictly with a machine API key.
+// Any missing authorization header, unknown key, or Clerk JWT is rejected
+// with 401 Unauthorized ("missing or invalid api key").
+func (a *authMiddleware) ValidAPIKey(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		token := extractBearerToken(r)
 		if token == "" {
@@ -31,55 +43,31 @@ func (a *authMiddleware) ClerkOrAPIKey(next http.Handler) http.Handler {
 			return
 		}
 
-		// Fast path: machine API key -> server-side key-to-identity mapping.
-		// Every configured key is compared with a constant-time comparison so
-		// the result does not leak which key (if any) matches.
-		if key, ok := a.matchMachineKey(token); ok {
-			principal := &models.Principal{
-				ActorType: key.ActorType,
-				ActorID:   key.ActorID,
-			}
+		if principal, ok := a.tryMachineAuth(r); ok {
 			ctx := ctxval.ContextWithPrincipal(r.Context(), principal)
 			next.ServeHTTP(w, r.WithContext(ctx))
 			return
 		}
 
-		// Fallback: Clerk session JWT -> local user.
-		claims, err := jwt.Verify(r.Context(), &jwt.VerifyParams{
-			Token: token,
-		})
-		if err != nil {
-			httpx.Envelope(httpx.CodeUnauthorized, "invalid token", "").WriteJSON(w)
-			return
-		}
-		if claims.Subject == "" {
-			httpx.Envelope(httpx.CodeUnauthorized, "clerk token has no subject claim", "").WriteJSON(w)
-			return
-		}
-
-		if !a.isAuthorized(claims.AuthorizedParty) {
-			httpx.Envelope(httpx.CodeUnauthorized, "untrusted authorized party", "").WriteJSON(w)
-			return
-		}
-
-		principal, err := a.userUC.FindByClerkUserID(r.Context(), claims.Subject)
-		if err != nil {
-			switch {
-			case errors.Is(err, constants.ErrAccountDeactivated):
-				httpx.Envelope(httpx.CodeForbidden, "account deactivated", "").WriteJSON(w)
-				return
-			case errors.Is(err, constants.ErrUserNotFound):
-				httpx.Envelope(httpx.CodeUnauthorized, "user not found", "").WriteJSON(w)
-				return
-			default:
-				httpx.Envelope(httpx.CodeInternal, "identity resolution failed", "").WriteJSON(w)
-				return
-			}
-		}
-
-		ctx := ctxval.ContextWithPrincipal(r.Context(), principal)
-		next.ServeHTTP(w, r.WithContext(ctx))
+		httpx.Envelope(httpx.CodeUnauthorized, "missing or invalid api key", "").WriteJSON(w)
 	})
+}
+
+// tryMachineAuth extracts the bearer token and attempts to match it against configured
+// machine API keys. Returns the mapped Principal if matched.
+func (a *authMiddleware) tryMachineAuth(r *http.Request) (*models.Principal, bool) {
+	token := extractBearerToken(r)
+	if token == "" {
+		return nil, false
+	}
+
+	if key, ok := a.matchMachineKey(token); ok {
+		return &models.Principal{
+			ActorType: key.ActorType,
+			ActorID:   key.ActorID,
+		}, true
+	}
+	return nil, false
 }
 
 // matchMachineKey compares the bearer token against every configured machine

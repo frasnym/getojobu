@@ -6,7 +6,7 @@ over the internal Docker network.
 
 from __future__ import annotations
 
-from typing import Any, Protocol, runtime_checkable
+from typing import Any, Protocol, cast, runtime_checkable
 
 import httpx
 
@@ -25,6 +25,8 @@ class GetojobuAPI(Protocol):
         analyze_result: str | None = None,
         failure_message: str | None = None,
     ) -> dict[str, Any]: ...
+
+    async def get_active_scoring_config(self, family: str) -> dict[str, Any]: ...
 
     async def aclose(self) -> None: ...
 
@@ -78,22 +80,33 @@ class _getojobuAPI:
         raw = response.json()
         return self._unwrap_response(raw, operation=f"patch job {slug!r} status")
 
-    def _unwrap_response(self, raw: Any, *, operation: str) -> dict[str, Any]:
+    async def get_active_scoring_config(self, family: str) -> dict[str, Any]:
+        response = await self._client.get(
+            "/v1/scoring-configs/active",
+            params={"family": family},
+        )
+        response.raise_for_status()
+        raw = response.json()
+        return self._unwrap_response(raw, operation=f"get active scoring config for {family!r}")
+
+    def _unwrap_response(self, raw: object, *, operation: str) -> dict[str, Any]:
         if not isinstance(raw, dict):
             raise RuntimeError(f"{operation}: response is not a valid JSON object: {raw!r}")
 
-        if "success" in raw:
-            if not raw.get("success"):
-                err = raw.get("error") or {}
-                code = err.get("code", "UNKNOWN_ERROR")
-                message = err.get("message", "API returned failure")
+        raw_dict: dict[str, Any] = cast(dict[str, Any], raw)
+        if "success" in raw_dict:
+            if not raw_dict.get("success"):
+                err = raw_dict.get("error")
+                err_dict: dict[str, Any] = cast(dict[str, Any], err) if isinstance(err, dict) else {}
+                code = str(err_dict.get("code") or "UNKNOWN_ERROR")
+                message = str(err_dict.get("message") or "API returned failure")
                 raise RuntimeError(f"{operation} failed with API error ({code}): {message}")
-            data = raw.get("data")
+            data = raw_dict.get("data")
             if not isinstance(data, dict):
                 raise RuntimeError(f"{operation}: 'data' is not an object: {data!r}")
-            return data
+            return cast(dict[str, Any], data)
 
-        return raw
+        return raw_dict
 
     async def aclose(self) -> None:
         await self._client.aclose()

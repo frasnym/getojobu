@@ -38,12 +38,12 @@ func NewHandler(c *contract.Contract) *handler {
 func (h *handler) Route(g *httpx.Router) {
 	auth := middleware.NewAuthMiddleware(h.cfg, h.userUC)
 
-	g.POST("", h.CreateJob, auth.ClerkOrAPIKey)
-	g.POST("/bulk", h.BulkCreateJob, auth.ClerkOrAPIKey)
-	g.POST("/bulk-queue-analyze", h.BulkQueueAnalyzeJob, auth.ClerkOrAPIKey)
-	g.GET("", h.ListJobs, auth.ClerkOrAPIKey)
-	g.GET("/{slug}", h.GetJob, auth.ClerkOrAPIKey)
-	g.PATCH("/{slug}", h.UpdateJob, auth.ClerkOrAPIKey)
+	g.POST("", h.CreateJob, auth.ValidClerkOrAPIKey)
+	g.POST("/bulk", h.BulkCreateJob, auth.ValidClerkOrAPIKey)
+	g.POST("/bulk-queue-analyze", h.BulkQueueAnalyzeJob, auth.ValidClerkOrAPIKey)
+	g.GET("", h.ListJobs, auth.ValidClerkOrAPIKey)
+	g.GET("/{slug}", h.GetJob, auth.ValidClerkOrAPIKey)
+	g.PATCH("/{slug}", h.UpdateJob, auth.ValidClerkOrAPIKey)
 }
 
 // CreateJob creates a single job listing. Returns 201 Created when inserted,

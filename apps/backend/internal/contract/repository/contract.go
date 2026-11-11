@@ -20,6 +20,7 @@ type Contract struct {
 	JobsRepository          repo.Jobs
 	UserJobsRepository      repo.UserJobs
 	WorkflowsRepository     repo.Workflows
+	ScoringConfigsRepository repo.ScoringConfigs
 }
 
 // NewRepository creates the repository layer contract from the common
@@ -33,15 +34,16 @@ func NewRepository(comm *common.Contract) (*Contract, error) {
 	pg := database.NewPG(comm.DB)
 
 	c := &Contract{
-		DB:                      comm.DB,
-		Transactor:              pg,
-		UsersRepository:         repo.NewUsersRepository(comm.DB),
-		ExperiencesRepository:   repo.NewExperiencesRepository(comm.DB),
-		ProjectsRepository:      repo.NewProjectsRepository(comm.DB),
-		ProjectSkillsRepository: repo.NewProjectSkillsRepository(comm.DB),
-		JobsRepository:          repo.NewJobsRepository(pg),
-		UserJobsRepository:      repo.NewUserJobsRepository(pg),
-		WorkflowsRepository:     repo.NewWorkflowsRepository(comm.Temporal, comm.TemporalTaskQueue),
+		DB:                       comm.DB,
+		Transactor:               pg,
+		UsersRepository:          repo.NewUsersRepository(comm.DB),
+		ExperiencesRepository:    repo.NewExperiencesRepository(comm.DB),
+		ProjectsRepository:       repo.NewProjectsRepository(comm.DB),
+		ProjectSkillsRepository:  repo.NewProjectSkillsRepository(comm.DB),
+		JobsRepository:           repo.NewJobsRepository(pg),
+		UserJobsRepository:       repo.NewUserJobsRepository(pg),
+		WorkflowsRepository:      repo.NewWorkflowsRepository(comm.Temporal, comm.TemporalTaskQueue),
+		ScoringConfigsRepository: repo.NewScoringConfigsRepository(pg),
 	}
 	return c, nil
 }

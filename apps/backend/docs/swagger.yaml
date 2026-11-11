@@ -153,6 +153,15 @@ definitions:
       slug:
         type: string
     type: object
+  models.CategoryConfig:
+    properties:
+      description:
+        type: string
+      name:
+        type: string
+      weight:
+        type: number
+    type: object
   models.CreateJobResult:
     properties:
       addedToUserList:
@@ -161,6 +170,19 @@ definitions:
         type: boolean
       job:
         $ref: '#/definitions/models.Job'
+    type: object
+  models.CreateScoringConfigParams:
+    properties:
+      categories:
+        items:
+          $ref: '#/definitions/models.CategoryConfig'
+        type: array
+      family:
+        type: string
+      is_active:
+        type: boolean
+      version:
+        type: integer
     type: object
   models.Experience:
     properties:
@@ -272,6 +294,34 @@ definitions:
         type: string
       userID:
         type: string
+    type: object
+  models.ScoringConfig:
+    properties:
+      categories:
+        items:
+          $ref: '#/definitions/models.CategoryConfig'
+        type: array
+      created_at:
+        type: string
+      family:
+        type: string
+      id:
+        type: string
+      is_active:
+        type: boolean
+      updated_at:
+        type: string
+      version:
+        type: integer
+    type: object
+  models.UpdateScoringConfigParams:
+    properties:
+      categories:
+        items:
+          $ref: '#/definitions/models.CategoryConfig'
+        type: array
+      is_active:
+        type: boolean
     type: object
   models.UserSkill:
     properties:
@@ -893,6 +943,182 @@ paths:
       summary: Link project skills
       tags:
       - project-skills
+  /v1/scoring-configs:
+    get:
+      description: List scoring configurations filtered by family and active status.
+        Accessible only via machine API key.
+      parameters:
+      - description: Filter by job family
+        in: query
+        name: family
+        type: string
+      - description: Filter by active state
+        in: query
+        name: is_active
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.ScoringConfig'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpx.Error'
+      security:
+      - ApiKeyAuth: []
+      summary: List scoring configurations
+      tags:
+      - scoring_configs
+    post:
+      consumes:
+      - application/json
+      description: Create a new version of a scoring configuration for a job family.
+        Accessible only via machine API key.
+      parameters:
+      - description: Scoring config payload
+        in: body
+        name: config
+        required: true
+        schema:
+          $ref: '#/definitions/models.CreateScoringConfigParams'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.ScoringConfig'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpx.Error'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpx.Error'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/httpx.Error'
+      security:
+      - ApiKeyAuth: []
+      summary: Create scoring configuration
+      tags:
+      - scoring_configs
+  /v1/scoring-configs/{id}:
+    get:
+      description: Retrieve a scoring configuration by its UUID. Accessible only via
+        machine API key.
+      parameters:
+      - description: Scoring config UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.ScoringConfig'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpx.Error'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpx.Error'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httpx.Error'
+      security:
+      - ApiKeyAuth: []
+      summary: Get scoring configuration by ID
+      tags:
+      - scoring_configs
+    patch:
+      consumes:
+      - application/json
+      description: Update an existing scoring configuration. Accessible only via machine
+        API key.
+      parameters:
+      - description: Scoring config UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Update payload
+        in: body
+        name: config
+        required: true
+        schema:
+          $ref: '#/definitions/models.UpdateScoringConfigParams'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.ScoringConfig'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpx.Error'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpx.Error'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httpx.Error'
+      security:
+      - ApiKeyAuth: []
+      summary: Update scoring configuration
+      tags:
+      - scoring_configs
+  /v1/scoring-configs/active:
+    get:
+      description: Retrieve the active scoring configuration for a job family. Accessible
+        only via machine API key.
+      parameters:
+      - description: Job family key (e.g. technology, transportation)
+        in: query
+        name: family
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.ScoringConfig'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpx.Error'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpx.Error'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httpx.Error'
+      security:
+      - ApiKeyAuth: []
+      summary: Get active scoring configuration
+      tags:
+      - scoring_configs
   /v1/webhooks/clerk:
     post:
       consumes:

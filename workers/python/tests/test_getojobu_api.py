@@ -1,15 +1,20 @@
 """Tests for GetojobuAPI response contract handling."""
 
+from collections.abc import Callable
 from typing import Any
 
 import httpx
 import pytest
 
 from models.api_response import ApiResponse
+from models.scoring_config import ScoringConfig
 from repository.getojobu_api import NewGetojobuAPI
 
 
-def _mock_transport(handler, api_key: str = "secret-key") -> httpx.AsyncClient:
+def _mock_transport(
+    handler: Callable[[httpx.Request], httpx.Response],
+    api_key: str = "secret-key",
+) -> httpx.AsyncClient:
     transport = httpx.MockTransport(handler)
     return httpx.AsyncClient(
         transport=transport,
@@ -219,3 +224,46 @@ def test_api_response_model_error_validation():
     assert len(resp.error.details) == 1
     assert resp.error.details[0].field == "email"
     assert resp.error.details[0].issue == "Format is invalid."
+
+
+@pytest.mark.asyncio
+async def test_get_active_scoring_config_success():
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.headers["authorization"] == "Bearer secret-key"
+        assert request.url.path == "/v1/scoring-configs/active"
+        assert request.url.params["family"] == "technology"
+        return httpx.Response(
+            200,
+            json={
+                "success": True,
+                "data": {
+                    "id": "e0b8d3a1-1234-5678-90ab-cdef12345678",
+                    "family": "technology",
+                    "version": 1,
+                    "categories": [
+                        {"name": "technical_skills", "weight": 0.60, "description": "skills"},
+                        {"name": "experience", "weight": 0.40, "description": "exp"},
+                    ],
+                    "is_active": True,
+                    "created_at": "2026-11-11T12:00:00Z",
+                    "updated_at": "2026-11-11T12:00:00Z",
+                },
+                "meta": {
+                    "timestamp": "2026-11-11T08:57:00Z",
+                    "requestId": "req_123",
+                },
+                "error": None,
+            },
+        )
+
+    api = NewGetojobuAPI(base_url="http://testserver", api_key="secret-key")
+    api._client = _mock_transport(handler)
+
+    config = await api.get_active_scoring_config("technology")
+    validated = ScoringConfig.model_validate(config)
+    assert validated.family == "technology"
+    assert validated.version == 1
+    assert validated.is_active is True
+    assert len(validated.categories) == 2
+    await api.aclose()
+

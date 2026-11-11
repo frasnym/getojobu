@@ -7,7 +7,7 @@
 //
 // API key security scheme for all authenticated API routes.
 // Both Clerk session JWTs and machine API keys are sent as
-// `Authorization: Bearer <token>` and validated by the ClerkOrAPIKey middleware.
+// `Authorization: Bearer <token>` and validated by the ValidClerkOrAPIKey middleware.
 // @securitydefinitions.apikey ApiKeyAuth
 // @in header
 // @name Authorization

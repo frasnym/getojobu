@@ -9,6 +9,7 @@ import (
 	"github.com/frasnym/getojobu/apps/backend/internal/deliveries/api/handler/experiences"
 	"github.com/frasnym/getojobu/apps/backend/internal/deliveries/api/handler/jobs"
 	"github.com/frasnym/getojobu/apps/backend/internal/deliveries/api/handler/projects"
+	scoringConfigs "github.com/frasnym/getojobu/apps/backend/internal/deliveries/api/handler/scoringConfigs"
 	"github.com/frasnym/getojobu/apps/backend/internal/deliveries/api/handler/webhook"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/httpx"
 	httpSwagger "github.com/swaggo/http-swagger"
@@ -57,6 +58,9 @@ func (h *handler) Route(rt *httpx.Router) {
 
 	// Job routes (CRUD + bulk create).
 	jobs.NewHandler(h.contract).Route(v1.Group("/jobs"))
+
+	// Scoring configuration routes (CRU only; machine API key only).
+	scoringConfigs.NewHandler(h.contract).Route(v1.Group("/scoring-configs"))
 }
 
 // swaggerAuth gates the Swagger UI behind HTTP Basic Auth when SWAGGER_TOKEN

@@ -8,17 +8,19 @@ import (
 	ucJobs "github.com/frasnym/getojobu/apps/backend/internal/usecase/jobs"
 	ucProjects "github.com/frasnym/getojobu/apps/backend/internal/usecase/projects"
 	ucProjectSkills "github.com/frasnym/getojobu/apps/backend/internal/usecase/projectskills"
+	ucScoringConfigs "github.com/frasnym/getojobu/apps/backend/internal/usecase/scoringConfigs"
 	ucUsers "github.com/frasnym/getojobu/apps/backend/internal/usecase/users"
 )
 
 // Contract is the usecase layer contract. Usecase implementations attach
 // their business-logic methods here as the domain model grows.
 type Contract struct {
-	Users         ucUsers.User
-	Experiences   ucExperiences.Experience
-	Projects      ucProjects.Project
-	ProjectSkills ucProjectSkills.ProjectSkill
-	Jobs          ucJobs.Job
+	Users          ucUsers.User
+	Experiences    ucExperiences.Experience
+	Projects       ucProjects.Project
+	ProjectSkills  ucProjectSkills.ProjectSkill
+	Jobs           ucJobs.Job
+	ScoringConfigs ucScoringConfigs.ScoringConfig
 }
 
 // NewUsecase creates the usecase layer contract from the repository contract.
@@ -28,11 +30,12 @@ func NewUsecase(r *repository.Contract) (*Contract, error) {
 	}
 
 	c := &Contract{
-		Users:         ucUsers.NewUserService(r.UsersRepository),
-		Experiences:   ucExperiences.NewExperienceService(r.ExperiencesRepository),
-		Projects:      ucProjects.NewProjectService(r.ProjectsRepository),
-		ProjectSkills: ucProjectSkills.NewProjectSkillService(r.ProjectSkillsRepository),
-		Jobs:          ucJobs.NewJobService(r),
+		Users:          ucUsers.NewUserService(r.UsersRepository),
+		Experiences:    ucExperiences.NewExperienceService(r.ExperiencesRepository),
+		Projects:       ucProjects.NewProjectService(r.ProjectsRepository),
+		ProjectSkills:  ucProjectSkills.NewProjectSkillService(r.ProjectSkillsRepository),
+		Jobs:           ucJobs.NewJobService(r),
+		ScoringConfigs: ucScoringConfigs.NewScoringConfigService(r.ScoringConfigsRepository),
 	}
 	return c, nil
 }
