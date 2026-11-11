@@ -22,7 +22,6 @@ type Contract struct {
 }
 
 // NewUsecase creates the usecase layer contract from the repository contract.
-// It instantiates concrete usecase types backed by the shared repository contract.
 func NewUsecase(r *repository.Contract) (*Contract, error) {
 	if r == nil {
 		return nil, errors.New("repository contract is required")

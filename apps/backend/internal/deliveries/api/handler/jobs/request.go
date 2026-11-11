@@ -28,8 +28,26 @@ type bulkCreateJobRequest struct {
 	Jobs []createJobRequest `json:"jobs"`
 }
 
-type updateJobDescriptionRequest struct {
-	Description string `json:"description"`
+// updateJobRequest is the PATCH /v1/jobs/{slug} body for status transitions.
+// All fields are optional pointers; "status" must be present and non-empty.
+type updateJobRequest struct {
+	Status         *string `json:"status,omitempty"`
+	AnalyzeResult  *string `json:"analyze_result,omitempty"`
+	FailureMessage *string `json:"failure_message,omitempty"`
+}
+
+// bulkQueueAnalyzeItemRequest is one item in the POST /v1/jobs/bulk-queue-analyze request.
+type bulkQueueAnalyzeItemRequest struct {
+	Slug  string `json:"slug"`
+	Force bool   `json:"force"`
+}
+
+// bulkQueueAnalyzeRequest is the array payload for POST /v1/jobs/bulk-queue-analyze.
+type bulkQueueAnalyzeRequest []bulkQueueAnalyzeItemRequest
+
+// bulkQueueAnalyzeResponse is the response body for POST /v1/jobs/bulk-queue-analyze.
+type bulkQueueAnalyzeResponse struct {
+	WorkflowIDs []string `json:"workflow_ids"`
 }
 
 // Validate checks the fields required for every job listing: source, title,

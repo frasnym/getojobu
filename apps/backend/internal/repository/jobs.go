@@ -29,7 +29,10 @@ type Jobs interface {
 	GetBySlug(ctx context.Context, slug string) (*models.Job, error)
 	List(ctx context.Context, limit int, userID string) ([]*models.Job, error)
 	SearchByCompany(ctx context.Context, company string, limit int) ([]*models.Job, error)
-	UpdateDescription(ctx context.Context, slug, description, updatedByType, updatedByID string) (*models.Job, error)
+	// UpdateStatus transitions the job to a new status and optionally persists
+	// analyzeResult (JSONB) and/or failureMessage. Returns constants.ErrNotFound
+	// when no row with the given slug exists.
+	UpdateStatus(ctx context.Context, slug, status string, analyzeResult, failureMessage *string, updatedByType, updatedByID string) (*models.Job, error)
 }
 
 type jobsRepository struct {
@@ -339,15 +342,15 @@ func (r *jobsRepository) SearchByCompany(ctx context.Context, company string, li
 	return scanJobs(rows)
 }
 
-// UpdateDescription updates only the description of the job with the given
-// slug. The update is allowed only when the existing description IS NULL or
-// the status is not 'analyzed'. It returns constants.ErrNotFound both when the slug
-// does not exist and when the guard blocks the update; the usecase layer
-// calls GetBySlug first to distinguish 404 from 409.
-func (r *jobsRepository) UpdateDescription(ctx context.Context, slug, description, updatedByType, updatedByID string) (job *models.Job, err error) {
+// UpdateStatus sets the status of the job identified by slug and optionally
+// updates analyzeResult and failureMessage when non-nil. The WHERE clause
+// never restricts on status, so any status can be set by the usecase after it
+// validates the transition. Returns constants.ErrNotFound when the slug does
+// not exist.
+func (r *jobsRepository) UpdateStatus(ctx context.Context, slug, status string, analyzeResult, failureMessage *string, updatedByType, updatedByID string) (job *models.Job, err error) {
 	tx, err := r.StartTrx(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("update description start trx: %w", err)
+		return nil, fmt.Errorf("update status start trx: %w", err)
 	}
 	defer r.Committer(ctx, tx, &err)
 
@@ -355,22 +358,28 @@ func (r *jobsRepository) UpdateDescription(ctx context.Context, slug, descriptio
 
 	query := `
 		UPDATE jobs
-		SET description = $2, updated_at = NOW(), updated_by_type = $3, updated_by_id = $4
-		WHERE slug = $1 AND (description IS NULL OR status <> 'analyzed')
+		SET
+			status          = $2,
+			analyze_result  = COALESCE($3, analyze_result),
+			failure_message = COALESCE($4, failure_message),
+			updated_at      = NOW(),
+			updated_by_type = $5,
+			updated_by_id   = $6
+		WHERE slug = $1
 		RETURNING id, slug, status, analyze_result, failure_message,
 			source, external_id, source_url, apply_url,
 			title, company, location, description, posted_date,
 			is_remote, visa_relocation,
 			created_at, updated_at, updated_by_type, updated_by_id
 	`
-	row := tx.QueryRow(ctx, query, slug, description, ut, uid)
+	row := tx.QueryRow(ctx, query, slug, status, analyzeResult, failureMessage, ut, uid)
 
 	job, err = scanJob(row)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, constants.ErrNotFound
 		}
-		return nil, fmt.Errorf("update job description: %w", err)
+		return nil, fmt.Errorf("update job status: %w", err)
 	}
 	return job, nil
 }

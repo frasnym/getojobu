@@ -181,3 +181,28 @@ func TestLoad_clerk_config_empty_when_unset(t *testing.T) {
 	assert.Empty(t, cfg.Clerk.SecretKey, "expected empty Clerk secret key when unset")
 	assert.Empty(t, cfg.Clerk.AuthorizedParties, "expected empty Clerk authorized parties when unset")
 }
+
+func TestLoad_temporal_config_defaults_and_worker_api_key(t *testing.T) {
+	// Arrange.
+	os.Setenv("DATABASE_URL", "postgres://user:pass@localhost:5432/db?sslmode=require")
+	os.Setenv("WORKER_API_KEY", "secret-worker-key")
+	os.Unsetenv("TEMPORAL_HOST")
+	os.Unsetenv("TEMPORAL_NAMESPACE")
+	os.Unsetenv("TEMPORAL_TASK_QUEUE_JOB_ANALYZE")
+	defer os.Unsetenv("DATABASE_URL")
+	defer os.Unsetenv("WORKER_API_KEY")
+
+	// Act.
+	cfg, err := Load()
+
+	// Assert.
+	require.NoError(t, err, "unexpected error")
+	assert.Equal(t, "localhost:7233", cfg.Temporal.Host)
+	assert.Equal(t, "default", cfg.Temporal.Namespace)
+	assert.Equal(t, "job-evaluation", cfg.Temporal.TaskQueue)
+
+	workerKey, ok := cfg.MachineAuth.APIKeys["secret-worker-key"]
+	require.True(t, ok)
+	assert.Equal(t, "worker", workerKey.ActorType)
+	assert.Equal(t, "getojobu-worker", workerKey.ActorID)
+}

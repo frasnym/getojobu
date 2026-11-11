@@ -383,6 +383,72 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/jobs/bulk-queue-analyze": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Queue job description analysis workflows in Temporal for multiple jobs. Jobs must have status 'new' or 'failed' (with force=true).",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "jobs"
+                ],
+                "summary": "Bulk queue job analysis",
+                "parameters": [
+                    {
+                        "description": "Jobs to queue for analysis",
+                        "name": "jobs",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/jobs.bulkQueueAnalyzeItemRequest"
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Accepted",
+                        "schema": {
+                            "$ref": "#/definitions/jobs.bulkQueueAnalyzeResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpx.Error"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/httpx.Error"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httpx.Error"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/httpx.Error"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/jobs/{slug}": {
             "get": {
                 "security": [
@@ -443,7 +509,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Update a job's description. Blocked with 409 when the job already has a description and status 'analyzed'.",
+                "description": "Transition a job's status (analyze_pending | analyzed | failed). Called by the Temporal worker on completion.",
                 "consumes": [
                     "application/json"
                 ],
@@ -453,7 +519,7 @@ const docTemplate = `{
                 "tags": [
                     "jobs"
                 ],
-                "summary": "Update job description",
+                "summary": "Update job status",
                 "parameters": [
                     {
                         "type": "string",
@@ -463,12 +529,12 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "description": "Description",
-                        "name": "description",
+                        "description": "Status update payload",
+                        "name": "job",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/jobs.updateJobDescriptionRequest"
+                            "$ref": "#/definitions/jobs.updateJobRequest"
                         }
                     }
                 ],
@@ -497,8 +563,8 @@ const docTemplate = `{
                             "$ref": "#/definitions/httpx.Error"
                         }
                     },
-                    "409": {
-                        "description": "Conflict",
+                    "422": {
+                        "description": "Unprocessable Entity",
                         "schema": {
                             "$ref": "#/definitions/httpx.Error"
                         }
@@ -978,6 +1044,28 @@ const docTemplate = `{
                 }
             }
         },
+        "jobs.bulkQueueAnalyzeItemRequest": {
+            "type": "object",
+            "properties": {
+                "force": {
+                    "type": "boolean"
+                },
+                "slug": {
+                    "type": "string"
+                }
+            }
+        },
+        "jobs.bulkQueueAnalyzeResponse": {
+            "type": "object",
+            "properties": {
+                "workflow_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
         "jobs.createJobRequest": {
             "type": "object",
             "properties": {
@@ -1020,10 +1108,16 @@ const docTemplate = `{
                 }
             }
         },
-        "jobs.updateJobDescriptionRequest": {
+        "jobs.updateJobRequest": {
             "type": "object",
             "properties": {
-                "description": {
+                "analyze_result": {
+                    "type": "string"
+                },
+                "failure_message": {
+                    "type": "string"
+                },
+                "status": {
                     "type": "string"
                 }
             }

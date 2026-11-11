@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/frasnym/getojobu/apps/backend/internal/config"
 	"github.com/frasnym/getojobu/apps/backend/internal/contract"
@@ -39,9 +40,10 @@ func (h *handler) Route(g *httpx.Router) {
 
 	g.POST("", h.CreateJob, auth.ClerkOrAPIKey)
 	g.POST("/bulk", h.BulkCreateJob, auth.ClerkOrAPIKey)
+	g.POST("/bulk-queue-analyze", h.BulkQueueAnalyzeJob, auth.ClerkOrAPIKey)
 	g.GET("", h.ListJobs, auth.ClerkOrAPIKey)
 	g.GET("/{slug}", h.GetJob, auth.ClerkOrAPIKey)
-	g.PATCH("/{slug}", h.UpdateJobDescription, auth.ClerkOrAPIKey)
+	g.PATCH("/{slug}", h.UpdateJob, auth.ClerkOrAPIKey)
 }
 
 // CreateJob creates a single job listing. Returns 201 Created when inserted,
@@ -194,6 +196,68 @@ func (h *handler) BulkCreateJob(w http.ResponseWriter, r *http.Request) error {
 }
 
 // @Tags jobs
+// @Summary Bulk queue job analysis
+// @Description Queue job description analysis workflows in Temporal for multiple jobs. Jobs must have status 'new' or 'failed' (with force=true).
+// @Accept json
+// @Produce json
+// @Param jobs body bulkQueueAnalyzeRequest true "Jobs to queue for analysis"
+// @Success 202 {object} bulkQueueAnalyzeResponse
+// @Failure 400 {object} httpx.Error
+// @Failure 401 {object} httpx.Error
+// @Failure 404 {object} httpx.Error
+// @Failure 422 {object} httpx.Error
+// @security ApiKeyAuth
+// @Router /v1/jobs/bulk-queue-analyze [post]
+func (h *handler) BulkQueueAnalyzeJob(w http.ResponseWriter, r *http.Request) error {
+	ctx := r.Context()
+
+	p := ctxval.PrincipalFromContext(ctx)
+	if p == nil {
+		return httpx.Envelope(httpx.CodeUnauthorized, "unauthenticated", "")
+	}
+
+	var req bulkQueueAnalyzeRequest
+	if err := httpx.ParseJSON(r, &req); err != nil {
+		return err
+	}
+
+	if len(req) == 0 {
+		return httpx.Envelope(httpx.CodeInvalidRequest, "at least one job is required", "")
+	}
+	if len(req) > 100 {
+		return httpx.Envelope(httpx.CodeInvalidRequest, "maximum 100 jobs per request", "")
+	}
+
+	items := make([]models.QueueAnalysisItem, len(req))
+	for i, item := range req {
+		if strings.TrimSpace(item.Slug) == "" {
+			return httpx.Envelope(httpx.CodeInvalidRequest, "slug is required for each job", "")
+		}
+		items[i] = models.QueueAnalysisItem{
+			Slug:  strings.TrimSpace(item.Slug),
+			Force: item.Force,
+		}
+	}
+
+	workflowIDs, err := h.ucJobs.QueueAnalysisBulk(ctx, items, p)
+	if err != nil {
+		logging.Error(ctx, "bulk queue analyze failed", err,
+			"job_count", len(items), "actor_type", p.ActorType, "actor_id", p.ActorID)
+		if errors.Is(err, constants.ErrNotFound) {
+			return httpx.Envelope(httpx.CodeNotFound, "job not found", "")
+		}
+		if errors.Is(err, constants.ErrInvalidTransition) {
+			return httpx.Envelope(httpx.CodeInvalidRequest, err.Error(), "")
+		}
+		return err
+	}
+
+	return httpx.RespondJSON(w, http.StatusAccepted, bulkQueueAnalyzeResponse{
+		WorkflowIDs: workflowIDs,
+	})
+}
+
+// @Tags jobs
 // @Summary List jobs
 // @Description List recent jobs ordered by created_at descending. Optional limit (default 20, max 100). Clerk callers see only their owned jobs; API key callers see all jobs.
 // @Accept json
@@ -297,22 +361,22 @@ func (h *handler) GetJob(w http.ResponseWriter, r *http.Request) error {
 }
 
 // @Tags jobs
-// @Summary Update job description
-// @Description Update a job's description. Blocked with 409 when the job already has a description and status 'analyzed'.
+// @Summary Update job status
+// @Description Transition a job's status (analyze_pending | analyzed | failed). Called by the Temporal worker on completion.
 // @Accept json
 // @Produce json
 // @Param slug path string true "Job slug"
-// @Param description body updateJobDescriptionRequest true "Description"
+// @Param job body updateJobRequest true "Status update payload"
 // @Success 200 {object} models.Job
 // @Failure 400 {object} httpx.Error
 // @Failure 401 {object} httpx.Error
 // @Failure 404 {object} httpx.Error
-// @Failure 409 {object} httpx.Error
+// @Failure 422 {object} httpx.Error
 // @security ApiKeyAuth
 // @Router /v1/jobs/{slug} [patch]
-// UpdateJobDescription updates only the description of a job. Allowed only
-// when the existing description IS NULL or the status is not 'analyzed'.
-func (h *handler) UpdateJobDescription(w http.ResponseWriter, r *http.Request) error {
+// UpdateJob performs a transition-validated status update on the job identified
+// by slug. The body must include a non-empty "status" field.
+func (h *handler) UpdateJob(w http.ResponseWriter, r *http.Request) error {
 	ctx := r.Context()
 
 	p := ctxval.PrincipalFromContext(ctx)
@@ -325,49 +389,29 @@ func (h *handler) UpdateJobDescription(w http.ResponseWriter, r *http.Request) e
 		return httpx.Envelope(httpx.CodeInvalidRequest, "job slug is required", "")
 	}
 
-	var req updateJobDescriptionRequest
+	var req updateJobRequest
 	if err := httpx.ParseJSON(r, &req); err != nil {
 		return err
 	}
 
-	if req.Description == "" {
-		return httpx.Envelope(httpx.CodeInvalidRequest, "description is required", "")
+	if req.Status == nil || *req.Status == "" {
+		return httpx.Envelope(httpx.CodeInvalidRequest, "status is required", "")
 	}
 
 	actorType, actorID := p.AuditActor()
-	if p.ActorType == "" {
-		// Clerk callers may only update jobs they own.
-		existing, err := h.ucJobs.GetBySlug(ctx, slug)
-		if err != nil {
-			if errors.Is(err, constants.ErrNotFound) {
-				return httpx.Envelope(httpx.CodeNotFound, "job not found", "")
-			}
-			return err
-		}
-		owned, err := h.ucJobs.IsOwned(ctx, p.ID, existing.ID)
-		if err != nil {
-			logging.Error(ctx, "check job ownership failed", err,
-				"slug", slug, "user_id", p.ID, "job_id", existing.ID)
-			return err
-		}
-		if !owned {
-			return httpx.Envelope(httpx.CodeNotFound, "job not found", "")
-		}
-	}
 
-	job, err := h.ucJobs.UpdateDescription(ctx, slug, req.Description, actorType, actorID)
+	job, err := h.ucJobs.UpdateStatus(ctx, slug, *req.Status, req.AnalyzeResult, req.FailureMessage, actorType, actorID)
 	if err != nil {
-		logging.Error(ctx, "update job description failed", err,
-			"slug", slug, "actor_type", p.ActorType, "actor_id", p.ActorID)
-		if err == constants.ErrNotFound {
+		logging.Error(ctx, "update job status failed", err,
+			"slug", slug, "status", *req.Status, "actor_type", p.ActorType, "actor_id", p.ActorID)
+		if errors.Is(err, constants.ErrNotFound) {
 			return httpx.Envelope(httpx.CodeNotFound, "job not found", "")
 		}
-		if err == constants.ErrDescriptionBlocked {
-			return httpx.Envelope(httpx.CodeConflict, "description update blocked: job is already analyzed", "")
+		if errors.Is(err, constants.ErrInvalidTransition) {
+			return httpx.Envelope(httpx.CodeInvalidRequest, err.Error(), "")
 		}
 		return err
 	}
-
 	return httpx.RespondJSON(w, http.StatusOK, job)
 }
 
@@ -407,4 +451,3 @@ func clampLimit(limit int) int {
 	}
 	return limit
 }
-

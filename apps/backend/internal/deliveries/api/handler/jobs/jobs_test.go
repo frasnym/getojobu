@@ -2,6 +2,7 @@ package jobs
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -437,47 +438,128 @@ func TestGetJob_not_found(t *testing.T) {
 	assert.Equal(t, http.StatusNotFound, w.Code)
 }
 
-func TestUpdateJobDescription_success(t *testing.T) {
+func strPtr(s string) *string {
+	return &s
+}
+
+// ---------------------------------------------------------------------------
+// UpdateJob — status-transition path
+// ---------------------------------------------------------------------------
+
+func TestUpdateJob_status_transition_success(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	h, mockJob, _ := newHandlerWithMock(ctrl)
 
-	slug := "update-null-desc-jakarta"
-	updated := &models.Job{Slug: slug, Description: strPtr("New description.")}
+	slug := "some-job-new"
+	updated := &models.Job{Slug: slug, Status: "analyze_pending"}
 	mockJob.EXPECT().
-		UpdateDescription(gomock.Any(), slug, "New description.", "cron", "cron-scrape").
+		UpdateStatus(gomock.Any(), slug, "analyze_pending", (*string)(nil), (*string)(nil), "worker", "getojobu-worker").
 		Return(updated, nil)
 
 	mux := http.NewServeMux()
-	mux.Handle("PATCH /jobs/{slug}", httpx.HandlerFunc(h.UpdateJobDescription))
+	mux.Handle("PATCH /jobs/{slug}", httpx.HandlerFunc(h.UpdateJob))
 
-	body := strings.NewReader(`{"description":"New description."}`)
+	body := strings.NewReader(`{"status":"analyze_pending"}`)
 	req := httptest.NewRequest(http.MethodPatch, "/jobs/"+slug, body)
-	req = req.WithContext(ctxval.ContextWithPrincipal(req.Context(), principalCtx("cron", "cron-scrape")))
+	req = req.WithContext(ctxval.ContextWithPrincipal(req.Context(), principalCtx("worker", "getojobu-worker")))
 	w := httptest.NewRecorder()
 
 	mux.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusOK, w.Code)
 	m := bodyAsMap(t, w)
-	assert.Equal(t, "New description.", m["description"])
+	assert.Equal(t, "analyze_pending", m["status"])
 }
 
-func TestUpdateJobDescription_not_found(t *testing.T) {
+func TestUpdateJob_status_transition_blocked_from_analyzed(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	h, mockJob, _ := newHandlerWithMock(ctrl)
+
+	slug := "already-analyzed-job"
+	mockJob.EXPECT().
+		UpdateStatus(gomock.Any(), slug, "analyze_pending", (*string)(nil), (*string)(nil), "worker", "getojobu-worker").
+		Return(nil, fmt.Errorf("%w: %s", constants.ErrInvalidTransition, "job is already finalized"))
+
+	mux := http.NewServeMux()
+	mux.Handle("PATCH /jobs/{slug}", httpx.HandlerFunc(h.UpdateJob))
+
+	body := strings.NewReader(`{"status":"analyze_pending"}`)
+	req := httptest.NewRequest(http.MethodPatch, "/jobs/"+slug, body)
+	req = req.WithContext(ctxval.ContextWithPrincipal(req.Context(), principalCtx("worker", "getojobu-worker")))
+	w := httptest.NewRecorder()
+
+	mux.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestUpdateJob_status_transition_with_analyze_result(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	h, mockJob, _ := newHandlerWithMock(ctrl)
+
+	slug := "pending-job"
+	result := strPtr(`{"title":"Engineer"}`)
+	updated := &models.Job{Slug: slug, Status: "analyzed", AnalyzeResult: result}
+	mockJob.EXPECT().
+		UpdateStatus(gomock.Any(), slug, "analyzed", result, (*string)(nil), "worker", "getojobu-worker").
+		Return(updated, nil)
+
+	mux := http.NewServeMux()
+	mux.Handle("PATCH /jobs/{slug}", httpx.HandlerFunc(h.UpdateJob))
+
+	body := strings.NewReader(`{"status":"analyzed","analyze_result":"{\"title\":\"Engineer\"}"}`)
+	req := httptest.NewRequest(http.MethodPatch, "/jobs/"+slug, body)
+	req = req.WithContext(ctxval.ContextWithPrincipal(req.Context(), principalCtx("worker", "getojobu-worker")))
+	w := httptest.NewRecorder()
+
+	mux.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+func TestUpdateJob_status_transition_failed_with_message(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	h, mockJob, _ := newHandlerWithMock(ctrl)
+
+	slug := "pending-job-fail"
+	msg := strPtr("LLM timeout")
+	updated := &models.Job{Slug: slug, Status: "failed", FailureMessage: msg}
+	mockJob.EXPECT().
+		UpdateStatus(gomock.Any(), slug, "failed", (*string)(nil), msg, "worker", "getojobu-worker").
+		Return(updated, nil)
+
+	mux := http.NewServeMux()
+	mux.Handle("PATCH /jobs/{slug}", httpx.HandlerFunc(h.UpdateJob))
+
+	body := strings.NewReader(`{"status":"failed","failure_message":"LLM timeout"}`)
+	req := httptest.NewRequest(http.MethodPatch, "/jobs/"+slug, body)
+	req = req.WithContext(ctxval.ContextWithPrincipal(req.Context(), principalCtx("worker", "getojobu-worker")))
+	w := httptest.NewRecorder()
+
+	mux.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+func TestUpdateJob_status_not_found(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	h, mockJob, _ := newHandlerWithMock(ctrl)
 
 	mockJob.EXPECT().
-		UpdateDescription(gomock.Any(), "missing", "New description.", "user", "user_1").
+		UpdateStatus(gomock.Any(), "missing", "analyze_pending", (*string)(nil), (*string)(nil), "worker", "getojobu-worker").
 		Return(nil, constants.ErrNotFound)
 
 	mux := http.NewServeMux()
-	mux.Handle("PATCH /jobs/{slug}", httpx.HandlerFunc(h.UpdateJobDescription))
+	mux.Handle("PATCH /jobs/{slug}", httpx.HandlerFunc(h.UpdateJob))
 
-	body := strings.NewReader(`{"description":"New description."}`)
+	body := strings.NewReader(`{"status":"analyze_pending"}`)
 	req := httptest.NewRequest(http.MethodPatch, "/jobs/missing", body)
-	req = req.WithContext(ctxval.ContextWithPrincipal(req.Context(), principalCtx("user", "user_1")))
+	req = req.WithContext(ctxval.ContextWithPrincipal(req.Context(), principalCtx("worker", "getojobu-worker")))
 	w := httptest.NewRecorder()
 
 	mux.ServeHTTP(w, req)
@@ -485,96 +567,148 @@ func TestUpdateJobDescription_not_found(t *testing.T) {
 	assert.Equal(t, http.StatusNotFound, w.Code)
 }
 
-func TestUpdateJobDescription_blocked(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-	h, mockJob, _ := newHandlerWithMock(ctrl)
-
-	slug := "update-blocked-jakarta"
-	mockJob.EXPECT().
-		UpdateDescription(gomock.Any(), slug, "New description.", "cron", "cron-scrape").
-		Return(nil, constants.ErrDescriptionBlocked)
-
-	mux := http.NewServeMux()
-	mux.Handle("PATCH /jobs/{slug}", httpx.HandlerFunc(h.UpdateJobDescription))
-
-	body := strings.NewReader(`{"description":"New description."}`)
-	req := httptest.NewRequest(http.MethodPatch, "/jobs/"+slug, body)
-	req = req.WithContext(ctxval.ContextWithPrincipal(req.Context(), principalCtx("cron", "cron-scrape")))
-	w := httptest.NewRecorder()
-
-	mux.ServeHTTP(w, req)
-
-	assert.Equal(t, http.StatusConflict, w.Code)
-}
-
-func TestUpdateJobDescription_unauthenticated(t *testing.T) {
+func TestUpdateJob_status_empty_string_rejected(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	h, _, _ := newHandlerWithMock(ctrl)
 
-	body := strings.NewReader(`{"description":"New description."}`)
-	req := httptest.NewRequest(http.MethodPatch, "/jobs/slug", body)
+	mux := http.NewServeMux()
+	mux.Handle("PATCH /jobs/{slug}", httpx.HandlerFunc(h.UpdateJob))
+
+	body := strings.NewReader(`{"status":""}`)
+	req := httptest.NewRequest(http.MethodPatch, "/jobs/some-job", body)
+	req = req.WithContext(ctxval.ContextWithPrincipal(req.Context(), principalCtx("worker", "getojobu-worker")))
 	w := httptest.NewRecorder()
 
-	httpx.HandlerFunc(h.UpdateJobDescription).ServeHTTP(w, req)
+	mux.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+// ---------------------------------------------------------------------------
+// BulkQueueAnalyzeJob
+// ---------------------------------------------------------------------------
+
+func TestBulkQueueAnalyzeJob_success(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	h, mockJob, _ := newHandlerWithMock(ctrl)
+
+	mockJob.EXPECT().
+		QueueAnalysisBulk(gomock.Any(), []models.QueueAnalysisItem{
+			{Slug: "job-1", Force: false},
+			{Slug: "job-2", Force: true},
+		}, gomock.Any()).
+		Return([]string{"job-analyze-1", "job-analyze-2-force-abcdef123456"}, nil)
+
+	body := strings.NewReader(`[{"slug":"job-1","force":false},{"slug":"job-2","force":true}]`)
+	req := httptest.NewRequest(http.MethodPost, "/jobs/bulk-queue-analyze", body)
+	req = req.WithContext(ctxval.ContextWithPrincipal(req.Context(), principalCtx("cron", "cron-scrape")))
+	w := httptest.NewRecorder()
+
+	httpx.HandlerFunc(h.BulkQueueAnalyzeJob).ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusAccepted, w.Code)
+	var resp bulkQueueAnalyzeResponse
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+	require.Len(t, resp.WorkflowIDs, 2)
+	assert.Equal(t, "job-analyze-1", resp.WorkflowIDs[0])
+	assert.Equal(t, "job-analyze-2-force-abcdef123456", resp.WorkflowIDs[1])
+}
+
+func TestBulkQueueAnalyzeJob_empty_array(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	h, _, _ := newHandlerWithMock(ctrl)
+
+	body := strings.NewReader(`[]`)
+	req := httptest.NewRequest(http.MethodPost, "/jobs/bulk-queue-analyze", body)
+	req = req.WithContext(ctxval.ContextWithPrincipal(req.Context(), principalCtx("cron", "cron-scrape")))
+	w := httptest.NewRecorder()
+
+	httpx.HandlerFunc(h.BulkQueueAnalyzeJob).ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestBulkQueueAnalyzeJob_missing_slug(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	h, _, _ := newHandlerWithMock(ctrl)
+
+	body := strings.NewReader(`[{"slug":"","force":false}]`)
+	req := httptest.NewRequest(http.MethodPost, "/jobs/bulk-queue-analyze", body)
+	req = req.WithContext(ctxval.ContextWithPrincipal(req.Context(), principalCtx("cron", "cron-scrape")))
+	w := httptest.NewRecorder()
+
+	httpx.HandlerFunc(h.BulkQueueAnalyzeJob).ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestBulkQueueAnalyzeJob_unauthenticated(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	h, _, _ := newHandlerWithMock(ctrl)
+
+	body := strings.NewReader(`[{"slug":"job-1","force":false}]`)
+	req := httptest.NewRequest(http.MethodPost, "/jobs/bulk-queue-analyze", body)
+	w := httptest.NewRecorder()
+
+	httpx.HandlerFunc(h.BulkQueueAnalyzeJob).ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusUnauthorized, w.Code)
 }
 
-func TestUpdateJobDescription_clerk_not_owned(t *testing.T) {
+func TestBulkQueueAnalyzeJob_not_found(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	h, mockJob, _ := newHandlerWithMock(ctrl)
 
-	slug := "job-slug"
-	job := &models.Job{ID: 10, Slug: slug}
+	mockJob.EXPECT().
+		QueueAnalysisBulk(gomock.Any(), gomock.Any(), gomock.Any()).
+		Return(nil, constants.ErrNotFound)
 
-	mockJob.EXPECT().GetBySlug(gomock.Any(), slug).Return(job, nil)
-	mockJob.EXPECT().IsOwned(gomock.Any(), "user_1", int64(10)).Return(false, nil)
-	mockJob.EXPECT().UpdateDescription(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
-
-	mux := http.NewServeMux()
-	mux.Handle("PATCH /jobs/{slug}", httpx.HandlerFunc(h.UpdateJobDescription))
-
-	body := strings.NewReader(`{"description":"New description."}`)
-	req := httptest.NewRequest(http.MethodPatch, "/jobs/"+slug, body)
-	req = req.WithContext(ctxval.ContextWithPrincipal(req.Context(), principalCtx("", "user_1")))
+	body := strings.NewReader(`[{"slug":"job-missing","force":false}]`)
+	req := httptest.NewRequest(http.MethodPost, "/jobs/bulk-queue-analyze", body)
+	req = req.WithContext(ctxval.ContextWithPrincipal(req.Context(), principalCtx("cron", "cron-scrape")))
 	w := httptest.NewRecorder()
 
-	mux.ServeHTTP(w, req)
+	httpx.HandlerFunc(h.BulkQueueAnalyzeJob).ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusNotFound, w.Code)
 }
 
-func TestUpdateJobDescription_clerk_success(t *testing.T) {
+func TestBulkQueueAnalyzeJob_invalid_transition(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	h, mockJob, _ := newHandlerWithMock(ctrl)
 
-	slug := "job-slug"
-	job := &models.Job{ID: 10, Slug: slug}
-	updated := &models.Job{ID: 10, Slug: slug, Description: strPtr("New description.")}
+	mockJob.EXPECT().
+		QueueAnalysisBulk(gomock.Any(), gomock.Any(), gomock.Any()).
+		Return(nil, fmt.Errorf("%w: job is failed, force must be true", constants.ErrInvalidTransition))
 
-	mockJob.EXPECT().GetBySlug(gomock.Any(), slug).Return(job, nil)
-	mockJob.EXPECT().IsOwned(gomock.Any(), "user_1", int64(10)).Return(true, nil)
-	mockJob.EXPECT().UpdateDescription(gomock.Any(), slug, "New description.", "user", "user_1").Return(updated, nil)
-
-	mux := http.NewServeMux()
-	mux.Handle("PATCH /jobs/{slug}", httpx.HandlerFunc(h.UpdateJobDescription))
-
-	body := strings.NewReader(`{"description":"New description."}`)
-	req := httptest.NewRequest(http.MethodPatch, "/jobs/"+slug, body)
-	req = req.WithContext(ctxval.ContextWithPrincipal(req.Context(), principalCtx("", "user_1")))
+	body := strings.NewReader(`[{"slug":"job-failed","force":false}]`)
+	req := httptest.NewRequest(http.MethodPost, "/jobs/bulk-queue-analyze", body)
+	req = req.WithContext(ctxval.ContextWithPrincipal(req.Context(), principalCtx("cron", "cron-scrape")))
 	w := httptest.NewRecorder()
 
-	mux.ServeHTTP(w, req)
+	httpx.HandlerFunc(h.BulkQueueAnalyzeJob).ServeHTTP(w, req)
 
-	assert.Equal(t, http.StatusOK, w.Code)
-	m := bodyAsMap(t, w)
-	assert.Equal(t, "New description.", m["description"])
+	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
 
-func strPtr(s string) *string {
-	return &s
+func TestBulkQueueAnalyzeJob_invalid_force_type(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	h, _, _ := newHandlerWithMock(ctrl)
+
+	body := strings.NewReader(`[{"slug":"job-1","force":"not-a-bool"}]`)
+	req := httptest.NewRequest(http.MethodPost, "/jobs/bulk-queue-analyze", body)
+	req = req.WithContext(ctxval.ContextWithPrincipal(req.Context(), principalCtx("cron", "cron-scrape")))
+	w := httptest.NewRecorder()
+
+	httpx.HandlerFunc(h.BulkQueueAnalyzeJob).ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
 }

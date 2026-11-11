@@ -79,13 +79,17 @@ type BulkCreateJobResult struct {
 	AddedToUserList bool   `json:"added_to_user_list"`
 }
 
-// UpdateJobParams holds parameters for updating a job listing. Slug is taken
-// from the request path, not the body.
-type UpdateJobParams struct {
-	Slug          string `json:"-"`
-	Description   string `json:"description"`
-	UpdatedByType string `json:"-"`
-	UpdatedByID   string `json:"-"`
+// QueueAnalysisItem holds the parameters for queuing analysis for a single job.
+type QueueAnalysisItem struct {
+	Slug  string `json:"slug"`
+	Force bool   `json:"force"`
+}
+
+// JobAnalyzeWorkflowInput is the payload sent to Temporal JobAnalyzeWorkflow.
+type JobAnalyzeWorkflowInput struct {
+	JobDescription string `json:"job_description"`
+	JobID          string `json:"job_id"`
+	Slug           string `json:"slug"`
 }
 
 // GetJobParams holds parameters for getting a job listing by slug. Slug is

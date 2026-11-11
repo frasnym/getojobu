@@ -4,7 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
+
+	"go.temporal.io/sdk/client"
 
 	"github.com/frasnym/getojobu/apps/backend/internal/config"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/database"
@@ -12,11 +13,12 @@ import (
 )
 
 // Contract holds shared infrastructure dependencies, currently the database
-// connection. Placing DB here keeps repository and usecase layers free of
-// infrastructure concerns. DB is an interface so any provider (Neon,
-// Supabase, self-managed Postgres) can be swapped without changing this layer.
+// connection and Temporal orchestrator client. Placing them here keeps repository
+// and usecase layers free of infrastructure concerns.
 type Contract struct {
-	DB database.DB
+	DB                database.DB
+	Temporal          client.Client
+	TemporalTaskQueue string
 }
 
 // New creates a connection to a PostgreSQL database using config and returns
@@ -55,24 +57,23 @@ func New(cfg *config.Config) (*Contract, graceful.ProcessStopper, error) {
 	stoppers = append(stoppers, stopper)
 	contract.DB = db
 
+	var temporalClient client.Client
+	if cfg.Temporal.Host != "" {
+		tc, err := client.NewLazyClient(client.Options{
+			HostPort:  cfg.Temporal.Host,
+			Namespace: cfg.Temporal.Namespace,
+		})
+		if err != nil {
+			return nil, nil, fmt.Errorf("create temporal client: %w", err)
+		}
+		temporalClient = tc
+		stoppers = append(stoppers, func(ctx context.Context) error {
+			tc.Close()
+			return nil
+		})
+	}
+	contract.Temporal = temporalClient
+	contract.TemporalTaskQueue = cfg.Temporal.TaskQueue
+
 	return contract, stopper, nil
-}
-
-// Close releases the database connection.
-func (c *Contract) Close() {
-	if c != nil && c.DB != nil {
-		c.DB.Close()
-	}
-}
-
-// Health checks that the database is reachable within a short deadline.
-func (c *Contract) Health(ctx context.Context) error {
-	if c == nil || c.DB == nil {
-		return errors.New("database not initialized")
-	}
-
-	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
-	defer cancel()
-
-	return c.DB.Ping(ctx)
 }

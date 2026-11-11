@@ -7,12 +7,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestCommonContract_health_returns_error_when_nil(t *testing.T) {
-	// Act.
-	var c *Contract
-	err := c.Health(nil)
-
-	// Assert.
-	require.Error(t, err, "expected error for nil common contract")
-	assert.EqualError(t, err, "database not initialized")
+func TestNew_nil_config_returns_error(t *testing.T) {
+	contract, stopper, err := New(nil)
+	require.Error(t, err)
+	assert.Nil(t, contract)
+	assert.Nil(t, stopper)
+	assert.EqualError(t, err, "config is required")
 }

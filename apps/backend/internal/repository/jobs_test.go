@@ -199,11 +199,11 @@ func TestSearchByCompany_ILIKE(t *testing.T) {
 	require.Len(t, got, 1, "ILIKE should be case-insensitive")
 }
 
-func TestUpdateDescription_allowed_when_null(t *testing.T) {
+func TestUpdateStatus_success(t *testing.T) {
 	db := testJobDB(t)
 	repo := NewJobsRepository(database.NewPG(db))
 
-	slug := "update-null-desc-jakarta"
+	slug := "update-status-test"
 	_, err := repo.Create(context.Background(), models.CreateJobParams{
 		Slug:          slug,
 		Source:        "linkedin",
@@ -212,40 +212,25 @@ func TestUpdateDescription_allowed_when_null(t *testing.T) {
 		Location:      "Jakarta",
 		UpdatedByType: "cron",
 		UpdatedByID:   "cron-scrape",
-		// description left nil
 	})
 	require.NoError(t, err)
 
-	got, err := repo.UpdateDescription(context.Background(), slug, "New description.", "cron", "cron-scrape")
+	resultJSON := `{"skills":["Go"]}`
+	got, err := repo.UpdateStatus(context.Background(), slug, "analyzed", &resultJSON, nil, "worker", "getojobu-worker")
 	require.NoError(t, err)
 	assert.Equal(t, slug, got.Slug)
-	assert.Equal(t, "New description.", *got.Description)
+	assert.Equal(t, "analyzed", got.Status)
+	require.NotNil(t, got.AnalyzeResult)
+	assert.Equal(t, resultJSON, *got.AnalyzeResult)
 }
 
-func TestUpdateDescription_blocked_when_analyzed(t *testing.T) {
+func TestUpdateStatus_not_found(t *testing.T) {
 	db := testJobDB(t)
 	repo := NewJobsRepository(database.NewPG(db))
 
-	slug := "update-blocked-jakarta"
-	_, err := repo.Create(context.Background(), models.CreateJobParams{
-		Slug:          slug,
-		Source:        "linkedin",
-		Title:         "Engineer",
-		Company:       "Co",
-		Location:      "Jakarta",
-		Description:   strPtr("Existing description"),
-		UpdatedByType: "cron",
-		UpdatedByID:   "cron-scrape",
-	})
-	require.NoError(t, err)
-
-	// Mark analyzed to trigger the guard.
-	_, err = db.Exec(context.Background(), "UPDATE jobs SET status='analyzed' WHERE slug=$1", slug)
-	require.NoError(t, err)
-
-	_, err = repo.UpdateDescription(context.Background(), slug, "New description.", "cron", "cron-scrape")
+	_, err := repo.UpdateStatus(context.Background(), "non-existent-slug", "analyze_pending", nil, nil, "worker", "getojobu-worker")
 	require.Error(t, err)
-	assert.True(t, errors.Is(err, constants.ErrNotFound), "expected ErrNotFound when guard blocks update, got %v", err)
+	assert.True(t, errors.Is(err, constants.ErrNotFound))
 }
 
 func strPtr(s string) *string {

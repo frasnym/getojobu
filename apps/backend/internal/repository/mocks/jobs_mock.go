@@ -116,17 +116,17 @@ func (mr *MockJobsMockRecorder) SearchByCompany(ctx, company, limit any) *gomock
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SearchByCompany", reflect.TypeOf((*MockJobs)(nil).SearchByCompany), ctx, company, limit)
 }
 
-// UpdateDescription mocks base method.
-func (m *MockJobs) UpdateDescription(ctx context.Context, slug, description, updatedByType, updatedByID string) (*models.Job, error) {
+// UpdateStatus mocks base method.
+func (m *MockJobs) UpdateStatus(ctx context.Context, slug, status string, analyzeResult, failureMessage *string, updatedByType, updatedByID string) (*models.Job, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "UpdateDescription", ctx, slug, description, updatedByType, updatedByID)
+	ret := m.ctrl.Call(m, "UpdateStatus", ctx, slug, status, analyzeResult, failureMessage, updatedByType, updatedByID)
 	ret0, _ := ret[0].(*models.Job)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// UpdateDescription indicates an expected call of UpdateDescription.
-func (mr *MockJobsMockRecorder) UpdateDescription(ctx, slug, description, updatedByType, updatedByID any) *gomock.Call {
+// UpdateStatus indicates an expected call of UpdateStatus.
+func (mr *MockJobsMockRecorder) UpdateStatus(ctx, slug, status, analyzeResult, failureMessage, updatedByType, updatedByID any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateDescription", reflect.TypeOf((*MockJobs)(nil).UpdateDescription), ctx, slug, description, updatedByType, updatedByID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateStatus", reflect.TypeOf((*MockJobs)(nil).UpdateStatus), ctx, slug, status, analyzeResult, failureMessage, updatedByType, updatedByID)
 }

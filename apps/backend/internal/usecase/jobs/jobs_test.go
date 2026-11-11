@@ -270,68 +270,48 @@ func TestSearchByCompany_passes_through(t *testing.T) {
 	assert.Equal(t, "Acme Corp", got[0].Company)
 }
 
-func TestUpdateDescription_allowed(t *testing.T) {
+func TestUpdateStatus_allowed(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	repo := mocks.NewMockJobs(ctrl)
 	userJobs := mocks.NewMockUserJobs(ctrl)
 	s := newServiceWithMock(repo, userJobs)
 
-	slug := "update-null-desc-jakarta"
+	slug := "test-job-status"
 	existing := &models.Job{Slug: slug, Status: "new"}
-	updated := &models.Job{Slug: slug, Status: "new", Description: strPtr("New description.")}
+	updated := &models.Job{Slug: slug, Status: "analyze_pending"}
 
 	repo.EXPECT().
 		GetBySlug(gomock.Any(), slug).
 		Return(existing, nil)
 	repo.EXPECT().
-		UpdateDescription(gomock.Any(), slug, "New description.", "cron", "cron-scrape").
+		UpdateStatus(gomock.Any(), slug, "analyze_pending", (*string)(nil), (*string)(nil), "worker", "worker_1").
 		Return(updated, nil)
 
-	got, err := s.UpdateDescription(context.Background(), slug, "New description.", "cron", "cron-scrape")
+	got, err := s.UpdateStatus(context.Background(), slug, "analyze_pending", nil, nil, "worker", "worker_1")
 
 	require.NoError(t, err)
-	assert.Equal(t, "New description.", *got.Description)
+	assert.Equal(t, "analyze_pending", got.Status)
 }
 
-func TestUpdateDescription_not_found(t *testing.T) {
+func TestUpdateStatus_invalid_transition(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	repo := mocks.NewMockJobs(ctrl)
 	userJobs := mocks.NewMockUserJobs(ctrl)
 	s := newServiceWithMock(repo, userJobs)
 
-	repo.EXPECT().
-		GetBySlug(gomock.Any(), "missing").
-		Return(nil, constants.ErrNotFound)
-
-	_, err := s.UpdateDescription(context.Background(), "missing", "New description.", "cron", "cron-scrape")
-
-	require.Error(t, err)
-	assert.True(t, errors.Is(err, constants.ErrNotFound), "expected ErrNotFound, got %v", err)
-}
-
-func TestUpdateDescription_blocked_when_analyzed(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-	repo := mocks.NewMockJobs(ctrl)
-	userJobs := mocks.NewMockUserJobs(ctrl)
-	s := newServiceWithMock(repo, userJobs)
-
-	slug := "update-blocked-jakarta"
-	existing := &models.Job{Slug: slug, Status: "analyzed", Description: strPtr("Existing")}
+	slug := "test-job-invalid"
+	existing := &models.Job{Slug: slug, Status: "analyzed"}
 
 	repo.EXPECT().
 		GetBySlug(gomock.Any(), slug).
 		Return(existing, nil)
-	repo.EXPECT().
-		UpdateDescription(gomock.Any(), slug, "New description.", "cron", "cron-scrape").
-		Return(nil, constants.ErrNotFound)
 
-	_, err := s.UpdateDescription(context.Background(), slug, "New description.", "cron", "cron-scrape")
+	_, err := s.UpdateStatus(context.Background(), slug, "analyze_pending", nil, nil, "worker", "worker_1")
 
 	require.Error(t, err)
-	assert.True(t, errors.Is(err, constants.ErrDescriptionBlocked), "expected ErrDescriptionBlocked, got %v", err)
+	assert.True(t, errors.Is(err, constants.ErrInvalidTransition))
 }
 
 func strPtr(s string) *string {

@@ -90,6 +90,20 @@ definitions:
           $ref: '#/definitions/jobs.createJobRequest'
         type: array
     type: object
+  jobs.bulkQueueAnalyzeItemRequest:
+    properties:
+      force:
+        type: boolean
+      slug:
+        type: string
+    type: object
+  jobs.bulkQueueAnalyzeResponse:
+    properties:
+      workflow_ids:
+        items:
+          type: string
+        type: array
+    type: object
   jobs.createJobRequest:
     properties:
       apply_url:
@@ -121,9 +135,13 @@ definitions:
       visa_relocation:
         type: boolean
     type: object
-  jobs.updateJobDescriptionRequest:
+  jobs.updateJobRequest:
     properties:
-      description:
+      analyze_result:
+        type: string
+      failure_message:
+        type: string
+      status:
         type: string
     type: object
   models.BulkCreateJobResult:
@@ -569,20 +587,20 @@ paths:
     patch:
       consumes:
       - application/json
-      description: Update a job's description. Blocked with 409 when the job already
-        has a description and status 'analyzed'.
+      description: Transition a job's status (analyze_pending | analyzed | failed).
+        Called by the Temporal worker on completion.
       parameters:
       - description: Job slug
         in: path
         name: slug
         required: true
         type: string
-      - description: Description
+      - description: Status update payload
         in: body
-        name: description
+        name: job
         required: true
         schema:
-          $ref: '#/definitions/jobs.updateJobDescriptionRequest'
+          $ref: '#/definitions/jobs.updateJobRequest'
       produces:
       - application/json
       responses:
@@ -602,13 +620,13 @@ paths:
           description: Not Found
           schema:
             $ref: '#/definitions/httpx.Error'
-        "409":
-          description: Conflict
+        "422":
+          description: Unprocessable Entity
           schema:
             $ref: '#/definitions/httpx.Error'
       security:
       - ApiKeyAuth: []
-      summary: Update job description
+      summary: Update job status
       tags:
       - jobs
   /v1/jobs/bulk:
@@ -644,6 +662,49 @@ paths:
       security:
       - ApiKeyAuth: []
       summary: Bulk create jobs
+      tags:
+      - jobs
+  /v1/jobs/bulk-queue-analyze:
+    post:
+      consumes:
+      - application/json
+      description: Queue job description analysis workflows in Temporal for multiple
+        jobs. Jobs must have status 'new' or 'failed' (with force=true).
+      parameters:
+      - description: Jobs to queue for analysis
+        in: body
+        name: jobs
+        required: true
+        schema:
+          items:
+            $ref: '#/definitions/jobs.bulkQueueAnalyzeItemRequest'
+          type: array
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            $ref: '#/definitions/jobs.bulkQueueAnalyzeResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpx.Error'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpx.Error'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httpx.Error'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/httpx.Error'
+      security:
+      - ApiKeyAuth: []
+      summary: Bulk queue job analysis
       tags:
       - jobs
   /v1/projects:

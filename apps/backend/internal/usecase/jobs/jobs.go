@@ -20,18 +20,30 @@ type Job interface {
 	IsOwned(ctx context.Context, userID string, jobID int64) (bool, error)
 	List(ctx context.Context, limit int, userID string) ([]*models.Job, error)
 	SearchByCompany(ctx context.Context, company string, limit int) ([]*models.Job, error)
-	UpdateDescription(ctx context.Context, slug, description, updatedByType, updatedByID string) (*models.Job, error)
+	// UpdateStatus validates the status transition and persists the new status.
+	// analyzeResult and failureMessage are optional (nil = keep existing value).
+	// Returns ErrNotFound when slug is unknown, ErrInvalidTransition when the
+	// current → next transition is not permitted.
+	UpdateStatus(ctx context.Context, slug, status string, analyzeResult, failureMessage *string, updatedByType, updatedByID string) (*models.Job, error)
+	// QueueAnalysisBulk validates each job and queues its JobAnalyzeWorkflow in Temporal.
+	QueueAnalysisBulk(ctx context.Context, items []models.QueueAnalysisItem, caller *models.Principal) ([]string, error)
 }
 
 type jobService struct {
-	tx       database.Transactor
-	repo     repo.Jobs
-	userJobs repo.UserJobs
+	tx        database.Transactor
+	repo      repo.Jobs
+	userJobs  repo.UserJobs
+	workflows repo.Workflows
 }
 
 // NewJobService creates a job service backed by repositories.
 func NewJobService(r *repository.Contract) Job {
-	return &jobService{tx: r.Transactor, repo: r.JobsRepository, userJobs: r.UserJobsRepository}
+	return &jobService{
+		tx:        r.Transactor,
+		repo:      r.JobsRepository,
+		userJobs:  r.UserJobsRepository,
+		workflows: r.WorkflowsRepository,
+	}
 }
 
 // Create inserts a single job listing and creates the ownership row for the
@@ -162,26 +174,34 @@ func (s *jobService) SearchByCompany(ctx context.Context, company string, limit 
 	return s.repo.SearchByCompany(ctx, company, limit)
 }
 
-// UpdateDescription updates only the description of the job with the given
-// slug. It first checks existence (404 when missing) then attempts the
-// update, returning ErrDescriptionBlocked (409) when the guard rejects it.
-func (s *jobService) UpdateDescription(ctx context.Context, slug, description, updatedByType, updatedByID string) (*models.Job, error) {
-	// First check existence so we can distinguish 404 from 409. The repository
-	// returns constants.ErrNotFound both when the slug is absent and when the guard
-	// blocks the update.
-	if _, err := s.repo.GetBySlug(ctx, slug); err != nil {
+// UpdateStatus validates the status transition for the job identified by slug
+// and persists the new status together with optional analyzeResult and
+// failureMessage fields. Business rule: transition validation happens here, not
+// in the handler or the repository. Returns ErrNotFound when slug is unknown
+// and ErrInvalidTransition (wrapping the validator's error) when the transition
+// is not permitted.
+func (s *jobService) UpdateStatus(ctx context.Context, slug, status string, analyzeResult, failureMessage *string, updatedByType, updatedByID string) (*models.Job, error) {
+	existing, err := s.repo.GetBySlug(ctx, slug)
+	if err != nil {
 		if errors.Is(err, constants.ErrNotFound) {
 			return nil, constants.ErrNotFound
 		}
-		return nil, fmt.Errorf("get job before description update: %w", err)
+		return nil, fmt.Errorf("get job before status update: %w", err)
 	}
 
-	job, err := s.repo.UpdateDescription(ctx, slug, description, updatedByType, updatedByID)
+	if err := constants.ValidateJobStatusTransition(
+		constants.JobStatus(existing.Status),
+		constants.JobStatus(status),
+	); err != nil {
+		return nil, fmt.Errorf("%w: %s", constants.ErrInvalidTransition, err.Error())
+	}
+
+	job, err := s.repo.UpdateStatus(ctx, slug, status, analyzeResult, failureMessage, updatedByType, updatedByID)
 	if err != nil {
 		if errors.Is(err, constants.ErrNotFound) {
-			return nil, constants.ErrDescriptionBlocked
+			return nil, constants.ErrNotFound
 		}
-		return nil, fmt.Errorf("update job description: %w", err)
+		return nil, fmt.Errorf("update job status: %w", err)
 	}
 	return job, nil
 }

@@ -21,6 +21,14 @@ type Config struct {
 	DB          DBConfig
 	Clerk       ClerkConfig
 	MachineAuth MachineAuth
+	Temporal    TemporalConfig
+}
+
+// TemporalConfig holds Temporal orchestrator connection settings.
+type TemporalConfig struct {
+	Host      string
+	Namespace string
+	TaskQueue string
 }
 
 // MachineKey maps a machine API key to the caller principal it represents.
@@ -168,6 +176,13 @@ func Load() (*Config, error) {
 	if v := os.Getenv("PLAYWRIGHT_API_KEY"); v != "" {
 		cfg.MachineAuth.APIKeys[v] = MachineKey{ActorType: "worker", ActorID: "playwright-worker"}
 	}
+	if v := os.Getenv("WORKER_API_KEY"); v != "" {
+		cfg.MachineAuth.APIKeys[v] = MachineKey{ActorType: "worker", ActorID: "getojobu-worker"}
+	}
+
+	cfg.Temporal.Host = envString("TEMPORAL_HOST", "localhost:7233")
+	cfg.Temporal.Namespace = envString("TEMPORAL_NAMESPACE", "default")
+	cfg.Temporal.TaskQueue = envString("TEMPORAL_TASK_QUEUE_JOB_ANALYZE", "job-evaluation")
 
 	return cfg, nil
 }
