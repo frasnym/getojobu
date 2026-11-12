@@ -13,6 +13,7 @@ from __future__ import annotations
 import asyncio
 import signal
 import sys
+from concurrent.futures import ThreadPoolExecutor
 
 from temporalio.worker import Worker
 
@@ -63,58 +64,65 @@ async def run() -> int:
     # Initialize the activity container (reuse the contract already built).
     init_container(contract)
 
-    job_analyze_worker = Worker(
-        temporal_client.client,
-        task_queue=cfg.temporal.task_queue_job_analyze,
-        activities=[analyze_job_activity],
-        workflows=[JobAnalyzeWorkflow],
-    )
-    job_scrape_worker = Worker(
-        temporal_client.client,
-        task_queue=cfg.temporal.task_queue_job_scrape,
-        activities=[scrape_scan, enrich_jobs, ingest_jobs, queue_analysis],
-        workflows=[JobScrapeWorkflow],
-    )
+    activity_executor = ThreadPoolExecutor(max_workers=10)
 
-    logger.info(
-        "worker_starting",
-        job_analyze_queue=cfg.temporal.task_queue_job_analyze,
-        job_scrape_queue=cfg.temporal.task_queue_job_scrape,
-        namespace=cfg.temporal.namespace,
-    )
-
-    loop = asyncio.get_running_loop()
-    stop_event = asyncio.Event()
-
-    def _handle_signal() -> None:
-        logger.info("shutdown_signal_received")
-        stop_event.set()
-
-    for sig in (signal.SIGINT, signal.SIGTERM):
-        try:
-            loop.add_signal_handler(sig, _handle_signal)
-        except NotImplementedError:  # pragma: no cover - Windows
-            pass
-
-    # Run both workers until a shutdown signal is received.
-    job_analyze_task = asyncio.create_task(job_analyze_worker.run())
-    job_scrape_task = asyncio.create_task(job_scrape_worker.run())
     try:
-        await stop_event.wait()
-    finally:
-        job_analyze_task.cancel()
-        job_scrape_task.cancel()
-        for t in (job_analyze_task, job_scrape_task):
+        job_analyze_worker = Worker(
+            temporal_client.client,
+            task_queue=cfg.temporal.task_queue_job_analyze,
+            activities=[analyze_job_activity],
+            workflows=[JobAnalyzeWorkflow],
+            activity_executor=activity_executor,
+        )
+        job_scrape_worker = Worker(
+            temporal_client.client,
+            task_queue=cfg.temporal.task_queue_job_scrape,
+            activities=[scrape_scan, enrich_jobs, ingest_jobs, queue_analysis],
+            workflows=[JobScrapeWorkflow],
+            activity_executor=activity_executor,
+        )
+
+        logger.info(
+            "worker_starting",
+            job_analyze_queue=cfg.temporal.task_queue_job_analyze,
+            job_scrape_queue=cfg.temporal.task_queue_job_scrape,
+            namespace=cfg.temporal.namespace,
+        )
+
+        loop = asyncio.get_running_loop()
+        stop_event = asyncio.Event()
+
+        def _handle_signal() -> None:
+            logger.info("shutdown_signal_received")
+            stop_event.set()
+
+        for sig in (signal.SIGINT, signal.SIGTERM):
             try:
-                await t
-            except asyncio.CancelledError:
+                loop.add_signal_handler(sig, _handle_signal)
+            except NotImplementedError:  # pragma: no cover - Windows
                 pass
 
-    logger.info("worker_stopped")
-    await job_analyze_worker.shutdown()
-    await job_scrape_worker.shutdown()
-    await stopper()
-    return 0
+        # Run both workers until a shutdown signal is received.
+        job_analyze_task = asyncio.create_task(job_analyze_worker.run())
+        job_scrape_task = asyncio.create_task(job_scrape_worker.run())
+        try:
+            await stop_event.wait()
+        finally:
+            job_analyze_task.cancel()
+            job_scrape_task.cancel()
+            for t in (job_analyze_task, job_scrape_task):
+                try:
+                    await t
+                except asyncio.CancelledError:
+                    pass
+
+        logger.info("worker_stopped")
+        await job_analyze_worker.shutdown()
+        await job_scrape_worker.shutdown()
+        await stopper()
+        return 0
+    finally:
+        activity_executor.shutdown(wait=False)
 
 
 def main() -> None:
