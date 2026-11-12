@@ -28,6 +28,8 @@ class GetojobuAPI(Protocol):
 
     async def get_active_scoring_config(self, family: str) -> dict[str, Any]: ...
 
+    async def post(self, path: str, json: Any) -> Any: ...
+
     async def aclose(self) -> None: ...
 
 
@@ -56,7 +58,10 @@ class _getojobuAPI:
         response = await self._client.get(f"/v1/jobs/{slug}")
         response.raise_for_status()
         raw = response.json()
-        return self._unwrap_response(raw, operation=f"get job {slug!r}")
+        unwrapped = self._unwrap_response(raw, operation=f"get job {slug!r}")
+        if not isinstance(unwrapped, dict):
+            raise TypeError(f"get job {slug!r}: expected dict, got {type(unwrapped)}")
+        return unwrapped
 
     async def patch_job_status(
         self,
@@ -78,7 +83,12 @@ class _getojobuAPI:
         )
         response.raise_for_status()
         raw = response.json()
-        return self._unwrap_response(raw, operation=f"patch job {slug!r} status")
+        unwrapped = self._unwrap_response(raw, operation=f"patch job {slug!r} status")
+        if not isinstance(unwrapped, dict):
+            raise TypeError(
+                f"patch job {slug!r} status: expected dict, got {type(unwrapped)}"
+            )
+        return unwrapped
 
     async def get_active_scoring_config(self, family: str) -> dict[str, Any]:
         response = await self._client.get(
@@ -87,24 +97,47 @@ class _getojobuAPI:
         )
         response.raise_for_status()
         raw = response.json()
-        return self._unwrap_response(raw, operation=f"get active scoring config for {family!r}")
+        unwrapped = self._unwrap_response(
+            raw, operation=f"get active scoring config for {family!r}"
+        )
+        if not isinstance(unwrapped, dict):
+            raise TypeError(
+                f"get active scoring config for {family!r}: expected dict, got {type(unwrapped)}"
+            )
+        return unwrapped
 
-    def _unwrap_response(self, raw: object, *, operation: str) -> dict[str, Any]:
+    async def post(self, path: str, json: Any) -> Any:
+        response = await self._client.post(path, json=json)
+        response.raise_for_status()
+        raw = response.json()
+        return self._unwrap_response(raw, operation=f"POST {path}")
+
+    def _unwrap_response(
+        self, raw: object, *, operation: str
+    ) -> dict[str, Any] | list[Any] | None:
         if not isinstance(raw, dict):
-            raise RuntimeError(f"{operation}: response is not a valid JSON object: {raw!r}")
+            raise RuntimeError(  # noqa: TRY004
+                f"{operation}: response is not a valid JSON object: {raw!r}"
+            )
 
         raw_dict: dict[str, Any] = cast(dict[str, Any], raw)
         if "success" in raw_dict:
             if not raw_dict.get("success"):
                 err = raw_dict.get("error")
-                err_dict: dict[str, Any] = cast(dict[str, Any], err) if isinstance(err, dict) else {}
+                err_dict: dict[str, Any] = (
+                    cast(dict[str, Any], err) if isinstance(err, dict) else {}
+                )
                 code = str(err_dict.get("code") or "UNKNOWN_ERROR")
                 message = str(err_dict.get("message") or "API returned failure")
-                raise RuntimeError(f"{operation} failed with API error ({code}): {message}")
+                raise RuntimeError(
+                    f"{operation} failed with API error ({code}): {message}"
+                )
             data = raw_dict.get("data")
-            if not isinstance(data, dict):
-                raise RuntimeError(f"{operation}: 'data' is not an object: {data!r}")
-            return cast(dict[str, Any], data)
+            if data is not None and not isinstance(data, (dict, list)):
+                raise RuntimeError(
+                    f"{operation}: 'data' is not an object or list: {data!r}"
+                )
+            return cast("dict[str, Any] | list[Any] | None", data)
 
         return raw_dict
 

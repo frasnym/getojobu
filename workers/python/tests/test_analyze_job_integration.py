@@ -7,7 +7,6 @@ import json
 from typing import Any
 
 import pytest
-
 from config.config import APIConfig, Config, OmniRouteConfig, TemporalConfig
 from contract.contract import WorkerContainer
 from contract.repository import RepositoryContract
@@ -101,12 +100,14 @@ class _FakeAPI:
 @pytest.mark.asyncio
 async def test_integration_worker_with_real_temporal_and_fakes():
     """Integration test: worker executes analyze_job usecase with fake LLM."""
-    fake_api = _FakeAPI({
-        "id": 101,
-        "slug": "job-integration-001",
-        "status": "new",
-        "description": "We need a Senior Backend Engineer with Golang experience.",
-    })
+    fake_api = _FakeAPI(
+        {
+            "id": 101,
+            "slug": "job-integration-001",
+            "status": "new",
+            "description": "We need a Senior Backend Engineer with Golang experience.",
+        }
+    )
     llm = _FakeLLM(
         {
             "family": "technology",
@@ -140,12 +141,14 @@ async def test_integration_worker_task_queue_handling():
     profiles = []
     for i, seniority in enumerate(["junior", "mid", "senior"]):
         slug = f"job-integration-003-{i}"
-        fake_api = _FakeAPI({
-            "id": i + 1,
-            "slug": slug,
-            "status": "new",
-            "description": f"We need a {seniority} engineer.",
-        })
+        fake_api = _FakeAPI(
+            {
+                "id": i + 1,
+                "slug": slug,
+                "status": "new",
+                "description": f"We need a {seniority} engineer.",
+            }
+        )
         svc = AnalyzeJob(api=fake_api, llm=llm)
         profile = await svc.analyze(slug=slug)
         profiles.append(profile)
@@ -160,12 +163,14 @@ async def test_integration_worker_task_queue_handling():
 @pytest.mark.asyncio
 async def test_activity_flow_success_new_to_analyze_pending_to_analyzed():
     """Verify 5-step flow for a 'new' job: GET -> check new -> PATCH pending -> LLM -> PATCH analyzed."""
-    fake_api = _FakeAPI({
-        "id": 101,
-        "slug": "lead-go-developer-acme",
-        "status": "new",
-        "description": "We need a Lead Go Developer with 8 years experience.",
-    })
+    fake_api = _FakeAPI(
+        {
+            "id": 101,
+            "slug": "lead-go-developer-acme",
+            "status": "new",
+            "description": "We need a Lead Go Developer with 8 years experience.",
+        }
+    )
     repo_contract = RepositoryContract(api=fake_api)
 
     llm = _FakeLLM(
@@ -214,12 +219,14 @@ async def test_activity_flow_success_new_to_analyze_pending_to_analyzed():
 @pytest.mark.asyncio
 async def test_activity_flow_success_failed_to_analyze_pending_to_analyzed():
     """Verify 5-step flow for a 'failed' job: GET -> check failed -> PATCH pending -> LLM -> PATCH analyzed."""
-    fake_api = _FakeAPI({
-        "id": 102,
-        "slug": "failed-job-retry",
-        "status": "failed",
-        "description": "Retry job description",
-    })
+    fake_api = _FakeAPI(
+        {
+            "id": 102,
+            "slug": "failed-job-retry",
+            "status": "failed",
+            "description": "Retry job description",
+        }
+    )
     repo_contract = RepositoryContract(api=fake_api)
 
     llm = _FakeLLM({"family": "technology", "seniority": "mid", "title": "Developer"})
@@ -231,7 +238,11 @@ async def test_activity_flow_success_failed_to_analyze_pending_to_analyzed():
         api=APIConfig("http://localhost:8080", "test-key"),
         omni_route=OmniRouteConfig("http://localhost:20128", "test-key", "test-model"),
     )
-    init_container(WorkerContainer(cfg=dummy_cfg, repository=repo_contract, usecase=usecase_contract))
+    init_container(
+        WorkerContainer(
+            cfg=dummy_cfg, repository=repo_contract, usecase=usecase_contract
+        )
+    )
 
     result = await analyze_job_activity({"slug": "failed-job-retry"})
     assert result["family"] == "technology"
@@ -241,12 +252,14 @@ async def test_activity_flow_success_failed_to_analyze_pending_to_analyzed():
 @pytest.mark.asyncio
 async def test_activity_flow_rejects_analyzed_status():
     """Verify activity rejects a job with status 'analyzed' without invoking LLM or PATCH."""
-    fake_api = _FakeAPI({
-        "id": 103,
-        "slug": "already-analyzed-job",
-        "status": "analyzed",
-        "description": "Already done",
-    })
+    fake_api = _FakeAPI(
+        {
+            "id": 103,
+            "slug": "already-analyzed-job",
+            "status": "analyzed",
+            "description": "Already done",
+        }
+    )
     repo_contract = RepositoryContract(api=fake_api)
     llm = _FakeLLM({"family": "technology", "seniority": "senior"})
     svc = AnalyzeJob(api=fake_api, llm=llm)
@@ -256,9 +269,17 @@ async def test_activity_flow_rejects_analyzed_status():
         api=APIConfig("http://localhost:8080", "test-key"),
         omni_route=OmniRouteConfig("http://localhost:20128", "test-key", "test-model"),
     )
-    init_container(WorkerContainer(cfg=dummy_cfg, repository=repo_contract, usecase=UsecaseContract(analyze_job=svc)))
+    init_container(
+        WorkerContainer(
+            cfg=dummy_cfg,
+            repository=repo_contract,
+            usecase=UsecaseContract(analyze_job=svc),
+        )
+    )
 
-    with pytest.raises(ValueError, match="cannot be analyzed: current status is 'analyzed'"):
+    with pytest.raises(
+        ValueError, match="cannot be analyzed: current status is 'analyzed'"
+    ):
         await analyze_job_activity({"slug": "already-analyzed-job"})
 
     assert llm.calls == 0
@@ -268,12 +289,14 @@ async def test_activity_flow_rejects_analyzed_status():
 @pytest.mark.asyncio
 async def test_activity_flow_rejects_analyze_pending_status():
     """Verify activity rejects a job with status 'analyze_pending'."""
-    fake_api = _FakeAPI({
-        "id": 104,
-        "slug": "pending-job",
-        "status": "analyze_pending",
-        "description": "Pending",
-    })
+    fake_api = _FakeAPI(
+        {
+            "id": 104,
+            "slug": "pending-job",
+            "status": "analyze_pending",
+            "description": "Pending",
+        }
+    )
     repo_contract = RepositoryContract(api=fake_api)
     llm = _FakeLLM({"family": "technology", "seniority": "senior"})
     svc = AnalyzeJob(api=fake_api, llm=llm)
@@ -283,9 +306,17 @@ async def test_activity_flow_rejects_analyze_pending_status():
         api=APIConfig("http://localhost:8080", "test-key"),
         omni_route=OmniRouteConfig("http://localhost:20128", "test-key", "test-model"),
     )
-    init_container(WorkerContainer(cfg=dummy_cfg, repository=repo_contract, usecase=UsecaseContract(analyze_job=svc)))
+    init_container(
+        WorkerContainer(
+            cfg=dummy_cfg,
+            repository=repo_contract,
+            usecase=UsecaseContract(analyze_job=svc),
+        )
+    )
 
-    with pytest.raises(ValueError, match="cannot be analyzed: current status is 'analyze_pending'"):
+    with pytest.raises(
+        ValueError, match="cannot be analyzed: current status is 'analyze_pending'"
+    ):
         await analyze_job_activity({"slug": "pending-job"})
 
     assert llm.calls == 0
@@ -295,12 +326,14 @@ async def test_activity_flow_rejects_analyze_pending_status():
 @pytest.mark.asyncio
 async def test_activity_flow_patches_failed_on_llm_error():
     """Verify activity transitions to analyze_pending, then patches failed on LLM exception."""
-    fake_api = _FakeAPI({
-        "id": 105,
-        "slug": "failing-job-slug",
-        "status": "new",
-        "description": "Some job description",
-    })
+    fake_api = _FakeAPI(
+        {
+            "id": 105,
+            "slug": "failing-job-slug",
+            "status": "new",
+            "description": "Some job description",
+        }
+    )
     repo_contract = RepositoryContract(api=fake_api)
 
     svc = AnalyzeJob(api=fake_api, llm=_FailingLLM())
@@ -311,7 +344,11 @@ async def test_activity_flow_patches_failed_on_llm_error():
         api=APIConfig("http://localhost:8080", "test-key"),
         omni_route=OmniRouteConfig("http://localhost:20128", "test-key", "test-model"),
     )
-    init_container(WorkerContainer(cfg=dummy_cfg, repository=repo_contract, usecase=usecase_contract))
+    init_container(
+        WorkerContainer(
+            cfg=dummy_cfg, repository=repo_contract, usecase=usecase_contract
+        )
+    )
 
     slug = "failing-job-slug"
     with pytest.raises(RuntimeError, match="LLM quota exceeded"):
@@ -337,7 +374,13 @@ async def test_activity_flow_raises_on_get_job_missing_status():
         api=APIConfig("http://localhost:8080", "test-key"),
         omni_route=OmniRouteConfig("http://localhost:20128", "test-key", "test-model"),
     )
-    init_container(WorkerContainer(cfg=dummy_cfg, repository=repo_contract, usecase=UsecaseContract(analyze_job=svc)))
+    init_container(
+        WorkerContainer(
+            cfg=dummy_cfg,
+            repository=repo_contract,
+            usecase=UsecaseContract(analyze_job=svc),
+        )
+    )
 
     with pytest.raises(RuntimeError, match="missing 'status' field"):
         await analyze_job_activity({"slug": "test-slug"})
@@ -364,9 +407,17 @@ async def test_activity_flow_raises_on_patch_pending_unexpected_response():
         api=APIConfig("http://localhost:8080", "test-key"),
         omni_route=OmniRouteConfig("http://localhost:20128", "test-key", "test-model"),
     )
-    init_container(WorkerContainer(cfg=dummy_cfg, repository=repo_contract, usecase=UsecaseContract(analyze_job=svc)))
+    init_container(
+        WorkerContainer(
+            cfg=dummy_cfg,
+            repository=repo_contract,
+            usecase=UsecaseContract(analyze_job=svc),
+        )
+    )
 
-    with pytest.raises(RuntimeError, match="failed to transition job 'test-slug' to 'analyze_pending'"):
+    with pytest.raises(
+        RuntimeError, match="failed to transition job 'test-slug' to 'analyze_pending'"
+    ):
         await analyze_job_activity({"slug": "test-slug"})
 
 
@@ -391,7 +442,15 @@ async def test_activity_flow_raises_on_patch_analyzed_unexpected_response():
         api=APIConfig("http://localhost:8080", "test-key"),
         omni_route=OmniRouteConfig("http://localhost:20128", "test-key", "test-model"),
     )
-    init_container(WorkerContainer(cfg=dummy_cfg, repository=repo_contract, usecase=UsecaseContract(analyze_job=svc)))
+    init_container(
+        WorkerContainer(
+            cfg=dummy_cfg,
+            repository=repo_contract,
+            usecase=UsecaseContract(analyze_job=svc),
+        )
+    )
 
-    with pytest.raises(RuntimeError, match="failed to transition job 'test-slug' to 'analyzed'"):
+    with pytest.raises(
+        RuntimeError, match="failed to transition job 'test-slug' to 'analyzed'"
+    ):
         await analyze_job_activity({"slug": "test-slug"})

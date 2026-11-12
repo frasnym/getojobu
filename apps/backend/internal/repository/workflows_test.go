@@ -90,3 +90,71 @@ func TestWorkflowsRepository_StartJobAnalyze_failure(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "execute temporal workflow")
 }
+
+func TestWorkflowsRepository_StartJobScrape_nil_client(t *testing.T) {
+	repo := NewWorkflowsRepository(nil, "test-queue")
+	_, err := repo.StartJobScrape(context.Background(), "wf-scrape-1", models.JobScrapeWorkflowInput{})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "temporal client not configured")
+}
+
+func TestWorkflowsRepository_StartJobScrape_success(t *testing.T) {
+	var capturedOptions client.StartWorkflowOptions
+	var capturedWorkflow string
+	var capturedInput models.JobScrapeWorkflowInput
+
+	mockClient := &mockTemporalWorkflowClient{
+		executeFunc: func(ctx context.Context, options client.StartWorkflowOptions, workflow interface{}, args ...interface{}) (client.WorkflowRun, error) {
+			capturedOptions = options
+			capturedWorkflow = workflow.(string)
+			capturedInput = args[0].(models.JobScrapeWorkflowInput)
+			return nil, nil
+		},
+	}
+
+	repo := NewWorkflowsRepository(mockClient, "custom-queue")
+	input := models.JobScrapeWorkflowInput{
+		UserID:     "admin",
+		SearchID:   "search-1",
+		WorkflowID: "job-scrape-scan-1",
+		Searches: []models.ScrapeSearch{
+			{Keywords: []string{"golang"}, Locations: []string{"ireland"}},
+		},
+	}
+
+	wfID, err := repo.StartJobScrape(context.Background(), "job-scrape-scan-1", input)
+	require.NoError(t, err)
+	assert.Equal(t, "job-scrape-scan-1", wfID)
+	assert.Equal(t, "job-scrape-scan-1", capturedOptions.ID)
+	assert.Equal(t, "job-scrape", capturedOptions.TaskQueue)
+	assert.Equal(t, "JobScrapeWorkflow", capturedWorkflow)
+	assert.Equal(t, "admin", capturedInput.UserID)
+}
+
+func TestWorkflowsRepository_StartJobScrape_already_started(t *testing.T) {
+	mockClient := &mockTemporalWorkflowClient{
+		executeFunc: func(ctx context.Context, options client.StartWorkflowOptions, workflow interface{}, args ...interface{}) (client.WorkflowRun, error) {
+			return nil, &serviceerror.WorkflowExecutionAlreadyStarted{
+				Message: "Workflow already running",
+			}
+		},
+	}
+
+	repo := NewWorkflowsRepository(mockClient, "test-queue")
+	wfID, err := repo.StartJobScrape(context.Background(), "job-scrape-scan-2", models.JobScrapeWorkflowInput{})
+	require.NoError(t, err)
+	assert.Equal(t, "job-scrape-scan-2", wfID)
+}
+
+func TestWorkflowsRepository_StartJobScrape_failure(t *testing.T) {
+	mockClient := &mockTemporalWorkflowClient{
+		executeFunc: func(ctx context.Context, options client.StartWorkflowOptions, workflow interface{}, args ...interface{}) (client.WorkflowRun, error) {
+			return nil, errors.New("connection failed")
+		},
+	}
+
+	repo := NewWorkflowsRepository(mockClient, "test-queue")
+	_, err := repo.StartJobScrape(context.Background(), "job-scrape-scan-3", models.JobScrapeWorkflowInput{})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "execute temporal workflow")
+}

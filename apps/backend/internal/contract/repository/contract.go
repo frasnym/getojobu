@@ -11,15 +11,15 @@ import (
 // Contract is the repository layer contract. Repository implementations
 // attach their data-access methods here as the domain model grows.
 type Contract struct {
-	DB                      database.DB
-	Transactor              database.Transactor
-	UsersRepository         repo.Users
-	ExperiencesRepository   repo.Experiences
-	ProjectsRepository      repo.Projects
-	ProjectSkillsRepository repo.ProjectSkills
-	JobsRepository          repo.Jobs
-	UserJobsRepository      repo.UserJobs
-	WorkflowsRepository     repo.Workflows
+	DB                       database.DB
+	Transactor               database.Transactor
+	UsersRepository          repo.Users
+	ExperiencesRepository    repo.Experiences
+	ProjectsRepository       repo.Projects
+	ProjectSkillsRepository  repo.ProjectSkills
+	JobsRepository           repo.Jobs
+	UserJobsRepository       repo.UserJobs
+	WorkflowsRepository      repo.Workflows
 	ScoringConfigsRepository repo.ScoringConfigs
 }
 

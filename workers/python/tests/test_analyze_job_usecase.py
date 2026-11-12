@@ -1,7 +1,6 @@
 """Tests for the analyze_job usecase validation (Step 1B business logic)."""
 
 import pytest
-
 from usecase.analyze_job.service import AnalyzeJob
 
 
@@ -35,7 +34,9 @@ class _FakeAPI:
 
 @pytest.mark.asyncio
 async def test_analyze_rejects_empty_job_description():
-    fake_api = _FakeAPI({"id": 1, "slug": "job-1", "status": "new", "description": "   "})
+    fake_api = _FakeAPI(
+        {"id": 1, "slug": "job-1", "status": "new", "description": "   "}
+    )
     llm = _FakeLLM({"family": "technology", "seniority": "unknown"})
     svc = AnalyzeJob(api=fake_api, llm=llm)
 
@@ -47,12 +48,14 @@ async def test_analyze_rejects_empty_job_description():
 
 @pytest.mark.asyncio
 async def test_analyze_returns_parsed_analysis():
-    fake_api = _FakeAPI({
-        "id": 1,
-        "slug": "job-1",
-        "status": "new",
-        "description": "We need a Senior Backend Engineer with Golang.",
-    })
+    fake_api = _FakeAPI(
+        {
+            "id": 1,
+            "slug": "job-1",
+            "status": "new",
+            "description": "We need a Senior Backend Engineer with Golang.",
+        }
+    )
     llm = _FakeLLM(
         {
             "family": "technology",
@@ -84,14 +87,18 @@ async def test_analyze_returns_parsed_analysis():
 
 @pytest.mark.asyncio
 async def test_analyze_sets_metadata_defaults():
-    fake_api = _FakeAPI({
-        "id": 42,
-        "slug": "job-42",
-        "status": "new",
-        "description": "We need an engineer.",
-    })
+    fake_api = _FakeAPI(
+        {
+            "id": 42,
+            "slug": "job-42",
+            "status": "new",
+            "description": "We need an engineer.",
+        }
+    )
     llm = _FakeLLM({"family": "technology", "seniority": "mid"})
-    svc = AnalyzeJob(api=fake_api, llm=llm, model="gpt-4o-mini", prompt_version="extract-job-v1")
+    svc = AnalyzeJob(
+        api=fake_api, llm=llm, model="gpt-4o-mini", prompt_version="extract-job-v1"
+    )
 
     analysis = await svc.analyze(slug="job-42")
 
@@ -103,12 +110,14 @@ async def test_analyze_sets_metadata_defaults():
 
 @pytest.mark.asyncio
 async def test_analyze_metadata_empty_when_unset():
-    fake_api = _FakeAPI({
-        "id": 42,
-        "slug": "job-42",
-        "status": "new",
-        "description": "We need an engineer.",
-    })
+    fake_api = _FakeAPI(
+        {
+            "id": 42,
+            "slug": "job-42",
+            "status": "new",
+            "description": "We need an engineer.",
+        }
+    )
     llm = _FakeLLM({"family": "technology", "seniority": "mid"})
     svc = AnalyzeJob(api=fake_api, llm=llm)
 

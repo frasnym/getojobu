@@ -69,7 +69,9 @@ class AnalyzeJob:
             )
 
         # 3. Transition status to 'analyze_pending' and verify response
-        pending_resp = await self._api.patch_job_status(slug=slug, status="analyze_pending")
+        pending_resp = await self._api.patch_job_status(
+            slug=slug, status="analyze_pending"
+        )
         if pending_resp.get("status") != "analyze_pending":
             actual_status = pending_resp.get("status")
             raise RuntimeError(
@@ -80,7 +82,9 @@ class AnalyzeJob:
         jd = job_description or job.get("description")
         if not jd or not jd.strip():
             err_msg = f"job {slug!r} has no description to analyze"
-            await self._api.patch_job_status(slug=slug, status="failed", failure_message=err_msg)
+            await self._api.patch_job_status(
+                slug=slug, status="failed", failure_message=err_msg
+            )
             raise ValueError(err_msg)
 
         resolved_job_id = job_id or str(job.get("id", ""))
@@ -91,10 +95,12 @@ class AnalyzeJob:
         except Exception as exc:
             # 5b. Transition status to 'failed' on error
             try:
-                fail_resp = await self._api.patch_job_status(slug=slug, status="failed", failure_message=str(exc))
+                fail_resp = await self._api.patch_job_status(
+                    slug=slug, status="failed", failure_message=str(exc)
+                )
                 if fail_resp.get("status") != "failed":
                     pass  # keep underlying LLM error as primary exception
-            except Exception:
+            except Exception:  # noqa: BLE001, S110
                 pass  # do not swallow the underlying LLM error
             raise
 

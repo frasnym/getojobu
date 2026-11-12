@@ -5,7 +5,6 @@ from typing import Any
 
 import httpx
 import pytest
-
 from models.api_response import ApiResponse
 from models.scoring_config import ScoringConfig
 from repository.getojobu_api import NewGetojobuAPI
@@ -19,7 +18,10 @@ def _mock_transport(
     return httpx.AsyncClient(
         transport=transport,
         base_url="http://testserver",
-        headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        },
     )
 
 
@@ -79,7 +81,9 @@ async def test_get_job_raises_on_standard_error_response():
     api = NewGetojobuAPI(base_url="http://testserver", api_key="secret-key")
     api._client = _mock_transport(handler)
 
-    with pytest.raises(RuntimeError, match="failed with API error \\(NOT_FOUND\\): job not found"):
+    with pytest.raises(
+        RuntimeError, match="failed with API error \\(NOT_FOUND\\): job not found"
+    ):
         await api.get_job("non-existent-slug")
     await api.aclose()
 
@@ -154,7 +158,9 @@ async def test_patch_job_status_raises_on_api_error_response():
                 "error": {
                     "code": "VALIDATION_FAILED",
                     "message": "invalid status transition: job is already finalized",
-                    "details": [{"field": "status", "issue": "cannot transition from analyzed"}],
+                    "details": [
+                        {"field": "status", "issue": "cannot transition from analyzed"}
+                    ],
                 },
             },
         )
@@ -162,7 +168,9 @@ async def test_patch_job_status_raises_on_api_error_response():
     api = NewGetojobuAPI(base_url="http://testserver", api_key="secret-key")
     api._client = _mock_transport(handler)
 
-    with pytest.raises(RuntimeError, match="VALIDATION_FAILED.*invalid status transition"):
+    with pytest.raises(
+        RuntimeError, match="VALIDATION_FAILED.*invalid status transition"
+    ):
         await api.patch_job_status("test-slug", "analyze_pending")
     await api.aclose()
 
@@ -241,7 +249,11 @@ async def test_get_active_scoring_config_success():
                     "family": "technology",
                     "version": 1,
                     "categories": [
-                        {"name": "technical_skills", "weight": 0.60, "description": "skills"},
+                        {
+                            "name": "technical_skills",
+                            "weight": 0.60,
+                            "description": "skills",
+                        },
                         {"name": "experience", "weight": 0.40, "description": "exp"},
                     ],
                     "is_active": True,
@@ -267,3 +279,52 @@ async def test_get_active_scoring_config_success():
     assert len(validated.categories) == 2
     await api.aclose()
 
+
+@pytest.mark.asyncio
+async def test_post_success_dict():
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.headers["authorization"] == "Bearer secret-key"
+        assert request.url.path == "/v1/jobs/bulk-queue-analyze"
+        return httpx.Response(
+            200,
+            json={
+                "success": True,
+                "data": {"workflow_ids": ["job-analyze-1", "job-analyze-2"]},
+                "error": None,
+            },
+        )
+
+    api = NewGetojobuAPI(base_url="http://testserver", api_key="secret-key")
+    api._client = _mock_transport(handler)
+
+    res = await api.post("/v1/jobs/bulk-queue-analyze", json=[{"slug": "s1"}])
+    assert res == {"workflow_ids": ["job-analyze-1", "job-analyze-2"]}
+    await api.aclose()
+
+
+@pytest.mark.asyncio
+async def test_post_success_list():
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.headers["authorization"] == "Bearer secret-key"
+        assert request.url.path == "/v1/jobs/bulk"
+        return httpx.Response(
+            200,
+            json={
+                "success": True,
+                "data": [
+                    {"slug": "job-1", "created": True},
+                    {"slug": "job-2", "created": False},
+                ],
+                "error": None,
+            },
+        )
+
+    api = NewGetojobuAPI(base_url="http://testserver", api_key="secret-key")
+    api._client = _mock_transport(handler)
+
+    res = await api.post("/v1/jobs/bulk", json={"jobs": []})
+    assert isinstance(res, list)
+    assert len(res) == 2
+    assert res[0]["slug"] == "job-1"
+    assert res[0]["created"] is True
+    await api.aclose()

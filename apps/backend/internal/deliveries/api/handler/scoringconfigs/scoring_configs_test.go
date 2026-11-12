@@ -283,4 +283,3 @@ func TestRoute_ValidAPIKey_Enforcement(t *testing.T) {
 	router.Mux().ServeHTTP(wValid, reqValid)
 	assert.Equal(t, http.StatusOK, wValid.Code)
 }
-

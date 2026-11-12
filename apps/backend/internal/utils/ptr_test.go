@@ -12,4 +12,3 @@ func TestPtrString(t *testing.T) {
 	assert.NotNil(t, s)
 	assert.Equal(t, "hello", *s)
 }
-

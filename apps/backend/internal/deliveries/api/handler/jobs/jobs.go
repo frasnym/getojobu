@@ -37,10 +37,12 @@ func NewHandler(c *contract.Contract) *handler {
 // Route registers the job routes under the given group.
 func (h *handler) Route(g *httpx.Router) {
 	auth := middleware.NewAuthMiddleware(h.cfg, h.userUC)
+	apiKey := middleware.NewAuthMiddleware(h.cfg, nil)
 
 	g.POST("", h.CreateJob, auth.ValidClerkOrAPIKey)
 	g.POST("/bulk", h.BulkCreateJob, auth.ValidClerkOrAPIKey)
 	g.POST("/bulk-queue-analyze", h.BulkQueueAnalyzeJob, auth.ValidClerkOrAPIKey)
+	g.POST("/scrape", h.ScrapeJobs, apiKey.ValidAPIKey)
 	g.GET("", h.ListJobs, auth.ValidClerkOrAPIKey)
 	g.GET("/{slug}", h.GetJob, auth.ValidClerkOrAPIKey)
 	g.PATCH("/{slug}", h.UpdateJob, auth.ValidClerkOrAPIKey)

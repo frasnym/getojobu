@@ -20,6 +20,7 @@ type WorkflowClient interface {
 // Workflows defines operations for triggering Temporal workflows.
 type Workflows interface {
 	StartJobAnalyze(ctx context.Context, workflowID string, input models.JobAnalyzeWorkflowInput) (string, error)
+	StartJobScrape(ctx context.Context, workflowID string, input models.JobScrapeWorkflowInput) (string, error)
 }
 
 type workflowsRepository struct {
@@ -50,6 +51,29 @@ func (r *workflowsRepository) StartJobAnalyze(ctx context.Context, workflowID st
 	}
 
 	_, err := r.client.ExecuteWorkflow(ctx, options, "JobAnalyzeWorkflow", input)
+	if err != nil {
+		if temporal.IsWorkflowExecutionAlreadyStartedError(err) {
+			return workflowID, nil
+		}
+		return "", fmt.Errorf("execute temporal workflow: %w", err)
+	}
+
+	return workflowID, nil
+}
+
+// StartJobScrape starts the JobScrapeWorkflow in Temporal with deduplication
+// handling.
+func (r *workflowsRepository) StartJobScrape(ctx context.Context, workflowID string, input models.JobScrapeWorkflowInput) (string, error) {
+	if r.client == nil {
+		return "", errors.New("temporal client not configured")
+	}
+
+	options := client.StartWorkflowOptions{
+		ID:        workflowID,
+		TaskQueue: "job-scrape",
+	}
+
+	_, err := r.client.ExecuteWorkflow(ctx, options, "JobScrapeWorkflow", input)
 	if err != nil {
 		if temporal.IsWorkflowExecutionAlreadyStartedError(err) {
 			return workflowID, nil

@@ -447,6 +447,57 @@
                 }
             }
         },
+        "/v1/jobs/scrape": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Start a job discovery scan for a given set of keyword × location searches. Returns 202 with the workflow id. Machine callers only (API key auth).",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "jobs"
+                ],
+                "summary": "Queue a job scrape scan",
+                "parameters": [
+                    {
+                        "description": "Search queries",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.ScrapeJobsRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Accepted",
+                        "schema": {
+                            "$ref": "#/definitions/models.ScrapeJobsResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpx.Error"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/httpx.Error"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/jobs/{slug}": {
             "get": {
                 "security": [
@@ -1641,6 +1692,42 @@
                 },
                 "version": {
                     "type": "integer"
+                }
+            }
+        },
+        "models.ScrapeJobsRequest": {
+            "type": "object",
+            "properties": {
+                "searches": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.ScrapeSearch"
+                    }
+                }
+            }
+        },
+        "models.ScrapeJobsResponse": {
+            "type": "object",
+            "properties": {
+                "workflow_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.ScrapeSearch": {
+            "type": "object",
+            "properties": {
+                "keywords": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "locations": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 }
             }
         },

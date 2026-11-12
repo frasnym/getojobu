@@ -314,6 +314,29 @@ definitions:
       version:
         type: integer
     type: object
+  models.ScrapeJobsRequest:
+    properties:
+      searches:
+        items:
+          $ref: '#/definitions/models.ScrapeSearch'
+        type: array
+    type: object
+  models.ScrapeJobsResponse:
+    properties:
+      workflow_id:
+        type: string
+    type: object
+  models.ScrapeSearch:
+    properties:
+      keywords:
+        items:
+          type: string
+        type: array
+      locations:
+        items:
+          type: string
+        type: array
+    type: object
   models.UpdateScoringConfigParams:
     properties:
       categories:
@@ -755,6 +778,40 @@ paths:
       security:
       - ApiKeyAuth: []
       summary: Bulk queue job analysis
+      tags:
+      - jobs
+  /v1/jobs/scrape:
+    post:
+      consumes:
+      - application/json
+      description: Start a job discovery scan for a given set of keyword × location
+        searches. Returns 202 with the workflow id. Machine callers only (API key
+        auth).
+      parameters:
+      - description: Search queries
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.ScrapeJobsRequest'
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            $ref: '#/definitions/models.ScrapeJobsResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpx.Error'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpx.Error'
+      security:
+      - ApiKeyAuth: []
+      summary: Queue a job scrape scan
       tags:
       - jobs
   /v1/projects:

@@ -149,4 +149,3 @@ func TestScoringConfigService_Update_ActiveConfigCategoriesRejected(t *testing.T
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "cannot update categories of an active configuration")
 }
-

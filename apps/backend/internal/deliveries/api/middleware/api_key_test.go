@@ -206,4 +206,3 @@ func TestValidAPIKey_rejects_non_machine_key(t *testing.T) {
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
 	assert.Equal(t, "missing or invalid api key", resp.Error.Message)
 }
-

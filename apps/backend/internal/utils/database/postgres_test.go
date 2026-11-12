@@ -33,7 +33,7 @@ func (m *mockTx) CopyFrom(ctx context.Context, tableName pgx.Identifier, columnN
 	return 0, nil
 }
 func (m *mockTx) SendBatch(ctx context.Context, b *pgx.Batch) pgx.BatchResults { return nil }
-func (m *mockTx) LargeObjects() pgx.LargeObjects                             { return pgx.LargeObjects{} }
+func (m *mockTx) LargeObjects() pgx.LargeObjects                               { return pgx.LargeObjects{} }
 func (m *mockTx) Prepare(ctx context.Context, name, sql string) (*pgconn.StatementDescription, error) {
 	return nil, nil
 }
@@ -51,8 +51,8 @@ type mockDB struct {
 	beginErr error
 }
 
-func (d *mockDB) Ping(ctx context.Context) error                       { return nil }
-func (d *mockDB) Close()                                               {}
+func (d *mockDB) Ping(ctx context.Context) error { return nil }
+func (d *mockDB) Close()                         {}
 func (d *mockDB) QueryRow(ctx context.Context, sql string, args ...any) pgx.Row {
 	return nil
 }

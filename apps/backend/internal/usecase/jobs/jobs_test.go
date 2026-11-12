@@ -314,6 +314,80 @@ func TestUpdateStatus_invalid_transition(t *testing.T) {
 	assert.True(t, errors.Is(err, constants.ErrInvalidTransition))
 }
 
+func TestStartJobScrape_valid(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	mockWF := mocks.NewMockWorkflows(ctrl)
+	s := &jobService{workflows: mockWF}
+
+	params := models.ScrapeJobsParams{
+		UserID:     "admin",
+		SearchID:   "search-123",
+		WorkflowID: "job-scrape-scan-123",
+		Searches: []models.ScrapeSearch{
+			{Keywords: []string{"golang"}, Locations: []string{"ireland"}},
+		},
+	}
+
+	expectedInput := models.JobScrapeWorkflowInput{
+		UserID:     "admin",
+		SearchID:   "search-123",
+		WorkflowID: "job-scrape-scan-123",
+		Searches:   params.Searches,
+	}
+
+	mockWF.EXPECT().
+		StartJobScrape(gomock.Any(), "job-scrape-scan-123", expectedInput).
+		Return("job-scrape-scan-123", nil)
+
+	wfID, err := s.StartJobScrape(context.Background(), params)
+	require.NoError(t, err)
+	assert.Equal(t, "job-scrape-scan-123", wfID)
+}
+
+func TestStartJobScrape_validation_errors(t *testing.T) {
+	s := &jobService{}
+
+	_, err := s.StartJobScrape(context.Background(), models.ScrapeJobsParams{Searches: nil})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "must provide at least one search")
+
+	_, err = s.StartJobScrape(context.Background(), models.ScrapeJobsParams{
+		Searches: []models.ScrapeSearch{
+			{Keywords: nil, Locations: []string{"ireland"}},
+		},
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "at least one keyword required")
+
+	_, err = s.StartJobScrape(context.Background(), models.ScrapeJobsParams{
+		Searches: []models.ScrapeSearch{
+			{Keywords: []string{"golang"}, Locations: nil},
+		},
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "at least one location required")
+}
+
+func TestStartJobScrape_workflow_error(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	mockWF := mocks.NewMockWorkflows(ctrl)
+	s := &jobService{workflows: mockWF}
+
+	mockWF.EXPECT().
+		StartJobScrape(gomock.Any(), gomock.Any(), gomock.Any()).
+		Return("", errors.New("temporal unavailable"))
+
+	_, err := s.StartJobScrape(context.Background(), models.ScrapeJobsParams{
+		Searches: []models.ScrapeSearch{
+			{Keywords: []string{"golang"}, Locations: []string{"ireland"}},
+		},
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "start job scrape workflow")
+}
+
 func strPtr(s string) *string {
 	return &s
 }

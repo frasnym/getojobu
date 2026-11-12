@@ -4,8 +4,8 @@ Mirrors apps/backend/cmd/api/main.go: config.Load() → contract.New() →
 delivery → graceful start/stop. Here: config → contract → Temporal worker
 → graceful start/stop.
 
-The worker polls the job-evaluation task queue and executes Step 1B
-activities (LLM-powered job description analysis).
+The worker polls the job-analyze and job-scrape task queues and
+executes their respective activities and workflows.
 """
 
 from __future__ import annotations
@@ -14,17 +14,23 @@ import asyncio
 import signal
 import sys
 
-from temporalio.worker import Worker
-
 from config.config import load as config_load
 from contract.contract import new as contract_new
 from deliveries.consumer.activities.analyze_job import (
     analyze_job_activity,
     init_container,
 )
+from deliveries.consumer.activities.job_scrape import (
+    enrich_jobs,
+    ingest_jobs,
+    queue_analysis,
+    scrape_scan,
+)
+from temporalio.worker import Worker
 from utils.logging import configure, get_logger
 from utils.temporal import connect as temporal_connect
 from workflows.job_analyze import JobAnalyzeWorkflow
+from workflows.job_scrape import JobScrapeWorkflow
 
 logger = get_logger("worker.main")
 
@@ -56,16 +62,23 @@ async def run() -> int:
     # Initialize the activity container (reuse the contract already built).
     init_container(contract)
 
-    worker = Worker(
+    job_analyze_worker = Worker(
         temporal_client.client,
         task_queue=cfg.temporal.task_queue_job_analyze,
         activities=[analyze_job_activity],
         workflows=[JobAnalyzeWorkflow],
     )
+    job_scrape_worker = Worker(
+        temporal_client.client,
+        task_queue=cfg.temporal.task_queue_job_scrape,
+        activities=[scrape_scan, enrich_jobs, ingest_jobs, queue_analysis],
+        workflows=[JobScrapeWorkflow],
+    )
 
     logger.info(
         "worker_starting",
-        task_queue=cfg.temporal.task_queue_job_analyze,
+        job_analyze_queue=cfg.temporal.task_queue_job_analyze,
+        job_scrape_queue=cfg.temporal.task_queue_job_scrape,
         namespace=cfg.temporal.namespace,
     )
 
@@ -82,24 +95,23 @@ async def run() -> int:
         except NotImplementedError:  # pragma: no cover - Windows
             pass
 
-    # Run the worker until a shutdown signal is received.
-    # NOTE: do NOT use `async with worker:` — Worker.__aenter__ calls start()
-    # which sets Temporal TaskLocals on the event loop; worker.run() then tries
-    # to set them again in validate() and panics ("must only be set once:
-    # TaskLocals"). Match the working pattern in apps/temporal/worker: just
-    # create a task from worker.run() and cancel on shutdown.
-    worker_task = asyncio.create_task(worker.run())
+    # Run both workers until a shutdown signal is received.
+    job_analyze_task = asyncio.create_task(job_analyze_worker.run())
+    job_scrape_task = asyncio.create_task(job_scrape_worker.run())
     try:
         await stop_event.wait()
     finally:
-        worker_task.cancel()
-        try:
-            await worker_task
-        except asyncio.CancelledError:
-            pass
+        job_analyze_task.cancel()
+        job_scrape_task.cancel()
+        for t in (job_analyze_task, job_scrape_task):
+            try:
+                await t
+            except asyncio.CancelledError:
+                pass
 
     logger.info("worker_stopped")
-    await worker.shutdown()
+    await job_analyze_worker.shutdown()
+    await job_scrape_worker.shutdown()
     await stopper()
     return 0
 

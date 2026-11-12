@@ -27,6 +27,9 @@ type Job interface {
 	UpdateStatus(ctx context.Context, slug, status string, analyzeResult, failureMessage *string, updatedByType, updatedByID string) (*models.Job, error)
 	// QueueAnalysisBulk validates each job and queues its JobAnalyzeWorkflow in Temporal.
 	QueueAnalysisBulk(ctx context.Context, items []models.QueueAnalysisItem, caller *models.Principal) ([]string, error)
+	// StartJobScrape starts the JobScrapeWorkflow in Temporal for the given
+	// owner + search set, returning the workflow id.
+	StartJobScrape(ctx context.Context, params models.ScrapeJobsParams) (string, error)
 }
 
 type jobService struct {
@@ -172,6 +175,37 @@ func (s *jobService) IsOwned(ctx context.Context, userID string, jobID int64) (b
 // case-insensitively.
 func (s *jobService) SearchByCompany(ctx context.Context, company string, limit int) ([]*models.Job, error) {
 	return s.repo.SearchByCompany(ctx, company, limit)
+}
+
+// StartJobScrape starts the JobScrapeWorkflow in Temporal for the given
+// owner + search, returning the workflow id. The workflow id is computed by
+// the caller (stable idempotent ids: job-scrape-scan-{scan} or
+// job-scrape-{user_id}-{scan}).
+func (s *jobService) StartJobScrape(ctx context.Context, params models.ScrapeJobsParams) (string, error) {
+	if len(params.Searches) == 0 {
+		return "", fmt.Errorf("must provide at least one search")
+	}
+
+	for _, src := range params.Searches {
+		if len(src.Keywords) == 0 {
+			return "", fmt.Errorf("search entry %d: at least one keyword required", len(src.Keywords))
+		}
+		if len(src.Locations) == 0 {
+			return "", fmt.Errorf("search entry %d: at least one location required", len(src.Locations))
+		}
+	}
+
+	workflowID, err := s.workflows.StartJobScrape(ctx, params.WorkflowID, models.JobScrapeWorkflowInput{
+		UserID:     params.UserID,
+		SearchID:   params.SearchID,
+		Searches:   params.Searches,
+		WorkflowID: params.WorkflowID,
+	})
+	if err != nil {
+		return "", fmt.Errorf("start job scrape workflow: %w", err)
+	}
+
+	return workflowID, nil
 }
 
 // UpdateStatus validates the status transition for the job identified by slug

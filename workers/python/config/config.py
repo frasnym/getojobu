@@ -18,6 +18,7 @@ class TemporalConfig:
     host: str
     namespace: str
     task_queue_job_analyze: str
+    task_queue_job_scrape: str = "job-scrape"  # job-scrape
 
 
 @dataclass(frozen=True)
@@ -59,8 +60,8 @@ def load() -> Config:
     """Load configuration from the environment.
 
     Reads TEMPORAL_HOST, TEMPORAL_NAMESPACE,
-    TEMPORAL_TASK_QUEUE_JOB_ANALYZE, API_BASE_URL, API_KEY,
-    OMNIROUTE_BASE_URL, OMNIROUTE_API_KEY, OMNIROUTE_MODEL.
+    TEMPORAL_TASK_QUEUE_JOB_ANALYZE, TEMPORAL_TASK_QUEUE_JOB_SCRAPE, API_BASE_URL,
+    API_KEY, OMNIROUTE_BASE_URL, OMNIROUTE_API_KEY, OMNIROUTE_MODEL.
     """
     return Config(
         temporal=TemporalConfig(
@@ -68,6 +69,9 @@ def load() -> Config:
             namespace=_required("TEMPORAL_NAMESPACE"),
             task_queue_job_analyze=_optional(
                 "TEMPORAL_TASK_QUEUE_JOB_ANALYZE", "job-evaluation"
+            ),
+            task_queue_job_scrape=_optional(
+                "TEMPORAL_TASK_QUEUE_JOB_SCRAPE", "job-scrape"
             ),
         ),
         api=APIConfig(
@@ -77,6 +81,6 @@ def load() -> Config:
         omni_route=OmniRouteConfig(
             base_url=_required("OMNIROUTE_BASE_URL"),
             api_key=_required("OMNIROUTE_API_KEY"),
-            model=os.getenv("OMNIROUTE_MODEL") or os.getenv("LLM_MODEL") or os.getenv("MODEL") or None,
+            model=os.getenv("OMNIROUTE_MODEL") or None,
         ),
     )

@@ -15,7 +15,9 @@ class CategoryConfig(BaseModel):
 
     name: str = Field(..., description="Unique category key (e.g. 'technical_skills')")
     weight: float = Field(..., ge=0.0, le=1.0, description="Weight between 0.0 and 1.0")
-    description: str = Field(..., description="Category description and evaluation criteria")
+    description: str = Field(
+        ..., description="Category description and evaluation criteria"
+    )
 
 
 class ScoringConfig(BaseModel):
@@ -26,8 +28,12 @@ class ScoringConfig(BaseModel):
     id: str = Field(..., description="UUID primary key")
     family: str = Field(..., description="Job family key (e.g. 'technology')")
     version: int = Field(..., ge=1, description="Version number")
-    categories: list[CategoryConfig] = Field(..., min_length=1, description="Category definitions and weights")
-    is_active: bool = Field(..., description="Whether this version is active for the family")
+    categories: list[CategoryConfig] = Field(
+        ..., min_length=1, description="Category definitions and weights"
+    )
+    is_active: bool = Field(
+        ..., description="Whether this version is active for the family"
+    )
     created_at: datetime = Field(..., description="Record creation timestamp")
     updated_at: datetime = Field(..., description="Record update timestamp")
 
@@ -45,4 +51,3 @@ class ScoringConfig(BaseModel):
         if not (0.999 <= total_weight <= 1.001):
             raise ValueError(f"weights must sum to 1.0, got {total_weight}")
         return self
-
