@@ -29,10 +29,31 @@ logger = get_logger("activities.job_scrape")
 # Location normalizer: owner input -> board-specific location string.
 # v1: country-only. Add city rows here when needed.
 LOCATION_MAP: dict[str, dict[str, str]] = {
-    "ireland": {"glassdoor": "Ireland", "linkedin": "Ireland"},
-    "norway": {"glassdoor": "Norway", "linkedin": "Norway"},
+    "austria": {"glassdoor": "Austria", "linkedin": "Austria"},
+    "australia": {"glassdoor": "Australia", "linkedin": "Australia"},
+    "belgium": {"glassdoor": "Belgium", "linkedin": "Belgium"},
+    "canada": {"glassdoor": "Canada", "linkedin": "Canada"},
+    "denmark": {"glassdoor": "Denmark", "linkedin": "Denmark"},
+    "finland": {"glassdoor": "Finland", "linkedin": "Finland"},
+    "france": {"glassdoor": "France", "linkedin": "France"},
+    "germany": {"glassdoor": "Germany", "linkedin": "Germany"},
     "indonesia": {"glassdoor": "Indonesia", "linkedin": "Indonesia"},
+    "ireland": {"glassdoor": "Ireland", "linkedin": "Ireland"},
+    "japan": {"glassdoor": "Japan", "linkedin": "Japan"},
     "malaysia": {"glassdoor": "Malaysia", "linkedin": "Malaysia"},
+    "netherlands": {"glassdoor": "Netherlands", "linkedin": "Netherlands"},
+    "norway": {"glassdoor": "Norway", "linkedin": "Norway"},
+    "poland": {"glassdoor": "Poland", "linkedin": "Poland"},
+    "portugal": {"glassdoor": "Portugal", "linkedin": "Portugal"},
+    "singapore": {"glassdoor": "Singapore", "linkedin": "Singapore"},
+    "spain": {"glassdoor": "Spain", "linkedin": "Spain"},
+    "sweden": {"glassdoor": "Sweden", "linkedin": "Sweden"},
+    "switzerland": {"glassdoor": "Switzerland", "linkedin": "Switzerland"},
+    "united arab emirates": {
+        "glassdoor": "United Arab Emirates",
+        "linkedin": "United Arab Emirates",
+    },
+    "united kingdom": {"glassdoor": "United Kingdom", "linkedin": "United Kingdom"},
 }
 
 # Recency: jobs older than this are dropped by enrich_jobs.
