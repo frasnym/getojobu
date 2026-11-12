@@ -64,7 +64,10 @@ func (j createJobRequest) Validate() (time.Time, error) {
 
 	t, err := time.Parse("2006-01-02", j.PostedDate)
 	if err != nil {
-		return time.Time{}, httpx.Envelope(httpx.CodeInvalidRequest, "posted_date must be in YYYY-MM-DD format", "")
+		t, err = time.Parse(time.RFC3339Nano, j.PostedDate)
+		if err != nil {
+			return time.Time{}, httpx.Envelope(httpx.CodeInvalidRequest, "posted_date must be in YYYY-MM-DD or RFC3339 format", "")
+		}
 	}
 	return t, nil
 }

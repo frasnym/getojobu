@@ -280,7 +280,7 @@ def enrich_jobs(input_data: dict[str, Any]) -> dict[str, Any]:
     )
 
     cut = datetime.now(UTC) - timedelta(days=RECENT_DAYS)
-    jobs: list[dict[str, Any]] = []
+    jobs: list[tuple[datetime, dict[str, Any]]] = []
     filtered_recency = 0
     found = 0
 
@@ -362,21 +362,24 @@ def enrich_jobs(input_data: dict[str, Any]) -> dict[str, Any]:
             is_remote: bool = is_remote_val is True
 
             jobs.append(
-                {
-                    "user_ids": user_ids,
-                    "slug": build_job_slug(title_str, company_str, loc_str),
-                    "source": board,
-                    "source_url": source_url,
-                    "apply_url": apply_url,
-                    "title": title_str,
-                    "company": company_str,
-                    "location": loc_str,
-                    "description": row.get("description"),
-                    "posted_date": posted.isoformat(),
-                    "is_remote": is_remote,
-                    "updated_by_type": "cron",
-                    "updated_by_id": "cron-scrape",
-                }
+                (
+                    posted,
+                    {
+                        "user_ids": user_ids,
+                        "slug": build_job_slug(title_str, company_str, loc_str),
+                        "source": board,
+                        "source_url": source_url,
+                        "apply_url": apply_url,
+                        "title": title_str,
+                        "company": company_str,
+                        "location": loc_str,
+                        "description": row.get("description"),
+                        "posted_date": posted.strftime("%Y-%m-%d"),
+                        "is_remote": is_remote,
+                        "updated_by_type": "cron",
+                        "updated_by_id": "cron-scrape",
+                    },
+                )
             )
 
         except Exception as e:
@@ -388,20 +391,17 @@ def enrich_jobs(input_data: dict[str, Any]) -> dict[str, Any]:
                 exc_info=True,
             )
 
-    def _posted_date_key(j: dict[str, Any]) -> str:
-        pd = j.get("posted_date")
-        return pd if isinstance(pd, str) else ""
-
-    jobs.sort(key=_posted_date_key, reverse=True)
+    jobs.sort(key=lambda item: item[0], reverse=True)
+    sorted_jobs: list[dict[str, Any]] = [item[1] for item in jobs]
 
     _safe_heartbeat(
         found=found,
         filtered_out_recency=filtered_recency,
-        inserted=len(jobs),
+        inserted=len(sorted_jobs),
     )
 
     return {
-        "jobs": jobs,
+        "jobs": sorted_jobs,
         "found": found,
         "filtered_out_recency": filtered_recency,
         "errors": errors,

@@ -9,6 +9,9 @@ from __future__ import annotations
 from typing import Any, Protocol, cast, runtime_checkable
 
 import httpx
+from utils.logging import get_logger
+
+logger = get_logger("repository.getojobu_api")
 
 
 @runtime_checkable
@@ -54,9 +57,19 @@ class _getojobuAPI:
             },
         )
 
+    def _check_response(self, response: httpx.Response, operation: str) -> None:
+        if response.is_error:
+            logger.error(
+                "API request failed",
+                operation=operation,
+                status_code=response.status_code,
+                response_text=response.text,
+            )
+        response.raise_for_status()
+
     async def get_job(self, slug: str) -> dict[str, Any]:
         response = await self._client.get(f"/v1/jobs/{slug}")
-        response.raise_for_status()
+        self._check_response(response, operation=f"get job {slug!r}")
         raw = response.json()
         unwrapped = self._unwrap_response(raw, operation=f"get job {slug!r}")
         if not isinstance(unwrapped, dict):
@@ -81,7 +94,7 @@ class _getojobuAPI:
             f"/v1/jobs/{slug}",
             json=payload,
         )
-        response.raise_for_status()
+        self._check_response(response, operation=f"patch job {slug!r} status")
         raw = response.json()
         unwrapped = self._unwrap_response(raw, operation=f"patch job {slug!r} status")
         if not isinstance(unwrapped, dict):
@@ -95,7 +108,9 @@ class _getojobuAPI:
             "/v1/scoring-configs/active",
             params={"family": family},
         )
-        response.raise_for_status()
+        self._check_response(
+            response, operation=f"get active scoring config for {family!r}"
+        )
         raw = response.json()
         unwrapped = self._unwrap_response(
             raw, operation=f"get active scoring config for {family!r}"
@@ -108,7 +123,7 @@ class _getojobuAPI:
 
     async def post(self, path: str, json: Any) -> Any:
         response = await self._client.post(path, json=json)
-        response.raise_for_status()
+        self._check_response(response, operation=f"POST {path}")
         raw = response.json()
         return self._unwrap_response(raw, operation=f"POST {path}")
 

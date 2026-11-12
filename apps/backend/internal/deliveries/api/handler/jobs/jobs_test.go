@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/frasnym/getojobu/apps/backend/internal/config"
 	"github.com/frasnym/getojobu/apps/backend/internal/models"
@@ -724,4 +725,38 @@ func TestBulkQueueAnalyzeJob_invalid_force_type(t *testing.T) {
 	httpx.HandlerFunc(h.BulkQueueAnalyzeJob).ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestCreateJobRequest_Validate(t *testing.T) {
+	req := createJobRequest{
+		Source:   "glassdoor",
+		Title:    "Go Engineer",
+		Company:  "Tech Corp",
+		Location: "Norway",
+	}
+
+	// YYYY-MM-DD
+	req.PostedDate = "2026-11-12"
+	parsed, err := req.Validate()
+	require.NoError(t, err)
+	assert.Equal(t, 2026, parsed.Year())
+	assert.Equal(t, time.November, parsed.Month())
+	assert.Equal(t, 12, parsed.Day())
+
+	// RFC3339
+	req.PostedDate = "2026-11-12T10:00:00Z"
+	parsed, err = req.Validate()
+	require.NoError(t, err)
+	assert.Equal(t, 2026, parsed.Year())
+
+	// RFC3339Nano / ISO format from Python datetime
+	req.PostedDate = "2026-11-12T10:00:00.123456+00:00"
+	parsed, err = req.Validate()
+	require.NoError(t, err)
+	assert.Equal(t, 2026, parsed.Year())
+
+	// Invalid format
+	req.PostedDate = "invalid-date"
+	_, err = req.Validate()
+	require.Error(t, err)
 }
