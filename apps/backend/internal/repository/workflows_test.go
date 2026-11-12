@@ -14,7 +14,8 @@ import (
 )
 
 type mockTemporalWorkflowClient struct {
-	executeFunc func(ctx context.Context, options client.StartWorkflowOptions, workflow interface{}, args ...interface{}) (client.WorkflowRun, error)
+	executeFunc         func(ctx context.Context, options client.StartWorkflowOptions, workflow interface{}, args ...interface{}) (client.WorkflowRun, error)
+	signalWithStartFunc func(ctx context.Context, workflowID string, signalName string, signalArg interface{}, options client.StartWorkflowOptions, workflow interface{}, workflowArgs ...interface{}) (client.WorkflowRun, error)
 }
 
 func (m *mockTemporalWorkflowClient) ExecuteWorkflow(ctx context.Context, options client.StartWorkflowOptions, workflow interface{}, args ...interface{}) (client.WorkflowRun, error) {
@@ -24,116 +25,64 @@ func (m *mockTemporalWorkflowClient) ExecuteWorkflow(ctx context.Context, option
 	return nil, nil
 }
 
-func TestWorkflowsRepository_StartJobAnalyze_nil_client(t *testing.T) {
+func (m *mockTemporalWorkflowClient) SignalWithStartWorkflow(ctx context.Context, workflowID string, signalName string, signalArg interface{}, options client.StartWorkflowOptions, workflow interface{}, workflowArgs ...interface{}) (client.WorkflowRun, error) {
+	if m.signalWithStartFunc != nil {
+		return m.signalWithStartFunc(ctx, workflowID, signalName, signalArg, options, workflow, workflowArgs...)
+	}
+	return nil, nil
+}
+
+func TestWorkflowsRepository_StartLimiterWorkItem_nil_client(t *testing.T) {
 	repo := NewWorkflowsRepository(nil, "test-queue")
-	_, err := repo.StartJobAnalyze(context.Background(), "wf-1", models.JobAnalyzeWorkflowInput{})
+	_, err := repo.StartLimiterWorkItem(context.Background(), "wf-1", models.LimiterJobTypeScrape, nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "temporal client not configured")
 }
 
-func TestWorkflowsRepository_StartJobAnalyze_success(t *testing.T) {
+func TestWorkflowsRepository_StartLimiterWorkItem_enqueues_on_job_limit_queue(t *testing.T) {
+	var capturedWorkflowID string
+	var capturedSignalName string
+	var capturedSignalArg interface{}
 	var capturedOptions client.StartWorkflowOptions
 	var capturedWorkflow string
-	var capturedInput models.JobAnalyzeWorkflowInput
 
 	mockClient := &mockTemporalWorkflowClient{
-		executeFunc: func(ctx context.Context, options client.StartWorkflowOptions, workflow interface{}, args ...interface{}) (client.WorkflowRun, error) {
+		signalWithStartFunc: func(ctx context.Context, workflowID string, signalName string, signalArg interface{}, options client.StartWorkflowOptions, workflow interface{}, workflowArgs ...interface{}) (client.WorkflowRun, error) {
+			capturedWorkflowID = workflowID
+			capturedSignalName = signalName
+			capturedSignalArg = signalArg
 			capturedOptions = options
 			capturedWorkflow = workflow.(string)
-			capturedInput = args[0].(models.JobAnalyzeWorkflowInput)
-			return nil, nil
-		},
-	}
-
-	repo := NewWorkflowsRepository(mockClient, "custom-queue")
-	input := models.JobAnalyzeWorkflowInput{
-		JobDescription: "Go Backend Developer",
-		JobID:          "123",
-		Slug:           "go-dev",
-	}
-
-	wfID, err := repo.StartJobAnalyze(context.Background(), "job-analyze-123", input)
-	require.NoError(t, err)
-	assert.Equal(t, "job-analyze-123", wfID)
-	assert.Equal(t, "job-analyze-123", capturedOptions.ID)
-	assert.Equal(t, "custom-queue", capturedOptions.TaskQueue)
-	assert.Equal(t, "JobAnalyzeWorkflow", capturedWorkflow)
-	assert.Equal(t, "Go Backend Developer", capturedInput.JobDescription)
-	assert.Equal(t, "123", capturedInput.JobID)
-	assert.Equal(t, "go-dev", capturedInput.Slug)
-}
-
-func TestWorkflowsRepository_StartJobAnalyze_already_started(t *testing.T) {
-	mockClient := &mockTemporalWorkflowClient{
-		executeFunc: func(ctx context.Context, options client.StartWorkflowOptions, workflow interface{}, args ...interface{}) (client.WorkflowRun, error) {
-			return nil, &serviceerror.WorkflowExecutionAlreadyStarted{
-				Message: "Workflow already running",
-			}
-		},
-	}
-
-	repo := NewWorkflowsRepository(mockClient, "test-queue")
-	wfID, err := repo.StartJobAnalyze(context.Background(), "job-analyze-456", models.JobAnalyzeWorkflowInput{})
-	require.NoError(t, err)
-	assert.Equal(t, "job-analyze-456", wfID)
-}
-
-func TestWorkflowsRepository_StartJobAnalyze_failure(t *testing.T) {
-	mockClient := &mockTemporalWorkflowClient{
-		executeFunc: func(ctx context.Context, options client.StartWorkflowOptions, workflow interface{}, args ...interface{}) (client.WorkflowRun, error) {
-			return nil, errors.New("connection reset by peer")
-		},
-	}
-
-	repo := NewWorkflowsRepository(mockClient, "test-queue")
-	_, err := repo.StartJobAnalyze(context.Background(), "job-analyze-789", models.JobAnalyzeWorkflowInput{})
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "execute temporal workflow")
-}
-
-func TestWorkflowsRepository_StartJobScrape_nil_client(t *testing.T) {
-	repo := NewWorkflowsRepository(nil, "test-queue")
-	_, err := repo.StartJobScrape(context.Background(), "wf-scrape-1", models.JobScrapeWorkflowInput{})
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "temporal client not configured")
-}
-
-func TestWorkflowsRepository_StartJobScrape_success(t *testing.T) {
-	var capturedOptions client.StartWorkflowOptions
-	var capturedWorkflow string
-	var capturedInput models.JobScrapeWorkflowInput
-
-	mockClient := &mockTemporalWorkflowClient{
-		executeFunc: func(ctx context.Context, options client.StartWorkflowOptions, workflow interface{}, args ...interface{}) (client.WorkflowRun, error) {
-			capturedOptions = options
-			capturedWorkflow = workflow.(string)
-			capturedInput = args[0].(models.JobScrapeWorkflowInput)
 			return nil, nil
 		},
 	}
 
 	repo := NewWorkflowsRepository(mockClient, "custom-queue")
 	input := models.JobScrapeWorkflowInput{
-		Board:      "glassdoor",
-		Keyword:    "golang",
-		Location:   "ireland",
-		UserIDs:    []string{"admin"},
-		SearchID:   "search-1",
-		WorkflowID: "job-scrape-scan-1",
+		Board:   "glassdoor",
+		Keyword: "golang",
 	}
 
-	wfID, err := repo.StartJobScrape(context.Background(), "job-scrape-scan-1", input)
+	itemID, err := repo.StartLimiterWorkItem(context.Background(), "job-scrape-123", models.LimiterJobTypeScrape, input)
 	require.NoError(t, err)
-	assert.Equal(t, "job-scrape-scan-1", wfID)
-	assert.Equal(t, "job-scrape-scan-1", capturedOptions.ID)
-	assert.Equal(t, "job-scrape", capturedOptions.TaskQueue)
-	assert.Equal(t, "JobScrapeWorkflow", capturedWorkflow)
-	assert.Equal(t, []string{"admin"}, capturedInput.UserIDs)
+	assert.Equal(t, "job-scrape-123", itemID)
+
+	assert.Equal(t, "job-concurrency-limiter", capturedWorkflowID)
+	assert.Equal(t, "job-concurrency-limiter", capturedOptions.ID)
+	assert.Equal(t, "job-limit", capturedOptions.TaskQueue)
+	assert.Equal(t, "ConcurrencyLimiter", capturedWorkflow)
+	assert.Equal(t, "enqueue", capturedSignalName)
+
+	workItem, ok := capturedSignalArg.(models.LimiterWorkItem)
+	require.True(t, ok)
+	assert.Equal(t, "job-scrape-123", workItem.ItemID)
+	assert.Equal(t, models.LimiterJobTypeScrape, workItem.JobType)
+	assert.Equal(t, input, workItem.Params)
 }
 
-func TestWorkflowsRepository_StartJobScrape_already_started(t *testing.T) {
+func TestWorkflowsRepository_StartLimiterWorkItem_already_started(t *testing.T) {
 	mockClient := &mockTemporalWorkflowClient{
-		executeFunc: func(ctx context.Context, options client.StartWorkflowOptions, workflow interface{}, args ...interface{}) (client.WorkflowRun, error) {
+		signalWithStartFunc: func(ctx context.Context, workflowID string, signalName string, signalArg interface{}, options client.StartWorkflowOptions, workflow interface{}, workflowArgs ...interface{}) (client.WorkflowRun, error) {
 			return nil, &serviceerror.WorkflowExecutionAlreadyStarted{
 				Message: "Workflow already running",
 			}
@@ -141,20 +90,20 @@ func TestWorkflowsRepository_StartJobScrape_already_started(t *testing.T) {
 	}
 
 	repo := NewWorkflowsRepository(mockClient, "test-queue")
-	wfID, err := repo.StartJobScrape(context.Background(), "job-scrape-scan-2", models.JobScrapeWorkflowInput{})
+	itemID, err := repo.StartLimiterWorkItem(context.Background(), "job-analyze-456", models.LimiterJobTypeAnalyze, nil)
 	require.NoError(t, err)
-	assert.Equal(t, "job-scrape-scan-2", wfID)
+	assert.Equal(t, "job-analyze-456", itemID)
 }
 
-func TestWorkflowsRepository_StartJobScrape_failure(t *testing.T) {
+func TestWorkflowsRepository_StartLimiterWorkItem_failure(t *testing.T) {
 	mockClient := &mockTemporalWorkflowClient{
-		executeFunc: func(ctx context.Context, options client.StartWorkflowOptions, workflow interface{}, args ...interface{}) (client.WorkflowRun, error) {
-			return nil, errors.New("connection failed")
+		signalWithStartFunc: func(ctx context.Context, workflowID string, signalName string, signalArg interface{}, options client.StartWorkflowOptions, workflow interface{}, workflowArgs ...interface{}) (client.WorkflowRun, error) {
+			return nil, errors.New("temporal unavailable")
 		},
 	}
 
 	repo := NewWorkflowsRepository(mockClient, "test-queue")
-	_, err := repo.StartJobScrape(context.Background(), "job-scrape-scan-3", models.JobScrapeWorkflowInput{})
+	_, err := repo.StartLimiterWorkItem(context.Background(), "job-analyze-789", models.LimiterJobTypeAnalyze, nil)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "execute temporal workflow")
+	assert.Contains(t, err.Error(), "signal with start limiter workflow")
 }

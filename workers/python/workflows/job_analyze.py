@@ -18,11 +18,19 @@ from datetime import timedelta
 from typing import Any
 
 from temporalio import workflow
+from temporalio.common import RetryPolicy
 
 with workflow.unsafe.imports_passed_through():
     from deliveries.consumer.activities.analyze_job import (
         analyze_job_activity,
     )
+
+DEFAULT_RETRY_POLICY = RetryPolicy(
+    maximum_attempts=3,
+    initial_interval=timedelta(seconds=2),
+    backoff_coefficient=2.0,
+    maximum_interval=timedelta(seconds=30),
+)
 
 
 @workflow.defn(name="JobAnalyzeWorkflow")
@@ -53,6 +61,7 @@ class JobAnalyzeWorkflow:
             {"job_description": job_description, "job_id": job_id, "slug": slug},
             start_to_close_timeout=timedelta(minutes=10),
             schedule_to_close_timeout=timedelta(minutes=15),
+            retry_policy=DEFAULT_RETRY_POLICY,
         )
         results["step_1b_analyze_job"] = step_1b
 

@@ -72,7 +72,7 @@ func TestQueueAnalysisBulk(t *testing.T) {
 			JobID:          "101",
 			Slug:           slug,
 		}
-		mockWorkflows.EXPECT().StartJobAnalyze(gomock.Any(), "job-analyze-101", expectedInput).Return("job-analyze-101", nil)
+		mockWorkflows.EXPECT().StartLimiterWorkItem(gomock.Any(), "job-analyze-101", models.LimiterJobTypeAnalyze, expectedInput).Return("job-analyze-101", nil)
 
 		svc := &jobService{
 			repo:      mockRepo,
@@ -106,10 +106,10 @@ func TestQueueAnalysisBulk(t *testing.T) {
 			JobID:          "102",
 			Slug:           slug,
 		}
-		mockWorkflows.EXPECT().StartJobAnalyze(gomock.Any(), gomock.Cond(func(x any) bool {
+		mockWorkflows.EXPECT().StartLimiterWorkItem(gomock.Any(), gomock.Cond(func(x any) bool {
 			id, ok := x.(string)
 			return ok && strings.HasPrefix(id, "job-analyze-102-")
-		}), expectedInput).DoAndReturn(func(_ context.Context, wid string, _ models.JobAnalyzeWorkflowInput) (string, error) {
+		}), models.LimiterJobTypeAnalyze, expectedInput).DoAndReturn(func(_ context.Context, wid string, _ models.LimiterJobType, _ any) (string, error) {
 			return wid, nil
 		})
 
@@ -242,7 +242,7 @@ func TestQueueAnalysisBulk(t *testing.T) {
 			JobID:          "107",
 			Slug:           slug,
 		}
-		mockWorkflows.EXPECT().StartJobAnalyze(gomock.Any(), "job-analyze-107", expectedInput).Return("", errors.New("temporal connection error"))
+		mockWorkflows.EXPECT().StartLimiterWorkItem(gomock.Any(), "job-analyze-107", models.LimiterJobTypeAnalyze, expectedInput).Return("", errors.New("temporal connection error"))
 
 		svc := &jobService{
 			repo:      mockRepo,

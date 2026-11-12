@@ -49,7 +49,7 @@ func (s *jobService) StartJobScrape(ctx context.Context, params models.ScrapeJob
 			WorkflowID: wfID,
 		}
 
-		startedID, err := s.workflows.StartJobScrape(ctx, wfID, input)
+		startedID, err := s.workflows.StartLimiterWorkItem(ctx, wfID, models.LimiterJobTypeScrape, input)
 		if err != nil {
 			return nil, fmt.Errorf("start scrape workflow %s: %w", wfID, err)
 		}

@@ -19,6 +19,7 @@ class TemporalConfig:
     namespace: str
     task_queue_job_analyze: str
     task_queue_job_scrape: str = "job-scrape"  # job-scrape
+    task_queue_job_limit: str = "job-limit"
 
 
 @dataclass(frozen=True)
@@ -72,6 +73,9 @@ def load() -> Config:
             ),
             task_queue_job_scrape=_optional(
                 "TEMPORAL_TASK_QUEUE_JOB_SCRAPE", "job-scrape"
+            ),
+            task_queue_job_limit=_optional(
+                "TEMPORAL_TASK_QUEUE_JOB_LIMIT", "job-limit"
             ),
         ),
         api=APIConfig(

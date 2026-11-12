@@ -27,6 +27,7 @@ from datetime import timedelta
 from typing import Any, cast
 
 from temporalio import workflow
+from temporalio.common import RetryPolicy
 
 with workflow.unsafe.imports_passed_through():
     from deliveries.consumer.activities.job_scrape import (
@@ -38,6 +39,13 @@ with workflow.unsafe.imports_passed_through():
     )
 
 NAMESPACE = "default"
+
+DEFAULT_RETRY_POLICY = RetryPolicy(
+    maximum_attempts=3,
+    initial_interval=timedelta(seconds=2),
+    backoff_coefficient=2.0,
+    maximum_interval=timedelta(seconds=30),
+)
 
 
 @workflow.defn(name="JobScrapeWorkflow")
@@ -84,6 +92,7 @@ class JobScrapeWorkflow:
             start_to_close_timeout=timedelta(minutes=5),
             schedule_to_close_timeout=timedelta(minutes=10),
             heartbeat_timeout=timedelta(seconds=60),
+            retry_policy=DEFAULT_RETRY_POLICY,
         )
 
         # 2. enrich_jobs — clean, normalize, filter by recency, attach audit.
@@ -111,6 +120,7 @@ class JobScrapeWorkflow:
             start_to_close_timeout=timedelta(minutes=5),
             schedule_to_close_timeout=timedelta(minutes=10),
             heartbeat_timeout=timedelta(seconds=60),
+            retry_policy=DEFAULT_RETRY_POLICY,
         )
 
         # 3. ingest_jobs — persist to Go API, split created vs skipped.
@@ -132,6 +142,7 @@ class JobScrapeWorkflow:
             start_to_close_timeout=timedelta(minutes=5),
             schedule_to_close_timeout=timedelta(minutes=10),
             heartbeat_timeout=timedelta(seconds=60),
+            retry_policy=DEFAULT_RETRY_POLICY,
         )
 
         # 4. queue_analysis — start analysis for newly created jobs.
@@ -153,6 +164,7 @@ class JobScrapeWorkflow:
             start_to_close_timeout=timedelta(minutes=5),
             schedule_to_close_timeout=timedelta(minutes=10),
             heartbeat_timeout=timedelta(seconds=60),
+            retry_policy=DEFAULT_RETRY_POLICY,
         )
 
         boards_val = scan_results.get("boards")

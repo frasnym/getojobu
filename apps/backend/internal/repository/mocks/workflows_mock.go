@@ -62,6 +62,26 @@ func (mr *MockWorkflowClientMockRecorder) ExecuteWorkflow(ctx, options, workflow
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ExecuteWorkflow", reflect.TypeOf((*MockWorkflowClient)(nil).ExecuteWorkflow), varargs...)
 }
 
+// SignalWithStartWorkflow mocks base method.
+func (m *MockWorkflowClient) SignalWithStartWorkflow(ctx context.Context, workflowID, signalName string, signalArg any, options client.StartWorkflowOptions, workflow any, workflowArgs ...any) (client.WorkflowRun, error) {
+	m.ctrl.T.Helper()
+	varargs := []any{ctx, workflowID, signalName, signalArg, options, workflow}
+	for _, a := range workflowArgs {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "SignalWithStartWorkflow", varargs...)
+	ret0, _ := ret[0].(client.WorkflowRun)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// SignalWithStartWorkflow indicates an expected call of SignalWithStartWorkflow.
+func (mr *MockWorkflowClientMockRecorder) SignalWithStartWorkflow(ctx, workflowID, signalName, signalArg, options, workflow any, workflowArgs ...any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]any{ctx, workflowID, signalName, signalArg, options, workflow}, workflowArgs...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SignalWithStartWorkflow", reflect.TypeOf((*MockWorkflowClient)(nil).SignalWithStartWorkflow), varargs...)
+}
+
 // MockWorkflows is a mock of Workflows interface.
 type MockWorkflows struct {
 	ctrl     *gomock.Controller
@@ -86,32 +106,17 @@ func (m *MockWorkflows) EXPECT() *MockWorkflowsMockRecorder {
 	return m.recorder
 }
 
-// StartJobAnalyze mocks base method.
-func (m *MockWorkflows) StartJobAnalyze(ctx context.Context, workflowID string, input models.JobAnalyzeWorkflowInput) (string, error) {
+// StartLimiterWorkItem mocks base method.
+func (m *MockWorkflows) StartLimiterWorkItem(ctx context.Context, itemID string, itemType models.LimiterJobType, input any) (string, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "StartJobAnalyze", ctx, workflowID, input)
+	ret := m.ctrl.Call(m, "StartLimiterWorkItem", ctx, itemID, itemType, input)
 	ret0, _ := ret[0].(string)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// StartJobAnalyze indicates an expected call of StartJobAnalyze.
-func (mr *MockWorkflowsMockRecorder) StartJobAnalyze(ctx, workflowID, input any) *gomock.Call {
+// StartLimiterWorkItem indicates an expected call of StartLimiterWorkItem.
+func (mr *MockWorkflowsMockRecorder) StartLimiterWorkItem(ctx, itemID, itemType, input any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StartJobAnalyze", reflect.TypeOf((*MockWorkflows)(nil).StartJobAnalyze), ctx, workflowID, input)
-}
-
-// StartJobScrape mocks base method.
-func (m *MockWorkflows) StartJobScrape(ctx context.Context, workflowID string, input models.JobScrapeWorkflowInput) (string, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "StartJobScrape", ctx, workflowID, input)
-	ret0, _ := ret[0].(string)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// StartJobScrape indicates an expected call of StartJobScrape.
-func (mr *MockWorkflowsMockRecorder) StartJobScrape(ctx, workflowID, input any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StartJobScrape", reflect.TypeOf((*MockWorkflows)(nil).StartJobScrape), ctx, workflowID, input)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StartLimiterWorkItem", reflect.TypeOf((*MockWorkflows)(nil).StartLimiterWorkItem), ctx, itemID, itemType, input)
 }

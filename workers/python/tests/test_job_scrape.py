@@ -527,3 +527,42 @@ async def test_job_scrape_workflow_rejects_empty_board():
         await wf.run({"board": "", "keyword": "golang", "location": "indonesia"})
     with pytest.raises(ValueError, match="board is required"):
         await wf.run({"keyword": "golang", "location": "indonesia"})
+
+
+@pytest.mark.asyncio
+async def test_job_scrape_workflow_activities_have_retry_policy():
+    wf = JobScrapeWorkflow()
+    calls = []
+
+    async def fake_execute_activity(activity, *args, **kwargs):
+        calls.append((activity, kwargs))
+        if activity == scrape_scan:
+            return {"jobs": [], "errors": [], "boards": ["glassdoor"]}
+        if activity == enrich_jobs:
+            return {"jobs": [], "found": 0, "filtered_out_recency": 0}
+        if activity == ingest_jobs:
+            return {"inserted": 0, "skipped": 0, "created_slugs": []}
+        if activity == queue_analysis:
+            return {"started": 0, "failed": []}
+        return {}
+
+    with patch(
+        "temporalio.workflow.execute_activity", side_effect=fake_execute_activity
+    ):
+        await wf.run(
+            {
+                "board": "glassdoor",
+                "keyword": "golang",
+                "location": "dublin",
+                "user_ids": ["u1"],
+            }
+        )
+
+    assert len(calls) == 4
+    for activity, kwargs in calls:
+        policy = kwargs.get("retry_policy")
+        assert policy is not None, f"Activity {activity} missing retry_policy"
+        assert policy.maximum_attempts == 3
+        assert policy.initial_interval == timedelta(seconds=2)
+        assert policy.backoff_coefficient == 2.0
+        assert policy.maximum_interval == timedelta(seconds=30)

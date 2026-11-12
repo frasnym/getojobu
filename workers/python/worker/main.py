@@ -15,8 +15,6 @@ import signal
 import sys
 from concurrent.futures import ThreadPoolExecutor
 
-from temporalio.worker import Worker
-
 from config.config import load as config_load
 from contract.contract import new as contract_new
 from deliveries.consumer.activities.analyze_job import (
@@ -29,8 +27,10 @@ from deliveries.consumer.activities.job_scrape import (
     queue_analysis,
     scrape_scan,
 )
+from temporalio.worker import Worker
 from utils.logging import configure, get_logger
 from utils.temporal import connect as temporal_connect
+from workflows.concurrency_limiter import ConcurrencyLimiter
 from workflows.job_analyze import JobAnalyzeWorkflow
 from workflows.job_scrape import JobScrapeWorkflow
 
@@ -81,11 +81,17 @@ async def run() -> int:
             workflows=[JobScrapeWorkflow],
             activity_executor=activity_executor,
         )
+        job_limit_worker = Worker(
+            temporal_client.client,
+            task_queue=cfg.temporal.task_queue_job_limit,
+            workflows=[ConcurrencyLimiter],
+        )
 
         logger.info(
             "worker_starting",
             job_analyze_queue=cfg.temporal.task_queue_job_analyze,
             job_scrape_queue=cfg.temporal.task_queue_job_scrape,
+            job_limit_queue=cfg.temporal.task_queue_job_limit,
             namespace=cfg.temporal.namespace,
         )
 
@@ -102,15 +108,17 @@ async def run() -> int:
             except NotImplementedError:  # pragma: no cover - Windows
                 pass
 
-        # Run both workers until a shutdown signal is received.
+        # Run workers until a shutdown signal is received.
         job_analyze_task = asyncio.create_task(job_analyze_worker.run())
         job_scrape_task = asyncio.create_task(job_scrape_worker.run())
+        job_limit_task = asyncio.create_task(job_limit_worker.run())
         try:
             await stop_event.wait()
         finally:
             job_analyze_task.cancel()
             job_scrape_task.cancel()
-            for t in (job_analyze_task, job_scrape_task):
+            job_limit_task.cancel()
+            for t in (job_analyze_task, job_scrape_task, job_limit_task):
                 try:
                     await t
                 except asyncio.CancelledError:
@@ -119,6 +127,7 @@ async def run() -> int:
         logger.info("worker_stopped")
         await job_analyze_worker.shutdown()
         await job_scrape_worker.shutdown()
+        await job_limit_worker.shutdown()
         await stopper()
         return 0
     finally:

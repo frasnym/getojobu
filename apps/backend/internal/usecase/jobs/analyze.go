@@ -85,5 +85,5 @@ func (s *jobService) queueAnalysis(ctx context.Context, slug string, force bool,
 		Slug:           job.Slug,
 	}
 
-	return s.workflows.StartJobAnalyze(ctx, workflowID, input)
+	return s.workflows.StartLimiterWorkItem(ctx, workflowID, models.LimiterJobTypeAnalyze, input)
 }

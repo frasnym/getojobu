@@ -42,7 +42,7 @@ func TestStartJobScrape_valid(t *testing.T) {
 	}
 
 	mockWF.EXPECT().
-		StartJobScrape(gomock.Any(), "job-scrape-glassdoor-golang-indonesia", expectedInput).
+		StartLimiterWorkItem(gomock.Any(), "job-scrape-glassdoor-golang-indonesia", models.LimiterJobTypeScrape, expectedInput).
 		Return("job-scrape-glassdoor-golang-indonesia", nil)
 
 	wfIDs, err := s.StartJobScrape(context.Background(), models.ScrapeJobsParams{
@@ -91,7 +91,7 @@ func TestStartJobScrape_all_users_when_user_ids_not_provided(t *testing.T) {
 	}
 
 	mockWF.EXPECT().
-		StartJobScrape(gomock.Any(), "job-scrape-glassdoor-golang-indonesia", expectedInput).
+		StartLimiterWorkItem(gomock.Any(), "job-scrape-glassdoor-golang-indonesia", models.LimiterJobTypeScrape, expectedInput).
 		Return("job-scrape-glassdoor-golang-indonesia", nil)
 
 	// Call without providing any user_ids (empty params)
@@ -150,7 +150,7 @@ func TestStartJobScrape_workflow_error(t *testing.T) {
 		}, nil)
 
 	mockWF.EXPECT().
-		StartJobScrape(gomock.Any(), gomock.Any(), gomock.Any()).
+		StartLimiterWorkItem(gomock.Any(), gomock.Any(), models.LimiterJobTypeScrape, gomock.Any()).
 		Return("", errors.New("temporal unavailable"))
 
 	_, err := s.StartJobScrape(context.Background(), models.ScrapeJobsParams{

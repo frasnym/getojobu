@@ -19,12 +19,7 @@ from collections.abc import Iterable
 from datetime import UTC, date, datetime, time, timedelta
 from typing import Any, cast
 
-jobspy: Any = None
-try:
-    import jobspy  # type: ignore  # pyright: ignore[reportMissingImports]
-except ImportError:  # pragma: no cover - optional dependency in host env
-    jobspy = None
-
+import jobspy
 from repository.getojobu_api import NewGetojobuAPI
 from temporalio import activity
 from utils.logging import get_logger
@@ -148,14 +143,6 @@ def scrape_scan(input_data: dict[str, Any]) -> dict[str, Any]:
     all_jobs: list[dict[str, Any]] = []
     boards_run: list[str] = []
     errors: list[dict[str, Any]] = []
-
-    if jobspy is None:
-        logger.warning(
-            "jobspy_not_installed",
-            user_ids=user_ids,
-            scan_id=search_id,
-        )
-        return {"jobs": [], "boards": [], "errors": [{"error": "jobspy not installed"}]}
 
     js: Any = jobspy
 
