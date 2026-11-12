@@ -327,6 +327,82 @@ async def test_queue_analysis_bulk():
         assert res["failed"] == ["job-2"]
 
 
+@pytest.mark.asyncio
+async def test_ingest_jobs_omits_slugs_without_description():
+    fake_client = MagicMock()
+
+    async def fake_post(path: str, json: Any) -> Any:
+        assert path == "/v1/jobs/bulk"
+        return [
+            {"slug": "job-with-desc", "created": True},
+            {"slug": "job-no-desc", "created": True},
+        ]
+
+    async def fake_aclose() -> None:
+        pass
+
+    fake_client.post.side_effect = fake_post
+    fake_client.aclose.side_effect = fake_aclose
+
+    with patch(
+        "deliveries.consumer.activities.job_scrape.NewGetojobuAPI",
+        return_value=fake_client,
+    ):
+        input_data = {
+            "user_ids": ["user-123"],
+            "search_id": "scan-1",
+            "jobs": [
+                {
+                    "slug": "job-with-desc",
+                    "title": "Job 1",
+                    "description": "Valid job description",
+                },
+                {"slug": "job-no-desc", "title": "Job 2", "description": None},
+            ],
+        }
+        res = await ingest_jobs(input_data)
+        assert res["inserted"] == 2
+        assert res["created_slugs"] == ["job-with-desc"]
+
+
+@pytest.mark.asyncio
+async def test_queue_analysis_falls_back_to_individual_on_chunk_error():
+    fake_client = MagicMock()
+
+    async def fake_post(path: str, json: Any) -> Any:
+        assert path == "/v1/jobs/bulk-queue-analyze"
+        assert isinstance(json, list)
+        if len(json) > 1:
+            # Simulate Go API rejecting chunk because one job has no description
+            raise RuntimeError(
+                "invalid status transition: job job-no-desc has no description to analyze"
+            )
+        # Individual retries
+        slug = json[0]["slug"]
+        if slug == "job-ok":
+            return {"workflow_ids": ["wf-job-ok"]}
+        raise RuntimeError("cannot analyze")
+
+    async def fake_aclose() -> None:
+        pass
+
+    fake_client.post.side_effect = fake_post
+    fake_client.aclose.side_effect = fake_aclose
+
+    with patch(
+        "deliveries.consumer.activities.job_scrape.NewGetojobuAPI",
+        return_value=fake_client,
+    ):
+        input_data = {
+            "user_ids": ["admin"],
+            "search_id": "scan-1",
+            "created_job_slugs": ["job-ok", "job-bad"],
+        }
+        res = await queue_analysis(input_data)
+        assert res["started"] == 1
+        assert res["failed"] == ["job-bad"]
+
+
 def test_scrape_scan_single_target_normalized():
     mock_jobspy = MagicMock()
     mock_jobspy.SUPPORTED_SITES = {"glassdoor", "linkedin"}

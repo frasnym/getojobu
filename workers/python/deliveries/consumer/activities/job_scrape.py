@@ -459,11 +459,26 @@ async def ingest_jobs(input_data: dict[str, Any]) -> dict[str, Any]:
                 if isinstance(raw_results, list):
                     results = cast(list[dict[str, Any]], raw_results)
 
+            chunk_slug_can_analyze: dict[str, bool] = {}
+            for item in chunk:
+                item_slug = str(item.get("slug") or "")
+                if "description" in item:
+                    desc_val = item.get("description")
+                    chunk_slug_can_analyze[item_slug] = bool(
+                        desc_val and str(desc_val).strip()
+                    )
+                else:
+                    chunk_slug_can_analyze[item_slug] = True
+
             for res in results:
                 if res.get("created"):
                     inserted += 1
                     slug = res.get("slug")
-                    if isinstance(slug, str) and slug:
+                    if (
+                        isinstance(slug, str)
+                        and slug
+                        and chunk_slug_can_analyze.get(slug, True)
+                    ):
                         created_slugs.append(slug)
                 else:
                     skipped += 1
@@ -519,20 +534,54 @@ async def queue_analysis(input_data: dict[str, Any]) -> dict[str, Any]:
             payload: list[dict[str, Any]] = [
                 {"slug": slug, "force": True} for slug in chunk
             ]
-            resp = await client.post("/v1/jobs/bulk-queue-analyze", json=payload)
-            workflow_ids: list[str] = []
-            if isinstance(resp, dict):
-                resp_dict = cast(dict[str, Any], resp)
-                raw_ids = resp_dict.get("workflow_ids")
-                if isinstance(raw_ids, list):
-                    workflow_ids = cast(list[str], raw_ids)
+            try:
+                resp = await client.post("/v1/jobs/bulk-queue-analyze", json=payload)
+                workflow_ids: list[str] = []
+                if isinstance(resp, dict):
+                    resp_dict = cast(dict[str, Any], resp)
+                    raw_ids = resp_dict.get("workflow_ids")
+                    if isinstance(raw_ids, list):
+                        workflow_ids = cast(list[str], raw_ids)
 
-            # Count started workflows
-            chunk_started = len(workflow_ids)
-            started += chunk_started
-            if chunk_started < len(chunk):
-                # Slugs beyond the returned count are recorded as failed
-                failed.extend(chunk[chunk_started:])
+                # Count started workflows
+                chunk_started = len(workflow_ids)
+                started += chunk_started
+                if chunk_started < len(chunk):
+                    # Slugs beyond the returned count are recorded as failed
+                    failed.extend(chunk[chunk_started:])
+            except Exception as e:  # noqa: BLE001
+                logger.warning(
+                    "bulk queue analyze chunk failed, retrying items individually",
+                    user_ids=user_ids,
+                    scan_id=search_id,
+                    chunk_size=len(chunk),
+                    error=f"{e}",
+                )
+                for slug in chunk:
+                    try:
+                        single_resp = await client.post(
+                            "/v1/jobs/bulk-queue-analyze",
+                            json=[{"slug": slug, "force": True}],
+                        )
+                        single_ids: list[str] = []
+                        if isinstance(single_resp, dict):
+                            s_dict = cast(dict[str, Any], single_resp)
+                            raw_s_ids = s_dict.get("workflow_ids")
+                            if isinstance(raw_s_ids, list):
+                                single_ids = cast(list[str], raw_s_ids)
+                        if single_ids:
+                            started += len(single_ids)
+                        else:
+                            failed.append(slug)
+                    except Exception as single_err:  # noqa: BLE001
+                        logger.warning(
+                            "skipping job that cannot be queued for analysis",
+                            user_ids=user_ids,
+                            scan_id=search_id,
+                            slug=slug,
+                            error=f"{single_err}",
+                        )
+                        failed.append(slug)
 
             _safe_heartbeat(queued=started, failed=len(failed))
 
