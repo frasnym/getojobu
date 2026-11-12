@@ -1,12 +1,13 @@
 """Unit tests for JobScrape activities and workflow."""
 
-from datetime import UTC, datetime, timedelta
-from typing import Any
+import json
+from datetime import UTC, date, datetime, timedelta
+from typing import Any, cast
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from deliveries.consumer.activities.job_scrape import (
+    _sanitize_for_json,
     build_job_slug,
     enrich_jobs,
     ingest_jobs,
@@ -27,6 +28,35 @@ def test_parse_user_ids():
     assert parse_user_ids([]) == []
     assert parse_user_ids(None) == []
     assert parse_user_ids("not-a-list") == []
+
+
+class _FakeNaT:
+    pass
+
+
+def test_sanitize_for_json():
+    data: dict[str, object] = {
+        "title": "Engineer",
+        "date_posted": date(2026, 11, 12),
+        "created_at": datetime(2026, 11, 12, 10, 0, 0),
+        "nan_field": float("nan"),
+        "inf_field": float("inf"),
+        "none_field": None,
+        "nat_field": _FakeNaT(),
+        "nested": [{"inner_date": date(2026, 1, 1)}],
+    }
+    sanitized = cast(dict[str, object], _sanitize_for_json(data))
+    # Must be serializable by stdlib json without TypeError
+    encoded = json.dumps(sanitized)
+    assert "2026-11-12" in encoded
+    decoded = cast(dict[str, object], json.loads(encoded))
+    assert decoded["date_posted"] == "2026-11-12"
+    assert decoded["created_at"] == "2026-11-12T10:00:00"
+    assert decoded["nan_field"] is None
+    assert decoded["inf_field"] is None
+    assert decoded["nat_field"] is None
+    nested = cast(list[dict[str, object]], decoded["nested"])
+    assert nested[0]["inner_date"] == "2026-01-01"
 
 
 def test_slugify_and_build_job_slug():
@@ -308,7 +338,8 @@ def test_scrape_scan_single_target_normalized():
                     "title": "Backend Go Engineer",
                     "company": "Tech Corp",
                     "location": "Jakarta, Indonesia",
-                    "date_posted": datetime.now(UTC).isoformat(),
+                    "date_posted": date(2026, 11, 12),
+                    "min_amount": float("nan"),
                     "site": "glassdoor",
                 }
             ]
@@ -326,8 +357,12 @@ def test_scrape_scan_single_target_normalized():
         res = scrape_scan(input_data)
         assert len(res["jobs"]) == 1
         assert res["jobs"][0]["title"] == "Backend Go Engineer"
+        assert res["jobs"][0]["date_posted"] == "2026-11-12"
+        assert res["jobs"][0]["min_amount"] is None
         assert res["boards"] == ["glassdoor"]
         assert len(res["errors"]) == 0
+        # Verify JSON serializability for Temporal data converter
+        assert json.dumps(res) is not None
         mock_jobspy.scrape_jobs.assert_called_once_with(
             site_name="glassdoor",
             search_term="golang",

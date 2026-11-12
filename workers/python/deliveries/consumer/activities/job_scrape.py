@@ -11,8 +11,11 @@ the scan, so a transient board block does not kill the whole scan.
 
 from __future__ import annotations
 
+import json
+import math
 import os
 import re
+from collections.abc import Iterable
 from datetime import UTC, date, datetime, time, timedelta
 from typing import Any, cast
 
@@ -22,9 +25,8 @@ try:
 except ImportError:  # pragma: no cover - optional dependency in host env
     jobspy = None
 
-from temporalio import activity
-
 from repository.getojobu_api import NewGetojobuAPI
+from temporalio import activity
 from utils.logging import get_logger
 
 logger = get_logger("activities.job_scrape")
@@ -66,6 +68,44 @@ def parse_user_ids(raw: object) -> list[str]:
         if isinstance(uid, str) and uid.strip():
             result.append(uid.strip())
     return result
+
+
+def _sanitize_for_json(val: Any) -> Any:
+    """Recursively convert dates, timestamps, NaNs and custom types to JSON-safe primitives."""
+    if val is None:
+        return None
+    if "NaT" in val.__class__.__name__:
+        return None
+    if isinstance(val, (datetime, date)):
+        return val.isoformat()
+    if isinstance(val, float):
+        if math.isnan(val) or math.isinf(val):
+            return None
+        return val
+    if isinstance(val, (int, str, bool)):
+        return val
+    if isinstance(val, dict):
+        return {
+            f"{k}": _sanitize_for_json(v)
+            for k, v in cast(dict[object, object], val).items()
+        }
+    if isinstance(val, (list, tuple, set)):
+        return [_sanitize_for_json(item) for item in cast(Iterable[object], val)]
+    if hasattr(val, "item"):
+        try:
+            return _sanitize_for_json(val.item())
+        except Exception:  # noqa: BLE001, S110
+            pass
+    if hasattr(val, "isoformat"):
+        try:
+            return val.isoformat()
+        except Exception:  # noqa: BLE001, S110
+            pass
+    try:
+        json.dumps(val)
+        return val
+    except (TypeError, ValueError):
+        return str(val)
 
 
 def _safe_heartbeat(**details: Any) -> None:
@@ -161,10 +201,14 @@ def scrape_scan(input_data: dict[str, Any]) -> dict[str, Any]:
                 elif isinstance(result, list):
                     records = cast(list[dict[str, Any]], result)
 
+                sanitized_records: list[dict[str, Any]] = []
                 for r in records:
                     if not r.get("site"):
                         r["site"] = board
-                all_jobs.extend(records)
+                    sanitized_records.append(
+                        cast(dict[str, Any], _sanitize_for_json(r))
+                    )
+                all_jobs.extend(sanitized_records)
                 if board not in boards_run:
                     boards_run.append(board)
 
