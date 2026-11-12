@@ -99,12 +99,12 @@ func TestCreateJob_conflict_returns_created_false(t *testing.T) {
 	assert.Equal(t, false, m["Created"])
 }
 
-func TestCreateJob_clerk_rejects_body_user_id(t *testing.T) {
+func TestCreateJob_clerk_rejects_body_user_ids(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	h, _, _ := newHandlerWithMock(ctrl)
 
-	body := strings.NewReader(`{"slug":"senior-backend-engineer-acme-jakarta","source":"linkedin","title":"Senior Backend Engineer","company":"Acme","location":"Jakarta","user_id":"someone-else"}`)
+	body := strings.NewReader(`{"slug":"senior-backend-engineer-acme-jakarta","source":"linkedin","title":"Senior Backend Engineer","company":"Acme","location":"Jakarta","user_ids":["someone-else"]}`)
 	req := httptest.NewRequest(http.MethodPost, "/jobs", body)
 	req = req.WithContext(ctxval.ContextWithPrincipal(req.Context(), principalCtx("", "user_1")))
 	w := httptest.NewRecorder()
@@ -114,7 +114,7 @@ func TestCreateJob_clerk_rejects_body_user_id(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
 
-func TestCreateJob_api_key_requires_user_id(t *testing.T) {
+func TestCreateJob_api_key_requires_user_ids(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	h, _, _ := newHandlerWithMock(ctrl)
@@ -129,7 +129,7 @@ func TestCreateJob_api_key_requires_user_id(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
 
-func TestCreateJob_api_key_with_user_id(t *testing.T) {
+func TestCreateJob_api_key_with_user_ids(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	h, mockJob, _ := newHandlerWithMock(ctrl)
@@ -143,7 +143,7 @@ func TestCreateJob_api_key_with_user_id(t *testing.T) {
 		Create(gomock.Any(), gomock.Any()).
 		Return(created, nil)
 
-	body := strings.NewReader(`{"slug":"senior-backend-engineer-acme-jakarta","source":"linkedin","title":"Senior Backend Engineer","company":"Acme","location":"Jakarta","user_id":"user_42"}`)
+	body := strings.NewReader(`{"slug":"senior-backend-engineer-acme-jakarta","source":"linkedin","title":"Senior Backend Engineer","company":"Acme","location":"Jakarta","user_ids":["user_42"]}`)
 	req := httptest.NewRequest(http.MethodPost, "/jobs", body)
 	req = req.WithContext(ctxval.ContextWithPrincipal(req.Context(), principalCtx("api_key", "key_1")))
 	w := httptest.NewRecorder()
@@ -240,7 +240,7 @@ func TestBulkCreateJob_success(t *testing.T) {
 		CreateBulk(gomock.Any(), gomock.Any()).
 		Return(results, nil)
 
-	body := strings.NewReader(`{"jobs":[{"slug":"job-1","source":"linkedin","title":"Job 1","company":"Acme","location":"Jakarta","user_id":"user_42"},{"slug":"job-2","source":"linkedin","title":"Job 2","company":"Acme","location":"Jakarta","user_id":"user_43"}]}`)
+	body := strings.NewReader(`{"jobs":[{"slug":"job-1","source":"linkedin","title":"Job 1","company":"Acme","location":"Jakarta","user_ids":["user_42"]},{"slug":"job-2","source":"linkedin","title":"Job 2","company":"Acme","location":"Jakarta","user_ids":["user_43"]}]}`)
 	req := httptest.NewRequest(http.MethodPost, "/jobs/bulk", body)
 	req = req.WithContext(ctxval.ContextWithPrincipal(req.Context(), principalCtx("cron", "cron-scrape")))
 	w := httptest.NewRecorder()

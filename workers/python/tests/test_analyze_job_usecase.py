@@ -1,6 +1,7 @@
 """Tests for the analyze_job usecase validation (Step 1B business logic)."""
 
 import pytest
+
 from usecase.analyze_job.service import AnalyzeJob
 
 

@@ -32,6 +32,7 @@ with workflow.unsafe.imports_passed_through():
     from deliveries.consumer.activities.job_scrape import (
         enrich_jobs,
         ingest_jobs,
+        parse_user_ids,
         queue_analysis,
         scrape_scan,
     )
@@ -47,24 +48,35 @@ class JobScrapeWorkflow:
 
         Input:
             {
-                "user_id":      str,                 # internal user id (owner)
+                "board":        str,                 # board name (glassdoor, etc)
+                "keyword":      str,                 # search term
+                "location":     str,                 # search location
+                "user_ids":     [str],               # matched internal user ids
                 "search_id":    str,                 # deterministic scan id
-                "searches":     [{"keywords": [...], "locations": [...]}],
+                "searches":     [...],               # optional legacy searches
                 "workflow_id":  str,                 # stable workflow id
             }
         """
-        user_id = input.get("user_id")
+        board_val = input.get("board")
+        board: str = board_val.strip().lower() if isinstance(board_val, str) else ""
+        if not board:
+            raise ValueError("board is required and cannot be empty")
+        keyword_val = input.get("keyword")
+        keyword: str = keyword_val if isinstance(keyword_val, str) else ""
+        location_val = input.get("location")
+        location: str = location_val if isinstance(location_val, str) else ""
+
+        user_ids = parse_user_ids(input.get("user_ids"))
+
         search_id = input.get("search_id")
-        searches_raw = input.get("searches")
-        searches: list[Any] = (
-            cast(list[Any], searches_raw) if isinstance(searches_raw, list) else []
-        )
 
         # 1. scrape_scan — issue board queries, accumulate raw results.
         scrape_scan_input: dict[str, Any] = {
-            "user_id": user_id,
+            "board": board,
+            "keyword": keyword,
+            "location": location,
+            "user_ids": user_ids,
             "search_id": search_id,
-            "searches": searches,
         }
         scan_results: dict[str, Any] = await workflow.execute_activity(
             scrape_scan,
@@ -85,7 +97,10 @@ class JobScrapeWorkflow:
         )
 
         enrich_jobs_input: dict[str, Any] = {
-            "user_id": user_id,
+            "board": board,
+            "keyword": keyword,
+            "location": location,
+            "user_ids": user_ids,
             "search_id": search_id,
             "raw_jobs": raw_jobs,
             "errors": errors,
@@ -107,7 +122,7 @@ class JobScrapeWorkflow:
         )
 
         ingest_jobs_input: dict[str, Any] = {
-            "user_id": user_id,
+            "user_ids": user_ids,
             "search_id": search_id,
             "jobs": enriched_jobs,
         }
@@ -128,7 +143,7 @@ class JobScrapeWorkflow:
         )
 
         queue_analysis_input: dict[str, Any] = {
-            "user_id": user_id,
+            "user_ids": user_ids,
             "search_id": search_id,
             "created_job_slugs": created_slugs,
         }
@@ -156,7 +171,10 @@ class JobScrapeWorkflow:
 
         return {
             "workflow": "JobScrapeWorkflow",
-            "user_id": user_id,
+            "board": board,
+            "keyword": keyword,
+            "location": location,
+            "user_ids": user_ids,
             "search_id": search_id,
             "workflow_id": input.get("workflow_id"),
             "scrape_scan": scan_results,

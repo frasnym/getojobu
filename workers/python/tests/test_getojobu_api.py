@@ -5,6 +5,7 @@ from typing import Any
 
 import httpx
 import pytest
+
 from models.api_response import ApiResponse
 from models.scoring_config import ScoringConfig
 from repository.getojobu_api import NewGetojobuAPI

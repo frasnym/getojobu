@@ -11,8 +11,9 @@ import json
 from pathlib import Path
 from typing import Any
 
-from models.job_analysis import JobAnalysis
 from openai import AsyncOpenAI
+
+from models.job_analysis import JobAnalysis
 
 _PROMPTS_DIR = Path(__file__).resolve().parents[2] / "prompts"
 

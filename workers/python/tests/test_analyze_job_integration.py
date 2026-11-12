@@ -7,6 +7,7 @@ import json
 from typing import Any
 
 import pytest
+
 from config.config import APIConfig, Config, OmniRouteConfig, TemporalConfig
 from contract.contract import WorkerContainer
 from contract.repository import RepositoryContract

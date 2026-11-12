@@ -114,12 +114,12 @@ func TestWorkflowsRepository_StartJobScrape_success(t *testing.T) {
 
 	repo := NewWorkflowsRepository(mockClient, "custom-queue")
 	input := models.JobScrapeWorkflowInput{
-		UserID:     "admin",
+		Board:      "glassdoor",
+		Keyword:    "golang",
+		Location:   "ireland",
+		UserIDs:    []string{"admin"},
 		SearchID:   "search-1",
 		WorkflowID: "job-scrape-scan-1",
-		Searches: []models.ScrapeSearch{
-			{Keywords: []string{"golang"}, Locations: []string{"ireland"}},
-		},
 	}
 
 	wfID, err := repo.StartJobScrape(context.Background(), "job-scrape-scan-1", input)
@@ -128,7 +128,7 @@ func TestWorkflowsRepository_StartJobScrape_success(t *testing.T) {
 	assert.Equal(t, "job-scrape-scan-1", capturedOptions.ID)
 	assert.Equal(t, "job-scrape", capturedOptions.TaskQueue)
 	assert.Equal(t, "JobScrapeWorkflow", capturedWorkflow)
-	assert.Equal(t, "admin", capturedInput.UserID)
+	assert.Equal(t, []string{"admin"}, capturedInput.UserIDs)
 }
 
 func TestWorkflowsRepository_StartJobScrape_already_started(t *testing.T) {

@@ -27,25 +27,27 @@ type Job interface {
 	UpdateStatus(ctx context.Context, slug, status string, analyzeResult, failureMessage *string, updatedByType, updatedByID string) (*models.Job, error)
 	// QueueAnalysisBulk validates each job and queues its JobAnalyzeWorkflow in Temporal.
 	QueueAnalysisBulk(ctx context.Context, items []models.QueueAnalysisItem, caller *models.Principal) ([]string, error)
-	// StartJobScrape starts the JobScrapeWorkflow in Temporal for the given
-	// owner + search set, returning the workflow id.
-	StartJobScrape(ctx context.Context, params models.ScrapeJobsParams) (string, error)
+	// StartJobScrape starts JobScrapeWorkflows in Temporal for the normalized
+	// search targets derived from user preferences, returning the workflow ids.
+	StartJobScrape(ctx context.Context, params models.ScrapeJobsParams) ([]string, error)
 }
 
 type jobService struct {
-	tx        database.Transactor
-	repo      repo.Jobs
-	userJobs  repo.UserJobs
-	workflows repo.Workflows
+	tx              database.Transactor
+	repo            repo.Jobs
+	userJobs        repo.UserJobs
+	workflows       repo.Workflows
+	userPreferences repo.UserPreferences
 }
 
 // NewJobService creates a job service backed by repositories.
 func NewJobService(r *repository.Contract) Job {
 	return &jobService{
-		tx:        r.Transactor,
-		repo:      r.JobsRepository,
-		userJobs:  r.UserJobsRepository,
-		workflows: r.WorkflowsRepository,
+		tx:              r.Transactor,
+		repo:            r.JobsRepository,
+		userJobs:        r.UserJobsRepository,
+		workflows:       r.WorkflowsRepository,
+		userPreferences: r.UserPreferencesRepository,
 	}
 }
 
@@ -66,11 +68,17 @@ func (s *jobService) Create(ctx context.Context, params models.CreateJobParams) 
 			return err
 		}
 
-		added, err := s.userJobs.Create(ctx, params.UserID, result.Job.ID)
-		if err != nil {
-			return fmt.Errorf("create user_jobs ownership: %w", err)
+		for _, uid := range params.UserIDs {
+			if uid != "" {
+				added, err := s.userJobs.Create(ctx, uid, result.Job.ID)
+				if err != nil {
+					return fmt.Errorf("create user_jobs ownership: %w", err)
+				}
+				if added {
+					result.AddedToUserList = true
+				}
+			}
 		}
-		result.AddedToUserList = added
 		return nil
 	}
 	if err := s.tx.Transact(ctx, operation); err != nil {
@@ -107,11 +115,15 @@ func (s *jobService) CreateBulk(ctx context.Context, params models.BulkCreateJob
 
 		var links []models.UserJobLink
 		for i, cj := range createdJobs {
-			if cj != nil && cj.Job != nil && jobs[i].UserID != "" {
-				links = append(links, models.UserJobLink{
-					UserID: jobs[i].UserID,
-					JobID:  cj.Job.ID,
-				})
+			if cj != nil && cj.Job != nil {
+				for _, uid := range jobs[i].UserIDs {
+					if uid != "" {
+						links = append(links, models.UserJobLink{
+							UserID: uid,
+							JobID:  cj.Job.ID,
+						})
+					}
+				}
 			}
 		}
 
@@ -125,8 +137,13 @@ func (s *jobService) CreateBulk(ctx context.Context, params models.BulkCreateJob
 			if cj != nil {
 				results[i].Created = cj.Created
 				if cj.Job != nil {
-					key := fmt.Sprintf("%s:%d", jobs[i].UserID, cj.Job.ID)
-					results[i].AddedToUserList = addedMap[key]
+					for _, uid := range jobs[i].UserIDs {
+						key := fmt.Sprintf("%s:%d", uid, cj.Job.ID)
+						if addedMap[key] {
+							results[i].AddedToUserList = true
+							break
+						}
+					}
 				}
 			}
 		}
@@ -175,37 +192,6 @@ func (s *jobService) IsOwned(ctx context.Context, userID string, jobID int64) (b
 // case-insensitively.
 func (s *jobService) SearchByCompany(ctx context.Context, company string, limit int) ([]*models.Job, error) {
 	return s.repo.SearchByCompany(ctx, company, limit)
-}
-
-// StartJobScrape starts the JobScrapeWorkflow in Temporal for the given
-// owner + search, returning the workflow id. The workflow id is computed by
-// the caller (stable idempotent ids: job-scrape-scan-{scan} or
-// job-scrape-{user_id}-{scan}).
-func (s *jobService) StartJobScrape(ctx context.Context, params models.ScrapeJobsParams) (string, error) {
-	if len(params.Searches) == 0 {
-		return "", fmt.Errorf("must provide at least one search")
-	}
-
-	for _, src := range params.Searches {
-		if len(src.Keywords) == 0 {
-			return "", fmt.Errorf("search entry %d: at least one keyword required", len(src.Keywords))
-		}
-		if len(src.Locations) == 0 {
-			return "", fmt.Errorf("search entry %d: at least one location required", len(src.Locations))
-		}
-	}
-
-	workflowID, err := s.workflows.StartJobScrape(ctx, params.WorkflowID, models.JobScrapeWorkflowInput{
-		UserID:     params.UserID,
-		SearchID:   params.SearchID,
-		Searches:   params.Searches,
-		WorkflowID: params.WorkflowID,
-	})
-	if err != nil {
-		return "", fmt.Errorf("start job scrape workflow: %w", err)
-	}
-
-	return workflowID, nil
 }
 
 // UpdateStatus validates the status transition for the job identified by slug

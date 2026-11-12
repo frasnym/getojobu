@@ -456,7 +456,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Start a job discovery scan for a given set of keyword × location searches. Returns 202 with the workflow id. Machine callers only (API key auth).",
+                "description": "Start job discovery scans for active user preferences. Returns 202 with the workflow ids. Machine callers only (API key auth).",
                 "consumes": [
                     "application/json"
                 ],
@@ -469,10 +469,9 @@ const docTemplate = `{
                 "summary": "Queue a job scrape scan",
                 "parameters": [
                     {
-                        "description": "Search queries",
+                        "description": "Optional user filter",
                         "name": "request",
                         "in": "body",
-                        "required": true,
                         "schema": {
                             "$ref": "#/definitions/models.ScrapeJobsRequest"
                         }
@@ -1419,9 +1418,12 @@ const docTemplate = `{
                 "title": {
                     "type": "string"
                 },
-                "user_id": {
-                    "description": "UserID is the internal user id that owns this job listing.\nRequired for API key callers. Clerk callers must not send it (it is\nresolved from the token); sending it is a 400 error.",
-                    "type": "string"
+                "user_ids": {
+                    "description": "UserIDs is the list of internal user ids linked to this job.\nRequired for API key callers. Clerk callers must not send it (it is\nresolved from the session token); sending it is a 400 error.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 },
                 "visa_relocation": {
                     "type": "boolean"
@@ -1700,10 +1702,10 @@ const docTemplate = `{
         "models.ScrapeJobsRequest": {
             "type": "object",
             "properties": {
-                "searches": {
+                "user_ids": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/models.ScrapeSearch"
+                        "type": "string"
                     }
                 }
             }
@@ -1711,21 +1713,7 @@ const docTemplate = `{
         "models.ScrapeJobsResponse": {
             "type": "object",
             "properties": {
-                "workflow_id": {
-                    "type": "string"
-                }
-            }
-        },
-        "models.ScrapeSearch": {
-            "type": "object",
-            "properties": {
-                "keywords": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "locations": {
+                "workflow_ids": {
                     "type": "array",
                     "items": {
                         "type": "string"

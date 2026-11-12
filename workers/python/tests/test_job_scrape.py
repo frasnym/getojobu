@@ -5,14 +5,28 @@ from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
+
 from deliveries.consumer.activities.job_scrape import (
     build_job_slug,
     enrich_jobs,
     ingest_jobs,
+    parse_user_ids,
     queue_analysis,
     scrape_scan,
     slugify,
 )
+from workflows.job_scrape import JobScrapeWorkflow
+
+
+def test_parse_user_ids():
+    assert parse_user_ids(["userA", "userB"]) == ["userA", "userB"]
+    assert parse_user_ids([" userA ", "", "  ", None, 123, "userB"]) == [
+        "userA",
+        "userB",
+    ]
+    assert parse_user_ids([]) == []
+    assert parse_user_ids(None) == []
+    assert parse_user_ids("not-a-list") == []
 
 
 def test_slugify_and_build_job_slug():
@@ -40,6 +54,20 @@ def test_enrich_jobs_drops_missing_required_fields():
         {"title": "Dev", "company": "Acme", "location": None, "date_posted": now_iso},
         {"title": "Dev", "company": "Acme", "location": "Dublin", "date_posted": None},
         {
+            "title": "Dev",
+            "company": "Acme",
+            "location": "Dublin",
+            "date_posted": now_iso,
+            "site": None,
+        },
+        {
+            "title": "Dev",
+            "company": "Acme",
+            "location": "Dublin",
+            "date_posted": now_iso,
+            "site": "  ",
+        },
+        {
             "title": "Valid Dev",
             "company": "Acme",
             "location": "ireland",
@@ -49,8 +77,10 @@ def test_enrich_jobs_drops_missing_required_fields():
         },
     ]
 
-    res = enrich_jobs({"user_id": "test-user", "search_id": "s1", "raw_jobs": raw_jobs})
-    assert res["found"] == 5
+    res = enrich_jobs(
+        {"user_ids": ["test-user"], "search_id": "s1", "raw_jobs": raw_jobs}
+    )
+    assert res["found"] == 7
     assert len(res["jobs"]) == 1
 
     job = res["jobs"][0]
@@ -58,7 +88,7 @@ def test_enrich_jobs_drops_missing_required_fields():
     assert job["company"] == "Acme"
     assert job["location"] == "Ireland"  # Normalized
     assert job["source"] == "glassdoor"
-    assert job["user_id"] == "test-user"
+    assert job["user_ids"] == ["test-user"]
     assert job["updated_by_type"] == "cron"
     assert job["updated_by_id"] == "cron-scrape"
     assert job["slug"] == "valid-dev-acme-ireland"
@@ -91,7 +121,14 @@ def test_enrich_jobs_recency_filter_and_sorting():
         },
     ]
 
-    res = enrich_jobs({"user_id": "admin", "search_id": "s1", "raw_jobs": raw_jobs})
+    res = enrich_jobs(
+        {
+            "board": "linkedin",
+            "user_ids": ["admin"],
+            "search_id": "s1",
+            "raw_jobs": raw_jobs,
+        }
+    )
     assert res["found"] == 3
     assert res["filtered_out_recency"] == 1
     assert len(res["jobs"]) == 2
@@ -128,7 +165,7 @@ def test_enrich_jobs_location_normalization():
         },
     ]
 
-    res = enrich_jobs({"user_id": "admin", "raw_jobs": raw_jobs})
+    res = enrich_jobs({"user_ids": ["admin"], "raw_jobs": raw_jobs})
     jobs = res["jobs"]
     assert len(jobs) == 3
     locs = {j["title"]: j["location"] for j in jobs}
@@ -157,15 +194,11 @@ def test_scrape_scan_with_mocked_jobspy():
 
     with patch("deliveries.consumer.activities.job_scrape.jobspy", mock_jobspy):
         input_data = {
-            "user_id": "admin",
+            "board": "glassdoor",
+            "keyword": "golang",
+            "location": "ireland",
+            "user_ids": ["admin"],
             "search_id": "s1",
-            "searches": [
-                {
-                    "keywords": ["golang"],
-                    "locations": ["ireland"],
-                    "boards": ["glassdoor"],
-                }
-            ],
         }
         res = scrape_scan(input_data)
         assert len(res["jobs"]) == 1
@@ -182,15 +215,11 @@ def test_scrape_scan_board_error_resilience():
 
     with patch("deliveries.consumer.activities.job_scrape.jobspy", mock_jobspy):
         input_data = {
-            "user_id": "admin",
+            "board": "glassdoor",
+            "keyword": "golang",
+            "location": "ireland",
+            "user_ids": ["admin"],
             "search_id": "s1",
-            "searches": [
-                {
-                    "keywords": ["golang"],
-                    "locations": ["ireland"],
-                    "boards": ["glassdoor"],
-                }
-            ],
         }
         res = scrape_scan(input_data)
         assert len(res["jobs"]) == 0
@@ -207,7 +236,7 @@ async def test_ingest_jobs_bulk_post():
         assert path == "/v1/jobs/bulk"
         jobs_in = json["jobs"]
         assert len(jobs_in) == 2
-        assert jobs_in[0]["user_id"] == "user-123"
+        assert jobs_in[0]["user_ids"] == ["user-123"]
         return [
             {"slug": jobs_in[0]["slug"], "created": True},
             {"slug": jobs_in[1]["slug"], "created": False},
@@ -224,7 +253,7 @@ async def test_ingest_jobs_bulk_post():
         return_value=fake_client,
     ):
         input_data = {
-            "user_id": "user-123",
+            "user_ids": ["user-123"],
             "search_id": "scan-1",
             "jobs": [
                 {"slug": "job-1", "title": "Job 1"},
@@ -259,10 +288,130 @@ async def test_queue_analysis_bulk():
         return_value=fake_client,
     ):
         input_data = {
-            "user_id": "admin",
+            "user_ids": ["admin"],
             "search_id": "scan-1",
             "created_job_slugs": ["job-1", "job-2"],
         }
         res = await queue_analysis(input_data)
         assert res["started"] == 1
         assert res["failed"] == ["job-2"]
+
+
+def test_scrape_scan_single_target_normalized():
+    mock_jobspy = MagicMock()
+    mock_jobspy.SUPPORTED_SITES = {"glassdoor", "linkedin"}
+
+    class FakeDataFrame:
+        def to_dict(self, orient="records"):
+            return [
+                {
+                    "title": "Backend Go Engineer",
+                    "company": "Tech Corp",
+                    "location": "Jakarta, Indonesia",
+                    "date_posted": datetime.now(UTC).isoformat(),
+                    "site": "glassdoor",
+                }
+            ]
+
+    mock_jobspy.scrape_jobs.return_value = FakeDataFrame()
+
+    with patch("deliveries.consumer.activities.job_scrape.jobspy", mock_jobspy):
+        input_data = {
+            "board": "glassdoor",
+            "keyword": "golang",
+            "location": "indonesia",
+            "user_ids": ["userA", "userB"],
+            "search_id": "glassdoor-golang-indonesia",
+        }
+        res = scrape_scan(input_data)
+        assert len(res["jobs"]) == 1
+        assert res["jobs"][0]["title"] == "Backend Go Engineer"
+        assert res["boards"] == ["glassdoor"]
+        assert len(res["errors"]) == 0
+        mock_jobspy.scrape_jobs.assert_called_once_with(
+            site_name="glassdoor",
+            search_term="golang",
+            location="indonesia",
+            results_wanted=20,
+            hours_old=24,
+            description_format="plain",
+        )
+
+
+def test_enrich_jobs_preserves_user_ids():
+    now_iso = datetime.now(UTC).isoformat()
+    raw_jobs = [
+        {
+            "title": "Backend Go Engineer",
+            "company": "Tech Corp",
+            "location": "Indonesia",
+            "date_posted": now_iso,
+            "site": "glassdoor",
+            "description": "Awesome role",
+        }
+    ]
+
+    res = enrich_jobs(
+        {
+            "board": "glassdoor",
+            "keyword": "golang",
+            "location": "indonesia",
+            "user_ids": ["userA", "userB"],
+            "raw_jobs": raw_jobs,
+        }
+    )
+    assert len(res["jobs"]) == 1
+    job = res["jobs"][0]
+    assert job["user_ids"] == ["userA", "userB"]
+
+
+@pytest.mark.asyncio
+async def test_ingest_jobs_passes_user_ids_in_bulk():
+    fake_client = MagicMock()
+
+    async def fake_post(path: str, json: Any) -> Any:
+        assert path == "/v1/jobs/bulk"
+        jobs_in = json["jobs"]
+        assert len(jobs_in) == 1
+        assert jobs_in[0]["user_ids"] == ["userA", "userB"]
+        return [{"slug": jobs_in[0]["slug"], "created": True}]
+
+    async def fake_aclose() -> None:
+        pass
+
+    fake_client.post.side_effect = fake_post
+    fake_client.aclose.side_effect = fake_aclose
+
+    with patch(
+        "deliveries.consumer.activities.job_scrape.NewGetojobuAPI",
+        return_value=fake_client,
+    ):
+        input_data = {
+            "user_ids": ["userA", "userB"],
+            "jobs": [
+                {
+                    "slug": "job-multi-user",
+                    "title": "Job Multi",
+                    "user_ids": ["userA", "userB"],
+                },
+            ],
+        }
+        res = await ingest_jobs(input_data)
+        assert res["inserted"] == 1
+        assert res["created_slugs"] == ["job-multi-user"]
+
+
+def test_scrape_scan_rejects_empty_board():
+    with pytest.raises(ValueError, match="board is required"):
+        scrape_scan({"board": "", "keyword": "golang", "location": "indonesia"})
+    with pytest.raises(ValueError, match="board is required"):
+        scrape_scan({"keyword": "golang", "location": "indonesia"})
+
+
+@pytest.mark.asyncio
+async def test_job_scrape_workflow_rejects_empty_board():
+    wf = JobScrapeWorkflow()
+    with pytest.raises(ValueError, match="board is required"):
+        await wf.run({"board": "", "keyword": "golang", "location": "indonesia"})
+    with pytest.raises(ValueError, match="board is required"):
+        await wf.run({"keyword": "golang", "location": "indonesia"})

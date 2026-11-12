@@ -1,9 +1,9 @@
 package models
 
 import (
-	"strings"
 	"time"
-	"unicode"
+
+	"github.com/frasnym/getojobu/apps/backend/internal/utils"
 )
 
 // Job is a shared job listing row, returned as an API response.
@@ -49,9 +49,8 @@ type CreateJobParams struct {
 	// ("system", "system") via actorTypeID() in the repository when empty).
 	UpdatedByType string `json:"-"`
 	UpdatedByID   string `json:"-"`
-	// UserID is the internal user id that owns this job listing. Required for
-	// all job creates so ownership can be tracked in user_jobs.
-	UserID string `json:"-"`
+	// UserIDs is the list of internal user ids linked to this job in user_jobs.
+	UserIDs []string `json:"-"`
 }
 
 // CreateJobResult is the outcome of creating a job listing.
@@ -114,35 +113,17 @@ type SearchJobsParams struct {
 // {normalized-title}-{normalized-company}-{normalized-location}
 // Missing components fall back to "unknown-company" / "unspecified-location".
 func BuildJobSlug(title, company, location string) string {
-	title = slugify(title)
+	title = utils.Slugify(title)
 	if title == "" {
 		title = "untitled"
 	}
-	company = slugify(company)
+	company = utils.Slugify(company)
 	if company == "" {
 		company = "unknown-company"
 	}
-	location = slugify(location)
+	location = utils.Slugify(location)
 	if location == "" {
 		location = "unspecified-location"
 	}
 	return title + "-" + company + "-" + location
-}
-
-// slugify trims, lowercases, kebab-cases (replaces non-alphanumeric runs with
-// a single hyphen), and strips leading/trailing hyphens.
-func slugify(s string) string {
-	s = strings.ToLower(strings.TrimSpace(s))
-	var b strings.Builder
-	prevDash := false
-	for _, r := range s {
-		if unicode.IsLetter(r) || unicode.IsDigit(r) {
-			b.WriteRune(r)
-			prevDash = false
-		} else if !prevDash {
-			b.WriteRune('-')
-			prevDash = true
-		}
-	}
-	return strings.Trim(b.String(), "-")
 }

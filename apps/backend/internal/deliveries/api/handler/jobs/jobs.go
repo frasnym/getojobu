@@ -3,6 +3,7 @@ package jobs
 import (
 	"errors"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -77,9 +78,9 @@ func (h *handler) CreateJob(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	// Resolve the owning user ID. Clerk → from token principal (reject body
-	// user_id). API key → from request body (required).
-	userID, err := resolveOwnerUserID(p, req.UserID)
+	// Resolve the owning user IDs. Clerk → from token principal (reject body
+	// user_ids). API key → from request body (required).
+	userIDs, err := resolveOwnerUserIDs(p, req.UserIDs)
 	if err != nil {
 		return err
 	}
@@ -105,7 +106,7 @@ func (h *handler) CreateJob(w http.ResponseWriter, r *http.Request) error {
 		VisaRelocation: req.VisaRelocation,
 		UpdatedByType:  actorType,
 		UpdatedByID:    actorID,
-		UserID:         userID,
+		UserIDs:        userIDs,
 	}
 
 	result, err := h.ucJobs.Create(ctx, params)
@@ -158,7 +159,7 @@ func (h *handler) BulkCreateJob(w http.ResponseWriter, r *http.Request) error {
 		Jobs: make([]models.CreateJobParams, len(req.Jobs)),
 	}
 	for i, j := range req.Jobs {
-		userID, err := resolveOwnerUserID(p, j.UserID)
+		userIDs, err := resolveOwnerUserIDs(p, j.UserIDs)
 		if err != nil {
 			return err
 		}
@@ -183,7 +184,7 @@ func (h *handler) BulkCreateJob(w http.ResponseWriter, r *http.Request) error {
 			VisaRelocation: j.VisaRelocation,
 			UpdatedByType:  actorType,
 			UpdatedByID:    actorID,
-			UserID:         userID,
+			UserIDs:        userIDs,
 		}
 	}
 
@@ -417,29 +418,34 @@ func (h *handler) UpdateJob(w http.ResponseWriter, r *http.Request) error {
 	return httpx.RespondJSON(w, r, http.StatusOK, job)
 }
 
-// resolveOwnerUserID returns the internal user id that owns the job being
-// created.
-//
-// For Clerk callers, user_id comes from the token principal and any user_id
-// sent in the body is rejected (400). For API key callers, user_id must come
-// from the request body.
-func resolveOwnerUserID(p *models.Principal, bodyUserID string) (string, error) {
+// resolveOwnerUserIDs returns the internal user ids that own the job being created.
+// For Clerk callers, user_ids is resolved from the principal token and any user_ids
+// sent in the body is rejected (400). For API key callers, user_ids is required in the body.
+func resolveOwnerUserIDs(p *models.Principal, bodyUserIDs []string) ([]string, error) {
 	if p.ActorType == "" {
 		// Clerk caller: resolve user_id from the principal (internal user id).
-		if bodyUserID != "" {
-			return "", httpx.Envelope(httpx.CodeInvalidRequest, "user_id not allowed for Clerk authentication", "")
+		if len(bodyUserIDs) > 0 {
+			return nil, httpx.Envelope(httpx.CodeInvalidRequest, "user_ids not allowed for Clerk authentication", "")
 		}
 		if p.ID == "" {
-			return "", httpx.Envelope(httpx.CodeUnauthorized, "internal user id not available", "")
+			return nil, httpx.Envelope(httpx.CodeUnauthorized, "internal user id not available", "")
 		}
-		return p.ID, nil
+		return []string{p.ID}, nil
 	}
 
-	// API key caller: user_id is required in the body.
-	if bodyUserID == "" {
-		return "", httpx.Envelope(httpx.CodeInvalidRequest, "user_id is required for API key authentication", "")
+	// API key caller: user_ids is required in the body.
+	var uids []string
+	for _, uid := range bodyUserIDs {
+		trimmed := strings.TrimSpace(uid)
+		if trimmed != "" && !slices.Contains(uids, trimmed) {
+			uids = append(uids, trimmed)
+		}
 	}
-	return bodyUserID, nil
+
+	if len(uids) == 0 {
+		return nil, httpx.Envelope(httpx.CodeInvalidRequest, "user_ids is required for API key authentication", "")
+	}
+	return uids, nil
 }
 
 // clampLimit clamps limit to the inclusive range [1, 100], defaulting to 20

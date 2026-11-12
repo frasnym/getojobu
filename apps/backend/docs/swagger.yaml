@@ -126,12 +126,14 @@ definitions:
         type: string
       title:
         type: string
-      user_id:
+      user_ids:
         description: |-
-          UserID is the internal user id that owns this job listing.
+          UserIDs is the list of internal user ids linked to this job.
           Required for API key callers. Clerk callers must not send it (it is
-          resolved from the token); sending it is a 400 error.
-        type: string
+          resolved from the session token); sending it is a 400 error.
+        items:
+          type: string
+        type: array
       visa_relocation:
         type: boolean
     type: object
@@ -316,23 +318,14 @@ definitions:
     type: object
   models.ScrapeJobsRequest:
     properties:
-      searches:
+      user_ids:
         items:
-          $ref: '#/definitions/models.ScrapeSearch'
+          type: string
         type: array
     type: object
   models.ScrapeJobsResponse:
     properties:
-      workflow_id:
-        type: string
-    type: object
-  models.ScrapeSearch:
-    properties:
-      keywords:
-        items:
-          type: string
-        type: array
-      locations:
+      workflow_ids:
         items:
           type: string
         type: array
@@ -784,14 +777,12 @@ paths:
     post:
       consumes:
       - application/json
-      description: Start a job discovery scan for a given set of keyword × location
-        searches. Returns 202 with the workflow id. Machine callers only (API key
-        auth).
+      description: Start job discovery scans for active user preferences. Returns
+        202 with the workflow ids. Machine callers only (API key auth).
       parameters:
-      - description: Search queries
+      - description: Optional user filter
         in: body
         name: request
-        required: true
         schema:
           $ref: '#/definitions/models.ScrapeJobsRequest'
       produces:

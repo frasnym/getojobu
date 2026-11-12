@@ -147,10 +147,10 @@ func (mr *MockJobMockRecorder) SearchByCompany(ctx, company, limit any) *gomock.
 }
 
 // StartJobScrape mocks base method.
-func (m *MockJob) StartJobScrape(ctx context.Context, params models.ScrapeJobsParams) (string, error) {
+func (m *MockJob) StartJobScrape(ctx context.Context, params models.ScrapeJobsParams) ([]string, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "StartJobScrape", ctx, params)
-	ret0, _ := ret[0].(string)
+	ret0, _ := ret[0].([]string)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

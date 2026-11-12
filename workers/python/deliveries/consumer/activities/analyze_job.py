@@ -8,10 +8,11 @@ from __future__ import annotations
 
 from typing import Any
 
+from temporalio import activity
+
 from config.config import load as config_load
 from contract.contract import WorkerContainer
 from contract.contract import new as contract_new
-from temporalio import activity
 
 # The container is built once per worker process (in worker.main) and
 # attached to the module so activities can reuse the usecase.

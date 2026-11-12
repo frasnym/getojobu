@@ -13,10 +13,9 @@ from collections.abc import Callable, Coroutine
 from typing import TYPE_CHECKING, Any
 
 from config.config import Config
-from utils.logging import get_logger
-
 from contract.repository import new as repository_new
 from contract.usecase import new as usecase_new
+from utils.logging import get_logger
 
 if TYPE_CHECKING:
     from contract.repository import RepositoryContract

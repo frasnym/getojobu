@@ -38,6 +38,7 @@ func TestCreate_passes_through(t *testing.T) {
 		Company:     "Acme",
 		Location:    "Jakarta",
 		Description: strPtr("We build backend systems"),
+		UserIDs:     []string{"user_1"},
 	}
 	expected := &models.CreateJobResult{Job: &models.Job{Slug: params.Slug, ID: 1}, Created: true}
 
@@ -45,7 +46,7 @@ func TestCreate_passes_through(t *testing.T) {
 		Create(gomock.Any(), params).
 		Return(expected, nil)
 	userJobs.EXPECT().
-		Create(gomock.Any(), params.UserID, int64(1)).
+		Create(gomock.Any(), "user_1", int64(1)).
 		Return(true, nil)
 
 	got, err := s.Create(context.Background(), params)
@@ -69,7 +70,7 @@ func TestCreate_conflict_returns_existing(t *testing.T) {
 		Title:    "Senior Backend Engineer",
 		Company:  "Acme",
 		Location: "Jakarta",
-		UserID:   "user_1",
+		UserIDs:  []string{"user_1"},
 	}
 	existing := &models.Job{Slug: params.Slug, ID: 7}
 	expected := &models.CreateJobResult{Job: existing, Created: false}
@@ -78,7 +79,7 @@ func TestCreate_conflict_returns_existing(t *testing.T) {
 		Create(gomock.Any(), params).
 		Return(expected, nil)
 	userJobs.EXPECT().
-		Create(gomock.Any(), params.UserID, int64(7)).
+		Create(gomock.Any(), "user_1", int64(7)).
 		Return(false, nil)
 
 	got, err := s.Create(context.Background(), params)
@@ -97,8 +98,8 @@ func TestCreateBulk_passes_through(t *testing.T) {
 	s := newServiceWithMock(repo, userJobs)
 
 	jobs := []models.CreateJobParams{
-		{Slug: "job-1", Source: "linkedin", Title: "Job 1", Company: "Acme", Location: "Jakarta", UserID: "user_1"},
-		{Slug: "job-2", Source: "linkedin", Title: "Job 2", Company: "Acme", Location: "Jakarta", UserID: "user_2"},
+		{Slug: "job-1", Source: "linkedin", Title: "Job 1", Company: "Acme", Location: "Jakarta", UserIDs: []string{"user_1"}},
+		{Slug: "job-2", Source: "linkedin", Title: "Job 2", Company: "Acme", Location: "Jakarta", UserIDs: []string{"user_2"}},
 	}
 	params := models.BulkCreateJobParams{Jobs: jobs}
 
@@ -312,80 +313,6 @@ func TestUpdateStatus_invalid_transition(t *testing.T) {
 
 	require.Error(t, err)
 	assert.True(t, errors.Is(err, constants.ErrInvalidTransition))
-}
-
-func TestStartJobScrape_valid(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-	mockWF := mocks.NewMockWorkflows(ctrl)
-	s := &jobService{workflows: mockWF}
-
-	params := models.ScrapeJobsParams{
-		UserID:     "admin",
-		SearchID:   "search-123",
-		WorkflowID: "job-scrape-scan-123",
-		Searches: []models.ScrapeSearch{
-			{Keywords: []string{"golang"}, Locations: []string{"ireland"}},
-		},
-	}
-
-	expectedInput := models.JobScrapeWorkflowInput{
-		UserID:     "admin",
-		SearchID:   "search-123",
-		WorkflowID: "job-scrape-scan-123",
-		Searches:   params.Searches,
-	}
-
-	mockWF.EXPECT().
-		StartJobScrape(gomock.Any(), "job-scrape-scan-123", expectedInput).
-		Return("job-scrape-scan-123", nil)
-
-	wfID, err := s.StartJobScrape(context.Background(), params)
-	require.NoError(t, err)
-	assert.Equal(t, "job-scrape-scan-123", wfID)
-}
-
-func TestStartJobScrape_validation_errors(t *testing.T) {
-	s := &jobService{}
-
-	_, err := s.StartJobScrape(context.Background(), models.ScrapeJobsParams{Searches: nil})
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "must provide at least one search")
-
-	_, err = s.StartJobScrape(context.Background(), models.ScrapeJobsParams{
-		Searches: []models.ScrapeSearch{
-			{Keywords: nil, Locations: []string{"ireland"}},
-		},
-	})
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "at least one keyword required")
-
-	_, err = s.StartJobScrape(context.Background(), models.ScrapeJobsParams{
-		Searches: []models.ScrapeSearch{
-			{Keywords: []string{"golang"}, Locations: nil},
-		},
-	})
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "at least one location required")
-}
-
-func TestStartJobScrape_workflow_error(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-	mockWF := mocks.NewMockWorkflows(ctrl)
-	s := &jobService{workflows: mockWF}
-
-	mockWF.EXPECT().
-		StartJobScrape(gomock.Any(), gomock.Any(), gomock.Any()).
-		Return("", errors.New("temporal unavailable"))
-
-	_, err := s.StartJobScrape(context.Background(), models.ScrapeJobsParams{
-		Searches: []models.ScrapeSearch{
-			{Keywords: []string{"golang"}, Locations: []string{"ireland"}},
-		},
-	})
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "start job scrape workflow")
 }
 
 func strPtr(s string) *string {

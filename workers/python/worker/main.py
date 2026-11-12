@@ -14,6 +14,8 @@ import asyncio
 import signal
 import sys
 
+from temporalio.worker import Worker
+
 from config.config import load as config_load
 from contract.contract import new as contract_new
 from deliveries.consumer.activities.analyze_job import (
@@ -26,7 +28,6 @@ from deliveries.consumer.activities.job_scrape import (
     queue_analysis,
     scrape_scan,
 )
-from temporalio.worker import Worker
 from utils.logging import configure, get_logger
 from utils.temporal import connect as temporal_connect
 from workflows.job_analyze import JobAnalyzeWorkflow

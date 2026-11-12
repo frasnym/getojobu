@@ -22,8 +22,9 @@ try:
 except ImportError:  # pragma: no cover - optional dependency in host env
     jobspy = None
 
-from repository.getojobu_api import NewGetojobuAPI
 from temporalio import activity
+
+from repository.getojobu_api import NewGetojobuAPI
 from utils.logging import get_logger
 
 logger = get_logger("activities.job_scrape")
@@ -56,6 +57,17 @@ def build_job_slug(title: str, company: str, location: str) -> str:
     return f"{t}-{c}-{l}"
 
 
+def parse_user_ids(raw: object) -> list[str]:
+    """Extract and validate a list of non-empty user id strings."""
+    if not isinstance(raw, list):
+        return []
+    result: list[str] = []
+    for uid in cast(list[object], raw):
+        if isinstance(uid, str) and uid.strip():
+            result.append(uid.strip())
+    return result
+
+
 def _safe_heartbeat(**details: Any) -> None:
     if activity.in_activity():
         try:
@@ -79,17 +91,19 @@ def scrape_scan(input_data: dict[str, Any]) -> dict[str, Any]:
             "errors": [{"board", "error", "location", "search_term"}],
         }
     """
-    user_id_raw = input_data.get("user_id")
-    user_id: str = user_id_raw if isinstance(user_id_raw, str) else "admin"
+    user_ids = parse_user_ids(input_data.get("user_ids"))
+
     search_id_raw = input_data.get("search_id")
     search_id: str = search_id_raw if isinstance(search_id_raw, str) else ""
 
-    raw_searches = input_data.get("searches")
-    searches: list[dict[str, Any]] = (
-        cast(list[dict[str, Any]], raw_searches)
-        if isinstance(raw_searches, list)
-        else []
-    )
+    board_val = input_data.get("board")
+    board: str = board_val.strip().lower() if isinstance(board_val, str) else ""
+    if not board:
+        raise ValueError("board is required and cannot be empty")
+    keyword_val = input_data.get("keyword")
+    keyword: str = keyword_val if isinstance(keyword_val, str) else ""
+    location_val = input_data.get("location")
+    location: str = location_val if isinstance(location_val, str) else ""
 
     all_jobs: list[dict[str, Any]] = []
     boards_run: list[str] = []
@@ -98,120 +112,93 @@ def scrape_scan(input_data: dict[str, Any]) -> dict[str, Any]:
     if jobspy is None:
         logger.warning(
             "jobspy_not_installed",
-            user_id=user_id,
+            user_ids=user_ids,
             scan_id=search_id,
         )
         return {"jobs": [], "boards": [], "errors": [{"error": "jobspy not installed"}]}
 
     js: Any = jobspy
 
-    for src in searches:
-        raw_boards = src.get("boards")
-        boards: list[str] = (
-            cast(list[str], raw_boards)
-            if isinstance(raw_boards, list)
-            else ["glassdoor"]
+    if keyword and location:
+        supported = getattr(
+            js,
+            "SUPPORTED_SITES",
+            {"glassdoor", "linkedin", "indeed", "zip_recruiter"},
         )
-        if not boards:
-            boards = ["glassdoor"]
+        if board not in supported:
+            logger.info(
+                "board not in JobSpy, skipping",
+                user_ids=user_ids,
+                scan_id=search_id,
+                board=board,
+            )
+        else:
+            try:
+                logger.info(
+                    "scraping",
+                    user_ids=user_ids,
+                    scan_id=search_id,
+                    board=board,
+                    search_term=keyword,
+                    location=location,
+                    results_wanted=20,
+                )
 
-        raw_keywords = src.get("keywords")
-        keywords: list[str] = (
-            cast(list[str], raw_keywords)
-            if isinstance(raw_keywords, list)
-            else []
-        )
-        raw_locations = src.get("locations")
-        locations: list[str] = (
-            cast(list[str], raw_locations)
-            if isinstance(raw_locations, list)
-            else []
-        )
+                result = js.scrape_jobs(
+                    site_name=board,
+                    search_term=keyword,
+                    location=location,
+                    results_wanted=20,
+                    hours_old=24,
+                    description_format="plain",
+                )
 
-        for keyword in keywords:
-            for location in locations:
-                for board in boards:
-                    supported = getattr(
-                        js,
-                        "SUPPORTED_SITES",
-                        {"glassdoor", "linkedin", "indeed", "zip_recruiter"},
-                    )
-                    if board not in supported:
-                        logger.info(
-                            "board not in JobSpy, skipping",
-                            user_id=user_id,
-                            scan_id=search_id,
-                            board=board,
-                        )
-                        continue
+                records: list[dict[str, Any]] = []
+                if hasattr(result, "to_dict"):
+                    raw_records = result.to_dict("records")
+                    if isinstance(raw_records, list):
+                        records = cast(list[dict[str, Any]], raw_records)
+                elif isinstance(result, list):
+                    records = cast(list[dict[str, Any]], result)
 
-                    try:
-                        logger.info(
-                            "scraping",
-                            user_id=user_id,
-                            scan_id=search_id,
-                            board=board,
-                            search_term=keyword,
-                            location=location,
-                            results_wanted=20,
-                        )
+                for r in records:
+                    if not r.get("site"):
+                        r["site"] = board
+                all_jobs.extend(records)
+                if board not in boards_run:
+                    boards_run.append(board)
 
-                        result = js.scrape_jobs(
-                            site_name=board,
-                            search_term=keyword,
-                            location=location,
-                            results_wanted=20,
-                            hours_old=24,
-                            description_format="plain",
-                        )
+                logger.info(
+                    "scrape complete",
+                    user_ids=user_ids,
+                    scan_id=search_id,
+                    board=board,
+                    found=len(records),
+                )
 
-                        records: list[dict[str, Any]] = []
-                        if hasattr(result, "to_dict"):
-                            raw_records = result.to_dict("records")
-                            if isinstance(raw_records, list):
-                                records = cast(list[dict[str, Any]], raw_records)
-                        elif isinstance(result, list):
-                            records = cast(list[dict[str, Any]], result)
+            except Exception as e:  # noqa: BLE001
+                logger.warning(
+                    "scrape failed for board",
+                    user_ids=user_ids,
+                    scan_id=search_id,
+                    board=board,
+                    location=location,
+                    error=f"{e}",
+                )
+                errors.append(
+                    {
+                        "board": board,
+                        "search_term": keyword,
+                        "location": location,
+                        "error": f"{e}",
+                    }
+                )
 
-                        for r in records:
-                            if not r.get("site"):
-                                r["site"] = board
-                        all_jobs.extend(records)
-                        if board not in boards_run:
-                            boards_run.append(board)
-
-                        logger.info(
-                            "scrape complete",
-                            user_id=user_id,
-                            scan_id=search_id,
-                            board=board,
-                            found=len(records),
-                        )
-
-                    except Exception as e:
-                        logger.warning(
-                            "scrape failed for board",
-                            user_id=user_id,
-                            scan_id=search_id,
-                            board=board,
-                            location=location,
-                            error=f"{e}",
-                            exc_info=True,
-                        )
-                        errors.append(
-                            {
-                                "board": board,
-                                "error": f"{e}",
-                                "location": location,
-                                "search_term": keyword,
-                            }
-                        )
-
-                    _safe_heartbeat(
-                        jobs_found=len(all_jobs),
-                        boards_run=len(boards_run),
-                        errors=len(errors),
-                    )
+    _safe_heartbeat(
+        jobs_found=len(all_jobs),
+        boards_run=len(boards_run),
+        errors=len(errors),
+    )
 
     return {"jobs": all_jobs, "boards": boards_run, "errors": errors}
 
@@ -226,7 +213,7 @@ def enrich_jobs(input_data: dict[str, Any]) -> dict[str, Any]:
 
     Returns:
         {
-            "jobs": [{user_id, slug, source, source_url, apply_url, title, company,
+            "jobs": [{user_ids, slug, source, source_url, apply_url, title, company,
                       location, description, posted_date, is_remote,
                       updated_by_type, updated_by_id}],
             "found": int,
@@ -234,22 +221,18 @@ def enrich_jobs(input_data: dict[str, Any]) -> dict[str, Any]:
             "errors": [...],
         }
     """
-    user_id_raw = input_data.get("user_id")
-    user_id: str = user_id_raw if isinstance(user_id_raw, str) else "admin"
+    user_ids = parse_user_ids(input_data.get("user_ids"))
+
     search_id_raw = input_data.get("search_id")
     search_id: str = search_id_raw if isinstance(search_id_raw, str) else ""
 
     raw_jobs = input_data.get("raw_jobs")
     raw: list[dict[str, Any]] = (
-        cast(list[dict[str, Any]], raw_jobs)
-        if isinstance(raw_jobs, list)
-        else []
+        cast(list[dict[str, Any]], raw_jobs) if isinstance(raw_jobs, list) else []
     )
     raw_errors = input_data.get("errors")
     errors: list[dict[str, Any]] = (
-        cast(list[dict[str, Any]], raw_errors)
-        if isinstance(raw_errors, list)
-        else []
+        cast(list[dict[str, Any]], raw_errors) if isinstance(raw_errors, list) else []
     )
 
     cut = datetime.now(UTC) - timedelta(days=RECENT_DAYS)
@@ -272,7 +255,7 @@ def enrich_jobs(input_data: dict[str, Any]) -> dict[str, Any]:
             ):
                 logger.debug(
                     "drop row missing required field",
-                    user_id=user_id,
+                    user_ids=user_ids,
                     scan_id=search_id,
                     row_title=title_val,
                     row_company=company_val,
@@ -310,8 +293,15 @@ def enrich_jobs(input_data: dict[str, Any]) -> dict[str, Any]:
                 filtered_recency += 1
                 continue
 
-            site_val = row.get("site")
-            board: str = (site_val if isinstance(site_val, str) else "glassdoor").lower()
+            site_val = row.get("site") or input_data.get("board")
+            if not isinstance(site_val, str) or not site_val.strip():
+                logger.debug(
+                    "drop row missing site",
+                    user_ids=user_ids,
+                    scan_id=search_id,
+                )
+                continue
+            board: str = site_val.strip().lower()
 
             # Normalize location per board lookup.
             normalized_map = LOCATION_MAP.get(raw_location.lower(), {})
@@ -320,14 +310,16 @@ def enrich_jobs(input_data: dict[str, Any]) -> dict[str, Any]:
             source_url_val = row.get("job_url_direct") or row.get("job_url")
             source_url: str = source_url_val if isinstance(source_url_val, str) else ""
             apply_url_val = row.get("apply_url")
-            apply_url: str = apply_url_val if isinstance(apply_url_val, str) else source_url
+            apply_url: str = (
+                apply_url_val if isinstance(apply_url_val, str) else source_url
+            )
 
             is_remote_val = row.get("is_remote")
             is_remote: bool = is_remote_val is True
 
             jobs.append(
                 {
-                    "user_id": user_id,
+                    "user_ids": user_ids,
                     "slug": build_job_slug(title_str, company_str, loc_str),
                     "source": board,
                     "source_url": source_url,
@@ -346,7 +338,7 @@ def enrich_jobs(input_data: dict[str, Any]) -> dict[str, Any]:
         except Exception as e:
             logger.warning(
                 "failed to enrich one job row, skipping",
-                user_id=user_id,
+                user_ids=user_ids,
                 scan_id=search_id,
                 error=f"{e}",
                 exc_info=True,
@@ -385,16 +377,14 @@ async def ingest_jobs(input_data: dict[str, Any]) -> dict[str, Any]:
             "created_slugs": [str],
         }
     """
-    user_id_raw = input_data.get("user_id")
-    user_id: str = user_id_raw if isinstance(user_id_raw, str) else "admin"
+    user_ids = parse_user_ids(input_data.get("user_ids"))
+
     search_id_raw = input_data.get("search_id")
     search_id: str = search_id_raw if isinstance(search_id_raw, str) else ""
 
     raw_jobs = input_data.get("jobs")
     rows: list[dict[str, Any]] = (
-        cast(list[dict[str, Any]], raw_jobs)
-        if isinstance(raw_jobs, list)
-        else []
+        cast(list[dict[str, Any]], raw_jobs) if isinstance(raw_jobs, list) else []
     )
 
     client = NewGetojobuAPI(
@@ -409,10 +399,10 @@ async def ingest_jobs(input_data: dict[str, Any]) -> dict[str, Any]:
 
         for i in range(0, len(rows), 100):
             chunk = rows[i : i + 100]
-            # Ensure every row carries the authenticated owner user_id for API key auth
+            # Ensure every row carries user_ids for API key auth
             for item in chunk:
-                if not item.get("user_id"):
-                    item["user_id"] = user_id
+                if not item.get("user_ids") and user_ids:
+                    item["user_ids"] = user_ids
             payload: dict[str, Any] = {"jobs": chunk}
             resp = await client.post("/v1/jobs/bulk", json=payload)
 
@@ -438,7 +428,7 @@ async def ingest_jobs(input_data: dict[str, Any]) -> dict[str, Any]:
 
         logger.info(
             "ingestion complete",
-            user_id=user_id,
+            user_ids=user_ids,
             scan_id=search_id,
             inserted=inserted,
             skipped=skipped,
@@ -461,16 +451,14 @@ async def queue_analysis(input_data: dict[str, Any]) -> dict[str, Any]:
     POST /v1/jobs/bulk-queue-analyze accepts an array of [{"slug": s, "force": True}]
     and returns {"workflow_ids": [...]}.
     """
-    user_id_raw = input_data.get("user_id")
-    user_id: str = user_id_raw if isinstance(user_id_raw, str) else "admin"
+    user_ids = parse_user_ids(input_data.get("user_ids"))
+
     search_id_raw = input_data.get("search_id")
     search_id: str = search_id_raw if isinstance(search_id_raw, str) else ""
 
     slugs_input = input_data.get("created_job_slugs")
     slugs: list[str] = (
-        cast(list[str], slugs_input)
-        if isinstance(slugs_input, list)
-        else []
+        cast(list[str], slugs_input) if isinstance(slugs_input, list) else []
     )
 
     client = NewGetojobuAPI(
@@ -507,14 +495,14 @@ async def queue_analysis(input_data: dict[str, Any]) -> dict[str, Any]:
         if failed:
             logger.warning(
                 "queue analysis failed for some slugs",
-                user_id=user_id,
+                user_ids=user_ids,
                 scan_id=search_id,
                 failed_slugs=failed,
             )
 
         logger.info(
             "queue analysis complete",
-            user_id=user_id,
+            user_ids=user_ids,
             scan_id=search_id,
             started=started,
             failed=len(failed),

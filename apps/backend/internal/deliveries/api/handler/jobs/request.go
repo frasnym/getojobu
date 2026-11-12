@@ -18,10 +18,10 @@ type createJobRequest struct {
 	PostedDate     string  `json:"posted_date,omitempty"`
 	IsRemote       *bool   `json:"is_remote,omitempty"`
 	VisaRelocation *bool   `json:"visa_relocation,omitempty"`
-	// UserID is the internal user id that owns this job listing.
+	// UserIDs is the list of internal user ids linked to this job.
 	// Required for API key callers. Clerk callers must not send it (it is
-	// resolved from the token); sending it is a 400 error.
-	UserID string `json:"user_id,omitempty"`
+	// resolved from the session token); sending it is a 400 error.
+	UserIDs []string `json:"user_ids,omitempty"`
 }
 
 type bulkCreateJobRequest struct {
