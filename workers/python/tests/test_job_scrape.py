@@ -446,6 +446,7 @@ def test_scrape_scan_single_target_normalized():
             results_wanted=20,
             hours_old=24,
             description_format="plain",
+            fetch_description=True,
         )
 
 

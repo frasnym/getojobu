@@ -191,6 +191,7 @@ def scrape_scan(input_data: dict[str, Any]) -> dict[str, Any]:
                     results_wanted=20,
                     hours_old=24,
                     description_format="plain",
+                    fetch_description=True,
                 )
 
                 records: list[dict[str, Any]] = []
