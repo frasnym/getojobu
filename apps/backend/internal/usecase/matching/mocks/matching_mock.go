@@ -34,10 +34,10 @@ func (m *MockMatching) EXPECT() *MockMatchingMockRecorder {
 }
 
 // TriggerCompatibility mocks base method.
-func (m *MockMatching) TriggerCompatibility(ctx context.Context, slug string, caller *models.Principal) ([]*models.MatchingEvaluation, error) {
+func (m *MockMatching) TriggerCompatibility(ctx context.Context, slug string, caller *models.Principal) ([]*models.MatchingEvaluationSummary, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "TriggerCompatibility", ctx, slug, caller)
-	ret0, _ := ret[0].([]*models.MatchingEvaluation)
+	ret0, _ := ret[0].([]*models.MatchingEvaluationSummary)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

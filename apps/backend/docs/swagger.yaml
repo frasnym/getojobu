@@ -216,6 +216,17 @@ definitions:
       user_job_id:
         type: string
     type: object
+  github_com_frasnym_getojobu_apps_backend_internal_models.MatchingEvaluationSummary:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: string
+      status:
+        type: string
+      user_job_id:
+        type: string
+    type: object
   github_com_frasnym_getojobu_apps_backend_internal_models.Project:
     properties:
       achievements:
@@ -820,7 +831,7 @@ paths:
           description: Accepted
           schema:
             items:
-              $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_models.MatchingEvaluation'
+              $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_models.MatchingEvaluationSummary'
             type: array
         "400":
           description: Bad Request

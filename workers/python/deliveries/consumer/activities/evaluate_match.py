@@ -91,7 +91,11 @@ async def update_evaluation_status_activity(input: dict[str, Any]) -> dict[str, 
     raw_provider = input.get("provider")
     provider = str(raw_provider) if raw_provider is not None else None
     raw_model = input.get("model")
-    model = str(raw_model) if raw_model is not None else None
+    model = (
+        str(raw_model)
+        if raw_model is not None
+        else container.cfg.omni_route.model
+    )
 
     return await container.repository.getojobu_api.patch_matching_evaluation(
         evaluation_id=evaluation_id,

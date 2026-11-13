@@ -36,7 +36,7 @@ type MatchJobWorkflowInput struct {
 
 // Matching defines operations for candidate-job compatibility evaluation.
 type Matching interface {
-	TriggerCompatibility(ctx context.Context, slug string, caller *models.Principal) ([]*models.MatchingEvaluation, error)
+	TriggerCompatibility(ctx context.Context, slug string, caller *models.Principal) ([]*models.MatchingEvaluationSummary, error)
 	UpdateEvaluation(ctx context.Context, id uuid.UUID, req UpdateEvaluationRequest) (*models.MatchingEvaluation, error)
 }
 
@@ -132,7 +132,7 @@ func (s *matchingService) TriggerCompatibility(
 	ctx context.Context,
 	slug string,
 	caller *models.Principal,
-) ([]*models.MatchingEvaluation, error) {
+) ([]*models.MatchingEvaluationSummary, error) {
 	job, err := s.jobsRepo.GetBySlug(ctx, slug)
 	if err != nil {
 		return nil, err
@@ -161,7 +161,7 @@ func (s *matchingService) TriggerCompatibility(
 		}
 		if len(users) == 0 {
 			// For background machine worker, no linked users means nothing to evaluate yet; return empty list without error
-			return []*models.MatchingEvaluation{}, nil
+			return []*models.MatchingEvaluationSummary{}, nil
 		}
 		targetUserIDs = users
 	}
@@ -186,7 +186,7 @@ func (s *matchingService) TriggerCompatibility(
 		}
 	}
 
-	var createdEvals []*models.MatchingEvaluation
+	var summaries []*models.MatchingEvaluationSummary
 	for _, userIDStr := range targetUserIDs {
 		if _, err := uuid.Parse(userIDStr); err != nil {
 			return nil, fmt.Errorf("invalid user id %s: %w", userIDStr, err)
@@ -245,10 +245,15 @@ func (s *matchingService) TriggerCompatibility(
 			}
 		}
 
-		createdEvals = append(createdEvals, created)
+		summaries = append(summaries, &models.MatchingEvaluationSummary{
+			ID:        created.ID,
+			UserJobID: created.UserJobID,
+			Status:    created.Status,
+			CreatedAt: created.CreatedAt,
+		})
 	}
 
-	return createdEvals, nil
+	return summaries, nil
 }
 
 func (s *matchingService) UpdateEvaluation(

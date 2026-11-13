@@ -63,6 +63,14 @@ type MatchingEvaluation struct {
 	UpdatedAt            time.Time       `json:"updated_at"`
 }
 
+// MatchingEvaluationSummary represents a lightweight summary of an evaluation.
+type MatchingEvaluationSummary struct {
+	ID        uuid.UUID `json:"id"`
+	UserJobID uuid.UUID `json:"user_job_id"`
+	Status    string    `json:"status"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
 // UpdateMatchingEvaluationParams contains fields for updating a matching evaluation.
 type UpdateMatchingEvaluationParams struct {
 	Status              string

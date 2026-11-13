@@ -326,6 +326,8 @@ func TestTriggerCompatibility(t *testing.T) {
 		res, err := service.TriggerCompatibility(ctx, slug, &models.Principal{ID: userID.String()})
 		require.NoError(t, err)
 		assert.Len(t, res, 1)
+		assert.Equal(t, createdEval.ID, res[0].ID)
+		assert.Equal(t, userJobID, res[0].UserJobID)
 		assert.Equal(t, string(constants.MatchingStatusNew), res[0].Status)
 	})
 

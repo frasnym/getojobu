@@ -471,7 +471,7 @@ func clampLimit(limit int) int {
 // @Accept json
 // @Produce json
 // @Param slug path string true "Job slug"
-// @Success 202 {array} models.MatchingEvaluation
+// @Success 202 {array} models.MatchingEvaluationSummary
 // @Failure 400 {object} httpx.Error
 // @Failure 401 {object} httpx.Error
 // @Failure 404 {object} httpx.Error

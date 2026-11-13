@@ -655,7 +655,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_models.MatchingEvaluation"
+                                "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_models.MatchingEvaluationSummary"
                             }
                         }
                     },
@@ -1671,6 +1671,23 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "updated_at": {
+                    "type": "string"
+                },
+                "user_job_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_frasnym_getojobu_apps_backend_internal_models.MatchingEvaluationSummary": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "status": {
                     "type": "string"
                 },
                 "user_job_id": {

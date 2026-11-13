@@ -73,7 +73,7 @@ func TestAnalyzeCompatibilityHandler(t *testing.T) {
 	})
 
 	t.Run("worker with api key triggers compatibility successfully", func(t *testing.T) {
-		mockMatching.EXPECT().TriggerCompatibility(gomock.Any(), "test-slug", gomock.Any()).Return([]*models.MatchingEvaluation{
+		mockMatching.EXPECT().TriggerCompatibility(gomock.Any(), "test-slug", gomock.Any()).Return([]*models.MatchingEvaluationSummary{
 			{
 				ID:     uuid.New(),
 				Status: string(constants.MatchingStatusNew),

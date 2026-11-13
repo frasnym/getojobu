@@ -79,6 +79,7 @@ async def test_update_evaluation_status_activity_success():
     mock_container.repository.getojobu_api.patch_matching_evaluation = AsyncMock(
         return_value={"id": "eval-1", "status": "pending"}
     )
+    mock_container.cfg.omni_route.model = "use-combo"
     init_evaluate_match_container(mock_container)
 
     res = await update_evaluation_status_activity(
@@ -89,7 +90,43 @@ async def test_update_evaluation_status_activity_success():
     )
 
     assert res["status"] == "pending"
-    mock_container.repository.getojobu_api.patch_matching_evaluation.assert_awaited_once()
+    mock_container.repository.getojobu_api.patch_matching_evaluation.assert_awaited_once_with(
+        evaluation_id="eval-1",
+        status="pending",
+        evaluation_data=None,
+        failure_message=None,
+        provider=None,
+        model="use-combo",
+    )
+
+
+@pytest.mark.asyncio
+async def test_update_evaluation_status_activity_explicit_model():
+    mock_container = MagicMock()
+    mock_container.repository.getojobu_api.patch_matching_evaluation = AsyncMock(
+        return_value={"id": "eval-1", "status": "success"}
+    )
+    mock_container.cfg.omni_route.model = "use-combo"
+    init_evaluate_match_container(mock_container)
+
+    res = await update_evaluation_status_activity(
+        {
+            "evaluation_id": "eval-1",
+            "status": "success",
+            "model": "custom-model",
+            "provider": "custom-provider",
+        }
+    )
+
+    assert res["status"] == "success"
+    mock_container.repository.getojobu_api.patch_matching_evaluation.assert_awaited_once_with(
+        evaluation_id="eval-1",
+        status="success",
+        evaluation_data=None,
+        failure_message=None,
+        provider="custom-provider",
+        model="custom-model",
+    )
 
 
 @pytest.mark.asyncio

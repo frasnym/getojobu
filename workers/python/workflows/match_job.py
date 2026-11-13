@@ -74,7 +74,7 @@ class MatchJobWorkflow:
         provider: str = str(provider_val) if provider_val is not None else "omniroute"
 
         model_val = input.get("model")
-        model: str = str(model_val) if model_val is not None else "gpt-4o-mini"
+        model: str | None = str(model_val) if model_val is not None else None
 
         # Step 1: Mark evaluation pending
         pending_input: dict[str, Any] = {
