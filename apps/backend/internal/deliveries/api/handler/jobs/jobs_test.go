@@ -760,3 +760,59 @@ func TestCreateJobRequest_Validate(t *testing.T) {
 	_, err = req.Validate()
 	require.Error(t, err)
 }
+
+func TestBulkQueueAnalyzeRequest_Validate(t *testing.T) {
+	t.Run("empty slice returns error", func(t *testing.T) {
+		req := bulkQueueAnalyzeRequest{}
+		err := req.Validate()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "at least one job is required")
+	})
+
+	t.Run("over 100 items returns error", func(t *testing.T) {
+		req := make(bulkQueueAnalyzeRequest, 101)
+		for i := range req {
+			req[i] = bulkQueueAnalyzeItemRequest{Slug: fmt.Sprintf("job-%d", i)}
+		}
+		err := req.Validate()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "maximum 100 jobs per request")
+	})
+
+	t.Run("valid items return nil", func(t *testing.T) {
+		req := bulkQueueAnalyzeRequest{
+			{Slug: "job-1", Force: false},
+			{Slug: "job-2", Force: true},
+		}
+		err := req.Validate()
+		require.NoError(t, err)
+	})
+}
+
+func TestBulkAnalyzeCompatibilityRequest_Validate(t *testing.T) {
+	t.Run("empty slice returns error", func(t *testing.T) {
+		req := bulkAnalyzeCompatibilityRequest{}
+		err := req.Validate()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "at least one job is required")
+	})
+
+	t.Run("over 100 items returns error", func(t *testing.T) {
+		req := make(bulkAnalyzeCompatibilityRequest, 101)
+		for i := range req {
+			req[i] = bulkAnalyzeCompatibilityItemRequest{Slug: fmt.Sprintf("job-%d", i)}
+		}
+		err := req.Validate()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "maximum 100 jobs per request")
+	})
+
+	t.Run("valid items return nil", func(t *testing.T) {
+		req := bulkAnalyzeCompatibilityRequest{
+			{Slug: "job-1", Force: false},
+			{Slug: "job-2", Force: true},
+		}
+		err := req.Validate()
+		require.NoError(t, err)
+	})
+}

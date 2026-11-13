@@ -50,6 +50,15 @@ type bulkQueueAnalyzeResponse struct {
 	WorkflowIDs []string `json:"workflow_ids"`
 }
 
+// bulkAnalyzeCompatibilityItemRequest is one item in the POST /v1/jobs/bulk-analyze-compatibility request.
+type bulkAnalyzeCompatibilityItemRequest struct {
+	Slug  string `json:"slug"`
+	Force bool   `json:"force"`
+}
+
+// bulkAnalyzeCompatibilityRequest is the array payload for POST /v1/jobs/bulk-analyze-compatibility.
+type bulkAnalyzeCompatibilityRequest []bulkAnalyzeCompatibilityItemRequest
+
 // Validate checks the fields required for every job listing: source, title,
 // company, and location. It also parses posted_date (YYYY-MM-DD)
 // into a time.Time, returning the zero value when empty.
@@ -70,4 +79,26 @@ func (j createJobRequest) Validate() (time.Time, error) {
 		}
 	}
 	return t, nil
+}
+
+// Validate checks array bounds for bulk queue analyze requests.
+func (r bulkQueueAnalyzeRequest) Validate() error {
+	if len(r) == 0 {
+		return httpx.Envelope(httpx.CodeInvalidRequest, "at least one job is required", "")
+	}
+	if len(r) > 100 {
+		return httpx.Envelope(httpx.CodeInvalidRequest, "maximum 100 jobs per request", "")
+	}
+	return nil
+}
+
+// Validate checks array bounds for bulk analyze compatibility requests.
+func (r bulkAnalyzeCompatibilityRequest) Validate() error {
+	if len(r) == 0 {
+		return httpx.Envelope(httpx.CodeInvalidRequest, "at least one job is required", "")
+	}
+	if len(r) > 100 {
+		return httpx.Envelope(httpx.CodeInvalidRequest, "maximum 100 jobs per request", "")
+	}
+	return nil
 }

@@ -3,6 +3,7 @@ package matching_test
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -54,7 +55,7 @@ func setupTestRouter(
 	return rt
 }
 
-func TestAnalyzeCompatibilityHandler(t *testing.T) {
+func TestBulkAnalyzeCompatibilityHandler(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -64,39 +65,62 @@ func TestAnalyzeCompatibilityHandler(t *testing.T) {
 
 	rt := setupTestRouter(ctrl, mockMatching, mockUsers, apiKey)
 
-	t.Run("unauthenticated request returns 401", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodPost, "/v1/jobs/test-slug/analyze-compatibility", nil)
+	t.Run("unauthenticated returns 401", func(t *testing.T) {
+		body := bytes.NewBufferString(`[{"slug":"job-1","force":false}]`)
+		req := httptest.NewRequest(http.MethodPost, "/v1/jobs/bulk-analyze-compatibility", body)
+		req.Header.Set("Content-Type", "application/json")
 		rec := httptest.NewRecorder()
 
 		rt.Mux().ServeHTTP(rec, req)
 		assert.Equal(t, http.StatusUnauthorized, rec.Code)
 	})
 
-	t.Run("worker with api key triggers compatibility successfully", func(t *testing.T) {
-		mockMatching.EXPECT().TriggerCompatibility(gomock.Any(), "test-slug", gomock.Any()).Return([]*models.MatchingEvaluationSummary{
+	t.Run("empty array returns 400", func(t *testing.T) {
+		body := bytes.NewBufferString(`[]`)
+		req := httptest.NewRequest(http.MethodPost, "/v1/jobs/bulk-analyze-compatibility", body)
+		req.Header.Set("Authorization", "Bearer "+apiKey)
+		req.Header.Set("Content-Type", "application/json")
+		rec := httptest.NewRecorder()
+
+		rt.Mux().ServeHTTP(rec, req)
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+	})
+
+	t.Run("valid bulk request returns 202 with partial results", func(t *testing.T) {
+		newID := uuid.New()
+		errStr := "already evaluated"
+		mockMatching.EXPECT().TriggerCompatibilityBulk(gomock.Any(), []models.BulkAnalyzeCompatibilityItem{
+			{Slug: "job-1", Force: false},
+			{Slug: "job-2", Force: true},
+		}, gomock.Any()).Return([]*models.MatchingEvaluationSummary{
 			{
-				ID:     uuid.New(),
+				Slug:   "job-1",
+				ID:     &newID,
 				Status: string(constants.MatchingStatusNew),
+			},
+			{
+				Slug:  "job-2",
+				Error: &errStr,
 			},
 		}, nil)
 
-		req := httptest.NewRequest(http.MethodPost, "/v1/jobs/test-slug/analyze-compatibility", nil)
+		body := bytes.NewBufferString(`[{"slug":"job-1","force":false},{"slug":"job-2","force":true}]`)
+		req := httptest.NewRequest(http.MethodPost, "/v1/jobs/bulk-analyze-compatibility", body)
 		req.Header.Set("Authorization", "Bearer "+apiKey)
+		req.Header.Set("Content-Type", "application/json")
 		rec := httptest.NewRecorder()
 
 		rt.Mux().ServeHTTP(rec, req)
 		assert.Equal(t, http.StatusAccepted, rec.Code)
-	})
 
-	t.Run("not found returns 404", func(t *testing.T) {
-		mockMatching.EXPECT().TriggerCompatibility(gomock.Any(), "unknown-slug", gomock.Any()).Return(nil, constants.ErrNotFound)
-
-		req := httptest.NewRequest(http.MethodPost, "/v1/jobs/unknown-slug/analyze-compatibility", nil)
-		req.Header.Set("Authorization", "Bearer "+apiKey)
-		rec := httptest.NewRecorder()
-
-		rt.Mux().ServeHTTP(rec, req)
-		assert.Equal(t, http.StatusNotFound, rec.Code)
+		var resp httpx.Response[[]models.MatchingEvaluationSummary]
+		err := json.Unmarshal(rec.Body.Bytes(), &resp)
+		require.NoError(t, err)
+		require.Len(t, resp.Data, 2)
+		assert.Equal(t, "job-1", resp.Data[0].Slug)
+		assert.Nil(t, resp.Data[0].Error)
+		assert.Equal(t, "job-2", resp.Data[1].Slug)
+		assert.Equal(t, "already evaluated", *resp.Data[1].Error)
 	})
 }
 
@@ -136,5 +160,23 @@ func TestUpdateEvaluationHandler(t *testing.T) {
 
 		rt.Mux().ServeHTTP(rec, req)
 		assert.Equal(t, http.StatusUnauthorized, rec.Code)
+	})
+
+	t.Run("invalid transition returns 400", func(t *testing.T) {
+		mockMatching.EXPECT().UpdateEvaluation(gomock.Any(), evalID, gomock.Any()).Return(
+			nil, fmt.Errorf("%w: transition from pending to pending is not allowed", constants.ErrInvalidTransition),
+		)
+
+		body, err := json.Marshal(map[string]interface{}{
+			"status": "pending",
+		})
+		require.NoError(t, err)
+
+		req := httptest.NewRequest(http.MethodPatch, "/v1/matching-evaluations/"+evalID.String(), bytes.NewReader(body))
+		req.Header.Set("Authorization", "Bearer "+apiKey)
+		rec := httptest.NewRecorder()
+
+		rt.Mux().ServeHTTP(rec, req)
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
 	})
 }

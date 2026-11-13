@@ -65,10 +65,18 @@ type MatchingEvaluation struct {
 
 // MatchingEvaluationSummary represents a lightweight summary of an evaluation.
 type MatchingEvaluationSummary struct {
-	ID        uuid.UUID `json:"id"`
-	UserJobID uuid.UUID `json:"user_job_id"`
-	Status    string    `json:"status"`
-	CreatedAt time.Time `json:"created_at"`
+	Slug      string     `json:"slug"`
+	ID        *uuid.UUID `json:"id,omitempty"`
+	UserJobID *uuid.UUID `json:"user_job_id,omitempty"`
+	Status    string     `json:"status,omitempty"`
+	CreatedAt *time.Time `json:"created_at,omitempty"`
+	Error     *string    `json:"error,omitempty"`
+}
+
+// BulkAnalyzeCompatibilityItem holds input for a single compatibility evaluation in a batch.
+type BulkAnalyzeCompatibilityItem struct {
+	Slug  string `json:"slug"`
+	Force bool   `json:"force"`
 }
 
 // UpdateMatchingEvaluationParams contains fields for updating a matching evaluation.

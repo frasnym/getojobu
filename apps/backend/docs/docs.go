@@ -383,6 +383,63 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/jobs/bulk-analyze-compatibility": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Trigger compatibility evaluation for multiple jobs in bulk with partial results. Clerk users evaluate their own profile; machine API key callers evaluate all users associated with the job in user_jobs.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "jobs"
+                ],
+                "summary": "Trigger bulk compatibility evaluation",
+                "parameters": [
+                    {
+                        "description": "Jobs to evaluate compatibility",
+                        "name": "jobs",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/internal_deliveries_api_handler_jobs.bulkAnalyzeCompatibilityItemRequest"
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Accepted",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_models.MatchingEvaluationSummary"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/jobs/bulk-queue-analyze": {
             "post": {
                 "security": [
@@ -615,64 +672,6 @@ const docTemplate = `{
                     },
                     "422": {
                         "description": "Unprocessable Entity",
-                        "schema": {
-                            "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error"
-                        }
-                    }
-                }
-            }
-        },
-        "/v1/jobs/{slug}/analyze-compatibility": {
-            "post": {
-                "security": [
-                    {
-                        "ApiKeyAuth": []
-                    }
-                ],
-                "description": "Trigger compatibility evaluation for a specific job slug. Clerk users evaluate their own profile; machine API key callers evaluate all users associated with the job in user_jobs.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "jobs"
-                ],
-                "summary": "Trigger compatibility evaluation",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Job slug",
-                        "name": "slug",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "202": {
-                        "description": "Accepted",
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_models.MatchingEvaluationSummary"
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error"
                         }
@@ -1684,7 +1683,13 @@ const docTemplate = `{
                 "created_at": {
                     "type": "string"
                 },
+                "error": {
+                    "type": "string"
+                },
                 "id": {
+                    "type": "string"
+                },
+                "slug": {
                     "type": "string"
                 },
                 "status": {
@@ -1943,6 +1948,17 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "started_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_deliveries_api_handler_jobs.bulkAnalyzeCompatibilityItemRequest": {
+            "type": "object",
+            "properties": {
+                "force": {
+                    "type": "boolean"
+                },
+                "slug": {
                     "type": "string"
                 }
             }

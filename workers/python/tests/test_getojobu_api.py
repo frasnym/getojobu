@@ -1,5 +1,6 @@
 """Tests for GetojobuAPI response contract handling."""
 
+import json
 from collections.abc import Callable
 from typing import Any
 
@@ -361,17 +362,20 @@ async def test_patch_matching_evaluation_success():
 
 
 @pytest.mark.asyncio
-async def test_trigger_analyze_compatibility_success():
+async def test_trigger_bulk_analyze_compatibility_success():
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.headers["authorization"] == "Bearer secret-key"
-        assert request.url.path == "/v1/jobs/test-slug/analyze-compatibility"
+        assert request.url.path == "/v1/jobs/bulk-analyze-compatibility"
         assert request.method == "POST"
+        payload = json.loads(request.content.decode("utf-8"))
+        assert payload == [{"slug": "test-slug", "force": False}]
         return httpx.Response(
             202,
             json={
                 "success": True,
                 "data": [
                     {
+                        "slug": "test-slug",
                         "id": "11111111-2222-3333-4444-555555555555",
                         "status": "new",
                     }
@@ -383,7 +387,9 @@ async def test_trigger_analyze_compatibility_success():
     api = NewGetojobuAPI(base_url="http://testserver", api_key="secret-key")
     api._client = _mock_transport(handler)
 
-    res = await api.trigger_analyze_compatibility("test-slug")
+    res = await api.trigger_bulk_analyze_compatibility(
+        [{"slug": "test-slug", "force": False}]
+    )
     assert isinstance(res, list)
     assert len(res) == 1
     assert res[0]["status"] == "new"

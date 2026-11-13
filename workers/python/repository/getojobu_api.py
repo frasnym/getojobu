@@ -43,8 +43,8 @@ class GetojobuAPI(Protocol):
         model: str | None = None,
     ) -> dict[str, Any]: ...
 
-    async def trigger_analyze_compatibility(
-        self, slug: str
+    async def trigger_bulk_analyze_compatibility(
+        self, items: list[dict[str, Any]]
     ) -> list[dict[str, Any]]: ...
 
     async def post(self, path: str, json: Any) -> Any: ...
@@ -174,17 +174,19 @@ class _getojobuAPI:
             )
         return unwrapped
 
-    async def trigger_analyze_compatibility(self, slug: str) -> list[dict[str, Any]]:
+    async def trigger_bulk_analyze_compatibility(
+        self, items: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
         response = await self._client.post(
-            f"/v1/jobs/{slug}/analyze-compatibility",
-            json={},
+            "/v1/jobs/bulk-analyze-compatibility",
+            json=items,
         )
         self._check_response(
-            response, operation=f"trigger analyze compatibility for {slug!r}"
+            response, operation="trigger bulk analyze compatibility"
         )
         raw = response.json()
         unwrapped = self._unwrap_response(
-            raw, operation=f"trigger analyze compatibility for {slug!r}"
+            raw, operation="trigger bulk analyze compatibility"
         )
         if isinstance(unwrapped, list):
             return cast("list[dict[str, Any]]", unwrapped)

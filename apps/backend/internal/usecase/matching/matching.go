@@ -36,7 +36,7 @@ type MatchJobWorkflowInput struct {
 
 // Matching defines operations for candidate-job compatibility evaluation.
 type Matching interface {
-	TriggerCompatibility(ctx context.Context, slug string, caller *models.Principal) ([]*models.MatchingEvaluationSummary, error)
+	TriggerCompatibilityBulk(ctx context.Context, items []models.BulkAnalyzeCompatibilityItem, caller *models.Principal) ([]*models.MatchingEvaluationSummary, error)
 	UpdateEvaluation(ctx context.Context, id uuid.UUID, req UpdateEvaluationRequest) (*models.MatchingEvaluation, error)
 }
 
@@ -128,129 +128,285 @@ func CalculateScores(
 	return overallScore, eligibility, recommendation, nil
 }
 
-func (s *matchingService) TriggerCompatibility(
+func (s *matchingService) TriggerCompatibilityBulk(
 	ctx context.Context,
-	slug string,
+	items []models.BulkAnalyzeCompatibilityItem,
 	caller *models.Principal,
 ) ([]*models.MatchingEvaluationSummary, error) {
-	job, err := s.jobsRepo.GetBySlug(ctx, slug)
-	if err != nil {
-		return nil, err
-	}
-
-	if len(job.AnalyzeResult) == 0 {
-		return nil, fmt.Errorf("%w: job %q is not analyzed", constants.ErrInvalidTransition, slug)
-	}
-
-	var targetUserIDs []string
-	if caller != nil && caller.ActorType == "" {
-		// Clerk user
-		owned, err := s.userJobsRepo.IsOwned(ctx, caller.ID, job.ID)
-		if err != nil {
-			return nil, fmt.Errorf("check ownership: %w", err)
-		}
-		if !owned {
-			return nil, constants.ErrNotFound
-		}
-		targetUserIDs = []string{caller.ID}
-	} else {
-		// Machine worker
-		users, err := s.userJobsRepo.GetUsersByJobID(ctx, job.ID)
-		if err != nil {
-			return nil, fmt.Errorf("get users by job id: %w", err)
-		}
-		if len(users) == 0 {
-			// For background machine worker, no linked users means nothing to evaluate yet; return empty list without error
-			return []*models.MatchingEvaluationSummary{}, nil
-		}
-		targetUserIDs = users
-	}
-
-	// Parse job profile from AnalyzeResult to extract family
-	var rawJobProfile map[string]interface{}
-	if err := json.Unmarshal(job.AnalyzeResult, &rawJobProfile); err != nil {
-		return nil, fmt.Errorf("parse job analyze_result: %w", err)
-	}
-	family, _ := rawJobProfile["family"].(string)
-	if family == "" {
-		family = "other"
-	}
-
-	scoringConfig, err := s.scoringConfigsRepo.GetActiveByFamily(ctx, family)
-	if err != nil {
-		// If specific family scoring config is not found, attempt fallback to "technology"
-		var fallbackErr error
-		scoringConfig, fallbackErr = s.scoringConfigsRepo.GetActiveByFamily(ctx, "technology")
-		if fallbackErr != nil {
-			return nil, fmt.Errorf("get active scoring config for %s: %w", family, err)
-		}
-	}
-
 	var summaries []*models.MatchingEvaluationSummary
-	for _, userIDStr := range targetUserIDs {
-		if _, err := uuid.Parse(userIDStr); err != nil {
-			return nil, fmt.Errorf("invalid user id %s: %w", userIDStr, err)
+
+	for _, item := range items {
+		if item.Slug == "" {
+			errStr := "slug is required"
+			summaries = append(summaries, &models.MatchingEvaluationSummary{
+				Slug:  item.Slug,
+				Error: &errStr,
+			})
+			continue
 		}
 
-		userJob, err := s.userJobsRepo.GetByUserAndJob(ctx, userIDStr, job.ID)
+		job, err := s.jobsRepo.GetBySlug(ctx, item.Slug)
 		if err != nil {
-			return nil, fmt.Errorf("get user_job for user %s: %w", userIDStr, err)
+			errStr := "job not found"
+			summaries = append(summaries, &models.MatchingEvaluationSummary{
+				Slug:  item.Slug,
+				Error: &errStr,
+			})
+			continue
 		}
 
-		candidateProfile, err := s.composeCandidateProfile(ctx, userIDStr)
+		if len(job.AnalyzeResult) == 0 {
+			errStr := fmt.Sprintf("job %q is not analyzed", item.Slug)
+			summaries = append(summaries, &models.MatchingEvaluationSummary{
+				Slug:  item.Slug,
+				Error: &errStr,
+			})
+			continue
+		}
+
+		var targetUserIDs []string
+		if caller != nil && caller.ActorType == "" {
+			// Clerk user
+			owned, err := s.userJobsRepo.IsOwned(ctx, caller.ID, job.ID)
+			if err != nil || !owned {
+				errStr := "job link not found"
+				summaries = append(summaries, &models.MatchingEvaluationSummary{
+					Slug:  item.Slug,
+					Error: &errStr,
+				})
+				continue
+			}
+			targetUserIDs = []string{caller.ID}
+		} else {
+			// Machine worker
+			users, err := s.userJobsRepo.GetUsersByJobID(ctx, job.ID)
+			if err != nil {
+				errStr := fmt.Sprintf("get users by job id: %s", err.Error())
+				summaries = append(summaries, &models.MatchingEvaluationSummary{
+					Slug:  item.Slug,
+					Error: &errStr,
+				})
+				continue
+			}
+			if len(users) == 0 {
+				// For background machine worker, no linked users means nothing to evaluate yet
+				continue
+			}
+			targetUserIDs = users
+		}
+
+		// Parse job profile from AnalyzeResult to extract family
+		var rawJobProfile map[string]interface{}
+		if err := json.Unmarshal(job.AnalyzeResult, &rawJobProfile); err != nil {
+			errStr := fmt.Sprintf("parse job analyze_result: %s", err.Error())
+			summaries = append(summaries, &models.MatchingEvaluationSummary{
+				Slug:  item.Slug,
+				Error: &errStr,
+			})
+			continue
+		}
+		family, _ := rawJobProfile["family"].(string)
+		if family == "" {
+			family = "other"
+		}
+
+		scoringConfig, err := s.scoringConfigsRepo.GetActiveByFamily(ctx, family)
 		if err != nil {
-			return nil, fmt.Errorf("compose candidate profile: %w", err)
-		}
-
-		candidateJSON, err := json.Marshal(candidateProfile)
-		if err != nil {
-			return nil, fmt.Errorf("marshal candidate profile: %w", err)
-		}
-
-		evalRecord := &models.MatchingEvaluation{
-			ID:                   uuid.New(),
-			UserJobID:            userJob.ID,
-			Status:               string(constants.MatchingStatusNew),
-			CandidateProfileData: candidateJSON,
-			JobProfileData:       job.AnalyzeResult,
-			ScoringConfigID:      scoringConfig.ID,
-			PromptVersion:        "evaluate-match-v1",
-		}
-
-		created, err := s.evalRepo.Create(ctx, evalRecord)
-		if err != nil {
-			return nil, fmt.Errorf("create matching evaluation: %w", err)
-		}
-
-		// Prepare workflow input
-		var candidateMap map[string]interface{}
-		_ = json.Unmarshal(candidateJSON, &candidateMap)
-
-		var configMap map[string]interface{}
-		configBytes, _ := json.Marshal(scoringConfig)
-		_ = json.Unmarshal(configBytes, &configMap)
-
-		wfInput := MatchJobWorkflowInput{
-			EvaluationID:     created.ID.String(),
-			Slug:             job.Slug,
-			CandidateProfile: candidateMap,
-			JobProfile:       rawJobProfile,
-			EvaluationConfig: configMap,
-		}
-
-		workflowID := fmt.Sprintf("match-job-%s", created.ID.String())
-		if s.workflowsRepo != nil {
-			if _, err := s.workflowsRepo.StartLimiterWorkItem(ctx, workflowID, models.LimiterJobTypeMatch, wfInput); err != nil {
-				return nil, fmt.Errorf("start match job workflow: %w", err)
+			var fallbackErr error
+			scoringConfig, fallbackErr = s.scoringConfigsRepo.GetActiveByFamily(ctx, "technology")
+			if fallbackErr != nil {
+				errStr := fmt.Sprintf("get active scoring config: %s", err.Error())
+				summaries = append(summaries, &models.MatchingEvaluationSummary{
+					Slug:  item.Slug,
+					Error: &errStr,
+				})
+				continue
 			}
 		}
 
-		summaries = append(summaries, &models.MatchingEvaluationSummary{
-			ID:        created.ID,
-			UserJobID: created.UserJobID,
-			Status:    created.Status,
-			CreatedAt: created.CreatedAt,
-		})
+		for _, userIDStr := range targetUserIDs {
+			userID, err := uuid.Parse(userIDStr)
+			if err != nil {
+				errStr := fmt.Sprintf("invalid user id %s: %s", userIDStr, err.Error())
+				summaries = append(summaries, &models.MatchingEvaluationSummary{
+					Slug:  item.Slug,
+					Error: &errStr,
+				})
+				continue
+			}
+
+			userJob, err := s.userJobsRepo.GetByUserAndJob(ctx, userIDStr, job.ID)
+			if err != nil {
+				errStr := fmt.Sprintf("get user_job for user %s: %s", userIDStr, err.Error())
+				summaries = append(summaries, &models.MatchingEvaluationSummary{
+					Slug:  item.Slug,
+					Error: &errStr,
+				})
+				continue
+			}
+
+			// State machine & force rules check
+			latestEval, err := s.evalRepo.GetLatestByUserAndJob(ctx, userID, job.ID)
+			if err != nil && !errors.Is(err, constants.ErrNotFound) {
+				errStr := fmt.Sprintf("get latest evaluation: %s", err.Error())
+				summaries = append(summaries, &models.MatchingEvaluationSummary{
+					Slug:  item.Slug,
+					Error: &errStr,
+				})
+				continue
+			}
+
+			var evalRecord *models.MatchingEvaluation
+			var isRetry bool
+
+			if err == nil && latestEval != nil {
+				switch constants.MatchingEvaluationStatus(latestEval.Status) {
+				case constants.MatchingStatusNew, constants.MatchingStatusPending, constants.MatchingStatusNewRetry:
+					errStr := fmt.Sprintf("evaluation is already in progress with status %s", latestEval.Status)
+					summaries = append(summaries, &models.MatchingEvaluationSummary{
+						Slug:  item.Slug,
+						Error: &errStr,
+					})
+					continue
+
+				case constants.MatchingStatusSuccess:
+					if !item.Force {
+						errStr := "job already evaluated with status success, force must be true to re-evaluate"
+						summaries = append(summaries, &models.MatchingEvaluationSummary{
+							Slug:  item.Slug,
+							Error: &errStr,
+						})
+						continue
+					}
+					// force=true on success: create new record with uuid.New()
+					isRetry = true
+
+				case constants.MatchingStatusFailed:
+					if !item.Force {
+						errStr := "evaluation failed, force must be true to re-evaluate"
+						summaries = append(summaries, &models.MatchingEvaluationSummary{
+							Slug:  item.Slug,
+							Error: &errStr,
+						})
+						continue
+					}
+					// force=true on failed: reuse existing record, set status = new-retry, keep failure_message
+					evalRecord = latestEval
+					isRetry = true
+
+				default:
+					if !item.Force {
+						errStr := fmt.Sprintf("evaluation status is %s, force must be true to re-evaluate", latestEval.Status)
+						summaries = append(summaries, &models.MatchingEvaluationSummary{
+							Slug:  item.Slug,
+							Error: &errStr,
+						})
+						continue
+					}
+					isRetry = true
+				}
+			}
+
+			candidateProfile, err := s.composeCandidateProfile(ctx, userIDStr)
+			if err != nil {
+				errStr := fmt.Sprintf("compose candidate profile: %s", err.Error())
+				summaries = append(summaries, &models.MatchingEvaluationSummary{
+					Slug:  item.Slug,
+					Error: &errStr,
+				})
+				continue
+			}
+
+			candidateJSON, err := json.Marshal(candidateProfile)
+			if err != nil {
+				errStr := fmt.Sprintf("marshal candidate profile: %s", err.Error())
+				summaries = append(summaries, &models.MatchingEvaluationSummary{
+					Slug:  item.Slug,
+					Error: &errStr,
+				})
+				continue
+			}
+
+			if evalRecord != nil {
+				// Reusing existing failed record -> status = new-retry
+				updated, err := s.evalRepo.Update(ctx, evalRecord.ID, models.UpdateMatchingEvaluationParams{
+					Status: string(constants.MatchingStatusNewRetry),
+				})
+				if err != nil {
+					errStr := fmt.Sprintf("update matching evaluation: %s", err.Error())
+					summaries = append(summaries, &models.MatchingEvaluationSummary{
+						Slug:  item.Slug,
+						Error: &errStr,
+					})
+					continue
+				}
+				evalRecord = updated
+			} else {
+				// Create new record (first-time or force-re-evaluating a success record)
+				newRecord := &models.MatchingEvaluation{
+					ID:                   uuid.New(),
+					UserJobID:            userJob.ID,
+					Status:               string(constants.MatchingStatusNew),
+					CandidateProfileData: candidateJSON,
+					JobProfileData:       job.AnalyzeResult,
+					ScoringConfigID:      scoringConfig.ID,
+					PromptVersion:        "evaluate-match-v1",
+				}
+
+				created, err := s.evalRepo.Create(ctx, newRecord)
+				if err != nil {
+					errStr := fmt.Sprintf("create matching evaluation: %s", err.Error())
+					summaries = append(summaries, &models.MatchingEvaluationSummary{
+						Slug:  item.Slug,
+						Error: &errStr,
+					})
+					continue
+				}
+				evalRecord = created
+			}
+
+			// Prepare workflow input
+			var candidateMap map[string]interface{}
+			_ = json.Unmarshal(candidateJSON, &candidateMap)
+
+			var configMap map[string]interface{}
+			configBytes, _ := json.Marshal(scoringConfig)
+			_ = json.Unmarshal(configBytes, &configMap)
+
+			wfInput := MatchJobWorkflowInput{
+				EvaluationID:     evalRecord.ID.String(),
+				Slug:             job.Slug,
+				CandidateProfile: candidateMap,
+				JobProfile:       rawJobProfile,
+				EvaluationConfig: configMap,
+			}
+
+			var workflowID string
+			if isRetry {
+				workflowID = fmt.Sprintf("match-job-%s-%d", evalRecord.ID.String(), time.Now().UnixMilli())
+			} else {
+				workflowID = fmt.Sprintf("match-job-%s", evalRecord.ID.String())
+			}
+
+			if s.workflowsRepo != nil {
+				if _, err := s.workflowsRepo.StartLimiterWorkItem(ctx, workflowID, models.LimiterJobTypeMatch, wfInput); err != nil {
+					errStr := fmt.Sprintf("start match job workflow: %s", err.Error())
+					summaries = append(summaries, &models.MatchingEvaluationSummary{
+						Slug:  item.Slug,
+						Error: &errStr,
+					})
+					continue
+				}
+			}
+
+			summaries = append(summaries, &models.MatchingEvaluationSummary{
+				Slug:      job.Slug,
+				ID:        &evalRecord.ID,
+				UserJobID: &evalRecord.UserJobID,
+				Status:    evalRecord.Status,
+				CreatedAt: &evalRecord.CreatedAt,
+			})
+		}
 	}
 
 	return summaries, nil
@@ -266,6 +422,13 @@ func (s *matchingService) UpdateEvaluation(
 		return nil, err
 	}
 
+	if err := constants.ValidateMatchingStatusTransition(
+		constants.MatchingEvaluationStatus(eval.Status),
+		constants.MatchingEvaluationStatus(req.Status),
+	); err != nil {
+		return nil, fmt.Errorf("%w: %s", constants.ErrInvalidTransition, err.Error())
+	}
+
 	switch constants.MatchingEvaluationStatus(req.Status) {
 	case constants.MatchingStatusPending:
 		return s.evalRepo.Update(ctx, id, models.UpdateMatchingEvaluationParams{
@@ -273,9 +436,14 @@ func (s *matchingService) UpdateEvaluation(
 		})
 
 	case constants.MatchingStatusFailed:
+		failMsg := req.FailureMessage
+		if eval.FailureMessage != nil && *eval.FailureMessage != "" && req.FailureMessage != nil && *req.FailureMessage != "" {
+			combined := fmt.Sprintf("%s, %s", *eval.FailureMessage, *req.FailureMessage)
+			failMsg = &combined
+		}
 		return s.evalRepo.Update(ctx, id, models.UpdateMatchingEvaluationParams{
 			Status:         string(constants.MatchingStatusFailed),
-			FailureMessage: req.FailureMessage,
+			FailureMessage: failMsg,
 		})
 
 	case constants.MatchingStatusSuccess:

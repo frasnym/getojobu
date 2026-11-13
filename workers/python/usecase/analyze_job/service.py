@@ -122,12 +122,14 @@ class AnalyzeJob:
             )
 
         # 6. Trigger compatibility evaluation (Step 2)
-        if hasattr(self._api, "trigger_analyze_compatibility"):
+        if hasattr(self._api, "trigger_bulk_analyze_compatibility"):
             try:
-                await self._api.trigger_analyze_compatibility(slug=slug)
+                await self._api.trigger_bulk_analyze_compatibility(
+                    [{"slug": slug, "force": False}]
+                )
             except (RuntimeError, httpx.HTTPError) as exc:
                 logger.warning(
-                    "trigger_analyze_compatibility_failed",
+                    "trigger_bulk_analyze_compatibility_failed",
                     slug=slug,
                     error=str(exc),
                 )

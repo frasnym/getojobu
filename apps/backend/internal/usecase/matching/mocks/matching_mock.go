@@ -33,19 +33,19 @@ func (m *MockMatching) EXPECT() *MockMatchingMockRecorder {
 	return m.recorder
 }
 
-// TriggerCompatibility mocks base method.
-func (m *MockMatching) TriggerCompatibility(ctx context.Context, slug string, caller *models.Principal) ([]*models.MatchingEvaluationSummary, error) {
+// TriggerCompatibilityBulk mocks base method.
+func (m *MockMatching) TriggerCompatibilityBulk(ctx context.Context, items []models.BulkAnalyzeCompatibilityItem, caller *models.Principal) ([]*models.MatchingEvaluationSummary, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "TriggerCompatibility", ctx, slug, caller)
+	ret := m.ctrl.Call(m, "TriggerCompatibilityBulk", ctx, items, caller)
 	ret0, _ := ret[0].([]*models.MatchingEvaluationSummary)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// TriggerCompatibility indicates an expected call of TriggerCompatibility.
-func (mr *MockMatchingMockRecorder) TriggerCompatibility(ctx, slug, caller any) *gomock.Call {
+// TriggerCompatibilityBulk indicates an expected call of TriggerCompatibilityBulk.
+func (mr *MockMatchingMockRecorder) TriggerCompatibilityBulk(ctx, items, caller any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TriggerCompatibility", reflect.TypeOf((*MockMatching)(nil).TriggerCompatibility), ctx, slug, caller)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TriggerCompatibilityBulk", reflect.TypeOf((*MockMatching)(nil).TriggerCompatibilityBulk), ctx, items, caller)
 }
 
 // UpdateEvaluation mocks base method.

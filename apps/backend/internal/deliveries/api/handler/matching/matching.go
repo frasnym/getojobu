@@ -97,7 +97,7 @@ func (h *handler) UpdateEvaluation(w http.ResponseWriter, r *http.Request) error
 		if errors.Is(err, constants.ErrNotFound) {
 			return httpx.Envelope(httpx.CodeNotFound, "evaluation not found", "")
 		}
-		if errors.Is(err, constants.ErrInvalidRequest) {
+		if errors.Is(err, constants.ErrInvalidRequest) || errors.Is(err, constants.ErrInvalidTransition) {
 			return httpx.Envelope(httpx.CodeInvalidRequest, err.Error(), "")
 		}
 		return err

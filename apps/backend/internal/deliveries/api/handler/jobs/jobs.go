@@ -47,10 +47,10 @@ func (h *handler) Route(g *httpx.Router) {
 	g.POST("", h.CreateJob, auth.ValidClerkOrAPIKey)
 	g.POST("/bulk", h.BulkCreateJob, auth.ValidClerkOrAPIKey)
 	g.POST("/bulk-queue-analyze", h.BulkQueueAnalyzeJob, auth.ValidClerkOrAPIKey)
+	g.POST("/bulk-analyze-compatibility", h.BulkAnalyzeCompatibility, auth.ValidClerkOrAPIKey)
 	g.POST("/scrape", h.ScrapeJobs, apiKey.ValidAPIKey)
 	g.GET("/{slug}", h.GetJob, auth.ValidClerkOrAPIKey)
 	g.PATCH("/{slug}", h.UpdateJob, auth.ValidClerkOrAPIKey)
-	g.POST("/{slug}/analyze-compatibility", h.AnalyzeCompatibility, auth.ValidClerkOrAPIKey)
 }
 
 // CreateJob creates a single job listing. Returns 201 Created when inserted,
@@ -228,11 +228,8 @@ func (h *handler) BulkQueueAnalyzeJob(w http.ResponseWriter, r *http.Request) er
 		return err
 	}
 
-	if len(req) == 0 {
-		return httpx.Envelope(httpx.CodeInvalidRequest, "at least one job is required", "")
-	}
-	if len(req) > 100 {
-		return httpx.Envelope(httpx.CodeInvalidRequest, "maximum 100 jobs per request", "")
+	if err := req.Validate(); err != nil {
+		return err
 	}
 
 	items := make([]models.QueueAnalysisItem, len(req))
@@ -464,39 +461,44 @@ func clampLimit(limit int) int {
 	return limit
 }
 
-// AnalyzeCompatibility triggers candidate-job compatibility evaluation.
-// @Summary Trigger compatibility evaluation
-// @Description Trigger compatibility evaluation for a specific job slug. Clerk users evaluate their own profile; machine API key callers evaluate all users associated with the job in user_jobs.
+// BulkAnalyzeCompatibility triggers candidate-job compatibility evaluation in bulk.
+// @Summary Trigger bulk compatibility evaluation
+// @Description Trigger compatibility evaluation for multiple jobs in bulk with partial results. Clerk users evaluate their own profile; machine API key callers evaluate all users associated with the job in user_jobs.
 // @Tags jobs
 // @Accept json
 // @Produce json
-// @Param slug path string true "Job slug"
+// @Param jobs body bulkAnalyzeCompatibilityRequest true "Jobs to evaluate compatibility"
 // @Success 202 {array} models.MatchingEvaluationSummary
 // @Failure 400 {object} httpx.Error
 // @Failure 401 {object} httpx.Error
-// @Failure 404 {object} httpx.Error
 // @security ApiKeyAuth
-// @Router /v1/jobs/{slug}/analyze-compatibility [post]
-func (h *handler) AnalyzeCompatibility(w http.ResponseWriter, r *http.Request) error {
+// @Router /v1/jobs/bulk-analyze-compatibility [post]
+func (h *handler) BulkAnalyzeCompatibility(w http.ResponseWriter, r *http.Request) error {
 	ctx := r.Context()
 	p := ctxval.PrincipalFromContext(ctx)
 	if p == nil {
 		return httpx.Envelope(httpx.CodeUnauthorized, "unauthenticated", "")
 	}
 
-	slug := r.PathValue("slug")
-	if slug == "" {
-		return httpx.Envelope(httpx.CodeInvalidRequest, "slug is required", "")
+	var req bulkAnalyzeCompatibilityRequest
+	if err := httpx.ParseJSON(r, &req); err != nil {
+		return err
 	}
 
-	evals, err := h.matchingUC.TriggerCompatibility(ctx, slug, p)
+	if err := req.Validate(); err != nil {
+		return err
+	}
+
+	items := make([]models.BulkAnalyzeCompatibilityItem, len(req))
+	for i, item := range req {
+		items[i] = models.BulkAnalyzeCompatibilityItem{
+			Slug:  strings.TrimSpace(item.Slug),
+			Force: item.Force,
+		}
+	}
+
+	evals, err := h.matchingUC.TriggerCompatibilityBulk(ctx, items, p)
 	if err != nil {
-		if errors.Is(err, constants.ErrNotFound) {
-			return httpx.Envelope(httpx.CodeNotFound, "job or user link not found", "")
-		}
-		if errors.Is(err, constants.ErrInvalidTransition) {
-			return httpx.Envelope(httpx.CodeInvalidRequest, err.Error(), "")
-		}
 		return err
 	}
 

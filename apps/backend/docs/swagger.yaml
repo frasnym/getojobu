@@ -220,7 +220,11 @@ definitions:
     properties:
       created_at:
         type: string
+      error:
+        type: string
       id:
+        type: string
+      slug:
         type: string
       status:
         type: string
@@ -394,6 +398,13 @@ definitions:
       role_title:
         type: string
       started_at:
+        type: string
+    type: object
+  internal_deliveries_api_handler_jobs.bulkAnalyzeCompatibilityItemRequest:
+    properties:
+      force:
+        type: boolean
+      slug:
         type: string
     type: object
   internal_deliveries_api_handler_jobs.bulkCreateJobRequest:
@@ -811,45 +822,6 @@ paths:
       summary: Update job status
       tags:
       - jobs
-  /v1/jobs/{slug}/analyze-compatibility:
-    post:
-      consumes:
-      - application/json
-      description: Trigger compatibility evaluation for a specific job slug. Clerk
-        users evaluate their own profile; machine API key callers evaluate all users
-        associated with the job in user_jobs.
-      parameters:
-      - description: Job slug
-        in: path
-        name: slug
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "202":
-          description: Accepted
-          schema:
-            items:
-              $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_models.MatchingEvaluationSummary'
-            type: array
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error'
-      security:
-      - ApiKeyAuth: []
-      summary: Trigger compatibility evaluation
-      tags:
-      - jobs
   /v1/jobs/bulk:
     post:
       consumes:
@@ -883,6 +855,44 @@ paths:
       security:
       - ApiKeyAuth: []
       summary: Bulk create jobs
+      tags:
+      - jobs
+  /v1/jobs/bulk-analyze-compatibility:
+    post:
+      consumes:
+      - application/json
+      description: Trigger compatibility evaluation for multiple jobs in bulk with
+        partial results. Clerk users evaluate their own profile; machine API key callers
+        evaluate all users associated with the job in user_jobs.
+      parameters:
+      - description: Jobs to evaluate compatibility
+        in: body
+        name: jobs
+        required: true
+        schema:
+          items:
+            $ref: '#/definitions/internal_deliveries_api_handler_jobs.bulkAnalyzeCompatibilityItemRequest'
+          type: array
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            items:
+              $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_models.MatchingEvaluationSummary'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error'
+      security:
+      - ApiKeyAuth: []
+      summary: Trigger bulk compatibility evaluation
       tags:
       - jobs
   /v1/jobs/bulk-queue-analyze:

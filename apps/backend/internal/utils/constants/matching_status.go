@@ -1,14 +1,32 @@
 package constants
 
+import "fmt"
+
 // MatchingEvaluationStatus represents the lifecycle state of a compatibility evaluation.
 type MatchingEvaluationStatus string
 
 const (
-	MatchingStatusNew     MatchingEvaluationStatus = "new"
-	MatchingStatusPending MatchingEvaluationStatus = "pending"
-	MatchingStatusSuccess MatchingEvaluationStatus = "success"
-	MatchingStatusFailed  MatchingEvaluationStatus = "failed"
+	MatchingStatusNew      MatchingEvaluationStatus = "new"
+	MatchingStatusNewRetry MatchingEvaluationStatus = "new-retry"
+	MatchingStatusPending  MatchingEvaluationStatus = "pending"
+	MatchingStatusSuccess  MatchingEvaluationStatus = "success"
+	MatchingStatusFailed   MatchingEvaluationStatus = "failed"
 )
+
+// ValidateMatchingStatusTransition checks whether moving from current to next is permitted.
+// Moving to "pending" is only allowed if current status is "new" or "new-retry".
+func ValidateMatchingStatusTransition(current, next MatchingEvaluationStatus) error {
+	switch next {
+	case MatchingStatusPending:
+		if current != MatchingStatusNew && current != MatchingStatusNewRetry {
+			return fmt.Errorf(
+				"transition from %q to %q is not allowed: evaluation must be %q or %q",
+				current, next, MatchingStatusNew, MatchingStatusNewRetry,
+			)
+		}
+	}
+	return nil
+}
 
 // EligibilityStatus represents the aggregate eligibility result from mandatory requirements.
 type EligibilityStatus string
