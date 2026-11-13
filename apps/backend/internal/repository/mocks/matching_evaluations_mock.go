@@ -91,3 +91,18 @@ func (mr *MockMatchingEvaluationsMockRecorder) Update(ctx, id, params any) *gomo
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockMatchingEvaluations)(nil).Update), ctx, id, params)
 }
+
+// UpdateReport mocks base method.
+func (m *MockMatchingEvaluations) UpdateReport(ctx context.Context, id uuid.UUID, params models.UpdateMatchingEvaluationReportParams) (*models.MatchingEvaluation, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateReport", ctx, id, params)
+	ret0, _ := ret[0].(*models.MatchingEvaluation)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// UpdateReport indicates an expected call of UpdateReport.
+func (mr *MockMatchingEvaluationsMockRecorder) UpdateReport(ctx, id, params any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateReport", reflect.TypeOf((*MockMatchingEvaluations)(nil).UpdateReport), ctx, id, params)
+}

@@ -32,10 +32,12 @@ class EvaluateMatch:
         *,
         prompt_version: str = "evaluate-match-v1",
         model: str | None = None,
+        provider: str | None = None,
     ) -> None:
         self._llm = llm
         self._prompt_version = prompt_version
         self._model = model
+        self._provider = provider
 
     async def evaluate(
         self,
@@ -61,5 +63,9 @@ class EvaluateMatch:
             evaluation_config=evaluation_config,
             prompt_version=self._prompt_version,
         )
+
+        raw_output.setdefault("prompt_version", self._prompt_version)
+        raw_output.setdefault("model", self._model)
+        raw_output.setdefault("provider", self._provider)
 
         return MatchEvaluationOutput.model_validate(raw_output)

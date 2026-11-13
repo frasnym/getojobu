@@ -13,6 +13,12 @@ var ErrUserNotFound = errors.New("user not found")
 // ErrNotFound is returned when no record exists for the given id and user.
 var ErrNotFound = errors.New("not found")
 
+// ErrForbidden is returned when the caller is not authorized to access the requested resource.
+var ErrForbidden = errors.New("forbidden")
+
+// ErrUnauthorized is returned when authentication is missing or invalid.
+var ErrUnauthorized = errors.New("unauthorized")
+
 // ErrInvalidRequest is returned when the request payload is malformed or invalid.
 var ErrInvalidRequest = errors.New("invalid request")
 

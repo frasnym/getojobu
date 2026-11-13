@@ -62,3 +62,48 @@ func (mr *MockMatchingMockRecorder) UpdateEvaluation(ctx, id, req any) *gomock.C
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateEvaluation", reflect.TypeOf((*MockMatching)(nil).UpdateEvaluation), ctx, id, req)
 }
+
+// UpdateEvaluationReport mocks base method.
+func (m *MockMatching) UpdateEvaluationReport(ctx context.Context, id uuid.UUID, req matching.UpdateEvaluationReportRequest) (*models.MatchingEvaluation, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateEvaluationReport", ctx, id, req)
+	ret0, _ := ret[0].(*models.MatchingEvaluation)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// UpdateEvaluationReport indicates an expected call of UpdateEvaluationReport.
+func (mr *MockMatchingMockRecorder) UpdateEvaluationReport(ctx, id, req any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateEvaluationReport", reflect.TypeOf((*MockMatching)(nil).UpdateEvaluationReport), ctx, id, req)
+}
+
+// GetReport mocks base method.
+func (m *MockMatching) GetReport(ctx context.Context, id uuid.UUID, caller *models.Principal) (*models.MatchingEvaluationReportResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetReport", ctx, id, caller)
+	ret0, _ := ret[0].(*models.MatchingEvaluationReportResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetReport indicates an expected call of GetReport.
+func (mr *MockMatchingMockRecorder) GetReport(ctx, id, caller any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetReport", reflect.TypeOf((*MockMatching)(nil).GetReport), ctx, id, caller)
+}
+
+// BulkQueueGenerateReport mocks base method.
+func (m *MockMatching) BulkQueueGenerateReport(ctx context.Context, items []models.BulkGenerateReportItem, caller *models.Principal) ([]*models.MatchingEvaluationSummary, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "BulkQueueGenerateReport", ctx, items, caller)
+	ret0, _ := ret[0].([]*models.MatchingEvaluationSummary)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// BulkQueueGenerateReport indicates an expected call of BulkQueueGenerateReport.
+func (mr *MockMatchingMockRecorder) BulkQueueGenerateReport(ctx, items, caller any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BulkQueueGenerateReport", reflect.TypeOf((*MockMatching)(nil).BulkQueueGenerateReport), ctx, items, caller)
+}

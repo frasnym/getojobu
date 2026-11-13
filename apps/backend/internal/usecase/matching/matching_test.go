@@ -144,51 +144,51 @@ func TestUpdateEvaluation(t *testing.T) {
 	configID := uuid.New()
 
 	existingEval := &models.MatchingEvaluation{
-		ID:              evalID,
-		UserJobID:       userJobID,
-		ScoringConfigID: configID,
-		Status:          string(constants.MatchingStatusNew),
+		ID:               evalID,
+		UserJobID:        userJobID,
+		ScoringConfigID:  configID,
+		EvaluationStatus: string(constants.MatchingStatusNew),
 	}
 
 	t.Run("transition to pending", func(t *testing.T) {
 		evalRepo.EXPECT().GetByID(ctx, evalID).Return(existingEval, nil)
 		pendingEval := *existingEval
-		pendingEval.Status = string(constants.MatchingStatusPending)
+		pendingEval.EvaluationStatus = string(constants.MatchingStatusPending)
 		evalRepo.EXPECT().Update(ctx, evalID, models.UpdateMatchingEvaluationParams{
-			Status: string(constants.MatchingStatusPending),
+			EvaluationStatus: string(constants.MatchingStatusPending),
 		}).Return(&pendingEval, nil)
 
 		res, err := service.UpdateEvaluation(ctx, evalID, matching.UpdateEvaluationRequest{
-			Status: "pending",
+			EvaluationStatus: "pending",
 		})
 		require.NoError(t, err)
-		assert.Equal(t, string(constants.MatchingStatusPending), res.Status)
+		assert.Equal(t, string(constants.MatchingStatusPending), res.EvaluationStatus)
 	})
 
 	t.Run("transition to pending allowed from new-retry", func(t *testing.T) {
 		retryEval := *existingEval
-		retryEval.Status = string(constants.MatchingStatusNewRetry)
+		retryEval.EvaluationStatus = string(constants.MatchingStatusNewRetry)
 		evalRepo.EXPECT().GetByID(ctx, evalID).Return(&retryEval, nil)
 		pendingEval := retryEval
-		pendingEval.Status = string(constants.MatchingStatusPending)
+		pendingEval.EvaluationStatus = string(constants.MatchingStatusPending)
 		evalRepo.EXPECT().Update(ctx, evalID, models.UpdateMatchingEvaluationParams{
-			Status: string(constants.MatchingStatusPending),
+			EvaluationStatus: string(constants.MatchingStatusPending),
 		}).Return(&pendingEval, nil)
 
 		res, err := service.UpdateEvaluation(ctx, evalID, matching.UpdateEvaluationRequest{
-			Status: "pending",
+			EvaluationStatus: "pending",
 		})
 		require.NoError(t, err)
-		assert.Equal(t, string(constants.MatchingStatusPending), res.Status)
+		assert.Equal(t, string(constants.MatchingStatusPending), res.EvaluationStatus)
 	})
 
 	t.Run("transition to pending rejected when already pending", func(t *testing.T) {
 		alreadyPending := *existingEval
-		alreadyPending.Status = string(constants.MatchingStatusPending)
+		alreadyPending.EvaluationStatus = string(constants.MatchingStatusPending)
 		evalRepo.EXPECT().GetByID(ctx, evalID).Return(&alreadyPending, nil)
 
 		_, err := service.UpdateEvaluation(ctx, evalID, matching.UpdateEvaluationRequest{
-			Status: "pending",
+			EvaluationStatus: "pending",
 		})
 		require.Error(t, err)
 		assert.True(t, errors.Is(err, constants.ErrInvalidTransition))
@@ -196,11 +196,11 @@ func TestUpdateEvaluation(t *testing.T) {
 
 	t.Run("transition to pending rejected when already success", func(t *testing.T) {
 		alreadySuccess := *existingEval
-		alreadySuccess.Status = string(constants.MatchingStatusSuccess)
+		alreadySuccess.EvaluationStatus = string(constants.MatchingStatusSuccess)
 		evalRepo.EXPECT().GetByID(ctx, evalID).Return(&alreadySuccess, nil)
 
 		_, err := service.UpdateEvaluation(ctx, evalID, matching.UpdateEvaluationRequest{
-			Status: "pending",
+			EvaluationStatus: "pending",
 		})
 		require.Error(t, err)
 		assert.True(t, errors.Is(err, constants.ErrInvalidTransition))
@@ -208,11 +208,11 @@ func TestUpdateEvaluation(t *testing.T) {
 
 	t.Run("transition to pending rejected when already failed", func(t *testing.T) {
 		alreadyFailed := *existingEval
-		alreadyFailed.Status = string(constants.MatchingStatusFailed)
+		alreadyFailed.EvaluationStatus = string(constants.MatchingStatusFailed)
 		evalRepo.EXPECT().GetByID(ctx, evalID).Return(&alreadyFailed, nil)
 
 		_, err := service.UpdateEvaluation(ctx, evalID, matching.UpdateEvaluationRequest{
-			Status: "pending",
+			EvaluationStatus: "pending",
 		})
 		require.Error(t, err)
 		assert.True(t, errors.Is(err, constants.ErrInvalidTransition))
@@ -222,19 +222,19 @@ func TestUpdateEvaluation(t *testing.T) {
 		evalRepo.EXPECT().GetByID(ctx, evalID).Return(existingEval, nil)
 		failMsg := "LLM timeout"
 		failedEval := *existingEval
-		failedEval.Status = string(constants.MatchingStatusFailed)
+		failedEval.EvaluationStatus = string(constants.MatchingStatusFailed)
 		failedEval.FailureMessage = &failMsg
 		evalRepo.EXPECT().Update(ctx, evalID, models.UpdateMatchingEvaluationParams{
-			Status:         string(constants.MatchingStatusFailed),
-			FailureMessage: &failMsg,
+			EvaluationStatus: string(constants.MatchingStatusFailed),
+			FailureMessage:   &failMsg,
 		}).Return(&failedEval, nil)
 
 		res, err := service.UpdateEvaluation(ctx, evalID, matching.UpdateEvaluationRequest{
-			Status:         "failed",
-			FailureMessage: &failMsg,
+			EvaluationStatus: "failed",
+			FailureMessage:   &failMsg,
 		})
 		require.NoError(t, err)
-		assert.Equal(t, string(constants.MatchingStatusFailed), res.Status)
+		assert.Equal(t, string(constants.MatchingStatusFailed), res.EvaluationStatus)
 	})
 
 	t.Run("transition to failed appends failure message when already present", func(t *testing.T) {
@@ -246,20 +246,20 @@ func TestUpdateEvaluation(t *testing.T) {
 		newMsg := "err2"
 		combinedMsg := "err1, err2"
 		expectedEval := priorFailed
-		expectedEval.Status = string(constants.MatchingStatusFailed)
+		expectedEval.EvaluationStatus = string(constants.MatchingStatusFailed)
 		expectedEval.FailureMessage = &combinedMsg
 
 		evalRepo.EXPECT().Update(ctx, evalID, models.UpdateMatchingEvaluationParams{
-			Status:         string(constants.MatchingStatusFailed),
-			FailureMessage: &combinedMsg,
+			EvaluationStatus: string(constants.MatchingStatusFailed),
+			FailureMessage:   &combinedMsg,
 		}).Return(&expectedEval, nil)
 
 		res, err := service.UpdateEvaluation(ctx, evalID, matching.UpdateEvaluationRequest{
-			Status:         "failed",
-			FailureMessage: &newMsg,
+			EvaluationStatus: "failed",
+			FailureMessage:   &newMsg,
 		})
 		require.NoError(t, err)
-		assert.Equal(t, string(constants.MatchingStatusFailed), res.Status)
+		assert.Equal(t, string(constants.MatchingStatusFailed), res.EvaluationStatus)
 		assert.Equal(t, "err1, err2", *res.FailureMessage)
 	})
 
@@ -290,7 +290,7 @@ func TestUpdateEvaluation(t *testing.T) {
 		elig := string(constants.EligibilityStatusEligible)
 		rec := string(constants.RecommendationStrongMatch)
 		successEval := *existingEval
-		successEval.Status = string(constants.MatchingStatusSuccess)
+		successEval.EvaluationStatus = string(constants.MatchingStatusSuccess)
 		successEval.OverallScore = &score
 		successEval.EligibilityStatus = &elig
 		successEval.RecommendationLabel = &rec
@@ -298,11 +298,11 @@ func TestUpdateEvaluation(t *testing.T) {
 		evalRepo.EXPECT().Update(ctx, evalID, gomock.Any()).Return(&successEval, nil)
 
 		res, err := service.UpdateEvaluation(ctx, evalID, matching.UpdateEvaluationRequest{
-			Status:         "success",
-			EvaluationData: evalDataBytes,
+			EvaluationStatus: "success",
+			EvaluationData:   evalDataBytes,
 		})
 		require.NoError(t, err)
-		assert.Equal(t, string(constants.MatchingStatusSuccess), res.Status)
+		assert.Equal(t, string(constants.MatchingStatusSuccess), res.EvaluationStatus)
 		assert.Equal(t, 90.0, *res.OverallScore)
 	})
 }
@@ -363,9 +363,9 @@ func TestTriggerCompatibilityBulk(t *testing.T) {
 		userJobsRepo.EXPECT().GetByUserAndJob(ctx, userID.String(), job.ID).Return(userJob, nil)
 
 		inFlightEval := &models.MatchingEvaluation{
-			ID:        uuid.New(),
-			UserJobID: userJobID,
-			Status:    string(constants.MatchingStatusPending),
+			ID:               uuid.New(),
+			UserJobID:        userJobID,
+			EvaluationStatus: string(constants.MatchingStatusPending),
 		}
 		evalRepo.EXPECT().GetLatestByUserAndJob(ctx, userID, job.ID).Return(inFlightEval, nil)
 
@@ -385,9 +385,9 @@ func TestTriggerCompatibilityBulk(t *testing.T) {
 		userJobsRepo.EXPECT().GetByUserAndJob(ctx, userID.String(), job.ID).Return(userJob, nil)
 
 		successEval := &models.MatchingEvaluation{
-			ID:        uuid.New(),
-			UserJobID: userJobID,
-			Status:    string(constants.MatchingStatusSuccess),
+			ID:               uuid.New(),
+			UserJobID:        userJobID,
+			EvaluationStatus: string(constants.MatchingStatusSuccess),
 		}
 		evalRepo.EXPECT().GetLatestByUserAndJob(ctx, userID, job.ID).Return(successEval, nil)
 
@@ -407,9 +407,9 @@ func TestTriggerCompatibilityBulk(t *testing.T) {
 		userJobsRepo.EXPECT().GetByUserAndJob(ctx, userID.String(), job.ID).Return(userJob, nil)
 
 		successEval := &models.MatchingEvaluation{
-			ID:        uuid.New(),
-			UserJobID: userJobID,
-			Status:    string(constants.MatchingStatusSuccess),
+			ID:               uuid.New(),
+			UserJobID:        userJobID,
+			EvaluationStatus: string(constants.MatchingStatusSuccess),
 		}
 		evalRepo.EXPECT().GetLatestByUserAndJob(ctx, userID, job.ID).Return(successEval, nil)
 
@@ -419,9 +419,9 @@ func TestTriggerCompatibilityBulk(t *testing.T) {
 
 		newEvalID := uuid.New()
 		createdEval := &models.MatchingEvaluation{
-			ID:        newEvalID,
-			UserJobID: userJobID,
-			Status:    string(constants.MatchingStatusNew),
+			ID:               newEvalID,
+			UserJobID:        userJobID,
+			EvaluationStatus: string(constants.MatchingStatusNew),
 		}
 		evalRepo.EXPECT().Create(ctx, gomock.Any()).Return(createdEval, nil)
 		workflowsRepo.EXPECT().StartLimiterWorkItem(ctx, gomock.Any(), models.LimiterJobTypeMatch, gomock.Any()).Return("wf-id", nil)
@@ -433,7 +433,7 @@ func TestTriggerCompatibilityBulk(t *testing.T) {
 		require.Len(t, res, 1)
 		assert.Nil(t, res[0].Error)
 		assert.Equal(t, newEvalID, *res[0].ID)
-		assert.Equal(t, string(constants.MatchingStatusNew), res[0].Status)
+		assert.Equal(t, string(constants.MatchingStatusNew), res[0].EvaluationStatus)
 	})
 
 	t.Run("rejects failed without force", func(t *testing.T) {
@@ -443,9 +443,9 @@ func TestTriggerCompatibilityBulk(t *testing.T) {
 		userJobsRepo.EXPECT().GetByUserAndJob(ctx, userID.String(), job.ID).Return(userJob, nil)
 
 		failedEval := &models.MatchingEvaluation{
-			ID:        uuid.New(),
-			UserJobID: userJobID,
-			Status:    string(constants.MatchingStatusFailed),
+			ID:               uuid.New(),
+			UserJobID:        userJobID,
+			EvaluationStatus: string(constants.MatchingStatusFailed),
 		}
 		evalRepo.EXPECT().GetLatestByUserAndJob(ctx, userID, job.ID).Return(failedEval, nil)
 
@@ -467,10 +467,10 @@ func TestTriggerCompatibilityBulk(t *testing.T) {
 		failMsg := "original timeout"
 		existingFailedID := uuid.New()
 		failedEval := &models.MatchingEvaluation{
-			ID:             existingFailedID,
-			UserJobID:      userJobID,
-			Status:         string(constants.MatchingStatusFailed),
-			FailureMessage: &failMsg,
+			ID:               existingFailedID,
+			UserJobID:        userJobID,
+			EvaluationStatus: string(constants.MatchingStatusFailed),
+			FailureMessage:   &failMsg,
 		}
 		evalRepo.EXPECT().GetLatestByUserAndJob(ctx, userID, job.ID).Return(failedEval, nil)
 
@@ -479,9 +479,9 @@ func TestTriggerCompatibilityBulk(t *testing.T) {
 		projSkillsRepo.EXPECT().ListSkillsByUser(ctx, userID.String()).Return([]*models.UserSkill{}, nil)
 
 		updatedEval := *failedEval
-		updatedEval.Status = string(constants.MatchingStatusNewRetry)
+		updatedEval.EvaluationStatus = string(constants.MatchingStatusNewRetry)
 		evalRepo.EXPECT().Update(ctx, existingFailedID, models.UpdateMatchingEvaluationParams{
-			Status: string(constants.MatchingStatusNewRetry),
+			EvaluationStatus: string(constants.MatchingStatusNewRetry),
 		}).Return(&updatedEval, nil)
 
 		workflowsRepo.EXPECT().StartLimiterWorkItem(ctx, gomock.Any(), models.LimiterJobTypeMatch, gomock.Any()).Return("wf-id", nil)
@@ -493,7 +493,7 @@ func TestTriggerCompatibilityBulk(t *testing.T) {
 		require.Len(t, res, 1)
 		assert.Nil(t, res[0].Error)
 		assert.Equal(t, existingFailedID, *res[0].ID)
-		assert.Equal(t, string(constants.MatchingStatusNewRetry), res[0].Status)
+		assert.Equal(t, string(constants.MatchingStatusNewRetry), res[0].EvaluationStatus)
 	})
 
 	t.Run("partial batch processing with multiple items", func(t *testing.T) {
@@ -513,7 +513,7 @@ func TestTriggerCompatibilityBulk(t *testing.T) {
 		expRepo.EXPECT().ListByUser(ctx, userID.String()).Return([]*models.Experience{}, nil)
 		projRepo.EXPECT().ListByUser(ctx, userID.String()).Return([]*models.Project{}, nil)
 		projSkillsRepo.EXPECT().ListSkillsByUser(ctx, userID.String()).Return([]*models.UserSkill{}, nil)
-		createdEval1 := &models.MatchingEvaluation{ID: uuid.New(), UserJobID: userJob1.ID, Status: string(constants.MatchingStatusNew)}
+		createdEval1 := &models.MatchingEvaluation{ID: uuid.New(), UserJobID: userJob1.ID, EvaluationStatus: string(constants.MatchingStatusNew)}
 		evalRepo.EXPECT().Create(ctx, gomock.Any()).Return(createdEval1, nil)
 		workflowsRepo.EXPECT().StartLimiterWorkItem(ctx, gomock.Any(), models.LimiterJobTypeMatch, gomock.Any()).Return("wf-1", nil)
 
@@ -522,7 +522,7 @@ func TestTriggerCompatibilityBulk(t *testing.T) {
 		userJobsRepo.EXPECT().IsOwned(ctx, userID.String(), job2.ID).Return(true, nil)
 		scoringConfigsRepo.EXPECT().GetActiveByFamily(ctx, "technology").Return(scoringConfig, nil)
 		userJobsRepo.EXPECT().GetByUserAndJob(ctx, userID.String(), job2.ID).Return(userJob2, nil)
-		existingSuccess := &models.MatchingEvaluation{ID: uuid.New(), UserJobID: userJob2.ID, Status: string(constants.MatchingStatusSuccess)}
+		existingSuccess := &models.MatchingEvaluation{ID: uuid.New(), UserJobID: userJob2.ID, EvaluationStatus: string(constants.MatchingStatusSuccess)}
 		evalRepo.EXPECT().GetLatestByUserAndJob(ctx, userID, job2.ID).Return(existingSuccess, nil)
 
 		// Job 3: Unknown job -> Error
@@ -540,7 +540,7 @@ func TestTriggerCompatibilityBulk(t *testing.T) {
 		// Item 1 succeeded
 		assert.Equal(t, slug1, res[0].Slug)
 		assert.Nil(t, res[0].Error)
-		assert.Equal(t, string(constants.MatchingStatusNew), res[0].Status)
+		assert.Equal(t, string(constants.MatchingStatusNew), res[0].EvaluationStatus)
 
 		// Item 2 failed with force error
 		assert.Equal(t, slug2, res[1].Slug)
@@ -553,3 +553,306 @@ func TestTriggerCompatibilityBulk(t *testing.T) {
 		assert.Contains(t, *res[2].Error, "job not found")
 	})
 }
+
+func TestGetReport(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	evalRepo := repoMocks.NewMockMatchingEvaluations(ctrl)
+	userJobsRepo := repoMocks.NewMockUserJobs(ctrl)
+
+	service := matching.NewService(&repository.Contract{
+		MatchingEvaluationsRepository: evalRepo,
+		UserJobsRepository:            userJobsRepo,
+	})
+
+	ctx := context.Background()
+	evalID := uuid.New()
+	userJobID := uuid.New()
+	ownerUserID := uuid.New()
+
+	t.Run("unauthorized when caller is nil", func(t *testing.T) {
+		res, err := service.GetReport(ctx, evalID, nil)
+		assert.Nil(t, res)
+		assert.ErrorIs(t, err, constants.ErrUnauthorized)
+	})
+
+	t.Run("forbidden when Clerk user does not match UserID", func(t *testing.T) {
+		otherUserID := uuid.New()
+		eval := &models.MatchingEvaluation{
+			ID:               evalID,
+			UserJobID:        userJobID,
+			EvaluationStatus: string(constants.MatchingStatusSuccess),
+		}
+		userJob := &models.UserJob{
+			ID:     userJobID,
+			UserID: ownerUserID,
+		}
+
+		evalRepo.EXPECT().GetByID(ctx, evalID).Return(eval, nil)
+		userJobsRepo.EXPECT().GetByID(ctx, userJobID).Return(userJob, nil)
+
+		res, err := service.GetReport(ctx, evalID, &models.Principal{ID: otherUserID.String()})
+		assert.Nil(t, res)
+		assert.ErrorIs(t, err, constants.ErrForbidden)
+	})
+
+	t.Run("success when Clerk user matches UserID", func(t *testing.T) {
+		repStatus := string(constants.ReportStatusGenerated)
+		score := 90.0
+		eval := &models.MatchingEvaluation{
+			ID:               evalID,
+			UserJobID:        userJobID,
+			EvaluationStatus: string(constants.MatchingStatusSuccess),
+			ReportStatus:     &repStatus,
+			OverallScore:     &score,
+			ReportData:       json.RawMessage(`{"job_title":"Go Engineer"}`),
+		}
+		userJob := &models.UserJob{
+			ID:     userJobID,
+			UserID: ownerUserID,
+		}
+
+		evalRepo.EXPECT().GetByID(ctx, evalID).Return(eval, nil)
+		userJobsRepo.EXPECT().GetByID(ctx, userJobID).Return(userJob, nil)
+
+		res, err := service.GetReport(ctx, evalID, &models.Principal{ID: ownerUserID.String()})
+		require.NoError(t, err)
+		assert.Equal(t, evalID, res.ID)
+		assert.Equal(t, repStatus, *res.ReportStatus)
+		assert.Equal(t, score, *res.OverallScore)
+	})
+
+	t.Run("success when machine API key caller bypasses user ownership", func(t *testing.T) {
+		repStatus := string(constants.ReportStatusGenerated)
+		eval := &models.MatchingEvaluation{
+			ID:               evalID,
+			UserJobID:        userJobID,
+			EvaluationStatus: string(constants.MatchingStatusSuccess),
+			ReportStatus:     &repStatus,
+		}
+
+		evalRepo.EXPECT().GetByID(ctx, evalID).Return(eval, nil)
+
+		res, err := service.GetReport(ctx, evalID, &models.Principal{ID: "machine-1", ActorType: "api_key"})
+		require.NoError(t, err)
+		assert.Equal(t, evalID, res.ID)
+	})
+}
+
+func TestUpdateEvaluationReport(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	evalRepo := repoMocks.NewMockMatchingEvaluations(ctrl)
+
+	service := matching.NewService(&repository.Contract{
+		MatchingEvaluationsRepository: evalRepo,
+	})
+
+	ctx := context.Background()
+	evalID := uuid.New()
+
+	t.Run("success updating report", func(t *testing.T) {
+		repStatus := string(constants.ReportStatusGenerated)
+		eval := &models.MatchingEvaluation{
+			ID:           evalID,
+			ReportStatus: &repStatus,
+			ReportData:   json.RawMessage(`{"job_title":"Go Engineer"}`),
+		}
+
+		evalRepo.EXPECT().GetByID(ctx, evalID).Return(eval, nil)
+		evalRepo.EXPECT().UpdateReport(ctx, evalID, models.UpdateMatchingEvaluationReportParams{
+			ReportStatus: string(constants.ReportStatusGenerated),
+			ReportData:   json.RawMessage(`{"job_title":"Go Engineer"}`),
+		}).Return(eval, nil)
+
+		res, err := service.UpdateEvaluationReport(ctx, evalID, matching.UpdateEvaluationReportRequest{
+			ReportStatus: string(constants.ReportStatusGenerated),
+			ReportData:   json.RawMessage(`{"job_title":"Go Engineer"}`),
+		})
+		require.NoError(t, err)
+		assert.Equal(t, evalID, res.ID)
+		assert.Equal(t, repStatus, *res.ReportStatus)
+	})
+
+	t.Run("returns not found when eval does not exist", func(t *testing.T) {
+		evalRepo.EXPECT().GetByID(ctx, evalID).Return(nil, constants.ErrNotFound)
+
+		res, err := service.UpdateEvaluationReport(ctx, evalID, matching.UpdateEvaluationReportRequest{
+			ReportStatus: string(constants.ReportStatusGenerated),
+		})
+		assert.Nil(t, res)
+		assert.ErrorIs(t, err, constants.ErrNotFound)
+	})
+
+	t.Run("preserves and combines failure message when updating report", func(t *testing.T) {
+		repStatus := string(constants.ReportStatusFailed)
+		existingMsg := "previous timeout"
+		eval := &models.MatchingEvaluation{
+			ID:                   evalID,
+			ReportStatus:         &repStatus,
+			ReportFailureMessage: &existingMsg,
+		}
+
+		newMsg := "rate limit exceeded"
+		expectedCombined := "previous timeout, rate limit exceeded"
+
+		evalRepo.EXPECT().GetByID(ctx, evalID).Return(eval, nil)
+		evalRepo.EXPECT().UpdateReport(ctx, evalID, models.UpdateMatchingEvaluationReportParams{
+			ReportStatus:         string(constants.ReportStatusFailed),
+			ReportFailureMessage: &expectedCombined,
+		}).Return(eval, nil)
+
+		res, err := service.UpdateEvaluationReport(ctx, evalID, matching.UpdateEvaluationReportRequest{
+			ReportStatus:         string(constants.ReportStatusFailed),
+			ReportFailureMessage: &newMsg,
+		})
+		require.NoError(t, err)
+		assert.Equal(t, evalID, res.ID)
+	})
+}
+
+func TestBulkQueueGenerateReport(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	evalRepo := repoMocks.NewMockMatchingEvaluations(ctrl)
+	workflowsRepo := repoMocks.NewMockWorkflows(ctrl)
+
+	service := matching.NewService(&repository.Contract{
+		MatchingEvaluationsRepository: evalRepo,
+		WorkflowsRepository:           workflowsRepo,
+	})
+
+	ctx := context.Background()
+	evalID := uuid.New()
+	caller := &models.Principal{ID: "worker-1", ActorType: "api_key"}
+
+	t.Run("unauthorized when caller is nil", func(t *testing.T) {
+		res, err := service.BulkQueueGenerateReport(ctx, []models.BulkGenerateReportItem{{ID: evalID}}, nil)
+		assert.Nil(t, res)
+		assert.ErrorIs(t, err, constants.ErrUnauthorized)
+	})
+
+	t.Run("rejects when already pending without force", func(t *testing.T) {
+		pendingStatus := string(constants.ReportStatusPending)
+		eval := &models.MatchingEvaluation{
+			ID:               evalID,
+			EvaluationStatus: string(constants.MatchingStatusSuccess),
+			ReportStatus:     &pendingStatus,
+		}
+
+		evalRepo.EXPECT().GetByID(ctx, evalID).Return(eval, nil)
+
+		res, err := service.BulkQueueGenerateReport(ctx, []models.BulkGenerateReportItem{
+			{ID: evalID, Force: false},
+		}, caller)
+
+		require.NoError(t, err)
+		require.Len(t, res, 1)
+		require.NotNil(t, res[0].Error)
+		assert.Contains(t, *res[0].Error, "already in progress")
+	})
+
+	t.Run("success marks pending and starts limiter workflow", func(t *testing.T) {
+		eval := &models.MatchingEvaluation{
+			ID:                   evalID,
+			UserJobID:            uuid.New(),
+			EvaluationStatus:     string(constants.MatchingStatusSuccess),
+			CandidateProfileData: json.RawMessage(`{"skills":["go"]}`),
+			JobProfileData:       json.RawMessage(`{"title":"Go Dev"}`),
+			EvaluationData:       json.RawMessage(`{"evaluations":[]}`),
+		}
+
+		pendingStatus := string(constants.ReportStatusPending)
+		updatedEval := *eval
+		updatedEval.ReportStatus = &pendingStatus
+
+		evalRepo.EXPECT().GetByID(ctx, evalID).Return(eval, nil)
+		evalRepo.EXPECT().UpdateReport(ctx, evalID, models.UpdateMatchingEvaluationReportParams{
+			ReportStatus: string(constants.ReportStatusPending),
+		}).Return(&updatedEval, nil)
+		workflowsRepo.EXPECT().StartLimiterWorkItem(ctx, gomock.Any(), models.LimiterJobTypeReport, gomock.Any()).Return("wf-report-1", nil)
+
+		res, err := service.BulkQueueGenerateReport(ctx, []models.BulkGenerateReportItem{
+			{ID: evalID, Force: false},
+		}, caller)
+
+		require.NoError(t, err)
+		require.Len(t, res, 1)
+		assert.Nil(t, res[0].Error)
+	})
+
+	t.Run("success marks pending-retry when retrying report", func(t *testing.T) {
+		failedStatus := string(constants.ReportStatusFailed)
+		eval := &models.MatchingEvaluation{
+			ID:                   evalID,
+			UserJobID:            uuid.New(),
+			EvaluationStatus:     string(constants.MatchingStatusSuccess),
+			CandidateProfileData: json.RawMessage(`{"skills":["go"]}`),
+			JobProfileData:       json.RawMessage(`{"title":"Go Dev"}`),
+			EvaluationData:       json.RawMessage(`{"evaluations":[]}`),
+			ReportStatus:         &failedStatus,
+		}
+
+		pendingRetryStatus := string(constants.ReportStatusPendingRetry)
+		updatedEval := *eval
+		updatedEval.ReportStatus = &pendingRetryStatus
+
+		evalRepo.EXPECT().GetByID(ctx, evalID).Return(eval, nil)
+		evalRepo.EXPECT().UpdateReport(ctx, evalID, models.UpdateMatchingEvaluationReportParams{
+			ReportStatus: string(constants.ReportStatusPendingRetry),
+		}).Return(&updatedEval, nil)
+		workflowsRepo.EXPECT().StartLimiterWorkItem(ctx, gomock.Any(), models.LimiterJobTypeReport, gomock.Any()).Return("wf-report-2", nil)
+
+		res, err := service.BulkQueueGenerateReport(ctx, []models.BulkGenerateReportItem{
+			{ID: evalID, Force: true},
+		}, caller)
+
+		require.NoError(t, err)
+		require.Len(t, res, 1)
+		assert.Nil(t, res[0].Error)
+	})
+
+	t.Run("marks failed in DB when limiter fails to start", func(t *testing.T) {
+		eval := &models.MatchingEvaluation{
+			ID:                   evalID,
+			UserJobID:            uuid.New(),
+			EvaluationStatus:     string(constants.MatchingStatusSuccess),
+			CandidateProfileData: json.RawMessage(`{}`),
+			JobProfileData:       json.RawMessage(`{}`),
+			EvaluationData:       json.RawMessage(`{}`),
+		}
+
+		pendingStatus := string(constants.ReportStatusPending)
+		updatedEval := *eval
+		updatedEval.ReportStatus = &pendingStatus
+
+		evalRepo.EXPECT().GetByID(ctx, evalID).Return(eval, nil)
+		evalRepo.EXPECT().UpdateReport(ctx, evalID, models.UpdateMatchingEvaluationReportParams{
+			ReportStatus: string(constants.ReportStatusPending),
+		}).Return(&updatedEval, nil)
+		workflowsRepo.EXPECT().StartLimiterWorkItem(ctx, gomock.Any(), models.LimiterJobTypeReport, gomock.Any()).Return("", errors.New("temporal connection error"))
+
+		// Expect compensating update setting report_status = failed
+		evalRepo.EXPECT().UpdateReport(ctx, evalID, gomock.Any()).DoAndReturn(
+			func(ctx context.Context, id uuid.UUID, params models.UpdateMatchingEvaluationReportParams) (*models.MatchingEvaluation, error) {
+				assert.Equal(t, string(constants.ReportStatusFailed), params.ReportStatus)
+				require.NotNil(t, params.ReportFailureMessage)
+				assert.Contains(t, *params.ReportFailureMessage, "temporal connection error")
+				return eval, nil
+			},
+		)
+
+		res, err := service.BulkQueueGenerateReport(ctx, []models.BulkGenerateReportItem{
+			{ID: evalID, Force: false},
+		}, caller)
+
+		require.NoError(t, err)
+		require.Len(t, res, 1)
+		require.NotNil(t, res[0].Error)
+		assert.Contains(t, *res[0].Error, "temporal connection error")
+	})
+}
+

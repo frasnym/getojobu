@@ -85,7 +85,7 @@ def test_queue_status_query(limiter):
     status = limiter.queue_status()
     assert status["queued"] == 1
     assert status["active"] == ["wf-1"]
-    assert status["capacity_by_type"] == {"scrape": 1, "analyze": 2, "match": 2}
+    assert status["capacity_by_type"] == {"scrape": 1, "analyze": 2, "match": 2, "report": 2}
 
 
 @pytest.mark.asyncio
@@ -154,6 +154,33 @@ def test_match_mappings():
     assert LIMITS["match"] == 2
     assert QUEUE_BY_TYPE["match"] == "job-evaluation"
     assert WORKFLOW_BY_TYPE["match"] == "MatchJobWorkflow"
+
+
+def test_report_capacity_2(limiter):
+    mock_task = MagicMock(spec=asyncio.Task)
+    limiter._create_child_task = MagicMock(return_value=mock_task)
+
+    limiter.enqueue(WorkItem(params={}, item_id="rep-1", job_type="report"))
+    assert len(limiter.active) == 1
+    assert len(limiter.queue) == 0
+
+    limiter.enqueue(WorkItem(params={}, item_id="rep-2", job_type="report"))
+    assert len(limiter.active) == 2
+    assert len(limiter.queue) == 0
+
+    # 3rd report should be queued because capacity is 2
+    limiter.enqueue(WorkItem(params={}, item_id="rep-3", job_type="report"))
+    assert len(limiter.active) == 2
+    assert len(limiter.queue) == 1
+    assert limiter.queue[0].item_id == "rep-3"
+
+
+def test_report_mappings():
+    from workflows.concurrency_limiter import LIMITS, QUEUE_BY_TYPE, WORKFLOW_BY_TYPE
+
+    assert LIMITS["report"] == 2
+    assert QUEUE_BY_TYPE["report"] == "job-evaluation"
+    assert WORKFLOW_BY_TYPE["report"] == "GenerateReportWorkflow"
 
 
 def test_hard_cap_mixed_concurrency(limiter):

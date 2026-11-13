@@ -34,9 +34,15 @@ from deliveries.consumer.activities.job_scrape import (
     queue_analysis,
     scrape_scan,
 )
+from deliveries.consumer.activities.report_generation import (
+    generate_report_activity,
+    init_report_generation_container,
+    update_report_status_activity,
+)
 from utils.logging import configure, get_logger
 from utils.temporal import connect as temporal_connect
 from workflows.concurrency_limiter import ConcurrencyLimiter
+from workflows.generate_report import GenerateReportWorkflow
 from workflows.job_analyze import JobAnalyzeWorkflow
 from workflows.job_scrape import JobScrapeWorkflow
 from workflows.match_job import MatchJobWorkflow
@@ -71,6 +77,7 @@ async def run() -> int:
     # Initialize the activity containers (reuse the contract already built).
     init_analyze_job_container(contract)
     init_evaluate_match_container(contract)
+    init_report_generation_container(contract)
 
     activity_executor = ThreadPoolExecutor(max_workers=10)
 
@@ -82,8 +89,10 @@ async def run() -> int:
                 analyze_job_activity,
                 evaluate_match_activity,
                 update_evaluation_status_activity,
+                generate_report_activity,
+                update_report_status_activity,
             ],
-            workflows=[JobAnalyzeWorkflow, MatchJobWorkflow],
+            workflows=[JobAnalyzeWorkflow, MatchJobWorkflow, GenerateReportWorkflow],
             activity_executor=activity_executor,
         )
         job_scrape_worker = Worker(

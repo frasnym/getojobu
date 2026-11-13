@@ -36,11 +36,23 @@ class GetojobuAPI(Protocol):
         self,
         evaluation_id: str,
         *,
-        status: str,
+        evaluation_status: str | None = None,
+        status: str | None = None,
         evaluation_data: dict[str, Any] | None = None,
         failure_message: str | None = None,
-        provider: str | None = None,
-        model: str | None = None,
+    ) -> dict[str, Any]: ...
+
+    async def patch_matching_evaluation_report(
+        self,
+        evaluation_id: str,
+        *,
+        report_status: str,
+        report_data: dict[str, Any] | None = None,
+        report_failure_message: str | None = None,
+    ) -> dict[str, Any]: ...
+
+    async def get_matching_evaluation_report(
+        self, evaluation_id: str
     ) -> dict[str, Any]: ...
 
     async def trigger_bulk_analyze_compatibility(
@@ -141,21 +153,17 @@ class _getojobuAPI:
         self,
         evaluation_id: str,
         *,
-        status: str,
+        evaluation_status: str | None = None,
+        status: str | None = None,
         evaluation_data: dict[str, Any] | None = None,
         failure_message: str | None = None,
-        provider: str | None = None,
-        model: str | None = None,
     ) -> dict[str, Any]:
-        payload: dict[str, Any] = {"status": status}
+        eval_status = evaluation_status or status or ""
+        payload: dict[str, Any] = {"evaluation_status": eval_status}
         if evaluation_data is not None:
             payload["evaluation_data"] = evaluation_data
         if failure_message is not None:
             payload["failure_message"] = failure_message
-        if provider is not None:
-            payload["provider"] = provider
-        if model is not None:
-            payload["model"] = model
 
         response = await self._client.patch(
             f"/v1/matching-evaluations/{evaluation_id}",
@@ -171,6 +179,56 @@ class _getojobuAPI:
         if not isinstance(unwrapped, dict):
             raise TypeError(
                 f"patch matching evaluation {evaluation_id!r}: expected dict, got {type(unwrapped)}"
+            )
+        return unwrapped
+
+    async def patch_matching_evaluation_report(
+        self,
+        evaluation_id: str,
+        *,
+        report_status: str,
+        report_data: dict[str, Any] | None = None,
+        report_failure_message: str | None = None,
+    ) -> dict[str, Any]:
+        payload: dict[str, Any] = {"report_status": report_status}
+        if report_data is not None:
+            payload["report_data"] = report_data
+        if report_failure_message is not None:
+            payload["report_failure_message"] = report_failure_message
+
+        response = await self._client.patch(
+            f"/v1/matching-evaluations/{evaluation_id}/report",
+            json=payload,
+        )
+        self._check_response(
+            response, operation=f"patch matching evaluation report {evaluation_id!r}"
+        )
+        raw = response.json()
+        unwrapped = self._unwrap_response(
+            raw, operation=f"patch matching evaluation report {evaluation_id!r}"
+        )
+        if not isinstance(unwrapped, dict):
+            raise TypeError(
+                f"patch matching evaluation report {evaluation_id!r}: expected dict, got {type(unwrapped)}"
+            )
+        return unwrapped
+
+    async def get_matching_evaluation_report(
+        self, evaluation_id: str
+    ) -> dict[str, Any]:
+        response = await self._client.get(
+            f"/v1/matching-evaluations/{evaluation_id}/report"
+        )
+        self._check_response(
+            response, operation=f"get matching evaluation report {evaluation_id!r}"
+        )
+        raw = response.json()
+        unwrapped = self._unwrap_response(
+            raw, operation=f"get matching evaluation report {evaluation_id!r}"
+        )
+        if not isinstance(unwrapped, dict):
+            raise TypeError(
+                f"get matching evaluation report {evaluation_id!r}: expected dict, got {type(unwrapped)}"
             )
         return unwrapped
 

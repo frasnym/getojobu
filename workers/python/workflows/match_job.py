@@ -1,10 +1,10 @@
-"""MatchJobWorkflow — Temporal workflow definition for Step 2 Compatibility Evaluation.
+"""MatchJobWorkflow — Temporal workflow definition for Step 2 Compatibility Evaluation and Step 4 Report Generation.
 
 Flow:
 1. Update evaluation status to 'pending' via update_evaluation_status_activity.
 2. Run evaluate_match_activity to execute the LLM compatibility evaluation.
 3. If successful: update evaluation status to 'success' with the evaluation data.
-4. If failed: update evaluation status to 'failed' with the failure message.
+4. Auto-generate candidate match report (Step 4) via generate_report_activity and update_report_status_activity.
 """
 
 from __future__ import annotations
@@ -19,6 +19,10 @@ with workflow.unsafe.imports_passed_through():
     from deliveries.consumer.activities.evaluate_match import (
         evaluate_match_activity,
         update_evaluation_status_activity,
+    )
+    from deliveries.consumer.activities.report_generation import (
+        generate_report_activity,
+        update_report_status_activity,
     )
 
 DEFAULT_RETRY_POLICY = RetryPolicy(
@@ -58,20 +62,16 @@ class MatchJobWorkflow:
 
         raw_job = input.get("job_profile")
         job_profile: dict[str, Any] = (
-            cast(dict[str, Any], raw_job)
-            if isinstance(raw_job, dict)
-            else {}
+            cast(dict[str, Any], raw_job) if isinstance(raw_job, dict) else {}
         )
 
         raw_config = input.get("evaluation_config")
         evaluation_config: dict[str, Any] = (
-            cast(dict[str, Any], raw_config)
-            if isinstance(raw_config, dict)
-            else {}
+            cast(dict[str, Any], raw_config) if isinstance(raw_config, dict) else {}
         )
 
         provider_val = input.get("provider")
-        provider: str = str(provider_val) if provider_val is not None else "omniroute"
+        provider: str | None = str(provider_val) if provider_val is not None else None
 
         model_val = input.get("model")
         model: str | None = str(model_val) if model_val is not None else None
@@ -80,6 +80,7 @@ class MatchJobWorkflow:
         pending_input: dict[str, Any] = {
             "evaluation_id": evaluation_id,
             "status": "pending",
+            "evaluation_status": "pending",
         }
         await workflow.execute_activity(
             update_evaluation_status_activity,
@@ -106,11 +107,12 @@ class MatchJobWorkflow:
             success_input: dict[str, Any] = {
                 "evaluation_id": evaluation_id,
                 "status": "success",
+                "evaluation_status": "success",
                 "evaluation_data": eval_output,
                 "provider": provider,
                 "model": model,
             }
-            await workflow.execute_activity(
+            success_res = await workflow.execute_activity(
                 update_evaluation_status_activity,
                 success_input,
                 start_to_close_timeout=timedelta(seconds=30),
@@ -121,6 +123,7 @@ class MatchJobWorkflow:
             failed_input: dict[str, Any] = {
                 "evaluation_id": evaluation_id,
                 "status": "failed",
+                "evaluation_status": "failed",
                 "failure_message": str(exc),
                 "provider": provider,
                 "model": model,
@@ -133,9 +136,87 @@ class MatchJobWorkflow:
             )
             raise
 
+        # Step 4: Auto-generate match report
+        is_retry = bool(
+            input.get("is_retry") or input.get("evaluation_status") == "new-retry"
+        )
+        initial_report_status = "pending-retry" if is_retry else "pending"
+
+        report_output: dict[str, Any] | None = None
+        report_error: str | None = None
+        try:
+            report_pending_input: dict[str, Any] = {
+                "evaluation_id": evaluation_id,
+                "report_status": initial_report_status,
+            }
+            await workflow.execute_activity(
+                update_report_status_activity,
+                report_pending_input,
+                start_to_close_timeout=timedelta(seconds=30),
+                retry_policy=DEFAULT_RETRY_POLICY,
+            )
+
+            overall_score: float = (
+                float(success_res.get("overall_score") or 0.0) if success_res else 0.0
+            )
+            eligibility_status: str = (
+                str(success_res.get("eligibility_status") or "eligible")
+                if success_res
+                else "eligible"
+            )
+            recommendation_label: str = (
+                str(success_res.get("recommendation_label") or "worth_applying")
+                if success_res
+                else "worth_applying"
+            )
+
+            report_input: dict[str, Any] = {
+                "candidate_profile": candidate_profile,
+                "job_profile": job_profile,
+                "evaluation_results": eval_output,
+                "overall_score": overall_score,
+                "eligibility_status": eligibility_status,
+                "recommendation_label": recommendation_label,
+            }
+
+            report_output = await workflow.execute_activity(
+                generate_report_activity,
+                report_input,
+                start_to_close_timeout=timedelta(minutes=5),
+                retry_policy=DEFAULT_RETRY_POLICY,
+            )
+
+            report_success_input: dict[str, Any] = {
+                "evaluation_id": evaluation_id,
+                "report_status": "generated",
+                "report_data": report_output,
+            }
+            await workflow.execute_activity(
+                update_report_status_activity,
+                report_success_input,
+                start_to_close_timeout=timedelta(seconds=30),
+                retry_policy=DEFAULT_RETRY_POLICY,
+            )
+        except Exception as exc:  # noqa: BLE001
+            report_error = str(exc)
+            report_failed_input: dict[str, Any] = {
+                "evaluation_id": evaluation_id,
+                "report_status": "failed",
+                "report_failure_message": report_error,
+            }
+            await workflow.execute_activity(
+                update_report_status_activity,
+                report_failed_input,
+                start_to_close_timeout=timedelta(seconds=30),
+                retry_policy=DEFAULT_RETRY_POLICY,
+            )
+
         return {
             "workflow": "MatchJobWorkflow",
             "evaluation_id": evaluation_id,
             "status": "success",
             "evaluations": eval_output,
+            "report_status": "generated" if report_output is not None else "failed",
+            "report": report_output,
+            "report_error": report_error,
         }

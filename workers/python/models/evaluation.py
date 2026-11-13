@@ -48,3 +48,6 @@ class MatchEvaluationOutput(BaseModel):
     mandatory_requirements: list[MandatoryRequirementAssessment] = Field(
         default_factory=list[MandatoryRequirementAssessment]
     )
+    prompt_version: str = Field(default="evaluate-match-v1")
+    model: str | None = None
+    provider: str | None = None

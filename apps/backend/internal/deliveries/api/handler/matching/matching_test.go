@@ -94,9 +94,9 @@ func TestBulkAnalyzeCompatibilityHandler(t *testing.T) {
 			{Slug: "job-2", Force: true},
 		}, gomock.Any()).Return([]*models.MatchingEvaluationSummary{
 			{
-				Slug:   "job-1",
-				ID:     &newID,
-				Status: string(constants.MatchingStatusNew),
+				Slug:             "job-1",
+				ID:               &newID,
+				EvaluationStatus: string(constants.MatchingStatusNew),
 			},
 			{
 				Slug:  "job-2",
@@ -137,12 +137,12 @@ func TestUpdateEvaluationHandler(t *testing.T) {
 
 	t.Run("worker updates evaluation to pending", func(t *testing.T) {
 		mockMatching.EXPECT().UpdateEvaluation(gomock.Any(), evalID, gomock.Any()).Return(&models.MatchingEvaluation{
-			ID:     evalID,
-			Status: string(constants.MatchingStatusPending),
+			ID:               evalID,
+			EvaluationStatus: string(constants.MatchingStatusPending),
 		}, nil)
 
 		body, err := json.Marshal(map[string]interface{}{
-			"status": "pending",
+			"evaluation_status": "pending",
 		})
 		require.NoError(t, err)
 
@@ -168,7 +168,7 @@ func TestUpdateEvaluationHandler(t *testing.T) {
 		)
 
 		body, err := json.Marshal(map[string]interface{}{
-			"status": "pending",
+			"evaluation_status": "pending",
 		})
 		require.NoError(t, err)
 
@@ -178,5 +178,177 @@ func TestUpdateEvaluationHandler(t *testing.T) {
 
 		rt.Mux().ServeHTTP(rec, req)
 		assert.Equal(t, http.StatusBadRequest, rec.Code)
+	})
+}
+
+func TestReportHandlers(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockMatching := usecaseMocks.NewMockMatching(ctrl)
+	mockUsers := userMocks.NewMockUser(ctrl)
+	apiKey := "test-worker-key"
+
+	rt := setupTestRouter(ctrl, mockMatching, mockUsers, apiKey)
+	evalID := uuid.New()
+
+	t.Run("worker updates report", func(t *testing.T) {
+		repStatus := string(constants.ReportStatusGenerated)
+		mockMatching.EXPECT().UpdateEvaluationReport(gomock.Any(), evalID, gomock.Any()).Return(&models.MatchingEvaluation{
+			ID:               evalID,
+			EvaluationStatus: string(constants.MatchingStatusSuccess),
+			ReportStatus:     &repStatus,
+			ReportData:       json.RawMessage(`{"job_title":"Senior Dev"}`),
+		}, nil)
+
+		body, err := json.Marshal(map[string]interface{}{
+			"report_status": "generated",
+			"report_data":   map[string]string{"job_title": "Senior Dev"},
+		})
+		require.NoError(t, err)
+
+		req := httptest.NewRequest(http.MethodPatch, "/v1/matching-evaluations/"+evalID.String()+"/report", bytes.NewReader(body))
+		req.Header.Set("Authorization", "Bearer "+apiKey)
+		rec := httptest.NewRecorder()
+
+		rt.Mux().ServeHTTP(rec, req)
+		assert.Equal(t, http.StatusOK, rec.Code)
+	})
+
+	t.Run("worker updates report to pending-retry", func(t *testing.T) {
+		repStatus := string(constants.ReportStatusPendingRetry)
+		mockMatching.EXPECT().UpdateEvaluationReport(gomock.Any(), evalID, gomock.Any()).Return(&models.MatchingEvaluation{
+			ID:               evalID,
+			EvaluationStatus: string(constants.MatchingStatusSuccess),
+			ReportStatus:     &repStatus,
+		}, nil)
+
+		body, err := json.Marshal(map[string]interface{}{
+			"report_status": "pending-retry",
+		})
+		require.NoError(t, err)
+
+		req := httptest.NewRequest(http.MethodPatch, "/v1/matching-evaluations/"+evalID.String()+"/report", bytes.NewReader(body))
+		req.Header.Set("Authorization", "Bearer "+apiKey)
+		rec := httptest.NewRecorder()
+
+		rt.Mux().ServeHTTP(rec, req)
+		assert.Equal(t, http.StatusOK, rec.Code)
+	})
+
+	t.Run("get report returns 200 with report response", func(t *testing.T) {
+		repStatus := string(constants.ReportStatusGenerated)
+		score := 85.0
+		elig := string(constants.EligibilityStatusEligible)
+		recLabel := string(constants.RecommendationWorthApplying)
+		mockMatching.EXPECT().GetReport(gomock.Any(), evalID, gomock.Any()).Return(&models.MatchingEvaluationReportResponse{
+			ID:                  evalID,
+			EvaluationStatus:    string(constants.MatchingStatusSuccess),
+			ReportStatus:        &repStatus,
+			OverallScore:        &score,
+			EligibilityStatus:   &elig,
+			RecommendationLabel: &recLabel,
+			ReportData:          json.RawMessage(`{"job_title":"Senior Dev"}`),
+		}, nil)
+
+		req := httptest.NewRequest(http.MethodGet, "/v1/matching-evaluations/"+evalID.String()+"/report", nil)
+		req.Header.Set("Authorization", "Bearer "+apiKey)
+		rec := httptest.NewRecorder()
+
+		rt.Mux().ServeHTTP(rec, req)
+		assert.Equal(t, http.StatusOK, rec.Code)
+	})
+
+	t.Run("worker updates report to pending-retry", func(t *testing.T) {
+		repStatus := string(constants.ReportStatusPendingRetry)
+		mockMatching.EXPECT().UpdateEvaluationReport(gomock.Any(), evalID, gomock.Any()).Return(&models.MatchingEvaluation{
+			ID:               evalID,
+			EvaluationStatus: string(constants.MatchingStatusSuccess),
+			ReportStatus:     &repStatus,
+		}, nil)
+
+		body, err := json.Marshal(map[string]interface{}{
+			"report_status": "pending-retry",
+		})
+		require.NoError(t, err)
+
+		req := httptest.NewRequest(http.MethodPatch, "/v1/matching-evaluations/"+evalID.String()+"/report", bytes.NewReader(body))
+		req.Header.Set("Authorization", "Bearer "+apiKey)
+		rec := httptest.NewRecorder()
+
+		rt.Mux().ServeHTTP(rec, req)
+		assert.Equal(t, http.StatusOK, rec.Code)
+	})
+
+	t.Run("bulk queue generate report accepts batch", func(t *testing.T) {
+		mockMatching.EXPECT().BulkQueueGenerateReport(gomock.Any(), []models.BulkGenerateReportItem{
+			{ID: evalID, Force: false},
+		}, gomock.Any()).Return([]*models.MatchingEvaluationSummary{
+			{
+				ID:               &evalID,
+				EvaluationStatus: string(constants.MatchingStatusSuccess),
+			},
+		}, nil)
+
+		body, err := json.Marshal([]map[string]interface{}{
+			{"id": evalID.String(), "force": false},
+		})
+		require.NoError(t, err)
+
+		req := httptest.NewRequest(http.MethodPost, "/v1/matching-evaluations/bulk-generate-report", bytes.NewReader(body))
+		req.Header.Set("Authorization", "Bearer "+apiKey)
+		rec := httptest.NewRecorder()
+
+		rt.Mux().ServeHTTP(rec, req)
+		assert.Equal(t, http.StatusAccepted, rec.Code)
+	})
+
+	t.Run("update report rejects invalid report status", func(t *testing.T) {
+		body, err := json.Marshal(map[string]interface{}{
+			"report_status": "invalid_status",
+		})
+		require.NoError(t, err)
+
+		req := httptest.NewRequest(http.MethodPatch, "/v1/matching-evaluations/"+evalID.String()+"/report", bytes.NewReader(body))
+		req.Header.Set("Authorization", "Bearer "+apiKey)
+		rec := httptest.NewRecorder()
+
+		rt.Mux().ServeHTTP(rec, req)
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+	})
+
+	t.Run("update report rejects generated status with empty report_data", func(t *testing.T) {
+		body, err := json.Marshal(map[string]interface{}{
+			"report_status": "generated",
+		})
+		require.NoError(t, err)
+
+		req := httptest.NewRequest(http.MethodPatch, "/v1/matching-evaluations/"+evalID.String()+"/report", bytes.NewReader(body))
+		req.Header.Set("Authorization", "Bearer "+apiKey)
+		rec := httptest.NewRecorder()
+
+		rt.Mux().ServeHTTP(rec, req)
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+	})
+
+	t.Run("get report returns 401 when unauthenticated", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/v1/matching-evaluations/"+evalID.String()+"/report", nil)
+		rec := httptest.NewRecorder()
+
+		rt.Mux().ServeHTTP(rec, req)
+		assert.Equal(t, http.StatusUnauthorized, rec.Code)
+	})
+
+	t.Run("bulk queue generate report returns 401 when unauthenticated", func(t *testing.T) {
+		body, err := json.Marshal([]map[string]interface{}{
+			{"id": evalID.String(), "force": false},
+		})
+		require.NoError(t, err)
+
+		req := httptest.NewRequest(http.MethodPost, "/v1/matching-evaluations/bulk-generate-report", bytes.NewReader(body))
+		rec := httptest.NewRecorder()
+
+		rt.Mux().ServeHTTP(rec, req)
+		assert.Equal(t, http.StatusUnauthorized, rec.Code)
 	})
 }

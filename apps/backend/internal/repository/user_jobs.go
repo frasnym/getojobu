@@ -8,8 +8,10 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 
 	"github.com/frasnym/getojobu/apps/backend/internal/models"
+	"github.com/frasnym/getojobu/apps/backend/internal/utils/constants"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/database"
 )
 
@@ -22,6 +24,7 @@ type UserJobs interface {
 	BulkCreate(ctx context.Context, links []models.UserJobLink) (addedMap map[string]bool, err error)
 	IsOwned(ctx context.Context, userID string, jobID int64) (bool, error)
 	GetByUserAndJob(ctx context.Context, userID string, jobID int64) (*models.UserJob, error)
+	GetByID(ctx context.Context, id uuid.UUID) (*models.UserJob, error)
 	GetUsersByJobID(ctx context.Context, jobID int64) ([]string, error)
 }
 
@@ -176,6 +179,30 @@ func (r *userJobsRepository) GetByUserAndJob(ctx context.Context, userID string,
 	)
 	if err != nil {
 		return nil, err
+	}
+	return uj, nil
+}
+
+// GetByID fetches the user_job row by id.
+func (r *userJobsRepository) GetByID(ctx context.Context, id uuid.UUID) (*models.UserJob, error) {
+	query := `
+		SELECT id, user_id, job_id, created_at, updated_at
+		FROM user_jobs
+		WHERE id = $1
+	`
+	uj := &models.UserJob{}
+	err := r.DB().QueryRow(ctx, query, id).Scan(
+		&uj.ID,
+		&uj.UserID,
+		&uj.JobID,
+		&uj.CreatedAt,
+		&uj.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) || errors.Is(err, pgx.ErrNoRows) {
+			return nil, constants.ErrNotFound
+		}
+		return nil, fmt.Errorf("get user_job by id: %w", err)
 	}
 	return uj, nil
 }

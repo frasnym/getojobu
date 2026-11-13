@@ -14,6 +14,7 @@ import (
 	reflect "reflect"
 
 	models "github.com/frasnym/getojobu/apps/backend/internal/models"
+	uuid "github.com/google/uuid"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -114,4 +115,19 @@ func (m *MockUserJobs) GetUsersByJobID(ctx context.Context, jobID int64) ([]stri
 func (mr *MockUserJobsMockRecorder) GetUsersByJobID(ctx, jobID any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUsersByJobID", reflect.TypeOf((*MockUserJobs)(nil).GetUsersByJobID), ctx, jobID)
+}
+
+// GetByID mocks base method.
+func (m *MockUserJobs) GetByID(ctx context.Context, id uuid.UUID) (*models.UserJob, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetByID", ctx, id)
+	ret0, _ := ret[0].(*models.UserJob)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetByID indicates an expected call of GetByID.
+func (mr *MockUserJobsMockRecorder) GetByID(ctx, id any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetByID", reflect.TypeOf((*MockUserJobs)(nil).GetByID), ctx, id)
 }

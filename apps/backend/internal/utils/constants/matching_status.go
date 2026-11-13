@@ -55,3 +55,13 @@ const (
 	RequirementStatusNotMet    RequirementStatus = "not_met"
 	RequirementStatusUncertain RequirementStatus = "uncertain"
 )
+
+// ReportStatus represents the lifecycle state of a match report.
+type ReportStatus string
+
+const (
+	ReportStatusPending      ReportStatus = "pending"
+	ReportStatusPendingRetry ReportStatus = "pending-retry"
+	ReportStatusGenerated    ReportStatus = "generated"
+	ReportStatusFailed       ReportStatus = "failed"
+)
