@@ -31,13 +31,9 @@ class GenerateReport:
         llm: ReportLLMClient | None = None,
         *,
         prompt_version: str = "generate-report-v1",
-        model: str | None = None,
-        provider: str | None = None,
     ) -> None:
         self._llm = llm
         self._prompt_version = prompt_version
-        self._model = model
-        self._provider = provider
 
     async def generate(
         self,
@@ -72,8 +68,6 @@ class GenerateReport:
 
         # Ensure metadata fields are populated
         raw_output.setdefault("report_prompt_version", self._prompt_version)
-        raw_output.setdefault("model", self._model)
-        raw_output.setdefault("provider", self._provider)
         raw_output.setdefault("recommendation_policy_version", "deterministic-v1")
 
         return MatchReportOutput.model_validate(raw_output)

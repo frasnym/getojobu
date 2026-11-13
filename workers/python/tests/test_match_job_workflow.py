@@ -177,8 +177,6 @@ async def test_match_job_workflow_execution():
                 "learning_recommendations": [],
                 "interview_preparation": [],
                 "report_prompt_version": "generate-report-v1",
-                "model": "model-1",
-                "provider": "omniroute",
                 "recommendation_policy_version": "deterministic-v1",
             }
 

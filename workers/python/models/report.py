@@ -31,6 +31,4 @@ class MatchReportOutput(BaseModel):
     learning_recommendations: list[str] = Field(default_factory=list[str])
     interview_preparation: list[str] = Field(default_factory=list[str])
     report_prompt_version: str = Field(default="generate-report-v1")
-    model: str | None = None
-    provider: str | None = None
     recommendation_policy_version: str = Field(default="deterministic-v1")

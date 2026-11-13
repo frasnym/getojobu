@@ -59,6 +59,5 @@ def new(
         ),
         generate_report=GenerateReport(
             llm=report_llm,
-            model=omni_model,
         ),
     )

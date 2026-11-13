@@ -27,15 +27,13 @@ async def test_generate_report_success() -> None:
         "learning_recommendations": ["AWS CDK basics"],
         "interview_preparation": ["System design concurrency patterns"],
         "report_prompt_version": "generate-report-v1",
-        "model": "test-model",
-        "provider": "omniroute",
         "recommendation_policy_version": "deterministic-v1",
     }
 
     mock_llm = AsyncMock()
     mock_llm.generate_match_report.return_value = fake_llm_response
 
-    service = GenerateReport(llm=mock_llm, model="test-model", provider="omniroute")
+    service = GenerateReport(llm=mock_llm)
     result = await service.generate(
         candidate_profile={"skills": ["golang"]},
         job_profile={"title": "Senior Backend Engineer"},
@@ -53,8 +51,9 @@ async def test_generate_report_success() -> None:
     assert result.gaps[0].requirement == "Kubernetes"
     assert result.gaps[0].status == "not_found_in_cv"
     assert result.report_prompt_version == "generate-report-v1"
-    assert result.model == "test-model"
-    assert result.provider == "omniroute"
+    assert result.recommendation_policy_version == "deterministic-v1"
+    assert not hasattr(result, "provider")
+    assert not hasattr(result, "model")
 
 
 @pytest.mark.asyncio
@@ -110,33 +109,3 @@ async def test_generate_report_invalid_schema() -> None:
             eligibility_status="eligible",
             recommendation_label="worth_applying",
         )
-
-
-@pytest.mark.asyncio
-async def test_generate_report_default_provider_is_none() -> None:
-    fake_llm_response = {
-        "job_title": "Senior Backend Engineer",
-        "summary": "Strong match for the position.",
-        "strengths": ["Golang experience"],
-        "gaps": [],
-        "experience_assessment": "6 years of high scale backend systems.",
-        "cv_improvements": [],
-        "learning_recommendations": [],
-        "interview_preparation": [],
-        "report_prompt_version": "generate-report-v1",
-    }
-    mock_llm = AsyncMock()
-    mock_llm.generate_match_report.return_value = fake_llm_response
-
-    service = GenerateReport(llm=mock_llm)
-    result = await service.generate(
-        candidate_profile={"skills": ["golang"]},
-        job_profile={"title": "Senior Backend Engineer"},
-        evaluation_results={"evaluations": []},
-        overall_score=85.0,
-        eligibility_status="eligible",
-        recommendation_label="worth_applying",
-    )
-
-    assert result.provider is None
-    assert result.model is None
