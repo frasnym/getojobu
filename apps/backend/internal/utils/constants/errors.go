@@ -13,6 +13,9 @@ var ErrUserNotFound = errors.New("user not found")
 // ErrNotFound is returned when no record exists for the given id and user.
 var ErrNotFound = errors.New("not found")
 
+// ErrInvalidRequest is returned when the request payload is malformed or invalid.
+var ErrInvalidRequest = errors.New("invalid request")
+
 // ErrInvalidTransition is returned when a requested job status transition is
 // not permitted by the transition validator. The HTTP layer maps this to 422.
 var ErrInvalidTransition = errors.New("invalid status transition")

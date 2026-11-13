@@ -220,8 +220,8 @@ func TestUpdateStatus_success(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, slug, got.Slug)
 	assert.Equal(t, "analyzed", got.Status)
-	require.NotNil(t, got.AnalyzeResult)
-	assert.Equal(t, resultJSON, *got.AnalyzeResult)
+	require.NotEmpty(t, got.AnalyzeResult)
+	assert.Equal(t, resultJSON, string(got.AnalyzeResult))
 }
 
 func TestUpdateStatus_not_found(t *testing.T) {

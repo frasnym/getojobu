@@ -14,7 +14,7 @@ from contract.repository import RepositoryContract
 from contract.usecase import UsecaseContract
 from deliveries.consumer.activities.analyze_job import (
     analyze_job_activity,
-    init_container,
+    init_analyze_job_container,
 )
 from usecase.analyze_job.service import AnalyzeJob
 
@@ -194,7 +194,7 @@ async def test_activity_flow_success_new_to_analyze_pending_to_analyzed():
         repository=repo_contract,
         usecase=usecase_contract,
     )
-    init_container(test_container)
+    init_analyze_job_container(test_container)
 
     slug = "lead-go-developer-acme"
     result = await analyze_job_activity(
@@ -239,7 +239,7 @@ async def test_activity_flow_success_failed_to_analyze_pending_to_analyzed():
         api=APIConfig("http://localhost:8080", "test-key"),
         omni_route=OmniRouteConfig("http://localhost:20128", "test-key", "test-model"),
     )
-    init_container(
+    init_analyze_job_container(
         WorkerContainer(
             cfg=dummy_cfg, repository=repo_contract, usecase=usecase_contract
         )
@@ -270,7 +270,7 @@ async def test_activity_flow_rejects_analyzed_status():
         api=APIConfig("http://localhost:8080", "test-key"),
         omni_route=OmniRouteConfig("http://localhost:20128", "test-key", "test-model"),
     )
-    init_container(
+    init_analyze_job_container(
         WorkerContainer(
             cfg=dummy_cfg,
             repository=repo_contract,
@@ -307,7 +307,7 @@ async def test_activity_flow_rejects_analyze_pending_status():
         api=APIConfig("http://localhost:8080", "test-key"),
         omni_route=OmniRouteConfig("http://localhost:20128", "test-key", "test-model"),
     )
-    init_container(
+    init_analyze_job_container(
         WorkerContainer(
             cfg=dummy_cfg,
             repository=repo_contract,
@@ -345,7 +345,7 @@ async def test_activity_flow_patches_failed_on_llm_error():
         api=APIConfig("http://localhost:8080", "test-key"),
         omni_route=OmniRouteConfig("http://localhost:20128", "test-key", "test-model"),
     )
-    init_container(
+    init_analyze_job_container(
         WorkerContainer(
             cfg=dummy_cfg, repository=repo_contract, usecase=usecase_contract
         )
@@ -375,7 +375,7 @@ async def test_activity_flow_raises_on_get_job_missing_status():
         api=APIConfig("http://localhost:8080", "test-key"),
         omni_route=OmniRouteConfig("http://localhost:20128", "test-key", "test-model"),
     )
-    init_container(
+    init_analyze_job_container(
         WorkerContainer(
             cfg=dummy_cfg,
             repository=repo_contract,
@@ -408,7 +408,7 @@ async def test_activity_flow_raises_on_patch_pending_unexpected_response():
         api=APIConfig("http://localhost:8080", "test-key"),
         omni_route=OmniRouteConfig("http://localhost:20128", "test-key", "test-model"),
     )
-    init_container(
+    init_analyze_job_container(
         WorkerContainer(
             cfg=dummy_cfg,
             repository=repo_contract,
@@ -443,7 +443,7 @@ async def test_activity_flow_raises_on_patch_analyzed_unexpected_response():
         api=APIConfig("http://localhost:8080", "test-key"),
         omni_route=OmniRouteConfig("http://localhost:20128", "test-key", "test-model"),
     )
-    init_container(
+    init_analyze_job_container(
         WorkerContainer(
             cfg=dummy_cfg,
             repository=repo_contract,

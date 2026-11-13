@@ -387,12 +387,12 @@ func (r *jobsRepository) UpdateStatus(ctx context.Context, slug, status string, 
 // scanJob scans a single job row from a pgx.Row.
 func scanJob(row pgx.Row) (*models.Job, error) {
 	var j models.Job
-	var externalID, sourceURL, applyURL, description, failureMessage, analyzeResult sql.NullString
+	var externalID, sourceURL, applyURL, description, failureMessage sql.NullString
 	var postedDate sql.NullTime
 	var isRemote, visaRelocation sql.NullBool
 
 	err := row.Scan(
-		&j.ID, &j.Slug, &j.Status, &analyzeResult, &failureMessage,
+		&j.ID, &j.Slug, &j.Status, &j.AnalyzeResult, &failureMessage,
 		&j.Source, &externalID, &sourceURL, &applyURL,
 		&j.Title, &j.Company, &j.Location, &description,
 		&postedDate, &isRemote, &visaRelocation,
@@ -406,7 +406,6 @@ func scanJob(row pgx.Row) (*models.Job, error) {
 	j.ApplyURL = utils.NullStringPtr(applyURL)
 	j.Description = utils.NullStringPtr(description)
 	j.FailureMessage = utils.NullStringPtr(failureMessage)
-	j.AnalyzeResult = utils.NullStringPtr(analyzeResult)
 	j.PostedDate = utils.NullTime(postedDate)
 	j.IsRemote = utils.NullBoolPtr(isRemote)
 	j.VisaRelocation = utils.NullBoolPtr(visaRelocation)

@@ -68,3 +68,18 @@ func (mr *MockProjectSkillsMockRecorder) ListSkillsForProject(ctx, params any) *
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListSkillsForProject", reflect.TypeOf((*MockProjectSkills)(nil).ListSkillsForProject), ctx, params)
 }
+
+// ListSkillsByUser mocks base method.
+func (m *MockProjectSkills) ListSkillsByUser(ctx context.Context, userID string) ([]*models.UserSkill, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListSkillsByUser", ctx, userID)
+	ret0, _ := ret[0].([]*models.UserSkill)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListSkillsByUser indicates an expected call of ListSkillsByUser.
+func (mr *MockProjectSkillsMockRecorder) ListSkillsByUser(ctx, userID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListSkillsByUser", reflect.TypeOf((*MockProjectSkills)(nil).ListSkillsByUser), ctx, userID)
+}

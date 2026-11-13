@@ -6,6 +6,7 @@ from typing import Any, cast
 from unittest.mock import MagicMock, patch
 
 import pytest
+
 from deliveries.consumer.activities.job_scrape import (
     _sanitize_for_json,
     build_job_slug,

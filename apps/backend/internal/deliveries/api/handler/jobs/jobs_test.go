@@ -515,7 +515,7 @@ func TestUpdateJob_status_transition_with_analyze_result(t *testing.T) {
 
 	slug := "pending-job"
 	result := strPtr(`{"title":"Engineer"}`)
-	updated := &models.Job{Slug: slug, Status: "analyzed", AnalyzeResult: result}
+	updated := &models.Job{Slug: slug, Status: "analyzed", AnalyzeResult: json.RawMessage(*result)}
 	mockJob.EXPECT().
 		UpdateStatus(gomock.Any(), slug, "analyzed", result, (*string)(nil), "worker", "getojobu-worker").
 		Return(updated, nil)

@@ -85,3 +85,33 @@ func (mr *MockUserJobsMockRecorder) IsOwned(ctx, userID, jobID any) *gomock.Call
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsOwned", reflect.TypeOf((*MockUserJobs)(nil).IsOwned), ctx, userID, jobID)
 }
+
+// GetByUserAndJob mocks base method.
+func (m *MockUserJobs) GetByUserAndJob(ctx context.Context, userID string, jobID int64) (*models.UserJob, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetByUserAndJob", ctx, userID, jobID)
+	ret0, _ := ret[0].(*models.UserJob)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetByUserAndJob indicates an expected call of GetByUserAndJob.
+func (mr *MockUserJobsMockRecorder) GetByUserAndJob(ctx, userID, jobID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetByUserAndJob", reflect.TypeOf((*MockUserJobs)(nil).GetByUserAndJob), ctx, userID, jobID)
+}
+
+// GetUsersByJobID mocks base method.
+func (m *MockUserJobs) GetUsersByJobID(ctx context.Context, jobID int64) ([]string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetUsersByJobID", ctx, jobID)
+	ret0, _ := ret[0].([]string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetUsersByJobID indicates an expected call of GetUsersByJobID.
+func (mr *MockUserJobsMockRecorder) GetUsersByJobID(ctx, jobID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUsersByJobID", reflect.TypeOf((*MockUserJobs)(nil).GetUsersByJobID), ctx, jobID)
+}

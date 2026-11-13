@@ -9,6 +9,7 @@ from workflows.concurrency_limiter import (
 )
 from workflows.job_analyze import JobAnalyzeWorkflow
 from workflows.job_scrape import JobScrapeWorkflow
+from workflows.match_job import MatchJobWorkflow
 
 __all__ = [
     "LIMITS",
@@ -16,6 +17,7 @@ __all__ = [
     "ConcurrencyLimiter",
     "JobAnalyzeWorkflow",
     "JobScrapeWorkflow",
+    "MatchJobWorkflow",
     "WorkItem",
     "WorkItemError",
 ]

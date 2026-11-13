@@ -15,6 +15,7 @@ import (
 type ProjectSkills interface {
 	LinkSkills(ctx context.Context, params models.LinkProjectSkillsParams) error
 	ListSkillsForProject(ctx context.Context, params models.ListProjectSkillsParams) ([]*models.UserSkill, error)
+	ListSkillsByUser(ctx context.Context, userID string) ([]*models.UserSkill, error)
 }
 
 type projectSkillsRepository struct {
@@ -76,6 +77,40 @@ func (r *projectSkillsRepository) ListSkillsForProject(ctx context.Context, para
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("iterate project skills: %w", err)
+	}
+	return skills, nil
+}
+
+func (r *projectSkillsRepository) ListSkillsByUser(ctx context.Context, userID string) ([]*models.UserSkill, error) {
+	query := `
+		SELECT id, user_id, skill_name, skill_key, proficiency, created_at, updated_at
+		FROM user_skills
+		WHERE user_id = $1
+		ORDER BY skill_name
+	`
+	rows, err := r.db.Query(ctx, query, userID)
+	if err != nil {
+		return nil, fmt.Errorf("list user skills: %w", err)
+	}
+	defer rows.Close()
+
+	var skills []*models.UserSkill
+	for rows.Next() {
+		var s models.UserSkill
+		var prof sql.NullString
+		var created, updated sql.NullTime
+		if err := rows.Scan(
+			&s.ID, &s.UserID, &s.SkillName, &s.SkillKey, &prof, &created, &updated,
+		); err != nil {
+			return nil, fmt.Errorf("scan user skill: %w", err)
+		}
+		s.Proficiency = utils.NullString(prof)
+		s.CreatedAt = utils.NullTime(created)
+		s.UpdatedAt = utils.NullTime(updated)
+		skills = append(skills, &s)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate user skills: %w", err)
 	}
 	return skills, nil
 }

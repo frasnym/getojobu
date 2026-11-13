@@ -1,6 +1,7 @@
 package models
 
 import (
+	"encoding/json"
 	"time"
 
 	"github.com/frasnym/getojobu/apps/backend/internal/utils"
@@ -8,11 +9,11 @@ import (
 
 // Job is a shared job listing row, returned as an API response.
 type Job struct {
-	ID             int64     `json:"id"`
-	Slug           string    `json:"slug"`
-	Status         string    `json:"status"`
-	AnalyzeResult  *string   `json:"analyze_result,omitempty"`
-	FailureMessage *string   `json:"failure_message,omitempty"`
+	ID             int64           `json:"id"`
+	Slug           string          `json:"slug"`
+	Status         string          `json:"status"`
+	AnalyzeResult  json.RawMessage `json:"analyze_result,omitempty" swaggertype:"object"`
+	FailureMessage *string         `json:"failure_message,omitempty"`
 	Source         string    `json:"source"`
 	ExternalID     *string   `json:"external_id,omitempty"`
 	SourceURL      *string   `json:"source_url,omitempty"`
@@ -58,12 +59,6 @@ type CreateJobResult struct {
 	Job             *Job
 	Created         bool
 	AddedToUserList bool
-}
-
-// UserJobLink links a user to a job in user_jobs.
-type UserJobLink struct {
-	UserID string
-	JobID  int64
 }
 
 // BulkCreateJobParams holds parameters for creating many job listings at once.

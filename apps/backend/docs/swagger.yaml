@@ -1,152 +1,6 @@
 basePath: /
 definitions:
-  experiences.createExperienceRequest:
-    properties:
-      description:
-        type: string
-      ended_at:
-        type: string
-      experience_type:
-        type: string
-      is_current:
-        type: boolean
-      location:
-        type: string
-      organization:
-        type: string
-      role_title:
-        type: string
-      started_at:
-        type: string
-    type: object
-  experiences.updateExperienceRequest:
-    properties:
-      description:
-        type: string
-      ended_at:
-        type: string
-      experience_type:
-        type: string
-      is_current:
-        type: boolean
-      location:
-        type: string
-      organization:
-        type: string
-      role_title:
-        type: string
-      started_at:
-        type: string
-    type: object
-  handler.StatusResponse:
-    properties:
-      status:
-        type: string
-    type: object
-  httpx.Code:
-    enum:
-    - INTERNAL_SERVER_ERROR
-    - VALIDATION_FAILED
-    - NOT_FOUND
-    - UNAUTHORIZED
-    - FORBIDDEN
-    - CONFLICT
-    - TOO_MANY_REQUESTS
-    - METHOD_NOT_ALLOWED
-    type: string
-    x-enum-varnames:
-    - CodeInternal
-    - CodeInvalidRequest
-    - CodeNotFound
-    - CodeUnauthorized
-    - CodeForbidden
-    - CodeConflict
-    - CodeTooManyRequests
-    - CodeMethodNotAllowed
-  httpx.Error:
-    properties:
-      code:
-        $ref: '#/definitions/httpx.Code'
-      details:
-        items:
-          $ref: '#/definitions/httpx.ErrorDetail'
-        type: array
-      message:
-        type: string
-      request_id:
-        type: string
-    type: object
-  httpx.ErrorDetail:
-    properties:
-      field:
-        type: string
-      issue:
-        type: string
-    type: object
-  jobs.bulkCreateJobRequest:
-    properties:
-      jobs:
-        items:
-          $ref: '#/definitions/jobs.createJobRequest'
-        type: array
-    type: object
-  jobs.bulkQueueAnalyzeItemRequest:
-    properties:
-      force:
-        type: boolean
-      slug:
-        type: string
-    type: object
-  jobs.bulkQueueAnalyzeResponse:
-    properties:
-      workflow_ids:
-        items:
-          type: string
-        type: array
-    type: object
-  jobs.createJobRequest:
-    properties:
-      apply_url:
-        type: string
-      company:
-        type: string
-      description:
-        type: string
-      external_id:
-        type: string
-      is_remote:
-        type: boolean
-      location:
-        type: string
-      posted_date:
-        type: string
-      source:
-        type: string
-      source_url:
-        type: string
-      title:
-        type: string
-      user_ids:
-        description: |-
-          UserIDs is the list of internal user ids linked to this job.
-          Required for API key callers. Clerk callers must not send it (it is
-          resolved from the session token); sending it is a 400 error.
-        items:
-          type: string
-        type: array
-      visa_relocation:
-        type: boolean
-    type: object
-  jobs.updateJobRequest:
-    properties:
-      analyze_result:
-        type: string
-      failure_message:
-        type: string
-      status:
-        type: string
-    type: object
-  models.BulkCreateJobResult:
+  github_com_frasnym_getojobu_apps_backend_internal_models.BulkCreateJobResult:
     properties:
       added_to_user_list:
         type: boolean
@@ -155,7 +9,7 @@ definitions:
       slug:
         type: string
     type: object
-  models.CategoryConfig:
+  github_com_frasnym_getojobu_apps_backend_internal_models.CategoryConfig:
     properties:
       description:
         type: string
@@ -164,20 +18,51 @@ definitions:
       weight:
         type: number
     type: object
-  models.CreateJobResult:
+  github_com_frasnym_getojobu_apps_backend_internal_models.CategoryEvaluation:
+    properties:
+      category:
+        type: string
+      evidence:
+        items:
+          $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_models.CategoryEvidence'
+        type: array
+      gaps:
+        items:
+          type: string
+        type: array
+      reason:
+        type: string
+      score:
+        type: integer
+      strengths:
+        items:
+          type: string
+        type: array
+    type: object
+  github_com_frasnym_getojobu_apps_backend_internal_models.CategoryEvidence:
+    properties:
+      candidate_evidence:
+        type: string
+      job_requirement:
+        type: string
+      relationship:
+        description: direct | transferable
+        type: string
+    type: object
+  github_com_frasnym_getojobu_apps_backend_internal_models.CreateJobResult:
     properties:
       addedToUserList:
         type: boolean
       created:
         type: boolean
       job:
-        $ref: '#/definitions/models.Job'
+        $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_models.Job'
     type: object
-  models.CreateScoringConfigParams:
+  github_com_frasnym_getojobu_apps_backend_internal_models.CreateScoringConfigParams:
     properties:
       categories:
         items:
-          $ref: '#/definitions/models.CategoryConfig'
+          $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_models.CategoryConfig'
         type: array
       family:
         type: string
@@ -186,7 +71,7 @@ definitions:
       version:
         type: integer
     type: object
-  models.Experience:
+  github_com_frasnym_getojobu_apps_backend_internal_models.Experience:
     properties:
       createdAt:
         type: string
@@ -195,7 +80,7 @@ definitions:
       endedAt:
         type: string
       experienceType:
-        $ref: '#/definitions/models.ExperienceType'
+        $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_models.ExperienceType'
       id:
         type: string
       isCurrent:
@@ -213,7 +98,7 @@ definitions:
       userID:
         type: string
     type: object
-  models.ExperienceType:
+  github_com_frasnym_getojobu_apps_backend_internal_models.ExperienceType:
     enum:
     - professional
     - freelance
@@ -227,10 +112,10 @@ definitions:
     - ExperienceTypeInternship
     - ExperienceTypeVolunteer
     - ExperienceTypeOther
-  models.Job:
+  github_com_frasnym_getojobu_apps_backend_internal_models.Job:
     properties:
       analyze_result:
-        type: string
+        type: object
       apply_url:
         type: string
       company:
@@ -270,7 +155,68 @@ definitions:
       visa_relocation:
         type: boolean
     type: object
-  models.Project:
+  github_com_frasnym_getojobu_apps_backend_internal_models.MandatoryRequirementAssessment:
+    properties:
+      evidence:
+        items:
+          type: string
+        type: array
+      reason:
+        type: string
+      requirement:
+        type: string
+      status:
+        description: met | not_met | uncertain
+        type: string
+    type: object
+  github_com_frasnym_getojobu_apps_backend_internal_models.MatchEvaluationOutput:
+    properties:
+      evaluations:
+        items:
+          $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_models.CategoryEvaluation'
+        type: array
+      mandatory_requirements:
+        items:
+          $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_models.MandatoryRequirementAssessment'
+        type: array
+    type: object
+  github_com_frasnym_getojobu_apps_backend_internal_models.MatchingEvaluation:
+    properties:
+      candidate_profile_data:
+        type: object
+      created_at:
+        type: string
+      eligibility_status:
+        type: string
+      evaluation_data:
+        type: object
+      failure_message:
+        type: string
+      id:
+        type: string
+      job_profile_data:
+        type: object
+      model:
+        type: string
+      overall_score:
+        type: number
+      prompt_version:
+        type: string
+      provider:
+        type: string
+      recommendation_label:
+        type: string
+      scoring_config_id:
+        type: string
+      status:
+        description: new | pending | success | failed
+        type: string
+      updated_at:
+        type: string
+      user_job_id:
+        type: string
+    type: object
+  github_com_frasnym_getojobu_apps_backend_internal_models.Project:
     properties:
       achievements:
         type: string
@@ -297,11 +243,11 @@ definitions:
       userID:
         type: string
     type: object
-  models.ScoringConfig:
+  github_com_frasnym_getojobu_apps_backend_internal_models.ScoringConfig:
     properties:
       categories:
         items:
-          $ref: '#/definitions/models.CategoryConfig'
+          $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_models.CategoryConfig'
         type: array
       created_at:
         type: string
@@ -316,30 +262,30 @@ definitions:
       version:
         type: integer
     type: object
-  models.ScrapeJobsRequest:
+  github_com_frasnym_getojobu_apps_backend_internal_models.ScrapeJobsRequest:
     properties:
       user_ids:
         items:
           type: string
         type: array
     type: object
-  models.ScrapeJobsResponse:
+  github_com_frasnym_getojobu_apps_backend_internal_models.ScrapeJobsResponse:
     properties:
       workflow_ids:
         items:
           type: string
         type: array
     type: object
-  models.UpdateScoringConfigParams:
+  github_com_frasnym_getojobu_apps_backend_internal_models.UpdateScoringConfigParams:
     properties:
       categories:
         items:
-          $ref: '#/definitions/models.CategoryConfig'
+          $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_models.CategoryConfig'
         type: array
       is_active:
         type: boolean
     type: object
-  models.UserSkill:
+  github_com_frasnym_getojobu_apps_backend_internal_models.UserSkill:
     properties:
       createdAt:
         type: string
@@ -356,7 +302,166 @@ definitions:
       userID:
         type: string
     type: object
-  projects.createProjectRequest:
+  github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Code:
+    enum:
+    - INTERNAL_SERVER_ERROR
+    - VALIDATION_FAILED
+    - NOT_FOUND
+    - UNAUTHORIZED
+    - FORBIDDEN
+    - CONFLICT
+    - TOO_MANY_REQUESTS
+    - METHOD_NOT_ALLOWED
+    type: string
+    x-enum-varnames:
+    - CodeInternal
+    - CodeInvalidRequest
+    - CodeNotFound
+    - CodeUnauthorized
+    - CodeForbidden
+    - CodeConflict
+    - CodeTooManyRequests
+    - CodeMethodNotAllowed
+  github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error:
+    properties:
+      code:
+        $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Code'
+      details:
+        items:
+          $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.ErrorDetail'
+        type: array
+      message:
+        type: string
+      request_id:
+        type: string
+    type: object
+  github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.ErrorDetail:
+    properties:
+      field:
+        type: string
+      issue:
+        type: string
+    type: object
+  internal_deliveries_api_handler.StatusResponse:
+    properties:
+      status:
+        type: string
+    type: object
+  internal_deliveries_api_handler_experiences.createExperienceRequest:
+    properties:
+      description:
+        type: string
+      ended_at:
+        type: string
+      experience_type:
+        type: string
+      is_current:
+        type: boolean
+      location:
+        type: string
+      organization:
+        type: string
+      role_title:
+        type: string
+      started_at:
+        type: string
+    type: object
+  internal_deliveries_api_handler_experiences.updateExperienceRequest:
+    properties:
+      description:
+        type: string
+      ended_at:
+        type: string
+      experience_type:
+        type: string
+      is_current:
+        type: boolean
+      location:
+        type: string
+      organization:
+        type: string
+      role_title:
+        type: string
+      started_at:
+        type: string
+    type: object
+  internal_deliveries_api_handler_jobs.bulkCreateJobRequest:
+    properties:
+      jobs:
+        items:
+          $ref: '#/definitions/internal_deliveries_api_handler_jobs.createJobRequest'
+        type: array
+    type: object
+  internal_deliveries_api_handler_jobs.bulkQueueAnalyzeItemRequest:
+    properties:
+      force:
+        type: boolean
+      slug:
+        type: string
+    type: object
+  internal_deliveries_api_handler_jobs.bulkQueueAnalyzeResponse:
+    properties:
+      workflow_ids:
+        items:
+          type: string
+        type: array
+    type: object
+  internal_deliveries_api_handler_jobs.createJobRequest:
+    properties:
+      apply_url:
+        type: string
+      company:
+        type: string
+      description:
+        type: string
+      external_id:
+        type: string
+      is_remote:
+        type: boolean
+      location:
+        type: string
+      posted_date:
+        type: string
+      source:
+        type: string
+      source_url:
+        type: string
+      title:
+        type: string
+      user_ids:
+        description: |-
+          UserIDs is the list of internal user ids linked to this job.
+          Required for API key callers. Clerk callers must not send it (it is
+          resolved from the session token); sending it is a 400 error.
+        items:
+          type: string
+        type: array
+      visa_relocation:
+        type: boolean
+    type: object
+  internal_deliveries_api_handler_jobs.updateJobRequest:
+    properties:
+      analyze_result:
+        type: string
+      failure_message:
+        type: string
+      status:
+        type: string
+    type: object
+  internal_deliveries_api_handler_matching.updateEvaluationPayload:
+    properties:
+      evaluation_data:
+        $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_models.MatchEvaluationOutput'
+      failure_message:
+        type: string
+      model:
+        type: string
+      provider:
+        type: string
+      status:
+        type: string
+    type: object
+  internal_deliveries_api_handler_projects.createProjectRequest:
     properties:
       achievements:
         type: string
@@ -375,14 +480,14 @@ definitions:
       user_experience_id:
         type: string
     type: object
-  projects.linkProjectSkillsRequest:
+  internal_deliveries_api_handler_projects.linkProjectSkillsRequest:
     properties:
       skill_ids:
         items:
           type: string
         type: array
     type: object
-  projects.updateProjectRequest:
+  internal_deliveries_api_handler_projects.updateProjectRequest:
     properties:
       achievements:
         type: string
@@ -401,7 +506,7 @@ definitions:
       user_experience_id:
         type: string
     type: object
-  webhook.StatusResponse:
+  internal_deliveries_api_handler_webhook.StatusResponse:
     properties:
       status:
         type: string
@@ -424,7 +529,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/handler.StatusResponse'
+            $ref: '#/definitions/internal_deliveries_api_handler.StatusResponse'
       summary: Health check
       tags:
       - health
@@ -438,12 +543,12 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/models.Experience'
+              $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_models.Experience'
             type: array
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/httpx.Error'
+            $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error'
       security:
       - ApiKeyAuth: []
       summary: List experiences
@@ -459,22 +564,22 @@ paths:
         name: experience
         required: true
         schema:
-          $ref: '#/definitions/experiences.createExperienceRequest'
+          $ref: '#/definitions/internal_deliveries_api_handler_experiences.createExperienceRequest'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/models.Experience'
+            $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_models.Experience'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/httpx.Error'
+            $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/httpx.Error'
+            $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error'
       security:
       - ApiKeyAuth: []
       summary: Create experience
@@ -495,15 +600,15 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/models.Experience'
+            $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_models.Experience'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/httpx.Error'
+            $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/httpx.Error'
+            $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error'
       security:
       - ApiKeyAuth: []
       summary: Get experience
@@ -524,26 +629,26 @@ paths:
         name: experience
         required: true
         schema:
-          $ref: '#/definitions/experiences.updateExperienceRequest'
+          $ref: '#/definitions/internal_deliveries_api_handler_experiences.updateExperienceRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/models.Experience'
+            $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_models.Experience'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/httpx.Error'
+            $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/httpx.Error'
+            $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/httpx.Error'
+            $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error'
       security:
       - ApiKeyAuth: []
       summary: Update experience
@@ -568,12 +673,12 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/models.Job'
+              $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_models.Job'
             type: array
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/httpx.Error'
+            $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error'
       security:
       - ApiKeyAuth: []
       summary: List jobs
@@ -590,26 +695,26 @@ paths:
         name: job
         required: true
         schema:
-          $ref: '#/definitions/jobs.createJobRequest'
+          $ref: '#/definitions/internal_deliveries_api_handler_jobs.createJobRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/models.CreateJobResult'
+            $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_models.CreateJobResult'
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/models.CreateJobResult'
+            $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_models.CreateJobResult'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/httpx.Error'
+            $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/httpx.Error'
+            $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error'
       security:
       - ApiKeyAuth: []
       summary: Create job
@@ -632,19 +737,19 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/models.Job'
+            $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_models.Job'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/httpx.Error'
+            $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/httpx.Error'
+            $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/httpx.Error'
+            $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error'
       security:
       - ApiKeyAuth: []
       summary: Get job
@@ -666,33 +771,72 @@ paths:
         name: job
         required: true
         schema:
-          $ref: '#/definitions/jobs.updateJobRequest'
+          $ref: '#/definitions/internal_deliveries_api_handler_jobs.updateJobRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/models.Job'
+            $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_models.Job'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/httpx.Error'
+            $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/httpx.Error'
+            $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/httpx.Error'
+            $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error'
         "422":
           description: Unprocessable Entity
           schema:
-            $ref: '#/definitions/httpx.Error'
+            $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error'
       security:
       - ApiKeyAuth: []
       summary: Update job status
+      tags:
+      - jobs
+  /v1/jobs/{slug}/analyze-compatibility:
+    post:
+      consumes:
+      - application/json
+      description: Trigger compatibility evaluation for a specific job slug. Clerk
+        users evaluate their own profile; machine API key callers evaluate all users
+        associated with the job in user_jobs.
+      parameters:
+      - description: Job slug
+        in: path
+        name: slug
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            items:
+              $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_models.MatchingEvaluation'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error'
+      security:
+      - ApiKeyAuth: []
+      summary: Trigger compatibility evaluation
       tags:
       - jobs
   /v1/jobs/bulk:
@@ -707,7 +851,7 @@ paths:
         name: jobs
         required: true
         schema:
-          $ref: '#/definitions/jobs.bulkCreateJobRequest'
+          $ref: '#/definitions/internal_deliveries_api_handler_jobs.bulkCreateJobRequest'
       produces:
       - application/json
       responses:
@@ -715,16 +859,16 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/models.BulkCreateJobResult'
+              $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_models.BulkCreateJobResult'
             type: array
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/httpx.Error'
+            $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/httpx.Error'
+            $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error'
       security:
       - ApiKeyAuth: []
       summary: Bulk create jobs
@@ -743,7 +887,7 @@ paths:
         required: true
         schema:
           items:
-            $ref: '#/definitions/jobs.bulkQueueAnalyzeItemRequest'
+            $ref: '#/definitions/internal_deliveries_api_handler_jobs.bulkQueueAnalyzeItemRequest'
           type: array
       produces:
       - application/json
@@ -751,23 +895,23 @@ paths:
         "202":
           description: Accepted
           schema:
-            $ref: '#/definitions/jobs.bulkQueueAnalyzeResponse'
+            $ref: '#/definitions/internal_deliveries_api_handler_jobs.bulkQueueAnalyzeResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/httpx.Error'
+            $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/httpx.Error'
+            $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/httpx.Error'
+            $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error'
         "422":
           description: Unprocessable Entity
           schema:
-            $ref: '#/definitions/httpx.Error'
+            $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error'
       security:
       - ApiKeyAuth: []
       summary: Bulk queue job analysis
@@ -784,27 +928,69 @@ paths:
         in: body
         name: request
         schema:
-          $ref: '#/definitions/models.ScrapeJobsRequest'
+          $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_models.ScrapeJobsRequest'
       produces:
       - application/json
       responses:
         "202":
           description: Accepted
           schema:
-            $ref: '#/definitions/models.ScrapeJobsResponse'
+            $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_models.ScrapeJobsResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/httpx.Error'
+            $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/httpx.Error'
+            $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error'
       security:
       - ApiKeyAuth: []
       summary: Queue a job scrape scan
       tags:
       - jobs
+  /v1/matching-evaluations/{id}:
+    patch:
+      consumes:
+      - application/json
+      description: Updates the matching evaluation status and results. Accessible
+        only via machine API key.
+      parameters:
+      - description: Matching evaluation ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Evaluation update payload
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/internal_deliveries_api_handler_matching.updateEvaluationPayload'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_models.MatchingEvaluation'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error'
+      security:
+      - ApiKeyAuth: []
+      summary: Update matching evaluation
+      tags:
+      - matching
   /v1/projects:
     get:
       description: List all projects for the authenticated user
@@ -815,12 +1001,12 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/models.Project'
+              $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_models.Project'
             type: array
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/httpx.Error'
+            $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error'
       security:
       - ApiKeyAuth: []
       summary: List projects
@@ -836,22 +1022,22 @@ paths:
         name: project
         required: true
         schema:
-          $ref: '#/definitions/projects.createProjectRequest'
+          $ref: '#/definitions/internal_deliveries_api_handler_projects.createProjectRequest'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/models.Project'
+            $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_models.Project'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/httpx.Error'
+            $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/httpx.Error'
+            $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error'
       security:
       - ApiKeyAuth: []
       summary: Create project
@@ -872,15 +1058,15 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/models.Project'
+            $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_models.Project'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/httpx.Error'
+            $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/httpx.Error'
+            $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error'
       security:
       - ApiKeyAuth: []
       summary: Get project
@@ -901,26 +1087,26 @@ paths:
         name: project
         required: true
         schema:
-          $ref: '#/definitions/projects.updateProjectRequest'
+          $ref: '#/definitions/internal_deliveries_api_handler_projects.updateProjectRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/models.Project'
+            $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_models.Project'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/httpx.Error'
+            $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/httpx.Error'
+            $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/httpx.Error'
+            $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error'
       security:
       - ApiKeyAuth: []
       summary: Update project
@@ -942,12 +1128,12 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/models.UserSkill'
+              $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_models.UserSkill'
             type: array
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/httpx.Error'
+            $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error'
       security:
       - ApiKeyAuth: []
       summary: List project skills
@@ -968,7 +1154,7 @@ paths:
         name: skills
         required: true
         schema:
-          $ref: '#/definitions/projects.linkProjectSkillsRequest'
+          $ref: '#/definitions/internal_deliveries_api_handler_projects.linkProjectSkillsRequest'
       produces:
       - application/json
       responses:
@@ -981,11 +1167,11 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/httpx.Error'
+            $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/httpx.Error'
+            $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error'
       security:
       - ApiKeyAuth: []
       summary: Link project skills
@@ -1011,12 +1197,12 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/models.ScoringConfig'
+              $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_models.ScoringConfig'
             type: array
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/httpx.Error'
+            $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error'
       security:
       - ApiKeyAuth: []
       summary: List scoring configurations
@@ -1033,26 +1219,26 @@ paths:
         name: config
         required: true
         schema:
-          $ref: '#/definitions/models.CreateScoringConfigParams'
+          $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_models.CreateScoringConfigParams'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/models.ScoringConfig'
+            $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_models.ScoringConfig'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/httpx.Error'
+            $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/httpx.Error'
+            $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error'
         "409":
           description: Conflict
           schema:
-            $ref: '#/definitions/httpx.Error'
+            $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error'
       security:
       - ApiKeyAuth: []
       summary: Create scoring configuration
@@ -1074,19 +1260,19 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/models.ScoringConfig'
+            $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_models.ScoringConfig'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/httpx.Error'
+            $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/httpx.Error'
+            $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/httpx.Error'
+            $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error'
       security:
       - ApiKeyAuth: []
       summary: Get scoring configuration by ID
@@ -1108,26 +1294,26 @@ paths:
         name: config
         required: true
         schema:
-          $ref: '#/definitions/models.UpdateScoringConfigParams'
+          $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_models.UpdateScoringConfigParams'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/models.ScoringConfig'
+            $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_models.ScoringConfig'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/httpx.Error'
+            $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/httpx.Error'
+            $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/httpx.Error'
+            $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error'
       security:
       - ApiKeyAuth: []
       summary: Update scoring configuration
@@ -1149,19 +1335,19 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/models.ScoringConfig'
+            $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_models.ScoringConfig'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/httpx.Error'
+            $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/httpx.Error'
+            $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/httpx.Error'
+            $ref: '#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error'
       security:
       - ApiKeyAuth: []
       summary: Get active scoring configuration
@@ -1194,7 +1380,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/webhook.StatusResponse'
+            $ref: '#/definitions/internal_deliveries_api_handler_webhook.StatusResponse'
       summary: Clerk webhook
       tags:
       - webhook

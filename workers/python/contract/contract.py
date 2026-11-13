@@ -29,6 +29,10 @@ Stopper = Callable[[], Coroutine[Any, Any, None]]
 
 
 class WorkerContainer:
+    cfg: Config
+    repository: RepositoryContract
+    usecase: UsecaseContract
+
     def __init__(
         self,
         cfg: Config,

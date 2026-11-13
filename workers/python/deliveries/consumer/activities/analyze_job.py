@@ -19,7 +19,9 @@ from contract.contract import new as contract_new
 _container: WorkerContainer | None = None
 
 
-def init_container(container: WorkerContainer | None = None) -> WorkerContainer:
+def init_analyze_job_container(
+    container: WorkerContainer | None = None,
+) -> WorkerContainer:
     """Build (or reuse) the dependency container. Called from worker.main
     before starting the Temporal worker."""
     global _container
@@ -49,7 +51,7 @@ async def analyze_job_activity(input: dict[str, Any]) -> dict[str, Any]:
 
     Output: the stored JobAnalysis as a dict.
     """
-    container = init_container()
+    container = init_analyze_job_container()
     slug = input.get("slug")
     if not slug or not isinstance(slug, str):
         raise ValueError("slug is required")

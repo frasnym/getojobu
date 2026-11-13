@@ -11,8 +11,12 @@ from repository.getojobu_api import GetojobuAPI, NewGetojobuAPI
 
 
 class RepositoryContract:
+    api: GetojobuAPI
+    getojobu_api: GetojobuAPI
+
     def __init__(self, api: GetojobuAPI) -> None:
         self.api = api
+        self.getojobu_api = api
 
 
 def new(cfg: Config) -> RepositoryContract:

@@ -12,6 +12,7 @@ import (
 	"github.com/frasnym/getojobu/apps/backend/internal/deliveries/api/middleware"
 	"github.com/frasnym/getojobu/apps/backend/internal/models"
 	ucJobs "github.com/frasnym/getojobu/apps/backend/internal/usecase/jobs"
+	ucMatching "github.com/frasnym/getojobu/apps/backend/internal/usecase/matching"
 	ucUsers "github.com/frasnym/getojobu/apps/backend/internal/usecase/users"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/constants"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/ctxval"
@@ -21,17 +22,19 @@ import (
 
 // handler handles job CRUD operations.
 type handler struct {
-	cfg    *config.Config
-	userUC ucUsers.User
-	ucJobs ucJobs.Job
+	cfg        *config.Config
+	userUC     ucUsers.User
+	ucJobs     ucJobs.Job
+	matchingUC ucMatching.Matching
 }
 
 // NewHandler constructs a job handler from the full contract.
 func NewHandler(c *contract.Contract) *handler {
 	return &handler{
-		cfg:    c.Cfg,
-		userUC: c.Usecase.Users,
-		ucJobs: c.Usecase.Jobs,
+		cfg:        c.Cfg,
+		userUC:     c.Usecase.Users,
+		ucJobs:     c.Usecase.Jobs,
+		matchingUC: c.Usecase.Matching,
 	}
 }
 
@@ -40,13 +43,14 @@ func (h *handler) Route(g *httpx.Router) {
 	auth := middleware.NewAuthMiddleware(h.cfg, h.userUC)
 	apiKey := middleware.NewAuthMiddleware(h.cfg, nil)
 
+	g.GET("", h.ListJobs, auth.ValidClerkOrAPIKey)
 	g.POST("", h.CreateJob, auth.ValidClerkOrAPIKey)
 	g.POST("/bulk", h.BulkCreateJob, auth.ValidClerkOrAPIKey)
 	g.POST("/bulk-queue-analyze", h.BulkQueueAnalyzeJob, auth.ValidClerkOrAPIKey)
 	g.POST("/scrape", h.ScrapeJobs, apiKey.ValidAPIKey)
-	g.GET("", h.ListJobs, auth.ValidClerkOrAPIKey)
 	g.GET("/{slug}", h.GetJob, auth.ValidClerkOrAPIKey)
 	g.PATCH("/{slug}", h.UpdateJob, auth.ValidClerkOrAPIKey)
+	g.POST("/{slug}/analyze-compatibility", h.AnalyzeCompatibility, auth.ValidClerkOrAPIKey)
 }
 
 // CreateJob creates a single job listing. Returns 201 Created when inserted,
@@ -458,4 +462,43 @@ func clampLimit(limit int) int {
 		return 100
 	}
 	return limit
+}
+
+// AnalyzeCompatibility triggers candidate-job compatibility evaluation.
+// @Summary Trigger compatibility evaluation
+// @Description Trigger compatibility evaluation for a specific job slug. Clerk users evaluate their own profile; machine API key callers evaluate all users associated with the job in user_jobs.
+// @Tags jobs
+// @Accept json
+// @Produce json
+// @Param slug path string true "Job slug"
+// @Success 202 {array} models.MatchingEvaluation
+// @Failure 400 {object} httpx.Error
+// @Failure 401 {object} httpx.Error
+// @Failure 404 {object} httpx.Error
+// @security ApiKeyAuth
+// @Router /v1/jobs/{slug}/analyze-compatibility [post]
+func (h *handler) AnalyzeCompatibility(w http.ResponseWriter, r *http.Request) error {
+	ctx := r.Context()
+	p := ctxval.PrincipalFromContext(ctx)
+	if p == nil {
+		return httpx.Envelope(httpx.CodeUnauthorized, "unauthenticated", "")
+	}
+
+	slug := r.PathValue("slug")
+	if slug == "" {
+		return httpx.Envelope(httpx.CodeInvalidRequest, "slug is required", "")
+	}
+
+	evals, err := h.matchingUC.TriggerCompatibility(ctx, slug, p)
+	if err != nil {
+		if errors.Is(err, constants.ErrNotFound) {
+			return httpx.Envelope(httpx.CodeNotFound, "job or user link not found", "")
+		}
+		if errors.Is(err, constants.ErrInvalidTransition) {
+			return httpx.Envelope(httpx.CodeInvalidRequest, err.Error(), "")
+		}
+		return err
+	}
+
+	return httpx.RespondJSON(w, r, http.StatusAccepted, evals)
 }

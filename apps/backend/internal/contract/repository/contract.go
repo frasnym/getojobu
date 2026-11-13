@@ -11,17 +11,18 @@ import (
 // Contract is the repository layer contract. Repository implementations
 // attach their data-access methods here as the domain model grows.
 type Contract struct {
-	DB                        database.DB
-	Transactor                database.Transactor
-	UsersRepository           repo.Users
-	ExperiencesRepository     repo.Experiences
-	ProjectsRepository        repo.Projects
-	ProjectSkillsRepository   repo.ProjectSkills
-	JobsRepository            repo.Jobs
-	UserJobsRepository        repo.UserJobs
-	WorkflowsRepository       repo.Workflows
-	ScoringConfigsRepository  repo.ScoringConfigs
-	UserPreferencesRepository repo.UserPreferences
+	DB                            database.DB
+	Transactor                    database.Transactor
+	UsersRepository               repo.Users
+	ExperiencesRepository         repo.Experiences
+	ProjectsRepository            repo.Projects
+	ProjectSkillsRepository       repo.ProjectSkills
+	JobsRepository                repo.Jobs
+	UserJobsRepository            repo.UserJobs
+	WorkflowsRepository           repo.Workflows
+	ScoringConfigsRepository      repo.ScoringConfigs
+	UserPreferencesRepository     repo.UserPreferences
+	MatchingEvaluationsRepository repo.MatchingEvaluations
 }
 
 // NewRepository creates the repository layer contract from the common
@@ -35,17 +36,18 @@ func NewRepository(comm *common.Contract) (*Contract, error) {
 	pg := database.NewPG(comm.DB)
 
 	c := &Contract{
-		DB:                        comm.DB,
-		Transactor:                pg,
-		UsersRepository:           repo.NewUsersRepository(comm.DB),
-		ExperiencesRepository:     repo.NewExperiencesRepository(comm.DB),
-		ProjectsRepository:        repo.NewProjectsRepository(comm.DB),
-		ProjectSkillsRepository:   repo.NewProjectSkillsRepository(comm.DB),
-		JobsRepository:            repo.NewJobsRepository(pg),
-		UserJobsRepository:        repo.NewUserJobsRepository(pg),
-		WorkflowsRepository:       repo.NewWorkflowsRepository(comm.Temporal, comm.TemporalTaskQueue),
-		ScoringConfigsRepository:  repo.NewScoringConfigsRepository(pg),
-		UserPreferencesRepository: repo.NewUserPreferencesRepository(pg),
+		DB:                            comm.DB,
+		Transactor:                    pg,
+		UsersRepository:               repo.NewUsersRepository(comm.DB),
+		ExperiencesRepository:         repo.NewExperiencesRepository(comm.DB),
+		ProjectsRepository:            repo.NewProjectsRepository(comm.DB),
+		ProjectSkillsRepository:       repo.NewProjectSkillsRepository(comm.DB),
+		JobsRepository:                repo.NewJobsRepository(pg),
+		UserJobsRepository:            repo.NewUserJobsRepository(pg),
+		WorkflowsRepository:           repo.NewWorkflowsRepository(comm.Temporal, comm.TemporalTaskQueue),
+		ScoringConfigsRepository:      repo.NewScoringConfigsRepository(pg),
+		UserPreferencesRepository:     repo.NewUserPreferencesRepository(pg),
+		MatchingEvaluationsRepository: repo.NewMatchingEvaluationsRepository(pg),
 	}
 	return c, nil
 }

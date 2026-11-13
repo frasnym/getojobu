@@ -20,8 +20,9 @@ from datetime import UTC, date, datetime, time, timedelta
 from typing import Any, cast
 
 import jobspy
-from repository.getojobu_api import NewGetojobuAPI
 from temporalio import activity
+
+from repository.getojobu_api import NewGetojobuAPI
 from utils.logging import get_logger
 
 logger = get_logger("activities.job_scrape")

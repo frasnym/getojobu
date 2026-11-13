@@ -53,16 +53,19 @@ logger = _SafeLogger()
 LIMITS: dict[str, int] = {
     "scrape": 1,
     "analyze": 2,
+    "match": 2,
 }
 
 QUEUE_BY_TYPE: dict[str, str] = {
     "scrape": "job-scrape",
     "analyze": "job-evaluation",
+    "match": "job-evaluation",
 }
 
 WORKFLOW_BY_TYPE: dict[str, str] = {
     "scrape": "JobScrapeWorkflow",
     "analyze": "JobAnalyzeWorkflow",
+    "match": "MatchJobWorkflow",
 }
 
 
@@ -76,9 +79,7 @@ class WorkItem:
     def from_dict(cls, data: Mapping[str, Any]) -> WorkItem:
         params_val = data.get("params")
         params: dict[str, Any] = (
-            cast(dict[str, Any], params_val)
-            if isinstance(params_val, dict)
-            else {}
+            cast(dict[str, Any], params_val) if isinstance(params_val, dict) else {}
         )
         item_id: str = str(data.get("item_id", ""))
         job_type: str = str(data.get("job_type", "scrape"))

@@ -4,6 +4,7 @@ import asyncio
 from unittest.mock import MagicMock, patch
 
 import pytest
+
 from workflows.concurrency_limiter import (
     ConcurrencyLimiter,
     WorkItem,
@@ -84,7 +85,7 @@ def test_queue_status_query(limiter):
     status = limiter.queue_status()
     assert status["queued"] == 1
     assert status["active"] == ["wf-1"]
-    assert status["capacity_by_type"] == {"scrape": 1, "analyze": 2}
+    assert status["capacity_by_type"] == {"scrape": 1, "analyze": 2, "match": 2}
 
 
 @pytest.mark.asyncio
@@ -126,6 +127,33 @@ def test_analyze_capacity_2(limiter):
     assert len(limiter.active) == 2
     assert len(limiter.queue) == 1
     assert limiter.queue[0].item_id == "ana-3"
+
+
+def test_match_capacity_2(limiter):
+    mock_task = MagicMock(spec=asyncio.Task)
+    limiter._create_child_task = MagicMock(return_value=mock_task)
+
+    limiter.enqueue(WorkItem(params={}, item_id="match-1", job_type="match"))
+    assert len(limiter.active) == 1
+    assert len(limiter.queue) == 0
+
+    limiter.enqueue(WorkItem(params={}, item_id="match-2", job_type="match"))
+    assert len(limiter.active) == 2
+    assert len(limiter.queue) == 0
+
+    # 3rd match should be queued because capacity is 2
+    limiter.enqueue(WorkItem(params={}, item_id="match-3", job_type="match"))
+    assert len(limiter.active) == 2
+    assert len(limiter.queue) == 1
+    assert limiter.queue[0].item_id == "match-3"
+
+
+def test_match_mappings():
+    from workflows.concurrency_limiter import LIMITS, QUEUE_BY_TYPE, WORKFLOW_BY_TYPE
+
+    assert LIMITS["match"] == 2
+    assert QUEUE_BY_TYPE["match"] == "job-evaluation"
+    assert WORKFLOW_BY_TYPE["match"] == "MatchJobWorkflow"
 
 
 def test_hard_cap_mixed_concurrency(limiter):
@@ -320,7 +348,9 @@ def test_limiter_apply_state_and_continuation_state():
             {"params": {"slug": "job-1"}, "item_id": "wf-1", "job_type": "scrape"},
             {"params": {"slug": "job-2"}, "item_id": "wf-2", "job_type": "analyze"},
         ],
-        "failed_items": [{"item_id": "wf-old-fail", "job_type": "scrape", "error": "timeout"}],
+        "failed_items": [
+            {"item_id": "wf-old-fail", "job_type": "scrape", "error": "timeout"}
+        ],
     }
 
     limiter._apply_state(initial_state)
@@ -373,4 +403,3 @@ async def test_limiter_run_triggers_continue_as_new_when_suggested():
     saved_state = continue_as_new_calls[0]
     # Pending items were preserved and passed to the next generation
     assert any(item["item_id"] == "pending-1" for item in saved_state["queue"])
-

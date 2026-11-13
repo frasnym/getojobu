@@ -8,6 +8,7 @@ import (
 	"github.com/frasnym/getojobu/apps/backend/internal/contract"
 	"github.com/frasnym/getojobu/apps/backend/internal/deliveries/api/handler/experiences"
 	"github.com/frasnym/getojobu/apps/backend/internal/deliveries/api/handler/jobs"
+	"github.com/frasnym/getojobu/apps/backend/internal/deliveries/api/handler/matching"
 	"github.com/frasnym/getojobu/apps/backend/internal/deliveries/api/handler/projects"
 	scoringConfigs "github.com/frasnym/getojobu/apps/backend/internal/deliveries/api/handler/scoringconfigs"
 	"github.com/frasnym/getojobu/apps/backend/internal/deliveries/api/handler/webhook"
@@ -61,6 +62,9 @@ func (h *handler) Route(rt *httpx.Router) {
 
 	// Scoring configuration routes (CRU only; machine API key only).
 	scoringConfigs.NewHandler(h.contract).Route(v1.Group("/scoring-configs"))
+
+	// Matching routes (evaluation updates).
+	matching.NewHandler(h.contract).Route(v1.Group("/matching-evaluations"))
 }
 
 // swaggerAuth gates the Swagger UI behind HTTP Basic Auth when SWAGGER_TOKEN

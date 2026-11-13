@@ -14,8 +14,13 @@ from __future__ import annotations
 
 from typing import Any, Protocol
 
+import httpx
+
 from models.job_analysis import JobAnalysis
 from repository.getojobu_api import GetojobuAPI
+from utils.logging import get_logger
+
+logger = get_logger("usecase.analyze_job")
 
 
 class LLMClient(Protocol):
@@ -115,6 +120,17 @@ class AnalyzeJob:
             raise RuntimeError(
                 f"failed to transition job {slug!r} to 'analyzed': API returned status {actual_status!r}"
             )
+
+        # 6. Trigger compatibility evaluation (Step 2)
+        if hasattr(self._api, "trigger_analyze_compatibility"):
+            try:
+                await self._api.trigger_analyze_compatibility(slug=slug)
+            except (RuntimeError, httpx.HTTPError) as exc:
+                logger.warning(
+                    "trigger_analyze_compatibility_failed",
+                    slug=slug,
+                    error=str(exc),
+                )
 
         return analysis
 

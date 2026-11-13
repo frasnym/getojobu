@@ -21,6 +21,8 @@ type UserJobs interface {
 	Create(ctx context.Context, userID string, jobID int64) (created bool, err error)
 	BulkCreate(ctx context.Context, links []models.UserJobLink) (addedMap map[string]bool, err error)
 	IsOwned(ctx context.Context, userID string, jobID int64) (bool, error)
+	GetByUserAndJob(ctx context.Context, userID string, jobID int64) (*models.UserJob, error)
+	GetUsersByJobID(ctx context.Context, jobID int64) ([]string, error)
 }
 
 type userJobsRepository struct {
@@ -155,4 +157,49 @@ func (r *userJobsRepository) IsOwned(ctx context.Context, userID string, jobID i
 		return false, fmt.Errorf("check job ownership: %w", err)
 	}
 	return owned, nil
+}
+
+// GetByUserAndJob fetches the user_job row for a given user and job.
+func (r *userJobsRepository) GetByUserAndJob(ctx context.Context, userID string, jobID int64) (*models.UserJob, error) {
+	query := `
+		SELECT id, user_id, job_id, created_at, updated_at
+		FROM user_jobs
+		WHERE user_id = $1 AND job_id = $2
+	`
+	uj := &models.UserJob{}
+	err := r.DB().QueryRow(ctx, query, userID, jobID).Scan(
+		&uj.ID,
+		&uj.UserID,
+		&uj.JobID,
+		&uj.CreatedAt,
+		&uj.UpdatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return uj, nil
+}
+
+// GetUsersByJobID returns all user IDs linked to the given job.
+func (r *userJobsRepository) GetUsersByJobID(ctx context.Context, jobID int64) ([]string, error) {
+	query := `
+		SELECT user_id
+		FROM user_jobs
+		WHERE job_id = $1
+	`
+	rows, err := r.DB().Query(ctx, query, jobID)
+	if err != nil {
+		return nil, fmt.Errorf("query users by job id: %w", err)
+	}
+	defer rows.Close()
+
+	var userIDs []string
+	for rows.Next() {
+		var uid string
+		if err := rows.Scan(&uid); err != nil {
+			return nil, fmt.Errorf("scan user id: %w", err)
+		}
+		userIDs = append(userIDs, uid)
+	}
+	return userIDs, rows.Err()
 }

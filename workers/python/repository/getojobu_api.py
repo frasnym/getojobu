@@ -9,6 +9,7 @@ from __future__ import annotations
 from typing import Any, Protocol, cast, runtime_checkable
 
 import httpx
+
 from utils.logging import get_logger
 
 logger = get_logger("repository.getojobu_api")
@@ -30,6 +31,21 @@ class GetojobuAPI(Protocol):
     ) -> dict[str, Any]: ...
 
     async def get_active_scoring_config(self, family: str) -> dict[str, Any]: ...
+
+    async def patch_matching_evaluation(
+        self,
+        evaluation_id: str,
+        *,
+        status: str,
+        evaluation_data: dict[str, Any] | None = None,
+        failure_message: str | None = None,
+        provider: str | None = None,
+        model: str | None = None,
+    ) -> dict[str, Any]: ...
+
+    async def trigger_analyze_compatibility(
+        self, slug: str
+    ) -> list[dict[str, Any]]: ...
 
     async def post(self, path: str, json: Any) -> Any: ...
 
@@ -120,6 +136,59 @@ class _getojobuAPI:
                 f"get active scoring config for {family!r}: expected dict, got {type(unwrapped)}"
             )
         return unwrapped
+
+    async def patch_matching_evaluation(
+        self,
+        evaluation_id: str,
+        *,
+        status: str,
+        evaluation_data: dict[str, Any] | None = None,
+        failure_message: str | None = None,
+        provider: str | None = None,
+        model: str | None = None,
+    ) -> dict[str, Any]:
+        payload: dict[str, Any] = {"status": status}
+        if evaluation_data is not None:
+            payload["evaluation_data"] = evaluation_data
+        if failure_message is not None:
+            payload["failure_message"] = failure_message
+        if provider is not None:
+            payload["provider"] = provider
+        if model is not None:
+            payload["model"] = model
+
+        response = await self._client.patch(
+            f"/v1/matching-evaluations/{evaluation_id}",
+            json=payload,
+        )
+        self._check_response(
+            response, operation=f"patch matching evaluation {evaluation_id!r}"
+        )
+        raw = response.json()
+        unwrapped = self._unwrap_response(
+            raw, operation=f"patch matching evaluation {evaluation_id!r}"
+        )
+        if not isinstance(unwrapped, dict):
+            raise TypeError(
+                f"patch matching evaluation {evaluation_id!r}: expected dict, got {type(unwrapped)}"
+            )
+        return unwrapped
+
+    async def trigger_analyze_compatibility(self, slug: str) -> list[dict[str, Any]]:
+        response = await self._client.post(
+            f"/v1/jobs/{slug}/analyze-compatibility",
+            json={},
+        )
+        self._check_response(
+            response, operation=f"trigger analyze compatibility for {slug!r}"
+        )
+        raw = response.json()
+        unwrapped = self._unwrap_response(
+            raw, operation=f"trigger analyze compatibility for {slug!r}"
+        )
+        if isinstance(unwrapped, list):
+            return cast("list[dict[str, Any]]", unwrapped)
+        return []
 
     async def post(self, path: str, json: Any) -> Any:
         response = await self._client.post(path, json=json)

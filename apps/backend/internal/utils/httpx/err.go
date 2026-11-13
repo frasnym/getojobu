@@ -27,9 +27,6 @@ type ErrorDetail struct {
 	Issue string `json:"issue"`
 }
 
-// FieldError is an alias for ErrorDetail for backward compatibility.
-type FieldError = ErrorDetail
-
 // ErrorPayload describes the error in an error response.
 type ErrorPayload struct {
 	Code    Code          `json:"code"`

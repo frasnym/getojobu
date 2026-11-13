@@ -32,7 +32,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/handler.StatusResponse"
+                            "$ref": "#/definitions/internal_deliveries_api_handler.StatusResponse"
                         }
                     }
                 }
@@ -59,14 +59,14 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/models.Experience"
+                                "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_models.Experience"
                             }
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/httpx.Error"
+                            "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error"
                         }
                     }
                 }
@@ -95,7 +95,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/experiences.createExperienceRequest"
+                            "$ref": "#/definitions/internal_deliveries_api_handler_experiences.createExperienceRequest"
                         }
                     }
                 ],
@@ -103,19 +103,19 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/models.Experience"
+                            "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_models.Experience"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/httpx.Error"
+                            "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/httpx.Error"
+                            "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error"
                         }
                     }
                 }
@@ -149,19 +149,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/models.Experience"
+                            "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_models.Experience"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/httpx.Error"
+                            "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/httpx.Error"
+                            "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error"
                         }
                     }
                 }
@@ -197,7 +197,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/experiences.updateExperienceRequest"
+                            "$ref": "#/definitions/internal_deliveries_api_handler_experiences.updateExperienceRequest"
                         }
                     }
                 ],
@@ -205,25 +205,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/models.Experience"
+                            "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_models.Experience"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/httpx.Error"
+                            "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/httpx.Error"
+                            "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/httpx.Error"
+                            "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error"
                         }
                     }
                 }
@@ -261,14 +261,14 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/models.Job"
+                                "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_models.Job"
                             }
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/httpx.Error"
+                            "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error"
                         }
                     }
                 }
@@ -297,7 +297,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/jobs.createJobRequest"
+                            "$ref": "#/definitions/internal_deliveries_api_handler_jobs.createJobRequest"
                         }
                     }
                 ],
@@ -305,25 +305,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/models.CreateJobResult"
+                            "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_models.CreateJobResult"
                         }
                     },
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/models.CreateJobResult"
+                            "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_models.CreateJobResult"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/httpx.Error"
+                            "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/httpx.Error"
+                            "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error"
                         }
                     }
                 }
@@ -354,7 +354,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/jobs.bulkCreateJobRequest"
+                            "$ref": "#/definitions/internal_deliveries_api_handler_jobs.bulkCreateJobRequest"
                         }
                     }
                 ],
@@ -364,20 +364,20 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/models.BulkCreateJobResult"
+                                "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_models.BulkCreateJobResult"
                             }
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/httpx.Error"
+                            "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/httpx.Error"
+                            "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error"
                         }
                     }
                 }
@@ -410,7 +410,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/jobs.bulkQueueAnalyzeItemRequest"
+                                "$ref": "#/definitions/internal_deliveries_api_handler_jobs.bulkQueueAnalyzeItemRequest"
                             }
                         }
                     }
@@ -419,31 +419,31 @@ const docTemplate = `{
                     "202": {
                         "description": "Accepted",
                         "schema": {
-                            "$ref": "#/definitions/jobs.bulkQueueAnalyzeResponse"
+                            "$ref": "#/definitions/internal_deliveries_api_handler_jobs.bulkQueueAnalyzeResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/httpx.Error"
+                            "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/httpx.Error"
+                            "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/httpx.Error"
+                            "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error"
                         }
                     },
                     "422": {
                         "description": "Unprocessable Entity",
                         "schema": {
-                            "$ref": "#/definitions/httpx.Error"
+                            "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error"
                         }
                     }
                 }
@@ -473,7 +473,7 @@ const docTemplate = `{
                         "name": "request",
                         "in": "body",
                         "schema": {
-                            "$ref": "#/definitions/models.ScrapeJobsRequest"
+                            "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_models.ScrapeJobsRequest"
                         }
                     }
                 ],
@@ -481,19 +481,19 @@ const docTemplate = `{
                     "202": {
                         "description": "Accepted",
                         "schema": {
-                            "$ref": "#/definitions/models.ScrapeJobsResponse"
+                            "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_models.ScrapeJobsResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/httpx.Error"
+                            "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/httpx.Error"
+                            "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error"
                         }
                     }
                 }
@@ -530,25 +530,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/models.Job"
+                            "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_models.Job"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/httpx.Error"
+                            "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/httpx.Error"
+                            "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/httpx.Error"
+                            "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error"
                         }
                     }
                 }
@@ -584,7 +584,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/jobs.updateJobRequest"
+                            "$ref": "#/definitions/internal_deliveries_api_handler_jobs.updateJobRequest"
                         }
                     }
                 ],
@@ -592,31 +592,153 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/models.Job"
+                            "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_models.Job"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/httpx.Error"
+                            "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/httpx.Error"
+                            "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/httpx.Error"
+                            "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error"
                         }
                     },
                     "422": {
                         "description": "Unprocessable Entity",
                         "schema": {
-                            "$ref": "#/definitions/httpx.Error"
+                            "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/jobs/{slug}/analyze-compatibility": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Trigger compatibility evaluation for a specific job slug. Clerk users evaluate their own profile; machine API key callers evaluate all users associated with the job in user_jobs.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "jobs"
+                ],
+                "summary": "Trigger compatibility evaluation",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Job slug",
+                        "name": "slug",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Accepted",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_models.MatchingEvaluation"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/matching-evaluations/{id}": {
+            "patch": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Updates the matching evaluation status and results. Accessible only via machine API key.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "matching"
+                ],
+                "summary": "Update matching evaluation",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Matching evaluation ID (UUID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Evaluation update payload",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_deliveries_api_handler_matching.updateEvaluationPayload"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_models.MatchingEvaluation"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error"
                         }
                     }
                 }
@@ -643,14 +765,14 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/models.Project"
+                                "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_models.Project"
                             }
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/httpx.Error"
+                            "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error"
                         }
                     }
                 }
@@ -679,7 +801,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/projects.createProjectRequest"
+                            "$ref": "#/definitions/internal_deliveries_api_handler_projects.createProjectRequest"
                         }
                     }
                 ],
@@ -687,19 +809,19 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/models.Project"
+                            "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_models.Project"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/httpx.Error"
+                            "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/httpx.Error"
+                            "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error"
                         }
                     }
                 }
@@ -733,19 +855,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/models.Project"
+                            "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_models.Project"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/httpx.Error"
+                            "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/httpx.Error"
+                            "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error"
                         }
                     }
                 }
@@ -781,7 +903,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/projects.updateProjectRequest"
+                            "$ref": "#/definitions/internal_deliveries_api_handler_projects.updateProjectRequest"
                         }
                     }
                 ],
@@ -789,25 +911,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/models.Project"
+                            "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_models.Project"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/httpx.Error"
+                            "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/httpx.Error"
+                            "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/httpx.Error"
+                            "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error"
                         }
                     }
                 }
@@ -843,14 +965,14 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/models.UserSkill"
+                                "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_models.UserSkill"
                             }
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/httpx.Error"
+                            "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error"
                         }
                     }
                 }
@@ -886,7 +1008,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/projects.linkProjectSkillsRequest"
+                            "$ref": "#/definitions/internal_deliveries_api_handler_projects.linkProjectSkillsRequest"
                         }
                     }
                 ],
@@ -903,13 +1025,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/httpx.Error"
+                            "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/httpx.Error"
+                            "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error"
                         }
                     }
                 }
@@ -950,14 +1072,14 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/models.ScoringConfig"
+                                "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_models.ScoringConfig"
                             }
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/httpx.Error"
+                            "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error"
                         }
                     }
                 }
@@ -986,7 +1108,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/models.CreateScoringConfigParams"
+                            "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_models.CreateScoringConfigParams"
                         }
                     }
                 ],
@@ -994,25 +1116,25 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/models.ScoringConfig"
+                            "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_models.ScoringConfig"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/httpx.Error"
+                            "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/httpx.Error"
+                            "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error"
                         }
                     },
                     "409": {
                         "description": "Conflict",
                         "schema": {
-                            "$ref": "#/definitions/httpx.Error"
+                            "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error"
                         }
                     }
                 }
@@ -1046,25 +1168,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/models.ScoringConfig"
+                            "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_models.ScoringConfig"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/httpx.Error"
+                            "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/httpx.Error"
+                            "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/httpx.Error"
+                            "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error"
                         }
                     }
                 }
@@ -1098,25 +1220,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/models.ScoringConfig"
+                            "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_models.ScoringConfig"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/httpx.Error"
+                            "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/httpx.Error"
+                            "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/httpx.Error"
+                            "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error"
                         }
                     }
                 }
@@ -1152,7 +1274,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/models.UpdateScoringConfigParams"
+                            "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_models.UpdateScoringConfigParams"
                         }
                     }
                 ],
@@ -1160,25 +1282,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/models.ScoringConfig"
+                            "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_models.ScoringConfig"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/httpx.Error"
+                            "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/httpx.Error"
+                            "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/httpx.Error"
+                            "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error"
                         }
                     }
                 }
@@ -1224,7 +1346,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/webhook.StatusResponse"
+                            "$ref": "#/definitions/internal_deliveries_api_handler_webhook.StatusResponse"
                         }
                     }
                 }
@@ -1232,219 +1354,7 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "experiences.createExperienceRequest": {
-            "type": "object",
-            "properties": {
-                "description": {
-                    "type": "string"
-                },
-                "ended_at": {
-                    "type": "string"
-                },
-                "experience_type": {
-                    "type": "string"
-                },
-                "is_current": {
-                    "type": "boolean"
-                },
-                "location": {
-                    "type": "string"
-                },
-                "organization": {
-                    "type": "string"
-                },
-                "role_title": {
-                    "type": "string"
-                },
-                "started_at": {
-                    "type": "string"
-                }
-            }
-        },
-        "experiences.updateExperienceRequest": {
-            "type": "object",
-            "properties": {
-                "description": {
-                    "type": "string"
-                },
-                "ended_at": {
-                    "type": "string"
-                },
-                "experience_type": {
-                    "type": "string"
-                },
-                "is_current": {
-                    "type": "boolean"
-                },
-                "location": {
-                    "type": "string"
-                },
-                "organization": {
-                    "type": "string"
-                },
-                "role_title": {
-                    "type": "string"
-                },
-                "started_at": {
-                    "type": "string"
-                }
-            }
-        },
-        "handler.StatusResponse": {
-            "type": "object",
-            "properties": {
-                "status": {
-                    "type": "string"
-                }
-            }
-        },
-        "httpx.Code": {
-            "type": "string",
-            "enum": [
-                "INTERNAL_SERVER_ERROR",
-                "VALIDATION_FAILED",
-                "NOT_FOUND",
-                "UNAUTHORIZED",
-                "FORBIDDEN",
-                "CONFLICT",
-                "TOO_MANY_REQUESTS",
-                "METHOD_NOT_ALLOWED"
-            ],
-            "x-enum-varnames": [
-                "CodeInternal",
-                "CodeInvalidRequest",
-                "CodeNotFound",
-                "CodeUnauthorized",
-                "CodeForbidden",
-                "CodeConflict",
-                "CodeTooManyRequests",
-                "CodeMethodNotAllowed"
-            ]
-        },
-        "httpx.Error": {
-            "type": "object",
-            "properties": {
-                "code": {
-                    "$ref": "#/definitions/httpx.Code"
-                },
-                "details": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/httpx.ErrorDetail"
-                    }
-                },
-                "message": {
-                    "type": "string"
-                },
-                "request_id": {
-                    "type": "string"
-                }
-            }
-        },
-        "httpx.ErrorDetail": {
-            "type": "object",
-            "properties": {
-                "field": {
-                    "type": "string"
-                },
-                "issue": {
-                    "type": "string"
-                }
-            }
-        },
-        "jobs.bulkCreateJobRequest": {
-            "type": "object",
-            "properties": {
-                "jobs": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/jobs.createJobRequest"
-                    }
-                }
-            }
-        },
-        "jobs.bulkQueueAnalyzeItemRequest": {
-            "type": "object",
-            "properties": {
-                "force": {
-                    "type": "boolean"
-                },
-                "slug": {
-                    "type": "string"
-                }
-            }
-        },
-        "jobs.bulkQueueAnalyzeResponse": {
-            "type": "object",
-            "properties": {
-                "workflow_ids": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                }
-            }
-        },
-        "jobs.createJobRequest": {
-            "type": "object",
-            "properties": {
-                "apply_url": {
-                    "type": "string"
-                },
-                "company": {
-                    "type": "string"
-                },
-                "description": {
-                    "type": "string"
-                },
-                "external_id": {
-                    "type": "string"
-                },
-                "is_remote": {
-                    "type": "boolean"
-                },
-                "location": {
-                    "type": "string"
-                },
-                "posted_date": {
-                    "type": "string"
-                },
-                "source": {
-                    "type": "string"
-                },
-                "source_url": {
-                    "type": "string"
-                },
-                "title": {
-                    "type": "string"
-                },
-                "user_ids": {
-                    "description": "UserIDs is the list of internal user ids linked to this job.\nRequired for API key callers. Clerk callers must not send it (it is\nresolved from the session token); sending it is a 400 error.",
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "visa_relocation": {
-                    "type": "boolean"
-                }
-            }
-        },
-        "jobs.updateJobRequest": {
-            "type": "object",
-            "properties": {
-                "analyze_result": {
-                    "type": "string"
-                },
-                "failure_message": {
-                    "type": "string"
-                },
-                "status": {
-                    "type": "string"
-                }
-            }
-        },
-        "models.BulkCreateJobResult": {
+        "github_com_frasnym_getojobu_apps_backend_internal_models.BulkCreateJobResult": {
             "type": "object",
             "properties": {
                 "added_to_user_list": {
@@ -1458,7 +1368,7 @@ const docTemplate = `{
                 }
             }
         },
-        "models.CategoryConfig": {
+        "github_com_frasnym_getojobu_apps_backend_internal_models.CategoryConfig": {
             "type": "object",
             "properties": {
                 "description": {
@@ -1472,7 +1382,54 @@ const docTemplate = `{
                 }
             }
         },
-        "models.CreateJobResult": {
+        "github_com_frasnym_getojobu_apps_backend_internal_models.CategoryEvaluation": {
+            "type": "object",
+            "properties": {
+                "category": {
+                    "type": "string"
+                },
+                "evidence": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_models.CategoryEvidence"
+                    }
+                },
+                "gaps": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "reason": {
+                    "type": "string"
+                },
+                "score": {
+                    "type": "integer"
+                },
+                "strengths": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "github_com_frasnym_getojobu_apps_backend_internal_models.CategoryEvidence": {
+            "type": "object",
+            "properties": {
+                "candidate_evidence": {
+                    "type": "string"
+                },
+                "job_requirement": {
+                    "type": "string"
+                },
+                "relationship": {
+                    "description": "direct | transferable",
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_frasnym_getojobu_apps_backend_internal_models.CreateJobResult": {
             "type": "object",
             "properties": {
                 "addedToUserList": {
@@ -1482,17 +1439,17 @@ const docTemplate = `{
                     "type": "boolean"
                 },
                 "job": {
-                    "$ref": "#/definitions/models.Job"
+                    "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_models.Job"
                 }
             }
         },
-        "models.CreateScoringConfigParams": {
+        "github_com_frasnym_getojobu_apps_backend_internal_models.CreateScoringConfigParams": {
             "type": "object",
             "properties": {
                 "categories": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/models.CategoryConfig"
+                        "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_models.CategoryConfig"
                     }
                 },
                 "family": {
@@ -1506,7 +1463,7 @@ const docTemplate = `{
                 }
             }
         },
-        "models.Experience": {
+        "github_com_frasnym_getojobu_apps_backend_internal_models.Experience": {
             "type": "object",
             "properties": {
                 "createdAt": {
@@ -1519,7 +1476,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "experienceType": {
-                    "$ref": "#/definitions/models.ExperienceType"
+                    "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_models.ExperienceType"
                 },
                 "id": {
                     "type": "string"
@@ -1547,7 +1504,7 @@ const docTemplate = `{
                 }
             }
         },
-        "models.ExperienceType": {
+        "github_com_frasnym_getojobu_apps_backend_internal_models.ExperienceType": {
             "type": "string",
             "enum": [
                 "professional",
@@ -1564,11 +1521,11 @@ const docTemplate = `{
                 "ExperienceTypeOther"
             ]
         },
-        "models.Job": {
+        "github_com_frasnym_getojobu_apps_backend_internal_models.Job": {
             "type": "object",
             "properties": {
                 "analyze_result": {
-                    "type": "string"
+                    "type": "object"
                 },
                 "apply_url": {
                     "type": "string"
@@ -1629,7 +1586,99 @@ const docTemplate = `{
                 }
             }
         },
-        "models.Project": {
+        "github_com_frasnym_getojobu_apps_backend_internal_models.MandatoryRequirementAssessment": {
+            "type": "object",
+            "properties": {
+                "evidence": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "reason": {
+                    "type": "string"
+                },
+                "requirement": {
+                    "type": "string"
+                },
+                "status": {
+                    "description": "met | not_met | uncertain",
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_frasnym_getojobu_apps_backend_internal_models.MatchEvaluationOutput": {
+            "type": "object",
+            "properties": {
+                "evaluations": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_models.CategoryEvaluation"
+                    }
+                },
+                "mandatory_requirements": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_models.MandatoryRequirementAssessment"
+                    }
+                }
+            }
+        },
+        "github_com_frasnym_getojobu_apps_backend_internal_models.MatchingEvaluation": {
+            "type": "object",
+            "properties": {
+                "candidate_profile_data": {
+                    "type": "object"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "eligibility_status": {
+                    "type": "string"
+                },
+                "evaluation_data": {
+                    "type": "object"
+                },
+                "failure_message": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "job_profile_data": {
+                    "type": "object"
+                },
+                "model": {
+                    "type": "string"
+                },
+                "overall_score": {
+                    "type": "number"
+                },
+                "prompt_version": {
+                    "type": "string"
+                },
+                "provider": {
+                    "type": "string"
+                },
+                "recommendation_label": {
+                    "type": "string"
+                },
+                "scoring_config_id": {
+                    "type": "string"
+                },
+                "status": {
+                    "description": "new | pending | success | failed",
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "user_job_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_frasnym_getojobu_apps_backend_internal_models.Project": {
             "type": "object",
             "properties": {
                 "achievements": {
@@ -1670,13 +1719,13 @@ const docTemplate = `{
                 }
             }
         },
-        "models.ScoringConfig": {
+        "github_com_frasnym_getojobu_apps_backend_internal_models.ScoringConfig": {
             "type": "object",
             "properties": {
                 "categories": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/models.CategoryConfig"
+                        "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_models.CategoryConfig"
                     }
                 },
                 "created_at": {
@@ -1699,7 +1748,7 @@ const docTemplate = `{
                 }
             }
         },
-        "models.ScrapeJobsRequest": {
+        "github_com_frasnym_getojobu_apps_backend_internal_models.ScrapeJobsRequest": {
             "type": "object",
             "properties": {
                 "user_ids": {
@@ -1710,7 +1759,7 @@ const docTemplate = `{
                 }
             }
         },
-        "models.ScrapeJobsResponse": {
+        "github_com_frasnym_getojobu_apps_backend_internal_models.ScrapeJobsResponse": {
             "type": "object",
             "properties": {
                 "workflow_ids": {
@@ -1721,13 +1770,13 @@ const docTemplate = `{
                 }
             }
         },
-        "models.UpdateScoringConfigParams": {
+        "github_com_frasnym_getojobu_apps_backend_internal_models.UpdateScoringConfigParams": {
             "type": "object",
             "properties": {
                 "categories": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/models.CategoryConfig"
+                        "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_models.CategoryConfig"
                     }
                 },
                 "is_active": {
@@ -1735,7 +1784,7 @@ const docTemplate = `{
                 }
             }
         },
-        "models.UserSkill": {
+        "github_com_frasnym_getojobu_apps_backend_internal_models.UserSkill": {
             "type": "object",
             "properties": {
                 "createdAt": {
@@ -1761,7 +1810,239 @@ const docTemplate = `{
                 }
             }
         },
-        "projects.createProjectRequest": {
+        "github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Code": {
+            "type": "string",
+            "enum": [
+                "INTERNAL_SERVER_ERROR",
+                "VALIDATION_FAILED",
+                "NOT_FOUND",
+                "UNAUTHORIZED",
+                "FORBIDDEN",
+                "CONFLICT",
+                "TOO_MANY_REQUESTS",
+                "METHOD_NOT_ALLOWED"
+            ],
+            "x-enum-varnames": [
+                "CodeInternal",
+                "CodeInvalidRequest",
+                "CodeNotFound",
+                "CodeUnauthorized",
+                "CodeForbidden",
+                "CodeConflict",
+                "CodeTooManyRequests",
+                "CodeMethodNotAllowed"
+            ]
+        },
+        "github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Error": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.Code"
+                },
+                "details": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.ErrorDetail"
+                    }
+                },
+                "message": {
+                    "type": "string"
+                },
+                "request_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_frasnym_getojobu_apps_backend_internal_utils_httpx.ErrorDetail": {
+            "type": "object",
+            "properties": {
+                "field": {
+                    "type": "string"
+                },
+                "issue": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_deliveries_api_handler.StatusResponse": {
+            "type": "object",
+            "properties": {
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_deliveries_api_handler_experiences.createExperienceRequest": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "ended_at": {
+                    "type": "string"
+                },
+                "experience_type": {
+                    "type": "string"
+                },
+                "is_current": {
+                    "type": "boolean"
+                },
+                "location": {
+                    "type": "string"
+                },
+                "organization": {
+                    "type": "string"
+                },
+                "role_title": {
+                    "type": "string"
+                },
+                "started_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_deliveries_api_handler_experiences.updateExperienceRequest": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "ended_at": {
+                    "type": "string"
+                },
+                "experience_type": {
+                    "type": "string"
+                },
+                "is_current": {
+                    "type": "boolean"
+                },
+                "location": {
+                    "type": "string"
+                },
+                "organization": {
+                    "type": "string"
+                },
+                "role_title": {
+                    "type": "string"
+                },
+                "started_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_deliveries_api_handler_jobs.bulkCreateJobRequest": {
+            "type": "object",
+            "properties": {
+                "jobs": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_deliveries_api_handler_jobs.createJobRequest"
+                    }
+                }
+            }
+        },
+        "internal_deliveries_api_handler_jobs.bulkQueueAnalyzeItemRequest": {
+            "type": "object",
+            "properties": {
+                "force": {
+                    "type": "boolean"
+                },
+                "slug": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_deliveries_api_handler_jobs.bulkQueueAnalyzeResponse": {
+            "type": "object",
+            "properties": {
+                "workflow_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "internal_deliveries_api_handler_jobs.createJobRequest": {
+            "type": "object",
+            "properties": {
+                "apply_url": {
+                    "type": "string"
+                },
+                "company": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "external_id": {
+                    "type": "string"
+                },
+                "is_remote": {
+                    "type": "boolean"
+                },
+                "location": {
+                    "type": "string"
+                },
+                "posted_date": {
+                    "type": "string"
+                },
+                "source": {
+                    "type": "string"
+                },
+                "source_url": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "user_ids": {
+                    "description": "UserIDs is the list of internal user ids linked to this job.\nRequired for API key callers. Clerk callers must not send it (it is\nresolved from the session token); sending it is a 400 error.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "visa_relocation": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "internal_deliveries_api_handler_jobs.updateJobRequest": {
+            "type": "object",
+            "properties": {
+                "analyze_result": {
+                    "type": "string"
+                },
+                "failure_message": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_deliveries_api_handler_matching.updateEvaluationPayload": {
+            "type": "object",
+            "properties": {
+                "evaluation_data": {
+                    "$ref": "#/definitions/github_com_frasnym_getojobu_apps_backend_internal_models.MatchEvaluationOutput"
+                },
+                "failure_message": {
+                    "type": "string"
+                },
+                "model": {
+                    "type": "string"
+                },
+                "provider": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_deliveries_api_handler_projects.createProjectRequest": {
             "type": "object",
             "properties": {
                 "achievements": {
@@ -1790,7 +2071,7 @@ const docTemplate = `{
                 }
             }
         },
-        "projects.linkProjectSkillsRequest": {
+        "internal_deliveries_api_handler_projects.linkProjectSkillsRequest": {
             "type": "object",
             "properties": {
                 "skill_ids": {
@@ -1801,7 +2082,7 @@ const docTemplate = `{
                 }
             }
         },
-        "projects.updateProjectRequest": {
+        "internal_deliveries_api_handler_projects.updateProjectRequest": {
             "type": "object",
             "properties": {
                 "achievements": {
@@ -1830,7 +2111,7 @@ const docTemplate = `{
                 }
             }
         },
-        "webhook.StatusResponse": {
+        "internal_deliveries_api_handler_webhook.StatusResponse": {
             "type": "object",
             "properties": {
                 "status": {

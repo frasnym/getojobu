@@ -6,6 +6,7 @@ type LimiterJobType string
 const (
 	LimiterJobTypeScrape  LimiterJobType = "scrape"
 	LimiterJobTypeAnalyze LimiterJobType = "analyze"
+	LimiterJobTypeMatch   LimiterJobType = "match"
 )
 
 // LimiterWorkItem represents a work item enqueued into ConcurrencyLimiter.
