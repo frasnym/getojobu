@@ -14,6 +14,7 @@ import asyncio
 import signal
 import sys
 from concurrent.futures import ThreadPoolExecutor
+from datetime import timedelta
 
 from temporalio.worker import Worker
 
@@ -89,6 +90,8 @@ async def run() -> int:
 
     activity_executor = ThreadPoolExecutor(max_workers=10)
 
+    graceful_timeout = timedelta(seconds=30)
+
     try:
         job_analyze_worker = Worker(
             temporal_client.client,
@@ -110,6 +113,7 @@ async def run() -> int:
                 GenerateResumeWorkflow,
             ],
             activity_executor=activity_executor,
+            graceful_shutdown_timeout=graceful_timeout,
         )
         job_scrape_worker = Worker(
             temporal_client.client,
@@ -117,11 +121,13 @@ async def run() -> int:
             activities=[scrape_scan, enrich_jobs, ingest_jobs, queue_analysis],
             workflows=[JobScrapeWorkflow],
             activity_executor=activity_executor,
+            graceful_shutdown_timeout=graceful_timeout,
         )
         job_limit_worker = Worker(
             temporal_client.client,
             task_queue=cfg.temporal.task_queue_job_limit,
             workflows=[ConcurrencyLimiter],
+            graceful_shutdown_timeout=graceful_timeout,
         )
 
         logger.info(
@@ -152,9 +158,13 @@ async def run() -> int:
         try:
             await stop_event.wait()
         finally:
-            job_analyze_task.cancel()
-            job_scrape_task.cancel()
-            job_limit_task.cancel()
+            logger.info("initiating_graceful_shutdown")
+            await asyncio.gather(
+                job_analyze_worker.shutdown(),
+                job_scrape_worker.shutdown(),
+                job_limit_worker.shutdown(),
+                return_exceptions=True,
+            )
             for t in (job_analyze_task, job_scrape_task, job_limit_task):
                 try:
                     await t
@@ -162,13 +172,10 @@ async def run() -> int:
                     pass
 
         logger.info("worker_stopped")
-        await job_analyze_worker.shutdown()
-        await job_scrape_worker.shutdown()
-        await job_limit_worker.shutdown()
         await stopper()
         return 0
     finally:
-        activity_executor.shutdown(wait=False)
+        activity_executor.shutdown(wait=True)
 
 
 def main() -> None:
