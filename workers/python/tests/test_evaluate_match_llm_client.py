@@ -4,7 +4,6 @@ import json
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-
 from usecase.evaluate_match.llm_client import OpenAIClient
 
 
@@ -66,6 +65,51 @@ async def test_extract_match_evaluation_renders_and_parses(
 
     assert result == expected_response
     mock_openai_client._client.chat.completions.create.assert_awaited_once()  # type: ignore[attr-defined]
+
+
+@pytest.mark.asyncio
+async def test_extract_match_evaluation_injects_category_enum(
+    mock_openai_client: OpenAIClient,
+) -> None:
+    expected_response = {
+        "evaluations": [],
+        "mandatory_requirements": [],
+    }
+
+    mock_chat_completion = MagicMock()
+    mock_choice = MagicMock()
+    mock_choice.message.content = json.dumps(expected_response)
+    mock_chat_completion.choices = [mock_choice]
+
+    mock_create = AsyncMock(return_value=mock_chat_completion)
+    mock_openai_client._client.chat.completions.create = mock_create  # type: ignore[method-assign]
+
+    eval_config = {
+        "family": "technology",
+        "categories": [
+            {"name": "technical_skills", "weight": 0.5},
+            {"name": "responsibilities", "weight": 0.5},
+        ],
+    }
+
+    await mock_openai_client.extract_match_evaluation(
+        candidate_profile={"skills": ["golang"]},
+        job_profile={"title": "Backend Engineer"},
+        evaluation_config=eval_config,
+    )
+
+    mock_create.assert_awaited_once()
+    kwargs = mock_create.call_args.kwargs
+    # Check that category enum was injected
+    schema = kwargs["response_format"]["json_schema"]["schema"]
+    cat_enum = schema["$defs"]["CategoryEvaluation"]["properties"]["category"]["enum"]
+    assert cat_enum == ["technical_skills", "responsibilities"]
+
+    # Check user prompt explicitly mentions categories
+    messages = kwargs["messages"]
+    user_msg = next(m["content"] for m in messages if m["role"] == "user")
+    assert "technical_skills" in user_msg
+    assert "responsibilities" in user_msg
 
 
 def test_render_prompt_missing_placeholder(tmp_path: pytest.TempPathFactory) -> None:

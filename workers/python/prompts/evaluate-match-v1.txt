@@ -40,7 +40,7 @@ For each category:
 - Distinguish direct experience from transferable experience.
 - Identify missing or uncertain information.
 
-Do not create categories, omit categories, or change weights.
+Do not create categories, omit categories, or change weights. Every configured category must appear in the evaluations array exactly once using its exact name as defined in the configuration.
 
 Weights are provided as context. Do not calculate the overall weighted score.
 
@@ -151,6 +151,8 @@ Never:
 # Output
 
 Return valid JSON matching the application's evaluation schema.
+
+The "evaluations" array must contain an evaluation for each category defined in the evaluation configuration using its exact configured name. Do not omit any category.
 
 For every configured category, return:
 - category

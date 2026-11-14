@@ -5,7 +5,7 @@ Coordinates prompt rendering, LLM evaluation, and response validation.
 
 from __future__ import annotations
 
-from typing import Any, Protocol
+from typing import Any, Protocol, cast
 
 from models.evaluation import MatchEvaluationOutput
 
@@ -63,6 +63,46 @@ class EvaluateMatch:
             evaluation_config=evaluation_config,
             prompt_version=self._prompt_version,
         )
+
+        categories_cfg = evaluation_config.get("categories", [])
+        expected_categories = [
+            c["name"]
+            for c in categories_cfg
+            if isinstance(c, dict) and "name" in c and isinstance(c["name"], str)
+        ]
+
+        evaluations_raw = raw_output.get("evaluations", [])
+        if isinstance(evaluations_raw, list):
+            eval_by_cat: dict[str, dict[str, Any]] = {}
+            for raw_item in cast(list[object], evaluations_raw):
+                if not isinstance(raw_item, dict):
+                    continue
+                item = cast(dict[str, Any], raw_item)
+                cat = str(item.get("category", "")).strip()
+                if (
+                    not expected_categories or cat in expected_categories
+                ) and cat not in eval_by_cat:
+                    eval_by_cat[cat] = item
+
+            if expected_categories:
+                for exp_cat in expected_categories:
+                    if exp_cat not in eval_by_cat:
+                        eval_by_cat[exp_cat] = {
+                            "category": exp_cat,
+                            "score": 50,
+                            "reason": f"Evaluation automatically derived for {exp_cat} as it was not explicitly evaluated by the model.",
+                            "strengths": [],
+                            "gaps": [
+                                f"Insufficient specific details for {exp_cat} in model evaluation"
+                            ],
+                            "evidence": [],
+                        }
+
+                raw_output["evaluations"] = [
+                    eval_by_cat[exp_cat] for exp_cat in expected_categories
+                ]
+            else:
+                raw_output["evaluations"] = list(eval_by_cat.values())
 
         model = self._model if isinstance(self._model, str) else None
         if not model:

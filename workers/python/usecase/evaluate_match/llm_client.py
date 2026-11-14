@@ -10,9 +10,8 @@ import json
 from pathlib import Path
 from typing import Any
 
-from openai import AsyncOpenAI
-
 from models.evaluation import MatchEvaluationOutput
+from openai import AsyncOpenAI
 from utils.json import parse_llm_json
 
 _PROMPTS_DIR = Path(__file__).resolve().parents[2] / "prompts"
@@ -46,13 +45,40 @@ class OpenAIClient:
             evaluation_config=evaluation_config,
         )
 
+        categories = evaluation_config.get("categories", [])
+        category_names = [
+            c["name"]
+            for c in categories
+            if isinstance(c, dict) and "name" in c and isinstance(c["name"], str)
+        ]
+
+        if category_names:
+            cats_str = ", ".join(f"'{name}'" for name in category_names)
+            user_content = (
+                f"Evaluate the candidate profile against the job profile and evaluation configuration according to your instructions. "
+                f"You MUST include an evaluation for each of the following {len(category_names)} categories: {cats_str}. "
+                f"Do not omit any category."
+            )
+        else:
+            user_content = "Evaluate the candidate profile against the job profile and evaluation configuration according to your instructions."
+
+        schema = MatchEvaluationOutput.model_json_schema()
+        if (
+            category_names
+            and "$defs" in schema
+            and "CategoryEvaluation" in schema["$defs"]
+        ):
+            cat_props = schema["$defs"]["CategoryEvaluation"].get("properties", {})
+            if "category" in cat_props:
+                cat_props["category"]["enum"] = category_names
+
         response = await self._client.chat.completions.create(
             model=self._model,
             messages=[
                 {"role": "system", "content": prompt},
                 {
                     "role": "user",
-                    "content": "Evaluate the candidate profile against the job profile and evaluation configuration according to your instructions.",
+                    "content": user_content,
                 },
             ],
             temperature=0,
@@ -60,7 +86,7 @@ class OpenAIClient:
                 "type": "json_schema",
                 "json_schema": {
                     "name": "match_evaluation",
-                    "schema": MatchEvaluationOutput.model_json_schema(),
+                    "schema": schema,
                     "strict": True,
                 },
             },
@@ -85,7 +111,7 @@ class OpenAIClient:
             raise FileNotFoundError(f"prompt template not found: {template_path}")
         template = template_path.read_text(encoding="utf-8")
 
-        for key, placeholder in [
+        for _, placeholder in [
             ("candidate_profile", "{{candidate_profile}}"),
             ("job_profile", "{{job_profile}}"),
             ("evaluation_config", "{{evaluation_config}}"),

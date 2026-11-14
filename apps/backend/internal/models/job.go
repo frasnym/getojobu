@@ -14,21 +14,21 @@ type Job struct {
 	Status         string          `json:"status"`
 	AnalyzeResult  json.RawMessage `json:"analyze_result,omitempty" swaggertype:"object"`
 	FailureMessage *string         `json:"failure_message,omitempty"`
-	Source         string    `json:"source"`
-	ExternalID     *string   `json:"external_id,omitempty"`
-	SourceURL      *string   `json:"source_url,omitempty"`
-	ApplyURL       *string   `json:"apply_url,omitempty"`
-	Title          string    `json:"title"`
-	Company        string    `json:"company"`
-	Location       string    `json:"location"`
-	Description    *string   `json:"description,omitempty"`
-	PostedDate     time.Time `json:"posted_date,omitempty"`
-	IsRemote       *bool     `json:"is_remote,omitempty"`
-	VisaRelocation *bool     `json:"visa_relocation,omitempty"`
-	CreatedAt      time.Time `json:"created_at"`
-	UpdatedAt      time.Time `json:"updated_at"`
-	UpdatedByType  string    `json:"updated_by_type"`
-	UpdatedByID    string    `json:"updated_by_id"`
+	Source         string          `json:"source"`
+	ExternalID     *string         `json:"external_id,omitempty"`
+	SourceURL      *string         `json:"source_url,omitempty"`
+	ApplyURL       *string         `json:"apply_url,omitempty"`
+	Title          string          `json:"title"`
+	Company        string          `json:"company"`
+	Location       string          `json:"location"`
+	Description    *string         `json:"description,omitempty"`
+	PostedDate     time.Time       `json:"posted_date,omitempty"`
+	IsRemote       *bool           `json:"is_remote,omitempty"`
+	VisaRelocation *bool           `json:"visa_relocation,omitempty"`
+	CreatedAt      time.Time       `json:"created_at"`
+	UpdatedAt      time.Time       `json:"updated_at"`
+	UpdatedByType  string          `json:"updated_by_type"`
+	UpdatedByID    string          `json:"updated_by_id"`
 }
 
 // CreateJobParams holds parameters for creating a single job listing.
