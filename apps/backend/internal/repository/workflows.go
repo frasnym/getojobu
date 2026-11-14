@@ -5,6 +5,9 @@ import (
 	"errors"
 	"fmt"
 
+	enums "go.temporal.io/api/enums/v1"
+	"go.temporal.io/api/serviceerror"
+	"go.temporal.io/api/workflowservice/v1"
 	"go.temporal.io/sdk/client"
 	"go.temporal.io/sdk/temporal"
 
@@ -16,11 +19,13 @@ import (
 type WorkflowClient interface {
 	ExecuteWorkflow(ctx context.Context, options client.StartWorkflowOptions, workflow interface{}, args ...interface{}) (client.WorkflowRun, error)
 	SignalWithStartWorkflow(ctx context.Context, workflowID string, signalName string, signalArg interface{}, options client.StartWorkflowOptions, workflow interface{}, workflowArgs ...interface{}) (client.WorkflowRun, error)
+	DescribeWorkflowExecution(ctx context.Context, workflowID, runID string) (*workflowservice.DescribeWorkflowExecutionResponse, error)
 }
 
 // Workflows defines operations for triggering Temporal workflows.
 type Workflows interface {
 	StartLimiterWorkItem(ctx context.Context, itemID string, itemType models.LimiterJobType, input interface{}) (string, error)
+	IsWorkflowRunning(ctx context.Context, workflowID string) (bool, error)
 }
 
 type workflowsRepository struct {
@@ -73,4 +78,28 @@ func (r *workflowsRepository) StartLimiterWorkItem(ctx context.Context, itemID s
 	}
 
 	return itemID, nil
+}
+
+// IsWorkflowRunning checks whether the specified workflow execution is currently running.
+// If the workflow is not found or has finished (completed, failed, canceled, terminated, timed out),
+// it returns false, nil.
+func (r *workflowsRepository) IsWorkflowRunning(ctx context.Context, workflowID string) (bool, error) {
+	if r.client == nil {
+		return false, errors.New("temporal client not configured")
+	}
+
+	resp, err := r.client.DescribeWorkflowExecution(ctx, workflowID, "")
+	if err != nil {
+		var notFound *serviceerror.NotFound
+		if errors.As(err, &notFound) {
+			return false, nil
+		}
+		return false, fmt.Errorf("describe workflow execution: %w", err)
+	}
+
+	if resp == nil || resp.WorkflowExecutionInfo == nil {
+		return false, nil
+	}
+
+	return resp.WorkflowExecutionInfo.Status == enums.WORKFLOW_EXECUTION_STATUS_RUNNING, nil
 }

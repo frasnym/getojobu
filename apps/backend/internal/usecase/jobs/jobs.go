@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/frasnym/getojobu/apps/backend/internal/contract/repository"
 	"github.com/frasnym/getojobu/apps/backend/internal/models"
@@ -214,6 +215,14 @@ func (s *jobService) UpdateStatus(ctx context.Context, slug, status string, anal
 		constants.JobStatus(status),
 	); err != nil {
 		return nil, fmt.Errorf("%w: %s", constants.ErrInvalidTransition, err.Error())
+	}
+
+	if constants.JobStatus(status) == constants.StatusFailed && failureMessage != nil && existing.FailureMessage != nil && strings.TrimSpace(*existing.FailureMessage) != "" {
+		combined := fmt.Sprintf("%s\n%s", *existing.FailureMessage, *failureMessage)
+		if len(combined) > 4000 {
+			combined = combined[len(combined)-4000:]
+		}
+		failureMessage = &combined
 	}
 
 	job, err := s.repo.UpdateStatus(ctx, slug, status, analyzeResult, failureMessage, updatedByType, updatedByID)

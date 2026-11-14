@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/frasnym/getojobu/apps/backend/internal/models"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/constants"
@@ -51,13 +52,43 @@ func (s *jobService) queueAnalysis(ctx context.Context, slug string, force bool,
 		}
 	}
 
-	// Pre-condition: status must be new or failed. If failed, force must be true.
+	var actorType, actorID string
+	if caller != nil {
+		actorType = caller.ActorType
+		actorID = caller.ActorID
+	}
+
+	// Pre-condition: status must be new, new-retry, failed (force=true), or analyze_pending (force=true, updated_at > 30m, workflow not running).
+	// When retrying failed or stale analyze_pending jobs, update status to new-retry before queueing.
 	switch constants.JobStatus(job.Status) {
-	case constants.StatusNew:
-		// Allowed.
+	case constants.StatusNew, constants.StatusNewRetry:
+		// Ready to queue.
 	case constants.StatusFailed:
 		if !force {
 			return "", fmt.Errorf("%w: job %q is failed, force must be true to re-analyze", constants.ErrInvalidTransition, job.Slug)
+		}
+		if _, err := s.repo.UpdateStatus(ctx, job.Slug, string(constants.StatusNewRetry), nil, nil, actorType, actorID); err != nil {
+			return "", fmt.Errorf("update job status to new-retry: %w", err)
+		}
+	case constants.StatusAnalyzePending:
+		if !force {
+			return "", fmt.Errorf("%w: job %q is analyze_pending, force must be true to re-analyze", constants.ErrInvalidTransition, job.Slug)
+		}
+		if time.Since(job.UpdatedAt) <= 30*time.Minute {
+			return "", fmt.Errorf("%w: job %q has been pending for less than 30 minutes", constants.ErrInvalidTransition, job.Slug)
+		}
+		if s.workflows == nil {
+			return "", fmt.Errorf("workflows repository not configured")
+		}
+		running, err := s.workflows.IsWorkflowRunning(ctx, fmt.Sprintf("job-analyze-%d", job.ID))
+		if err != nil {
+			return "", fmt.Errorf("check workflow status: %w", err)
+		}
+		if running {
+			return "", fmt.Errorf("%w: job %q analysis workflow is currently running", constants.ErrInvalidTransition, job.Slug)
+		}
+		if _, err := s.repo.UpdateStatus(ctx, job.Slug, string(constants.StatusNewRetry), nil, nil, actorType, actorID); err != nil {
+			return "", fmt.Errorf("update job status to new-retry: %w", err)
 		}
 	default:
 		return "", fmt.Errorf("%w: job %q cannot be queued for analysis with status %q", constants.ErrInvalidTransition, job.Slug, job.Status)

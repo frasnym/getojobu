@@ -14,6 +14,7 @@ import (
 	reflect "reflect"
 
 	models "github.com/frasnym/getojobu/apps/backend/internal/models"
+	workflowservice "go.temporal.io/api/workflowservice/v1"
 	client "go.temporal.io/sdk/client"
 	gomock "go.uber.org/mock/gomock"
 )
@@ -40,6 +41,21 @@ func NewMockWorkflowClient(ctrl *gomock.Controller) *MockWorkflowClient {
 // EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockWorkflowClient) EXPECT() *MockWorkflowClientMockRecorder {
 	return m.recorder
+}
+
+// DescribeWorkflowExecution mocks base method.
+func (m *MockWorkflowClient) DescribeWorkflowExecution(ctx context.Context, workflowID, runID string) (*workflowservice.DescribeWorkflowExecutionResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DescribeWorkflowExecution", ctx, workflowID, runID)
+	ret0, _ := ret[0].(*workflowservice.DescribeWorkflowExecutionResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// DescribeWorkflowExecution indicates an expected call of DescribeWorkflowExecution.
+func (mr *MockWorkflowClientMockRecorder) DescribeWorkflowExecution(ctx, workflowID, runID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DescribeWorkflowExecution", reflect.TypeOf((*MockWorkflowClient)(nil).DescribeWorkflowExecution), ctx, workflowID, runID)
 }
 
 // ExecuteWorkflow mocks base method.
@@ -104,6 +120,21 @@ func NewMockWorkflows(ctrl *gomock.Controller) *MockWorkflows {
 // EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockWorkflows) EXPECT() *MockWorkflowsMockRecorder {
 	return m.recorder
+}
+
+// IsWorkflowRunning mocks base method.
+func (m *MockWorkflows) IsWorkflowRunning(ctx context.Context, workflowID string) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "IsWorkflowRunning", ctx, workflowID)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// IsWorkflowRunning indicates an expected call of IsWorkflowRunning.
+func (mr *MockWorkflowsMockRecorder) IsWorkflowRunning(ctx, workflowID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsWorkflowRunning", reflect.TypeOf((*MockWorkflows)(nil).IsWorkflowRunning), ctx, workflowID)
 }
 
 // StartLimiterWorkItem mocks base method.

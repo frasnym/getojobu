@@ -15,7 +15,6 @@ from __future__ import annotations
 from typing import Any, Protocol
 
 import httpx
-
 from models.job_analysis import JobAnalysis
 from repository.getojobu_api import GetojobuAPI
 from utils.logging import get_logger
@@ -67,10 +66,10 @@ class AnalyzeJob:
         if not current_status:
             raise RuntimeError(f"job {slug!r} response missing 'status' field")
 
-        # 2. Reject if not 'new' or 'failed'
-        if current_status not in ("new", "failed"):
+        # 2. Reject if not 'new' or 'new-retry'
+        if current_status not in ("new", "new-retry"):
             raise ValueError(
-                f"job {slug!r} cannot be analyzed: current status is {current_status!r} (must be 'new' or 'failed')"
+                f"job {slug!r} cannot be analyzed: current status is {current_status!r} (must be 'new' or 'new-retry')"
             )
 
         # 3. Transition status to 'analyze_pending' and verify response

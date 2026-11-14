@@ -7,15 +7,19 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	enums "go.temporal.io/api/enums/v1"
 	"go.temporal.io/api/serviceerror"
+	workflowpb "go.temporal.io/api/workflow/v1"
+	"go.temporal.io/api/workflowservice/v1"
 	"go.temporal.io/sdk/client"
 
 	"github.com/frasnym/getojobu/apps/backend/internal/models"
 )
 
 type mockTemporalWorkflowClient struct {
-	executeFunc         func(ctx context.Context, options client.StartWorkflowOptions, workflow interface{}, args ...interface{}) (client.WorkflowRun, error)
-	signalWithStartFunc func(ctx context.Context, workflowID string, signalName string, signalArg interface{}, options client.StartWorkflowOptions, workflow interface{}, workflowArgs ...interface{}) (client.WorkflowRun, error)
+	executeFunc           func(ctx context.Context, options client.StartWorkflowOptions, workflow interface{}, args ...interface{}) (client.WorkflowRun, error)
+	signalWithStartFunc   func(ctx context.Context, workflowID string, signalName string, signalArg interface{}, options client.StartWorkflowOptions, workflow interface{}, workflowArgs ...interface{}) (client.WorkflowRun, error)
+	describeExecutionFunc func(ctx context.Context, workflowID, runID string) (*workflowservice.DescribeWorkflowExecutionResponse, error)
 }
 
 func (m *mockTemporalWorkflowClient) ExecuteWorkflow(ctx context.Context, options client.StartWorkflowOptions, workflow interface{}, args ...interface{}) (client.WorkflowRun, error) {
@@ -28,6 +32,13 @@ func (m *mockTemporalWorkflowClient) ExecuteWorkflow(ctx context.Context, option
 func (m *mockTemporalWorkflowClient) SignalWithStartWorkflow(ctx context.Context, workflowID string, signalName string, signalArg interface{}, options client.StartWorkflowOptions, workflow interface{}, workflowArgs ...interface{}) (client.WorkflowRun, error) {
 	if m.signalWithStartFunc != nil {
 		return m.signalWithStartFunc(ctx, workflowID, signalName, signalArg, options, workflow, workflowArgs...)
+	}
+	return nil, nil
+}
+
+func (m *mockTemporalWorkflowClient) DescribeWorkflowExecution(ctx context.Context, workflowID, runID string) (*workflowservice.DescribeWorkflowExecutionResponse, error) {
+	if m.describeExecutionFunc != nil {
+		return m.describeExecutionFunc(ctx, workflowID, runID)
 	}
 	return nil, nil
 }
@@ -107,3 +118,75 @@ func TestWorkflowsRepository_StartLimiterWorkItem_failure(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "signal with start limiter workflow")
 }
+
+func TestWorkflowsRepository_IsWorkflowRunning_NilClient(t *testing.T) {
+	repo := NewWorkflowsRepository(nil, "test-queue")
+	running, err := repo.IsWorkflowRunning(context.Background(), "job-analyze-1")
+	require.Error(t, err)
+	assert.False(t, running)
+	assert.Contains(t, err.Error(), "temporal client not configured")
+}
+
+func TestWorkflowsRepository_IsWorkflowRunning_Running(t *testing.T) {
+	mockClient := &mockTemporalWorkflowClient{
+		describeExecutionFunc: func(ctx context.Context, workflowID, runID string) (*workflowservice.DescribeWorkflowExecutionResponse, error) {
+			assert.Equal(t, "job-analyze-101", workflowID)
+			assert.Empty(t, runID)
+			return &workflowservice.DescribeWorkflowExecutionResponse{
+				WorkflowExecutionInfo: &workflowpb.WorkflowExecutionInfo{
+					Status: enums.WORKFLOW_EXECUTION_STATUS_RUNNING,
+				},
+			}, nil
+		},
+	}
+
+	repo := NewWorkflowsRepository(mockClient, "test-queue")
+	running, err := repo.IsWorkflowRunning(context.Background(), "job-analyze-101")
+	require.NoError(t, err)
+	assert.True(t, running)
+}
+
+func TestWorkflowsRepository_IsWorkflowRunning_Completed(t *testing.T) {
+	mockClient := &mockTemporalWorkflowClient{
+		describeExecutionFunc: func(ctx context.Context, workflowID, runID string) (*workflowservice.DescribeWorkflowExecutionResponse, error) {
+			return &workflowservice.DescribeWorkflowExecutionResponse{
+				WorkflowExecutionInfo: &workflowpb.WorkflowExecutionInfo{
+					Status: enums.WORKFLOW_EXECUTION_STATUS_COMPLETED,
+				},
+			}, nil
+		},
+	}
+
+	repo := NewWorkflowsRepository(mockClient, "test-queue")
+	running, err := repo.IsWorkflowRunning(context.Background(), "job-analyze-102")
+	require.NoError(t, err)
+	assert.False(t, running)
+}
+
+func TestWorkflowsRepository_IsWorkflowRunning_NotFound(t *testing.T) {
+	mockClient := &mockTemporalWorkflowClient{
+		describeExecutionFunc: func(ctx context.Context, workflowID, runID string) (*workflowservice.DescribeWorkflowExecutionResponse, error) {
+			return nil, serviceerror.NewNotFound("workflow execution not found")
+		},
+	}
+
+	repo := NewWorkflowsRepository(mockClient, "test-queue")
+	running, err := repo.IsWorkflowRunning(context.Background(), "job-analyze-103")
+	require.NoError(t, err)
+	assert.False(t, running)
+}
+
+func TestWorkflowsRepository_IsWorkflowRunning_OtherError(t *testing.T) {
+	mockClient := &mockTemporalWorkflowClient{
+		describeExecutionFunc: func(ctx context.Context, workflowID, runID string) (*workflowservice.DescribeWorkflowExecutionResponse, error) {
+			return nil, errors.New("temporal grpc connection failure")
+		},
+	}
+
+	repo := NewWorkflowsRepository(mockClient, "test-queue")
+	running, err := repo.IsWorkflowRunning(context.Background(), "job-analyze-104")
+	require.Error(t, err)
+	assert.False(t, running)
+	assert.Contains(t, err.Error(), "describe workflow execution")
+}
+

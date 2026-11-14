@@ -7,7 +7,6 @@ import json
 from typing import Any
 
 import pytest
-
 from config.config import APIConfig, Config, OmniRouteConfig, TemporalConfig
 from contract.contract import WorkerContainer
 from contract.repository import RepositoryContract
@@ -218,13 +217,13 @@ async def test_activity_flow_success_new_to_analyze_pending_to_analyzed():
 
 
 @pytest.mark.asyncio
-async def test_activity_flow_success_failed_to_analyze_pending_to_analyzed():
-    """Verify 5-step flow for a 'failed' job: GET -> check failed -> PATCH pending -> LLM -> PATCH analyzed."""
+async def test_activity_flow_success_new_retry_to_analyze_pending_to_analyzed():
+    """Verify 5-step flow for a 'new-retry' job: GET -> check new-retry -> PATCH pending -> LLM -> PATCH analyzed."""
     fake_api = _FakeAPI(
         {
             "id": 102,
-            "slug": "failed-job-retry",
-            "status": "failed",
+            "slug": "new-retry-job",
+            "status": "new-retry",
             "description": "Retry job description",
         }
     )
@@ -245,7 +244,7 @@ async def test_activity_flow_success_failed_to_analyze_pending_to_analyzed():
         )
     )
 
-    result = await analyze_job_activity({"slug": "failed-job-retry"})
+    result = await analyze_job_activity({"slug": "new-retry-job"})
     assert result["family"] == "technology"
     assert fake_api.patched_statuses == ["analyze_pending", "analyzed"]
 
@@ -288,11 +287,48 @@ async def test_activity_flow_rejects_analyzed_status():
 
 
 @pytest.mark.asyncio
-async def test_activity_flow_rejects_analyze_pending_status():
-    """Verify activity rejects a job with status 'analyze_pending'."""
+async def test_activity_flow_rejects_failed_status():
+    """Verify activity rejects a job with status 'failed' (must be queued via API which sets new-retry)."""
     fake_api = _FakeAPI(
         {
             "id": 104,
+            "slug": "failed-job",
+            "status": "failed",
+            "description": "Failed job",
+        }
+    )
+    repo_contract = RepositoryContract(api=fake_api)
+    llm = _FakeLLM({"family": "technology", "seniority": "senior"})
+    svc = AnalyzeJob(api=fake_api, llm=llm)
+
+    dummy_cfg = Config(
+        temporal=TemporalConfig("localhost:7233", "default", "job-evaluation"),
+        api=APIConfig("http://localhost:8080", "test-key"),
+        omni_route=OmniRouteConfig("http://localhost:20128", "test-key", "test-model"),
+    )
+    init_analyze_job_container(
+        WorkerContainer(
+            cfg=dummy_cfg,
+            repository=repo_contract,
+            usecase=UsecaseContract(analyze_job=svc),
+        )
+    )
+
+    with pytest.raises(
+        ValueError, match="cannot be analyzed: current status is 'failed'"
+    ):
+        await analyze_job_activity({"slug": "failed-job"})
+
+    assert llm.calls == 0
+    assert fake_api.patched_statuses == []
+
+
+@pytest.mark.asyncio
+async def test_activity_flow_rejects_analyze_pending_status():
+    """Verify activity rejects a job with status 'analyze_pending' directly."""
+    fake_api = _FakeAPI(
+        {
+            "id": 105,
             "slug": "pending-job",
             "status": "analyze_pending",
             "description": "Pending",

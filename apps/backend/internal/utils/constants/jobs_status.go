@@ -8,6 +8,7 @@ type JobStatus string
 // Job status constants.
 const (
 	StatusNew            JobStatus = "new"
+	StatusNewRetry       JobStatus = "new-retry"
 	StatusAnalyzePending JobStatus = "analyze_pending"
 	StatusAnalyzed       JobStatus = "analyzed"
 	StatusFailed         JobStatus = "failed"
@@ -18,8 +19,11 @@ const (
 //
 //	""              → analyze_pending  (blank / unset treated as new)
 //	new             → analyze_pending
+//	new-retry       → analyze_pending
+//	analyze_pending → new-retry        (stale retry)
 //	analyze_pending → analyzed
 //	analyze_pending → failed
+//	failed          → new-retry        (retry)
 //	failed          → analyze_pending  (retry)
 //
 // Everything else is rejected, including any transition out of "analyzed".
@@ -30,7 +34,7 @@ func ValidateJobStatusTransition(current, next JobStatus) error {
 	}
 
 	switch current {
-	case StatusNew:
+	case StatusNew, StatusNewRetry:
 		if next == StatusAnalyzePending {
 			return nil
 		}
@@ -40,12 +44,12 @@ func ValidateJobStatusTransition(current, next JobStatus) error {
 		)
 
 	case StatusAnalyzePending:
-		if next == StatusAnalyzed || next == StatusFailed {
+		if next == StatusNewRetry || next == StatusAnalyzed || next == StatusFailed {
 			return nil
 		}
 		return fmt.Errorf(
-			"transition from %q to %q is not allowed: expected %q or %q",
-			current, next, StatusAnalyzed, StatusFailed,
+			"transition from %q to %q is not allowed: expected %q, %q or %q",
+			current, next, StatusNewRetry, StatusAnalyzed, StatusFailed,
 		)
 
 	case StatusAnalyzed:
@@ -55,12 +59,12 @@ func ValidateJobStatusTransition(current, next JobStatus) error {
 		)
 
 	case StatusFailed:
-		if next == StatusAnalyzePending {
+		if next == StatusNewRetry || next == StatusAnalyzePending {
 			return nil
 		}
 		return fmt.Errorf(
-			"transition from %q to %q is not allowed: failed jobs may only be retried via %q",
-			current, next, StatusAnalyzePending,
+			"transition from %q to %q is not allowed: failed jobs may only be retried via %q or %q",
+			current, next, StatusNewRetry, StatusAnalyzePending,
 		)
 
 	default:

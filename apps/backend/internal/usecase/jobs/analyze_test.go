@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -84,6 +85,38 @@ func TestQueueAnalysisBulk(t *testing.T) {
 		assert.Equal(t, "job-analyze-101", ids[0])
 	})
 
+	t.Run("works_when_status_new_retry", func(t *testing.T) {
+		slug := "job-new-retry"
+		job := &models.Job{
+			ID:          1011,
+			Slug:        slug,
+			Status:      string(constants.StatusNewRetry),
+			Description: ptrString("Software Engineer at Acme"),
+		}
+
+		mockRepo.EXPECT().GetBySlug(gomock.Any(), slug).Return(job, nil)
+
+		expectedInput := models.JobAnalyzeWorkflowInput{
+			JobDescription: "Software Engineer at Acme",
+			JobID:          "1011",
+			Slug:           slug,
+		}
+		mockWorkflows.EXPECT().StartLimiterWorkItem(gomock.Any(), "job-analyze-1011", models.LimiterJobTypeAnalyze, expectedInput).Return("job-analyze-1011", nil)
+
+		svc := &jobService{
+			repo:      mockRepo,
+			userJobs:  mockUserJobs,
+			workflows: mockWorkflows,
+		}
+
+		items := []models.QueueAnalysisItem{{Slug: slug, Force: false}}
+
+		ids, err := svc.QueueAnalysisBulk(context.Background(), items, nil)
+		require.NoError(t, err)
+		require.Len(t, ids, 1)
+		assert.Equal(t, "job-analyze-1011", ids[0])
+	})
+
 	t.Run("works_when_status_failed_force_true", func(t *testing.T) {
 		slug := "job-failed"
 		job := &models.Job{
@@ -94,6 +127,7 @@ func TestQueueAnalysisBulk(t *testing.T) {
 		}
 
 		mockRepo.EXPECT().GetBySlug(gomock.Any(), slug).Return(job, nil)
+		mockRepo.EXPECT().UpdateStatus(gomock.Any(), slug, "new-retry", (*string)(nil), (*string)(nil), "worker", "getojobu-worker").Return(job, nil)
 
 		expectedInput := models.JobAnalyzeWorkflowInput{
 			JobDescription: "Software Engineer",
@@ -139,6 +173,115 @@ func TestQueueAnalysisBulk(t *testing.T) {
 		require.Error(t, err)
 		assert.True(t, errors.Is(err, constants.ErrInvalidTransition))
 		assert.Contains(t, err.Error(), "force must be true")
+	})
+
+	t.Run("rejects_when_status_analyze_pending_force_false", func(t *testing.T) {
+		slug := "job-pending-no-force"
+		job := &models.Job{
+			ID:          1031,
+			Slug:        slug,
+			Status:      string(constants.StatusAnalyzePending),
+			Description: ptrString("Software Engineer"),
+			UpdatedAt:   time.Now().Add(-45 * time.Minute),
+		}
+
+		mockRepo.EXPECT().GetBySlug(gomock.Any(), slug).Return(job, nil)
+
+		svc := &jobService{
+			repo:      mockRepo,
+			userJobs:  mockUserJobs,
+			workflows: mockWorkflows,
+		}
+
+		items := []models.QueueAnalysisItem{{Slug: slug, Force: false}}
+		_, err := svc.QueueAnalysisBulk(context.Background(), items, nil)
+		require.Error(t, err)
+		assert.True(t, errors.Is(err, constants.ErrInvalidTransition))
+		assert.Contains(t, err.Error(), "force must be true")
+	})
+
+	t.Run("rejects_when_status_analyze_pending_updated_recently", func(t *testing.T) {
+		slug := "job-pending-recent"
+		job := &models.Job{
+			ID:          1032,
+			Slug:        slug,
+			Status:      string(constants.StatusAnalyzePending),
+			Description: ptrString("Software Engineer"),
+			UpdatedAt:   time.Now().Add(-10 * time.Minute),
+		}
+
+		mockRepo.EXPECT().GetBySlug(gomock.Any(), slug).Return(job, nil)
+
+		svc := &jobService{
+			repo:      mockRepo,
+			userJobs:  mockUserJobs,
+			workflows: mockWorkflows,
+		}
+
+		items := []models.QueueAnalysisItem{{Slug: slug, Force: true}}
+		_, err := svc.QueueAnalysisBulk(context.Background(), items, nil)
+		require.Error(t, err)
+		assert.True(t, errors.Is(err, constants.ErrInvalidTransition))
+		assert.Contains(t, err.Error(), "less than 30 minutes")
+	})
+
+	t.Run("rejects_when_status_analyze_pending_workflow_still_running", func(t *testing.T) {
+		slug := "job-pending-running"
+		job := &models.Job{
+			ID:          1033,
+			Slug:        slug,
+			Status:      string(constants.StatusAnalyzePending),
+			Description: ptrString("Software Engineer"),
+			UpdatedAt:   time.Now().Add(-45 * time.Minute),
+		}
+
+		mockRepo.EXPECT().GetBySlug(gomock.Any(), slug).Return(job, nil)
+		mockWorkflows.EXPECT().IsWorkflowRunning(gomock.Any(), "job-analyze-1033").Return(true, nil)
+
+		svc := &jobService{
+			repo:      mockRepo,
+			userJobs:  mockUserJobs,
+			workflows: mockWorkflows,
+		}
+
+		items := []models.QueueAnalysisItem{{Slug: slug, Force: true}}
+		_, err := svc.QueueAnalysisBulk(context.Background(), items, nil)
+		require.Error(t, err)
+		assert.True(t, errors.Is(err, constants.ErrInvalidTransition))
+		assert.Contains(t, err.Error(), "currently running")
+	})
+
+	t.Run("allows_retry_when_status_analyze_pending_stale_and_workflow_finished", func(t *testing.T) {
+		slug := "job-pending-retry-ok"
+		job := &models.Job{
+			ID:          1034,
+			Slug:        slug,
+			Status:      string(constants.StatusAnalyzePending),
+			Description: ptrString("Software Engineer"),
+			UpdatedAt:   time.Now().Add(-45 * time.Minute),
+		}
+
+		mockRepo.EXPECT().GetBySlug(gomock.Any(), slug).Return(job, nil)
+		mockWorkflows.EXPECT().IsWorkflowRunning(gomock.Any(), "job-analyze-1034").Return(false, nil)
+		mockRepo.EXPECT().UpdateStatus(gomock.Any(), slug, "new-retry", (*string)(nil), (*string)(nil), "", "").Return(job, nil)
+		expectedInput := models.JobAnalyzeWorkflowInput{
+			JobDescription: "Software Engineer",
+			JobID:          "1034",
+			Slug:           slug,
+		}
+		mockWorkflows.EXPECT().StartLimiterWorkItem(gomock.Any(), "job-analyze-1034", models.LimiterJobTypeAnalyze, expectedInput).Return("job-analyze-1034", nil)
+
+		svc := &jobService{
+			repo:      mockRepo,
+			userJobs:  mockUserJobs,
+			workflows: mockWorkflows,
+		}
+
+		items := []models.QueueAnalysisItem{{Slug: slug, Force: true}}
+		ids, err := svc.QueueAnalysisBulk(context.Background(), items, nil)
+		require.NoError(t, err)
+		require.Len(t, ids, 1)
+		assert.Equal(t, "job-analyze-1034", ids[0])
 	})
 
 	t.Run("rejects_when_status_analyzed", func(t *testing.T) {

@@ -315,6 +315,35 @@ func TestUpdateStatus_invalid_transition(t *testing.T) {
 	assert.True(t, errors.Is(err, constants.ErrInvalidTransition))
 }
 
+func TestUpdateStatus_appends_failure_message_when_failing_again(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	repo := mocks.NewMockJobs(ctrl)
+	userJobs := mocks.NewMockUserJobs(ctrl)
+	s := newServiceWithMock(repo, userJobs)
+
+	slug := "test-job-fail-again"
+	oldMsg := "first error"
+	existing := &models.Job{Slug: slug, Status: "analyze_pending", FailureMessage: &oldMsg}
+	newMsg := "second error"
+	combinedMsg := "first error\nsecond error"
+	updated := &models.Job{Slug: slug, Status: "failed", FailureMessage: &combinedMsg}
+
+	repo.EXPECT().
+		GetBySlug(gomock.Any(), slug).
+		Return(existing, nil)
+	repo.EXPECT().
+		UpdateStatus(gomock.Any(), slug, "failed", (*string)(nil), gomock.Eq(&combinedMsg), "worker", "worker_1").
+		Return(updated, nil)
+
+	got, err := s.UpdateStatus(context.Background(), slug, "failed", nil, &newMsg, "worker", "worker_1")
+
+	require.NoError(t, err)
+	assert.Equal(t, "failed", got.Status)
+	assert.Equal(t, combinedMsg, *got.FailureMessage)
+}
+
+
 func strPtr(s string) *string {
 	return &s
 }

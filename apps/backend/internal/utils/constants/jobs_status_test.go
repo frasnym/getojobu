@@ -18,8 +18,11 @@ func TestValidateJobStatusTransition(t *testing.T) {
 		}{
 			{"blank_to_analyze_pending", "", StatusAnalyzePending},
 			{"new_to_analyze_pending", StatusNew, StatusAnalyzePending},
+			{"new_retry_to_analyze_pending", StatusNewRetry, StatusAnalyzePending},
 			{"analyze_pending_to_analyzed", StatusAnalyzePending, StatusAnalyzed},
 			{"analyze_pending_to_failed", StatusAnalyzePending, StatusFailed},
+			{"analyze_pending_to_new_retry", StatusAnalyzePending, StatusNewRetry},
+			{"failed_to_new_retry", StatusFailed, StatusNewRetry},
 			{"failed_to_analyze_pending_retry", StatusFailed, StatusAnalyzePending},
 		}
 
