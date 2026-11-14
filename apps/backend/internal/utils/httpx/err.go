@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net/http"
 	"time"
+
+	"github.com/frasnym/getojobu/apps/backend/internal/utils/version"
 )
 
 // Code is a machine-readable error code.
@@ -105,6 +107,7 @@ func (e *Error) writeJSON(w http.ResponseWriter, r *http.Request) {
 	meta := Meta{
 		Timestamp: time.Now().UTC().Format(time.RFC3339),
 		RequestID: reqID,
+		Build:     version.Short(),
 	}
 
 	payload := Response[any]{

@@ -16,6 +16,8 @@ import sys
 from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
 
+from temporalio.worker import Worker
+
 from config.config import load as config_load
 from contract.contract import new as contract_new
 from deliveries.consumer.activities.analyze_job import (
@@ -45,8 +47,7 @@ from deliveries.consumer.activities.resume_generation import (
     update_resume_status_activity,
     upload_resume_activity,
 )
-from temporalio.worker import Worker
-from utils.logging import configure, get_logger
+from utils.logging import BUILD_VERSION, configure, get_logger
 from utils.temporal import connect as temporal_connect
 from workflows.concurrency_limiter import ConcurrencyLimiter
 from workflows.generate_report import GenerateReportWorkflow
@@ -61,6 +62,7 @@ logger = get_logger("worker.main")
 async def run() -> int:
     cfg = config_load()
     configure(level="info")
+    logger.info("worker_started", build=BUILD_VERSION)
 
     # Build the dependency container (database + repositories + usecases).
     contract, stopper, err = contract_new(cfg)
@@ -115,6 +117,7 @@ async def run() -> int:
             ],
             activity_executor=activity_executor,
             graceful_shutdown_timeout=graceful_timeout,
+            build_id=BUILD_VERSION,
         )
         job_scrape_worker = Worker(
             temporal_client.client,
@@ -123,12 +126,14 @@ async def run() -> int:
             workflows=[JobScrapeWorkflow],
             activity_executor=activity_executor,
             graceful_shutdown_timeout=graceful_timeout,
+            build_id=BUILD_VERSION,
         )
         job_limit_worker = Worker(
             temporal_client.client,
             task_queue=cfg.temporal.task_queue_job_limit,
             workflows=[ConcurrencyLimiter],
             graceful_shutdown_timeout=graceful_timeout,
+            build_id=BUILD_VERSION,
         )
 
         logger.info(

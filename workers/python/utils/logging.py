@@ -7,15 +7,40 @@ logs to stdout with optional request/workflow context enrichment.
 from __future__ import annotations
 
 import sys
+from pathlib import Path
 from typing import Any
 
 import structlog
+from structlog.types import EventDict
+
+
+def _read_build_version() -> str:
+    try:
+        return Path("/app/version.txt").read_text().strip()
+    except OSError:
+        return "unknown"
+
+
+BUILD_VERSION: str = _read_build_version()
+
+
+def get_build_version() -> str:
+    """Return the build version/commit SHA of the worker."""
+    return BUILD_VERSION
+
+
+def add_build_version(
+    logger: Any, method_name: str, event_dict: EventDict
+) -> EventDict:
+    event_dict["build"] = BUILD_VERSION
+    return event_dict
 
 
 def configure(level: str = "info") -> None:
     """Configure structlog to emit JSON logs to stdout."""
     structlog.configure(
         processors=[
+            add_build_version,
             structlog.processors.add_log_level,
             structlog.processors.TimeStamper(fmt="iso"),
             structlog.processors.format_exc_info,

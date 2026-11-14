@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/ctxval"
+	"github.com/frasnym/getojobu/apps/backend/internal/utils/version"
 )
 
 // Pagination holds pagination metadata for list responses.
@@ -23,6 +24,7 @@ type Meta struct {
 	Timestamp  string      `json:"timestamp"`
 	RequestID  string      `json:"requestId"`
 	Pagination *Pagination `json:"pagination,omitempty"`
+	Build      string      `json:"build,omitempty"`
 }
 
 // Response is the canonical API response contract.
@@ -82,6 +84,7 @@ func (b *Base) RespondJSON(w http.ResponseWriter, r *http.Request, code int, dat
 	meta := Meta{
 		Timestamp: time.Now().UTC().Format(time.RFC3339),
 		RequestID: extractRequestID(w, r),
+		Build:     version.Short(),
 	}
 	for _, opt := range opts {
 		opt(&meta)

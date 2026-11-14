@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/ctxval"
+	"github.com/frasnym/getojobu/apps/backend/internal/utils/version"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -108,4 +109,26 @@ func TestParseJSON_returns_error_on_malformed_json(t *testing.T) {
 	require.IsType(t, &Error{}, err, "expected *Error")
 	apiErr := err.(*Error)
 	assert.Equal(t, CodeInvalidRequest, apiErr.Code, "expected CodeInvalidRequest")
+}
+
+func TestMeta_includes_build_on_success(t *testing.T) {
+	w := httptest.NewRecorder()
+	err := RespondJSON(w, nil, http.StatusOK, map[string]string{"ok": "yes"})
+	require.NoError(t, err)
+
+	var resp Response[any]
+	err = json.Unmarshal(w.Body.Bytes(), &resp)
+	require.NoError(t, err)
+	assert.Equal(t, version.Short(), resp.Meta.Build)
+}
+
+func TestMeta_includes_build_on_error(t *testing.T) {
+	w := httptest.NewRecorder()
+	err := RespondError(w, nil, Envelope(CodeInternal, "boom", ""))
+	require.NoError(t, err)
+
+	var resp Response[any]
+	err = json.Unmarshal(w.Body.Bytes(), &resp)
+	require.NoError(t, err)
+	assert.Equal(t, version.Short(), resp.Meta.Build)
 }

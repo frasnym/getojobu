@@ -18,6 +18,10 @@ RUN pip install --no-cache-dir -e .
 # Copy source code
 COPY . .
 
+# Inject build-time version from calling build step
+ARG BUILD_VERSION="unknown"
+RUN echo "$BUILD_VERSION" > /app/version.txt
+
 # Runtime stage
 FROM python:3.11-slim
 

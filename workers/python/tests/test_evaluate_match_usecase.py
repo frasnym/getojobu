@@ -3,8 +3,9 @@
 from unittest.mock import AsyncMock
 
 import pytest
-from models.evaluation import MatchEvaluationOutput
 from pydantic import ValidationError
+
+from models.evaluation import MatchEvaluationOutput
 from usecase.evaluate_match.service import EvaluateMatch
 
 
@@ -172,3 +173,70 @@ async def test_evaluate_match_ensures_all_categories_and_synthesizes_missing() -
     assert result.evaluations[2].score == 50
     assert result.evaluations[3].score == 50
     assert result.evaluations[4].score == 50
+
+
+@pytest.mark.asyncio
+async def test_evaluate_match_sanitizes_evidence_relationship_and_status() -> None:
+    # LLM returning "strengths" / "gaps" for evidence.relationship and "pass" for status
+    fake_llm_response = {
+        "evaluations": [
+            {
+                "category": "technical_skills",
+                "score": 90,
+                "reason": "Strong background",
+                "strengths": ["Golang"],
+                "gaps": ["No K8s"],
+                "evidence": [
+                    {
+                        "candidate_evidence": "6 years building Go APIs",
+                        "job_requirement": "Go backend experience",
+                        "relationship": "strengths",
+                    },
+                    {
+                        "candidate_evidence": "Has not worked with Kubernetes",
+                        "job_requirement": "Kubernetes deployment",
+                        "relationship": "gaps",
+                    },
+                    {
+                        "candidate_evidence": "Experience in Python scripts",
+                        "job_requirement": "Scripting capability",
+                        "relationship": "transferable skills",
+                    },
+                ],
+            }
+        ],
+        "mandatory_requirements": [
+            {
+                "requirement": "Right to work",
+                "status": "pass",
+                "reason": "Citizen",
+                "evidence": ["Passport"],
+            },
+            {
+                "requirement": "Degree",
+                "status": "unmet",
+                "reason": "No degree listed",
+                "evidence": [],
+            },
+        ],
+    }
+
+    mock_llm = AsyncMock()
+    mock_llm.extract_match_evaluation.return_value = fake_llm_response
+
+    service = EvaluateMatch(llm=mock_llm)
+    result = await service.evaluate(
+        candidate_profile={"skills": ["golang"]},
+        job_profile={"title": "Backend Engineer"},
+        evaluation_config={"family": "technology"},
+    )
+
+    ev_list = result.evaluations[0].evidence
+    assert len(ev_list) == 3
+    assert ev_list[0].relationship == "direct"
+    assert ev_list[1].relationship == "direct"
+    assert ev_list[2].relationship == "transferable"
+
+    assert len(result.mandatory_requirements) == 2
+    assert result.mandatory_requirements[0].status == "met"
+    assert result.mandatory_requirements[1].status == "not_met"

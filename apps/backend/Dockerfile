@@ -19,6 +19,10 @@ RUN go mod download
 # Copy source code
 COPY . .
 
+# Inject build-time version from calling build step into the embedded path
+ARG BUILD_VERSION="unknown"
+RUN echo "$BUILD_VERSION" > internal/utils/version/version.txt
+
 # Build the binary
 RUN CGO_ENABLED=0 GOOS=linux \
     go build -o /getojobu-api ./cmd/api
