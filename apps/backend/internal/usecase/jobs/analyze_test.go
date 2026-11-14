@@ -3,9 +3,7 @@ package jobs
 import (
 	"context"
 	"errors"
-	"strings"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -27,12 +25,8 @@ func TestGenerateWorkflowID(t *testing.T) {
 	})
 
 	t.Run("with_force", func(t *testing.T) {
-		id1 := GenerateWorkflowID(42, true)
-		time.Sleep(2 * time.Millisecond)
-		id2 := GenerateWorkflowID(42, true)
-		assert.True(t, strings.HasPrefix(id1, "job-analyze-42-"))
-		assert.True(t, strings.HasPrefix(id2, "job-analyze-42-"))
-		assert.NotEqual(t, id1, id2, "each force run should have a unique epoch suffix")
+		id := GenerateWorkflowID(42, true)
+		assert.Equal(t, "job-analyze-42", id)
 	})
 }
 
@@ -106,12 +100,7 @@ func TestQueueAnalysisBulk(t *testing.T) {
 			JobID:          "102",
 			Slug:           slug,
 		}
-		mockWorkflows.EXPECT().StartLimiterWorkItem(gomock.Any(), gomock.Cond(func(x any) bool {
-			id, ok := x.(string)
-			return ok && strings.HasPrefix(id, "job-analyze-102-")
-		}), models.LimiterJobTypeAnalyze, expectedInput).DoAndReturn(func(_ context.Context, wid string, _ models.LimiterJobType, _ any) (string, error) {
-			return wid, nil
-		})
+		mockWorkflows.EXPECT().StartLimiterWorkItem(gomock.Any(), "job-analyze-102", models.LimiterJobTypeAnalyze, expectedInput).Return("job-analyze-102", nil)
 
 		svc := &jobService{
 			repo:      mockRepo,
@@ -125,7 +114,7 @@ func TestQueueAnalysisBulk(t *testing.T) {
 		ids, err := svc.QueueAnalysisBulk(context.Background(), items, caller)
 		require.NoError(t, err)
 		require.Len(t, ids, 1)
-		assert.True(t, strings.HasPrefix(ids[0], "job-analyze-102-"))
+		assert.Equal(t, "job-analyze-102", ids[0])
 	})
 
 	t.Run("rejects_when_status_failed_force_false", func(t *testing.T) {

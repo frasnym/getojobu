@@ -612,7 +612,7 @@ func TestBulkQueueAnalyzeJob_success(t *testing.T) {
 			{Slug: "job-1", Force: false},
 			{Slug: "job-2", Force: true},
 		}, gomock.Any()).
-		Return([]string{"job-analyze-1", "job-analyze-2-force-abcdef123456"}, nil)
+		Return([]string{"job-analyze-1", "job-analyze-2"}, nil)
 
 	body := strings.NewReader(`[{"slug":"job-1","force":false},{"slug":"job-2","force":true}]`)
 	req := httptest.NewRequest(http.MethodPost, "/jobs/bulk-queue-analyze", body)
@@ -627,7 +627,7 @@ func TestBulkQueueAnalyzeJob_success(t *testing.T) {
 	require.True(t, resp.Success)
 	require.Len(t, resp.Data.WorkflowIDs, 2)
 	assert.Equal(t, "job-analyze-1", resp.Data.WorkflowIDs[0])
-	assert.Equal(t, "job-analyze-2-force-abcdef123456", resp.Data.WorkflowIDs[1])
+	assert.Equal(t, "job-analyze-2", resp.Data.WorkflowIDs[1])
 }
 
 func TestBulkQueueAnalyzeJob_empty_array(t *testing.T) {

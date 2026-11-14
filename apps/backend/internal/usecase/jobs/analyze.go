@@ -5,20 +5,14 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/frasnym/getojobu/apps/backend/internal/models"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/constants"
 )
 
-// GenerateWorkflowID returns the deterministic workflow ID for a job analysis run.
-// Default (force=false): job-analyze-{id}.
-// Force (force=true): job-analyze-{id}-{epoch_ms}.
-func GenerateWorkflowID(jobID int64, force bool) string {
-	if !force {
-		return fmt.Sprintf("job-analyze-%d", jobID)
-	}
-	return fmt.Sprintf("job-analyze-%d-%d", jobID, time.Now().UnixMilli())
+// GenerateWorkflowID returns the deterministic workflow ID for a job analysis run: job-analyze-{id}.
+func GenerateWorkflowID(jobID int64, _ bool) string {
+	return fmt.Sprintf("job-analyze-%d", jobID)
 }
 
 // QueueAnalysisBulk validates each job listing and starts its analysis workflow in Temporal.
