@@ -160,6 +160,13 @@ definitions:
       id:
         type: string
     type: object
+  matching.bulkGenerateResumeItemRequest:
+    properties:
+      force:
+        type: boolean
+      id:
+        type: string
+    type: object
   matching.updateEvaluationPayload:
     properties:
       evaluation_data:
@@ -176,6 +183,20 @@ definitions:
       report_failure_message:
         type: string
       report_status:
+        type: string
+    type: object
+  matching.updateResumePayload:
+    properties:
+      resume_artifacts:
+        additionalProperties: true
+        type: object
+      resume_failure_message:
+        type: string
+      resume_json_key:
+        type: string
+      resume_pdf_key:
+        type: string
+      resume_status:
         type: string
     type: object
   models.BulkCreateJobResult:
@@ -392,6 +413,14 @@ definitions:
       report_failure_message:
         type: string
       report_status:
+        type: string
+      resume_failure_message:
+        type: string
+      resume_json_key:
+        type: string
+      resume_pdf_key:
+        type: string
+      resume_status:
         type: string
       scoring_config_id:
         type: string
@@ -1130,6 +1159,81 @@ paths:
       summary: Update match report
       tags:
       - matching
+  /v1/matching-evaluations/{id}/resume:
+    get:
+      description: Returns resume generation status, artifact keys, and timestamps
+        for an evaluation.
+      parameters:
+      - description: Matching evaluation ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.MatchingEvaluation'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpx.Error'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/httpx.Error'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httpx.Error'
+      security:
+      - ApiKeyAuth: []
+      summary: Get resume metadata
+      tags:
+      - matching
+    patch:
+      consumes:
+      - application/json
+      description: Updates the resume generation status, artifact keys, or failure
+        message from the worker.
+      parameters:
+      - description: Matching evaluation ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Resume status update payload
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/matching.updateResumePayload'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.MatchingEvaluation'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpx.Error'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpx.Error'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httpx.Error'
+      security:
+      - ApiKeyAuth: []
+      summary: Update resume generation status
+      tags:
+      - matching
   /v1/matching-evaluations/bulk-generate-report:
     post:
       consumes:
@@ -1165,6 +1269,43 @@ paths:
       security:
       - ApiKeyAuth: []
       summary: Bulk queue match report generation
+      tags:
+      - matching
+  /v1/matching-evaluations/bulk-generate-resume:
+    post:
+      consumes:
+      - application/json
+      description: Enqueues resume generation for multiple matching evaluation IDs.
+        Worker API key required.
+      parameters:
+      - description: Array of evaluation IDs and optional force flags
+        in: body
+        name: payload
+        required: true
+        schema:
+          items:
+            $ref: '#/definitions/matching.bulkGenerateResumeItemRequest'
+          type: array
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            items:
+              $ref: '#/definitions/models.MatchingEvaluationSummary'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpx.Error'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpx.Error'
+      security:
+      - ApiKeyAuth: []
+      summary: Bulk queue resume generation
       tags:
       - matching
   /v1/projects:

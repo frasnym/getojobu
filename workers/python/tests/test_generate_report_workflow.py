@@ -42,7 +42,7 @@ async def test_generate_report_workflow_unit_success():
 
     assert res["workflow"] == "GenerateReportWorkflow"
     assert res["evaluation_id"] == "eval-unit-123"
-    assert res["report_status"] == "generated"
+    assert res["report_status"] == "success"
     assert res["report"]["job_title"] == "Senior Go Engineer"
     assert res["report_error"] is None
 
@@ -50,7 +50,7 @@ async def test_generate_report_workflow_unit_success():
     assert executed_activities[0] == ("update_report_status_activity", {"evaluation_id": "eval-unit-123", "report_status": "pending"})
     assert executed_activities[1][0] == "generate_report_activity"
     assert executed_activities[2][0] == "update_report_status_activity"
-    assert executed_activities[2][1]["report_status"] == "generated"
+    assert executed_activities[2][1]["report_status"] == "success"
 
 
 @pytest.mark.asyncio
@@ -147,7 +147,7 @@ async def test_generate_report_workflow_temporal_env_success():
 
             assert result["workflow"] == "GenerateReportWorkflow"
             assert result["evaluation_id"] == "eval-gen-123"
-            assert result["report_status"] == "generated"
+            assert result["report_status"] == "success"
             assert result["report"]["job_title"] == "Senior Go Engineer"
             assert result["report_error"] is None
-            assert report_status_updates == ["pending", "generated"]
+            assert report_status_updates == ["pending", "success"]

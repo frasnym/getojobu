@@ -188,7 +188,7 @@ class MatchJobWorkflow:
 
             report_success_input: dict[str, Any] = {
                 "evaluation_id": evaluation_id,
-                "report_status": "generated",
+                "report_status": "success",
                 "report_data": report_output,
             }
             await workflow.execute_activity(
@@ -198,7 +198,11 @@ class MatchJobWorkflow:
                 retry_policy=DEFAULT_RETRY_POLICY,
             )
         except Exception as exc:  # noqa: BLE001
-            report_error = str(exc)
+            cause = getattr(exc, "cause", None)
+            if cause is not None:
+                report_error = getattr(cause, "message", None) or str(cause)
+            else:
+                report_error = str(exc)
             report_failed_input: dict[str, Any] = {
                 "evaluation_id": evaluation_id,
                 "report_status": "failed",
@@ -216,7 +220,7 @@ class MatchJobWorkflow:
             "evaluation_id": evaluation_id,
             "status": "success",
             "evaluations": eval_output,
-            "report_status": "generated" if report_output is not None else "failed",
+            "report_status": "success" if report_output is not None else "failed",
             "report": report_output,
             "report_error": report_error,
         }

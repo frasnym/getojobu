@@ -214,9 +214,9 @@ async def test_match_job_workflow_execution():
             assert result["evaluation_id"] == "eval-123"
             # Verify status updates transition through pending then success
             assert status_updates == ["pending", "success"]
-            # Verify report status updates transition through pending then generated
-            assert report_status_updates == ["pending", "generated"]
-            assert result["report_status"] == "generated"
+            # Verify report status updates transition through pending then success
+            assert report_status_updates == ["pending", "success"]
+            assert result["report_status"] == "success"
             assert result["report"]["job_title"] == "Go Engineer"
 
 
@@ -403,7 +403,7 @@ async def test_match_job_workflow_unit_success():
 
     assert res["status"] == "success"
     assert res["evaluation_id"] == "eval-unit-1"
-    assert res["report_status"] == "generated"
+    assert res["report_status"] == "success"
     assert res["report"]["job_title"] == "Go Engineer"
     assert res["report_error"] is None
 

@@ -51,6 +51,21 @@ class GetojobuAPI(Protocol):
         report_failure_message: str | None = None,
     ) -> dict[str, Any]: ...
 
+    async def patch_matching_evaluation_resume(
+        self,
+        evaluation_id: str,
+        *,
+        resume_status: str,
+        resume_failure_message: str | None = None,
+        resume_pdf_key: str | None = None,
+        resume_json_key: str | None = None,
+        resume_artifacts: dict[str, Any] | None = None,
+    ) -> dict[str, Any]: ...
+
+    async def bulk_generate_resume(
+        self, items: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]: ...
+
     async def get_matching_evaluation_report(
         self, evaluation_id: str
     ) -> dict[str, Any]: ...
@@ -103,6 +118,59 @@ class _getojobuAPI:
         if not isinstance(unwrapped, dict):
             raise TypeError(f"get job {slug!r}: expected dict, got {type(unwrapped)}")
         return unwrapped
+
+    async def patch_matching_evaluation_resume(
+        self,
+        evaluation_id: str,
+        *,
+        resume_status: str,
+        resume_failure_message: str | None = None,
+        resume_pdf_key: str | None = None,
+        resume_json_key: str | None = None,
+        resume_artifacts: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        payload: dict[str, Any] = {"resume_status": resume_status}
+        if resume_failure_message is not None:
+            payload["resume_failure_message"] = resume_failure_message
+        if resume_pdf_key is not None:
+            payload["resume_pdf_key"] = resume_pdf_key
+        elif resume_artifacts and "pdf_key" in resume_artifacts:
+            payload["resume_pdf_key"] = resume_artifacts["pdf_key"]
+        if resume_json_key is not None:
+            payload["resume_json_key"] = resume_json_key
+        elif resume_artifacts and "content_key" in resume_artifacts:
+            payload["resume_json_key"] = resume_artifacts["content_key"]
+        if resume_artifacts is not None:
+            payload["resume_artifacts"] = resume_artifacts
+        response = await self._client.patch(
+            f"/v1/matching-evaluations/{evaluation_id}/resume", json=payload
+        )
+        self._check_response(
+            response, operation=f"patch matching evaluation resume {evaluation_id!r}"
+        )
+        raw = response.json()
+        unwrapped = self._unwrap_response(
+            raw, operation=f"patch matching evaluation resume {evaluation_id!r}"
+        )
+        if not isinstance(unwrapped, dict):
+            raise TypeError(
+                f"patch matching evaluation resume {evaluation_id!r}: expected dict"
+            )
+        return unwrapped
+
+    async def bulk_generate_resume(
+        self, items: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
+        response = await self._client.post(
+            "/v1/matching-evaluations/bulk-generate-resume",
+            json=items,
+        )
+        self._check_response(response, operation="bulk generate resume")
+        raw = response.json()
+        unwrapped = self._unwrap_response(raw, operation="bulk generate resume")
+        if isinstance(unwrapped, list):
+            return cast("list[dict[str, Any]]", unwrapped)
+        return []
 
     async def patch_job_status(
         self,
@@ -239,9 +307,7 @@ class _getojobuAPI:
             "/v1/jobs/bulk-analyze-compatibility",
             json=items,
         )
-        self._check_response(
-            response, operation="trigger bulk analyze compatibility"
-        )
+        self._check_response(response, operation="trigger bulk analyze compatibility")
         raw = response.json()
         unwrapped = self._unwrap_response(
             raw, operation="trigger bulk analyze compatibility"

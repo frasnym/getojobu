@@ -736,6 +736,63 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/matching-evaluations/bulk-generate-resume": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Enqueues resume generation for multiple matching evaluation IDs. Worker API key required.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "matching"
+                ],
+                "summary": "Bulk queue resume generation",
+                "parameters": [
+                    {
+                        "description": "Array of evaluation IDs and optional force flags",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/matching.bulkGenerateResumeItemRequest"
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Accepted",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/models.MatchingEvaluationSummary"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpx.Error"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/httpx.Error"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/matching-evaluations/{id}": {
             "patch": {
                 "security": [
@@ -883,6 +940,120 @@ const docTemplate = `{
                         "required": true,
                         "schema": {
                             "$ref": "#/definitions/matching.updateReportPayload"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.MatchingEvaluation"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpx.Error"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/httpx.Error"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httpx.Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/matching-evaluations/{id}/resume": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Returns resume generation status, artifact keys, and timestamps for an evaluation.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "matching"
+                ],
+                "summary": "Get resume metadata",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Matching evaluation ID (UUID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.MatchingEvaluation"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/httpx.Error"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/httpx.Error"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httpx.Error"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Updates the resume generation status, artifact keys, or failure message from the worker.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "matching"
+                ],
+                "summary": "Update resume generation status",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Matching evaluation ID (UUID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Resume status update payload",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/matching.updateResumePayload"
                         }
                     }
                 ],
@@ -1758,6 +1929,17 @@ const docTemplate = `{
                 }
             }
         },
+        "matching.bulkGenerateResumeItemRequest": {
+            "type": "object",
+            "properties": {
+                "force": {
+                    "type": "boolean"
+                },
+                "id": {
+                    "type": "string"
+                }
+            }
+        },
         "matching.updateEvaluationPayload": {
             "type": "object",
             "properties": {
@@ -1782,6 +1964,27 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "report_status": {
+                    "type": "string"
+                }
+            }
+        },
+        "matching.updateResumePayload": {
+            "type": "object",
+            "properties": {
+                "resume_artifacts": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "resume_failure_message": {
+                    "type": "string"
+                },
+                "resume_json_key": {
+                    "type": "string"
+                },
+                "resume_pdf_key": {
+                    "type": "string"
+                },
+                "resume_status": {
                     "type": "string"
                 }
             }
@@ -2106,6 +2309,18 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "report_status": {
+                    "type": "string"
+                },
+                "resume_failure_message": {
+                    "type": "string"
+                },
+                "resume_json_key": {
+                    "type": "string"
+                },
+                "resume_pdf_key": {
+                    "type": "string"
+                },
+                "resume_status": {
                     "type": "string"
                 },
                 "scoring_config_id": {

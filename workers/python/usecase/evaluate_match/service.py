@@ -64,8 +64,20 @@ class EvaluateMatch:
             prompt_version=self._prompt_version,
         )
 
+        model = self._model if isinstance(self._model, str) else None
+        if not model:
+            val = getattr(self._llm, "_model", None)
+            if isinstance(val, str):
+                model = val
+
+        provider = self._provider if isinstance(self._provider, str) else None
+        if not provider:
+            val = getattr(self._llm, "_provider", None)
+            if isinstance(val, str):
+                provider = val
+
         raw_output.setdefault("prompt_version", self._prompt_version)
-        raw_output.setdefault("model", self._model)
-        raw_output.setdefault("provider", self._provider)
+        raw_output.setdefault("model", model)
+        raw_output.setdefault("provider", provider)
 
         return MatchEvaluationOutput.model_validate(raw_output)

@@ -103,9 +103,23 @@ async def update_report_status_activity(input: dict[str, Any]) -> dict[str, Any]
     raw_fail_msg = input.get("report_failure_message")
     report_fail_msg = str(raw_fail_msg) if raw_fail_msg is not None else None
 
-    return await container.repository.getojobu_api.patch_matching_evaluation_report(
+    result = await container.repository.getojobu_api.patch_matching_evaluation_report(
         evaluation_id=evaluation_id,
         report_status=report_status,
         report_data=report_data,
         report_failure_message=report_fail_msg,
     )
+    if report_status == "success":
+        recommendation = result.get("recommendation_label")
+        if recommendation in {"strong_match", "worth_applying"}:
+            try:
+                await container.repository.getojobu_api.bulk_generate_resume(
+                    [{"id": evaluation_id, "force": False}]
+                )
+            except Exception as exc:  # noqa: BLE001
+                activity.logger.warning(
+                    "failed to trigger resume generation for evaluation %s: %s",
+                    evaluation_id,
+                    exc,
+                )
+    return result

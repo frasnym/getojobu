@@ -33,7 +33,8 @@ func NewUsersRepository(db database.DB) Users {
 
 func (r *usersRepository) FindByClerkUserID(ctx context.Context, clerkUserID string) (*models.User, error) {
 	query := `
-		SELECT id, clerk_user_id, email, full_name, role, onboarding_completed_at, deleted_at
+		SELECT id, clerk_user_id, email, full_name, role, onboarding_completed_at, deleted_at,
+		       headline, phone, portfolio_url, linkedin_url, github_url
 		FROM users
 		WHERE clerk_user_id = $1
 	`
@@ -48,6 +49,11 @@ func (r *usersRepository) FindByClerkUserID(ctx context.Context, clerkUserID str
 		&u.Role,
 		&u.OnboardingCompletedAt,
 		&u.DeletedAt,
+		&u.Headline,
+		&u.Phone,
+		&u.PortfolioURL,
+		&u.LinkedInURL,
+		&u.GitHubURL,
 	); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, constants.ErrUserNotFound
@@ -61,7 +67,8 @@ func (r *usersRepository) FindByClerkUserID(ctx context.Context, clerkUserID str
 // or constants.ErrUserNotFound when no such user exists.
 func (r *usersRepository) FindByID(ctx context.Context, id string) (*models.User, error) {
 	query := `
-		SELECT id, clerk_user_id, email, full_name, role, onboarding_completed_at, deleted_at
+		SELECT id, clerk_user_id, email, full_name, role, onboarding_completed_at, deleted_at,
+		       headline, phone, portfolio_url, linkedin_url, github_url
 		FROM users
 		WHERE id = $1
 	`
@@ -76,6 +83,11 @@ func (r *usersRepository) FindByID(ctx context.Context, id string) (*models.User
 		&u.Role,
 		&u.OnboardingCompletedAt,
 		&u.DeletedAt,
+		&u.Headline,
+		&u.Phone,
+		&u.PortfolioURL,
+		&u.LinkedInURL,
+		&u.GitHubURL,
 	); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, constants.ErrUserNotFound
@@ -94,7 +106,8 @@ func (r *usersRepository) Create(ctx context.Context, clerkUserID string, email,
 	query := `
 		INSERT INTO users (id, clerk_user_id, email, full_name, role)
 		VALUES ($1, $2, $3, $4, $5)
-		RETURNING id, clerk_user_id, email, full_name, role, onboarding_completed_at, deleted_at
+		RETURNING id, clerk_user_id, email, full_name, role, onboarding_completed_at, deleted_at,
+		          headline, phone, portfolio_url, linkedin_url, github_url
 	`
 	row := r.db.QueryRow(ctx, query, id, clerkUserID, email, fullName, role)
 
@@ -107,6 +120,11 @@ func (r *usersRepository) Create(ctx context.Context, clerkUserID string, email,
 		&u.Role,
 		&u.OnboardingCompletedAt,
 		&u.DeletedAt,
+		&u.Headline,
+		&u.Phone,
+		&u.PortfolioURL,
+		&u.LinkedInURL,
+		&u.GitHubURL,
 	); err != nil {
 		return nil, fmt.Errorf("create user: %w", err)
 	}
@@ -120,7 +138,8 @@ func (r *usersRepository) Update(ctx context.Context, id string, email, fullName
 		UPDATE users
 		SET email = $2, full_name = $3, updated_at = NOW()
 		WHERE id = $1
-		RETURNING id, clerk_user_id, email, full_name, role, onboarding_completed_at, deleted_at
+		RETURNING id, clerk_user_id, email, full_name, role, onboarding_completed_at, deleted_at,
+		          headline, phone, portfolio_url, linkedin_url, github_url
 	`
 	row := r.db.QueryRow(ctx, query, id, email, fullName)
 
@@ -133,6 +152,11 @@ func (r *usersRepository) Update(ctx context.Context, id string, email, fullName
 		&u.Role,
 		&u.OnboardingCompletedAt,
 		&u.DeletedAt,
+		&u.Headline,
+		&u.Phone,
+		&u.PortfolioURL,
+		&u.LinkedInURL,
+		&u.GitHubURL,
 	); err != nil {
 		return nil, fmt.Errorf("update user: %w", err)
 	}
@@ -148,7 +172,8 @@ func (r *usersRepository) SoftDelete(ctx context.Context, id string) (*models.Us
 		UPDATE users
 		SET deleted_at = NOW(), updated_at = NOW()
 		WHERE id = $1
-		RETURNING id, clerk_user_id, email, full_name, role, onboarding_completed_at, deleted_at
+		RETURNING id, clerk_user_id, email, full_name, role, onboarding_completed_at, deleted_at,
+		          headline, phone, portfolio_url, linkedin_url, github_url
 	`
 	row := r.db.QueryRow(ctx, query, id)
 
@@ -161,6 +186,11 @@ func (r *usersRepository) SoftDelete(ctx context.Context, id string) (*models.Us
 		&u.Role,
 		&u.OnboardingCompletedAt,
 		&u.DeletedAt,
+		&u.Headline,
+		&u.Phone,
+		&u.PortfolioURL,
+		&u.LinkedInURL,
+		&u.GitHubURL,
 	); err != nil {
 		return nil, fmt.Errorf("soft delete user: %w", err)
 	}

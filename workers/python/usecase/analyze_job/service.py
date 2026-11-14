@@ -148,6 +148,11 @@ class AnalyzeJob:
         analysis = JobAnalysis.model_validate(raw)
         if job_id:
             analysis.job_id = job_id
-        analysis.model = self._model
+        model = self._model if isinstance(self._model, str) else None
+        if not model:
+            val = getattr(self._llm, "_model", None)
+            if isinstance(val, str):
+                model = val
+        analysis.model = model
         analysis.prompt_version = self._prompt_version
         return analysis

@@ -18,13 +18,21 @@ type Principal struct {
 
 // NewPrincipalFromUser builds a Principal from a User repository record.
 func NewPrincipalFromUser(u *User) *Principal {
+	email := ""
+	if u.Email != nil {
+		email = *u.Email
+	}
+	fullName := ""
+	if u.FullName != nil {
+		fullName = *u.FullName
+	}
 	return &Principal{
 		ID:                  u.ID,
 		ClerkUserID:         u.ClerkUserID,
-		Email:               u.Email.String,
-		FullName:            u.FullName.String,
+		Email:               email,
+		FullName:            fullName,
 		Role:                u.Role,
-		OnboardingCompleted: u.OnboardingCompletedAt.Valid,
+		OnboardingCompleted: u.OnboardingCompletedAt != nil,
 	}
 }
 

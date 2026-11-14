@@ -85,7 +85,13 @@ def test_queue_status_query(limiter):
     status = limiter.queue_status()
     assert status["queued"] == 1
     assert status["active"] == ["wf-1"]
-    assert status["capacity_by_type"] == {"scrape": 1, "analyze": 2, "match": 2, "report": 2}
+    assert status["capacity_by_type"] == {
+        "scrape": 1,
+        "analyze": 2,
+        "match": 2,
+        "report": 2,
+        "resume": 2,
+    }
 
 
 @pytest.mark.asyncio

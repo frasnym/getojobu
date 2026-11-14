@@ -87,22 +87,22 @@ async def test_generate_report_activity_missing_inputs():
 async def test_update_report_status_activity_success():
     mock_container = MagicMock()
     mock_container.repository.getojobu_api.patch_matching_evaluation_report = AsyncMock(
-        return_value={"id": "eval-1", "report_status": "generated"}
+        return_value={"id": "eval-1", "report_status": "success"}
     )
     init_report_generation_container(mock_container)
 
     res = await update_report_status_activity(
         {
             "evaluation_id": "eval-1",
-            "report_status": "generated",
+            "report_status": "success",
             "report_data": {"job_title": "Backend Dev"},
         }
     )
 
-    assert res["report_status"] == "generated"
+    assert res["report_status"] == "success"
     mock_container.repository.getojobu_api.patch_matching_evaluation_report.assert_awaited_once_with(
         evaluation_id="eval-1",
-        report_status="generated",
+        report_status="success",
         report_data={"job_title": "Backend Dev"},
         report_failure_message=None,
     )

@@ -10,6 +10,8 @@ from repository.getojobu_api import GetojobuAPI
 from usecase.analyze_job.service import AnalyzeJob
 from usecase.evaluate_match.service import EvaluateMatch
 from usecase.generate_report.service import GenerateReport
+from usecase.generate_resume.llm_client import OpenAIResumeClient
+from usecase.generate_resume.service import GenerateResume
 
 
 class UsecaseContract:
@@ -18,10 +20,12 @@ class UsecaseContract:
         analyze_job: AnalyzeJob,
         evaluate_match: EvaluateMatch | None = None,
         generate_report: GenerateReport | None = None,
+        generate_resume: GenerateResume | None = None,
     ) -> None:
         self.analyze_job = analyze_job
         self.evaluate_match = evaluate_match
         self.generate_report = generate_report
+        self.generate_resume = generate_resume
 
 
 def new(
@@ -47,17 +51,19 @@ def new(
     report_llm = OpenAIReportClient(
         api_key=omni_api_key, base_url=omni_base_url, model=omni_model or ""
     )
+    resume_llm = OpenAIResumeClient(
+        api_key=omni_api_key, base_url=omni_base_url, model=omni_model or ""
+    )
     return UsecaseContract(
         analyze_job=AnalyzeJob(
             api=api,
             llm=analyze_job_llm,
-            model=omni_model,
         ),
         evaluate_match=EvaluateMatch(
             llm=match_llm,
-            model=omni_model,
         ),
         generate_report=GenerateReport(
             llm=report_llm,
         ),
+        generate_resume=GenerateResume(llm=resume_llm),
     )

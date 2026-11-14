@@ -62,6 +62,16 @@ type ReportStatus string
 const (
 	ReportStatusPending      ReportStatus = "pending"
 	ReportStatusPendingRetry ReportStatus = "pending-retry"
-	ReportStatusGenerated    ReportStatus = "generated"
+	ReportStatusSuccess      ReportStatus = "success"
 	ReportStatusFailed       ReportStatus = "failed"
+)
+
+// ResumeStatus represents the lifecycle state of resume generation.
+type ResumeStatus string
+
+const (
+	ResumeStatusPending      ResumeStatus = "pending"
+	ResumeStatusPendingRetry ResumeStatus = "pending-retry"
+	ResumeStatusSuccess      ResumeStatus = "success"
+	ResumeStatusFailed       ResumeStatus = "failed"
 )

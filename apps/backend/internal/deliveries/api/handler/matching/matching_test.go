@@ -19,6 +19,7 @@ import (
 	handlerJobs "github.com/frasnym/getojobu/apps/backend/internal/deliveries/api/handler/jobs"
 	handlerMatching "github.com/frasnym/getojobu/apps/backend/internal/deliveries/api/handler/matching"
 	"github.com/frasnym/getojobu/apps/backend/internal/models"
+	usecaseMatching "github.com/frasnym/getojobu/apps/backend/internal/usecase/matching"
 	usecaseMocks "github.com/frasnym/getojobu/apps/backend/internal/usecase/matching/mocks"
 	userMocks "github.com/frasnym/getojobu/apps/backend/internal/usecase/users/mocks"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/constants"
@@ -193,7 +194,7 @@ func TestReportHandlers(t *testing.T) {
 	evalID := uuid.New()
 
 	t.Run("worker updates report", func(t *testing.T) {
-		repStatus := string(constants.ReportStatusGenerated)
+		repStatus := string(constants.ReportStatusSuccess)
 		mockMatching.EXPECT().UpdateEvaluationReport(gomock.Any(), evalID, gomock.Any()).Return(&models.MatchingEvaluation{
 			ID:               evalID,
 			EvaluationStatus: string(constants.MatchingStatusSuccess),
@@ -202,7 +203,7 @@ func TestReportHandlers(t *testing.T) {
 		}, nil)
 
 		body, err := json.Marshal(map[string]interface{}{
-			"report_status": "generated",
+			"report_status": "success",
 			"report_data":   map[string]string{"job_title": "Senior Dev"},
 		})
 		require.NoError(t, err)
@@ -237,7 +238,7 @@ func TestReportHandlers(t *testing.T) {
 	})
 
 	t.Run("get report returns 200 with report response", func(t *testing.T) {
-		repStatus := string(constants.ReportStatusGenerated)
+		repStatus := string(constants.ReportStatusSuccess)
 		score := 85.0
 		elig := string(constants.EligibilityStatusEligible)
 		recLabel := string(constants.RecommendationWorthApplying)
@@ -317,9 +318,9 @@ func TestReportHandlers(t *testing.T) {
 		assert.Equal(t, http.StatusBadRequest, rec.Code)
 	})
 
-	t.Run("update report rejects generated status with empty report_data", func(t *testing.T) {
+	t.Run("update report rejects success status with empty report_data", func(t *testing.T) {
 		body, err := json.Marshal(map[string]interface{}{
-			"report_status": "generated",
+			"report_status": "success",
 		})
 		require.NoError(t, err)
 
@@ -350,5 +351,100 @@ func TestReportHandlers(t *testing.T) {
 
 		rt.Mux().ServeHTTP(rec, req)
 		assert.Equal(t, http.StatusUnauthorized, rec.Code)
+	})
+
+	t.Run("update resume returns 401 when unauthenticated", func(t *testing.T) {
+		body, _ := json.Marshal(map[string]interface{}{
+			"resume_status": "success",
+		})
+		req := httptest.NewRequest(http.MethodPatch, "/v1/matching-evaluations/"+evalID.String()+"/resume", bytes.NewReader(body))
+		rec := httptest.NewRecorder()
+
+		rt.Mux().ServeHTTP(rec, req)
+		assert.Equal(t, http.StatusUnauthorized, rec.Code)
+	})
+
+	t.Run("update resume updates status and returns 200", func(t *testing.T) {
+		body, _ := json.Marshal(map[string]interface{}{
+			"resume_status": "success",
+			"resume_artifacts": map[string]interface{}{
+				"pdf_key":     "resumes/resume.pdf",
+				"content_key": "resumes/resume.json",
+			},
+		})
+		pdfKey := "resumes/resume.pdf"
+		jsonKey := "resumes/resume.json"
+		resStatus := "success"
+		mockMatching.EXPECT().UpdateEvaluationResume(gomock.Any(), evalID, gomock.Cond(func(x any) bool {
+			req, ok := x.(usecaseMatching.UpdateEvaluationResumeRequest)
+			return ok && req.ResumeStatus == "success" && req.ResumePDFKey != nil && *req.ResumePDFKey == pdfKey && req.ResumeJSONKey != nil && *req.ResumeJSONKey == jsonKey
+		})).Return(&models.MatchingEvaluation{
+			ID:            evalID,
+			ResumeStatus:  &resStatus,
+			ResumePDFKey:  &pdfKey,
+			ResumeJSONKey: &jsonKey,
+		}, nil)
+
+		req := httptest.NewRequest(http.MethodPatch, "/v1/matching-evaluations/"+evalID.String()+"/resume", bytes.NewReader(body))
+		req.Header.Set("Authorization", "Bearer "+apiKey)
+		rec := httptest.NewRecorder()
+
+		rt.Mux().ServeHTTP(rec, req)
+		assert.Equal(t, http.StatusOK, rec.Code)
+	})
+
+	t.Run("get resume returns 401 when unauthenticated", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/v1/matching-evaluations/"+evalID.String()+"/resume", nil)
+		rec := httptest.NewRecorder()
+
+		rt.Mux().ServeHTTP(rec, req)
+		assert.Equal(t, http.StatusUnauthorized, rec.Code)
+	})
+
+	t.Run("get resume returns 200 with metadata", func(t *testing.T) {
+		resStatus := "success"
+		mockMatching.EXPECT().GetResume(gomock.Any(), evalID, gomock.Any()).Return(&models.MatchingEvaluation{
+			ID:           evalID,
+			ResumeStatus: &resStatus,
+		}, nil)
+
+		req := httptest.NewRequest(http.MethodGet, "/v1/matching-evaluations/"+evalID.String()+"/resume", nil)
+		req.Header.Set("Authorization", "Bearer "+apiKey)
+		rec := httptest.NewRecorder()
+
+		rt.Mux().ServeHTTP(rec, req)
+		assert.Equal(t, http.StatusOK, rec.Code)
+	})
+
+	t.Run("bulk queue generate resume returns 401 when unauthenticated", func(t *testing.T) {
+		body, _ := json.Marshal([]map[string]interface{}{
+			{"id": evalID.String(), "force": false},
+		})
+		req := httptest.NewRequest(http.MethodPost, "/v1/matching-evaluations/bulk-generate-resume", bytes.NewReader(body))
+		rec := httptest.NewRecorder()
+
+		rt.Mux().ServeHTTP(rec, req)
+		assert.Equal(t, http.StatusUnauthorized, rec.Code)
+	})
+
+	t.Run("bulk queue generate resume accepts items with force and returns 202", func(t *testing.T) {
+		body, _ := json.Marshal([]map[string]interface{}{
+			{"id": evalID.String(), "force": true},
+		})
+		mockMatching.EXPECT().BulkQueueGenerateResume(gomock.Any(), []models.BulkGenerateResumeItem{
+			{ID: evalID, Force: true},
+		}, gomock.Any()).Return([]*models.MatchingEvaluationSummary{
+			{
+				ID:               &evalID,
+				EvaluationStatus: string(constants.MatchingStatusSuccess),
+			},
+		}, nil)
+
+		req := httptest.NewRequest(http.MethodPost, "/v1/matching-evaluations/bulk-generate-resume", bytes.NewReader(body))
+		req.Header.Set("Authorization", "Bearer "+apiKey)
+		rec := httptest.NewRecorder()
+
+		rt.Mux().ServeHTTP(rec, req)
+		assert.Equal(t, http.StatusAccepted, rec.Code)
 	})
 }

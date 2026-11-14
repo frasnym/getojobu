@@ -48,20 +48,24 @@ type MatchEvaluationOutput struct {
 
 // MatchingEvaluation represents the stored matching evaluation record.
 type MatchingEvaluation struct {
-	ID                   uuid.UUID       `json:"id"`
-	UserJobID            uuid.UUID       `json:"user_job_id"`
-	EvaluationStatus     string          `json:"evaluation_status"` // new | pending | success | failed
-	CandidateProfileData json.RawMessage `json:"candidate_profile_data,omitempty" swaggertype:"object"`
-	JobProfileData       json.RawMessage `json:"job_profile_data,omitempty" swaggertype:"object"`
-	ScoringConfigID      uuid.UUID       `json:"scoring_config_id"`
-	EvaluationData       json.RawMessage `json:"evaluation_data,omitempty" swaggertype:"object"`
-	OverallScore         *float64        `json:"overall_score,omitempty"`
-	EligibilityStatus    *string         `json:"eligibility_status,omitempty"`
-	RecommendationLabel  *string         `json:"recommendation_label,omitempty"`
-	FailureMessage       *string         `json:"failure_message,omitempty"`
-	ReportData           json.RawMessage `json:"report_data,omitempty" swaggertype:"object"`
-	ReportStatus         *string         `json:"report_status,omitempty"`
-	ReportFailureMessage *string         `json:"report_failure_message,omitempty"`
+	ID                      uuid.UUID       `json:"id"`
+	UserJobID               uuid.UUID       `json:"user_job_id"`
+	EvaluationStatus        string          `json:"evaluation_status"` // new | pending | success | failed
+	CandidateProfileData    json.RawMessage `json:"candidate_profile_data,omitempty" swaggertype:"object"`
+	JobProfileData          json.RawMessage `json:"job_profile_data,omitempty" swaggertype:"object"`
+	ScoringConfigID         uuid.UUID       `json:"scoring_config_id"`
+	EvaluationData          json.RawMessage `json:"evaluation_data,omitempty" swaggertype:"object"`
+	OverallScore            *float64        `json:"overall_score,omitempty"`
+	EligibilityStatus       *string         `json:"eligibility_status,omitempty"`
+	RecommendationLabel     *string         `json:"recommendation_label,omitempty"`
+	FailureMessage          *string         `json:"failure_message,omitempty"`
+	ReportData              json.RawMessage `json:"report_data,omitempty" swaggertype:"object"`
+	ReportStatus            *string         `json:"report_status,omitempty"`
+	ReportFailureMessage    *string         `json:"report_failure_message,omitempty"`
+	ResumeStatus            *string         `json:"resume_status,omitempty"`
+	ResumeFailureMessage    *string         `json:"resume_failure_message,omitempty"`
+	ResumePDFKey            *string         `json:"resume_pdf_key,omitempty"`
+	ResumeJSONKey           *string         `json:"resume_json_key,omitempty"`
 	CreatedAt            time.Time       `json:"created_at"`
 	UpdatedAt            time.Time       `json:"updated_at"`
 }
@@ -103,6 +107,12 @@ type BulkGenerateReportItem struct {
 	Force bool      `json:"force"`
 }
 
+// BulkGenerateResumeItem holds input for a resume generation batch.
+type BulkGenerateResumeItem struct {
+	ID    uuid.UUID `json:"id"`
+	Force bool      `json:"force"`
+}
+
 // UpdateMatchingEvaluationParams contains fields for updating a matching evaluation.
 type UpdateMatchingEvaluationParams struct {
 	EvaluationStatus    string
@@ -118,6 +128,14 @@ type UpdateMatchingEvaluationReportParams struct {
 	ReportStatus         string          `json:"report_status"`
 	ReportData           json.RawMessage `json:"report_data,omitempty" swaggertype:"object"`
 	ReportFailureMessage *string         `json:"report_failure_message,omitempty"`
+}
+
+// UpdateMatchingEvaluationResumeParams contains fields for updating resume generation.
+type UpdateMatchingEvaluationResumeParams struct {
+	ResumeStatus         string
+	ResumeFailureMessage *string
+	ResumePDFKey         *string
+	ResumeJSONKey        *string
 }
 
 // ValidateEvaluationOutput validates LLM output against active scoring categories.

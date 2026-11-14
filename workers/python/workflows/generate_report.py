@@ -117,7 +117,7 @@ class GenerateReportWorkflow:
 
             report_success_input: dict[str, Any] = {
                 "evaluation_id": evaluation_id,
-                "report_status": "generated",
+                "report_status": "success",
                 "report_data": report_output,
             }
             await workflow.execute_activity(
@@ -143,7 +143,7 @@ class GenerateReportWorkflow:
         return {
             "workflow": "GenerateReportWorkflow",
             "evaluation_id": evaluation_id,
-            "report_status": "generated" if report_output is not None else "failed",
+            "report_status": "success" if report_output is not None else "failed",
             "report": report_output,
             "report_error": report_error,
         }

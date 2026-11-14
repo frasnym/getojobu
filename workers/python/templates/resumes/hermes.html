@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>{{NAME}} - Resume</title>
+<style>
+  @page { size: A4; margin: 0; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Lato', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    color: #1d1d1f;
+    font-size: 9.3pt;
+    line-height: 1.44;
+    padding: 10mm 11mm 8mm 9mm;
+  }
+  .name {
+    font-family: 'Montserrat', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    font-weight: 800;
+    font-size: 28.5pt;
+    letter-spacing: 0.055em;
+    line-height: 1.0;
+    margin-top: 2mm;
+  }
+  .headline {
+    font-family: 'Montserrat', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    font-weight: 300;
+    font-size: 12pt;
+    letter-spacing: 0.13em;
+    margin-top: 3mm;
+    color: #1d1d1f;
+  }
+  h2 {
+    font-family: 'Montserrat', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    font-weight: 700;
+    font-size: 14.5pt;
+    color: #2b2b2e;
+    margin-top: 8mm;
+    margin-bottom: 2mm;
+    padding-bottom: 1.6mm;
+    border-bottom: 0.9pt solid #4a4a4d;
+  }
+  h2.no-rule { border-bottom: none; padding-bottom: 0; margin-bottom: 2.5mm; }
+  .contact p { font-size: 9.3pt; }
+  .contact b { font-weight: 700; }
+  .skills p { color: #2f2f31; font-size: 9.3pt; }
+  .job { margin-top: 5mm; }
+  .job:first-of-type { margin-top: 1.5mm; }
+  .job-head { font-weight: 900; font-size: 9.4pt; margin-bottom: 1.2mm; }
+  ul { list-style: disc; padding-left: 4.5mm; }
+  li { margin-bottom: 1.1mm; }
+  li::marker { font-size: 0.8em; }
+  .edu { margin-top: 1.5mm; font-weight: 700; font-size: 9.4pt; }
+  .edu-detail { color: #2f2f31; font-size: 9.3pt; }
+</style>
+</head>
+<body>
+  <div class="name">{{NAME}}</div>
+  <div class="headline">{{HEADLINE}}</div>
+
+  <h2 class="no-rule">Contact</h2>
+  <div class="contact">
+    {{CONTACT_BLOCK}}
+  </div>
+
+  <h2>Skills</h2>
+  <div class="skills">
+    <p>{{SKILLS_BLOCK}}</p>
+  </div>
+
+  <h2>Experience</h2>
+  {{EXPERIENCE_BLOCK}}
+
+  <h2>Education</h2>
+  {{EDUCATION_BLOCK}}
+</body>
+</html>

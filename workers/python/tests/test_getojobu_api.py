@@ -405,7 +405,7 @@ async def test_patch_matching_evaluation_report_success():
         assert request.url.path == f"/v1/matching-evaluations/{eval_id}/report"
         assert request.method == "PATCH"
         payload = json.loads(request.content.decode("utf-8"))
-        assert payload["report_status"] == "generated"
+        assert payload["report_status"] == "success"
         assert payload["report_data"] == {"job_title": "Backend Dev"}
         return httpx.Response(
             200,
@@ -413,7 +413,7 @@ async def test_patch_matching_evaluation_report_success():
                 "success": True,
                 "data": {
                     "id": eval_id,
-                    "report_status": "generated",
+                    "report_status": "success",
                 },
                 "error": None,
             },
@@ -424,11 +424,11 @@ async def test_patch_matching_evaluation_report_success():
 
     res = await api.patch_matching_evaluation_report(
         eval_id,
-        report_status="generated",
+        report_status="success",
         report_data={"job_title": "Backend Dev"},
     )
     assert res["id"] == eval_id
-    assert res["report_status"] == "generated"
+    assert res["report_status"] == "success"
     await api.aclose()
 
 
@@ -446,7 +446,7 @@ async def test_get_matching_evaluation_report_success():
                 "success": True,
                 "data": {
                     "id": eval_id,
-                    "report_status": "generated",
+                    "report_status": "success",
                     "overall_score": 90.0,
                 },
                 "error": None,
@@ -458,6 +458,79 @@ async def test_get_matching_evaluation_report_success():
 
     res = await api.get_matching_evaluation_report(eval_id)
     assert res["id"] == eval_id
-    assert res["report_status"] == "generated"
+    assert res["report_status"] == "success"
     assert res["overall_score"] == 90.0
+    await api.aclose()
+
+
+@pytest.mark.asyncio
+async def test_patch_matching_evaluation_resume_success():
+    eval_id = "11111111-2222-3333-4444-555555555555"
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.headers["authorization"] == "Bearer secret-key"
+        assert request.url.path == f"/v1/matching-evaluations/{eval_id}/resume"
+        assert request.method == "PATCH"
+        payload = json.loads(request.content.decode("utf-8"))
+        assert payload["resume_status"] == "success"
+        assert payload["resume_pdf_key"] == "resumes/resume.pdf"
+        assert payload["resume_json_key"] == "resumes/resume.json"
+        return httpx.Response(
+            200,
+            json={
+                "success": True,
+                "data": {
+                    "id": eval_id,
+                    "resume_status": "success",
+                },
+                "error": None,
+            },
+        )
+
+    api = NewGetojobuAPI(base_url="http://testserver", api_key="secret-key")
+    api._client = _mock_transport(handler)
+
+    res = await api.patch_matching_evaluation_resume(
+        eval_id,
+        resume_status="success",
+        resume_pdf_key="resumes/resume.pdf",
+        resume_json_key="resumes/resume.json",
+    )
+    assert res["id"] == eval_id
+    assert res["resume_status"] == "success"
+    await api.aclose()
+
+
+@pytest.mark.asyncio
+async def test_bulk_generate_resume_success():
+    eval_id = "11111111-2222-3333-4444-555555555555"
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.headers["authorization"] == "Bearer secret-key"
+        assert request.url.path == "/v1/matching-evaluations/bulk-generate-resume"
+        assert request.method == "POST"
+        payload = json.loads(request.content.decode("utf-8"))
+        assert len(payload) == 1
+        assert payload[0]["id"] == eval_id
+        assert payload[0]["force"] is False
+        return httpx.Response(
+            202,
+            json={
+                "success": True,
+                "data": [
+                    {
+                        "id": eval_id,
+                        "evaluation_status": "success",
+                    }
+                ],
+                "error": None,
+            },
+        )
+
+    api = NewGetojobuAPI(base_url="http://testserver", api_key="secret-key")
+    api._client = _mock_transport(handler)
+
+    res = await api.bulk_generate_resume([{"id": eval_id, "force": False}])
+    assert len(res) == 1
+    assert res[0]["id"] == eval_id
     await api.aclose()

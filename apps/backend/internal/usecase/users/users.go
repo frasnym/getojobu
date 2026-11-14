@@ -44,7 +44,7 @@ func (s *userService) FindByClerkUserID(ctx context.Context, clerkUserID string)
 	}
 
 	// Existing user: check deactivation.
-	if u.DeletedAt.Valid {
+	if u.DeletedAt != nil {
 		return nil, constants.ErrAccountDeactivated
 	}
 

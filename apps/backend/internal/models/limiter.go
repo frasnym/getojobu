@@ -8,6 +8,7 @@ const (
 	LimiterJobTypeAnalyze LimiterJobType = "analyze"
 	LimiterJobTypeMatch   LimiterJobType = "match"
 	LimiterJobTypeReport  LimiterJobType = "report"
+	LimiterJobTypeResume  LimiterJobType = "resume"
 )
 
 // LimiterWorkItem represents a work item enqueued into ConcurrencyLimiter.

@@ -39,10 +39,17 @@ from deliveries.consumer.activities.report_generation import (
     init_report_generation_container,
     update_report_status_activity,
 )
+from deliveries.consumer.activities.resume_generation import (
+    generate_resume_activity,
+    init_resume_generation_container,
+    update_resume_status_activity,
+    upload_resume_activity,
+)
 from utils.logging import configure, get_logger
 from utils.temporal import connect as temporal_connect
 from workflows.concurrency_limiter import ConcurrencyLimiter
 from workflows.generate_report import GenerateReportWorkflow
+from workflows.generate_resume import GenerateResumeWorkflow
 from workflows.job_analyze import JobAnalyzeWorkflow
 from workflows.job_scrape import JobScrapeWorkflow
 from workflows.match_job import MatchJobWorkflow
@@ -78,6 +85,7 @@ async def run() -> int:
     init_analyze_job_container(contract)
     init_evaluate_match_container(contract)
     init_report_generation_container(contract)
+    init_resume_generation_container(contract)
 
     activity_executor = ThreadPoolExecutor(max_workers=10)
 
@@ -91,8 +99,16 @@ async def run() -> int:
                 update_evaluation_status_activity,
                 generate_report_activity,
                 update_report_status_activity,
+                generate_resume_activity,
+                upload_resume_activity,
+                update_resume_status_activity,
             ],
-            workflows=[JobAnalyzeWorkflow, MatchJobWorkflow, GenerateReportWorkflow],
+            workflows=[
+                JobAnalyzeWorkflow,
+                MatchJobWorkflow,
+                GenerateReportWorkflow,
+                GenerateResumeWorkflow,
+            ],
             activity_executor=activity_executor,
         )
         job_scrape_worker = Worker(

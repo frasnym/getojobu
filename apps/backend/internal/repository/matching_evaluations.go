@@ -21,6 +21,7 @@ type MatchingEvaluations interface {
 	GetLatestByUserAndJob(ctx context.Context, userID uuid.UUID, jobID int64) (*models.MatchingEvaluation, error)
 	Update(ctx context.Context, id uuid.UUID, params models.UpdateMatchingEvaluationParams) (*models.MatchingEvaluation, error)
 	UpdateReport(ctx context.Context, id uuid.UUID, params models.UpdateMatchingEvaluationReportParams) (*models.MatchingEvaluation, error)
+	UpdateResume(ctx context.Context, id uuid.UUID, params models.UpdateMatchingEvaluationResumeParams) (*models.MatchingEvaluation, error)
 }
 
 type matchingEvaluationsRepository struct {
@@ -104,6 +105,7 @@ func (r *matchingEvaluationsRepository) GetByID(ctx context.Context, id uuid.UUI
 			evaluation_data, overall_score, eligibility_status,
 			recommendation_label, failure_message,
 			report_data, report_status, report_failure_message,
+			resume_status, resume_failure_message, resume_pdf_key, resume_json_key,
 			created_at, updated_at
 		FROM matching_evaluations
 		WHERE id = $1
@@ -125,6 +127,10 @@ func (r *matchingEvaluationsRepository) GetByID(ctx context.Context, id uuid.UUI
 		&eval.ReportData,
 		&eval.ReportStatus,
 		&eval.ReportFailureMessage,
+		&eval.ResumeStatus,
+		&eval.ResumeFailureMessage,
+		&eval.ResumePDFKey,
+		&eval.ResumeJSONKey,
 		&eval.CreatedAt,
 		&eval.UpdatedAt,
 	)
@@ -147,6 +153,7 @@ func (r *matchingEvaluationsRepository) GetLatestByUserAndJob(ctx context.Contex
 			me.evaluation_data, me.overall_score, me.eligibility_status,
 			me.recommendation_label, me.failure_message,
 			me.report_data, me.report_status, me.report_failure_message,
+			me.resume_status, me.resume_failure_message, me.resume_pdf_key, me.resume_json_key,
 			me.created_at, me.updated_at
 		FROM matching_evaluations me
 		JOIN user_jobs uj ON me.user_job_id = uj.id
@@ -171,6 +178,10 @@ func (r *matchingEvaluationsRepository) GetLatestByUserAndJob(ctx context.Contex
 		&eval.ReportData,
 		&eval.ReportStatus,
 		&eval.ReportFailureMessage,
+		&eval.ResumeStatus,
+		&eval.ResumeFailureMessage,
+		&eval.ResumePDFKey,
+		&eval.ResumeJSONKey,
 		&eval.CreatedAt,
 		&eval.UpdatedAt,
 	)
@@ -213,6 +224,7 @@ func (r *matchingEvaluationsRepository) Update(
 			evaluation_data, overall_score, eligibility_status,
 			recommendation_label, failure_message,
 			report_data, report_status, report_failure_message,
+			resume_status, resume_failure_message, resume_pdf_key, resume_json_key,
 			created_at, updated_at
 	`
 
@@ -240,6 +252,10 @@ func (r *matchingEvaluationsRepository) Update(
 		&eval.ReportData,
 		&eval.ReportStatus,
 		&eval.ReportFailureMessage,
+		&eval.ResumeStatus,
+		&eval.ResumeFailureMessage,
+		&eval.ResumePDFKey,
+		&eval.ResumeJSONKey,
 		&eval.CreatedAt,
 		&eval.UpdatedAt,
 	)
@@ -279,6 +295,7 @@ func (r *matchingEvaluationsRepository) UpdateReport(
 			evaluation_data, overall_score, eligibility_status,
 			recommendation_label, failure_message,
 			report_data, report_status, report_failure_message,
+			resume_status, resume_failure_message, resume_pdf_key, resume_json_key,
 			created_at, updated_at
 	`
 
@@ -303,6 +320,10 @@ func (r *matchingEvaluationsRepository) UpdateReport(
 		&eval.ReportData,
 		&eval.ReportStatus,
 		&eval.ReportFailureMessage,
+		&eval.ResumeStatus,
+		&eval.ResumeFailureMessage,
+		&eval.ResumePDFKey,
+		&eval.ResumeJSONKey,
 		&eval.CreatedAt,
 		&eval.UpdatedAt,
 	)
@@ -314,5 +335,61 @@ func (r *matchingEvaluationsRepository) UpdateReport(
 		return nil, fmt.Errorf("update matching evaluation report: %w", err)
 	}
 
+	return eval, nil
+}
+
+func (r *matchingEvaluationsRepository) UpdateResume(
+	ctx context.Context,
+	id uuid.UUID,
+	params models.UpdateMatchingEvaluationResumeParams,
+) (res *models.MatchingEvaluation, err error) {
+	tx, err := r.StartTrx(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("update resume start trx: %w", err)
+	}
+	defer r.Committer(ctx, tx, &err)
+
+	query := `
+		UPDATE matching_evaluations
+		SET
+			resume_status = COALESCE(NULLIF($2, ''), resume_status),
+			resume_failure_message = COALESCE($3, resume_failure_message),
+			resume_pdf_key = COALESCE($4, resume_pdf_key),
+			resume_json_key = COALESCE($5, resume_json_key),
+			updated_at = NOW()
+		WHERE id = $1
+		RETURNING
+			id, user_job_id, evaluation_status,
+			candidate_profile_data, job_profile_data, scoring_config_id,
+			evaluation_data, overall_score, eligibility_status,
+			recommendation_label, failure_message,
+			report_data, report_status, report_failure_message,
+			resume_status, resume_failure_message, resume_pdf_key, resume_json_key,
+			created_at, updated_at
+	`
+
+	eval := &models.MatchingEvaluation{}
+	err = tx.QueryRow(ctx, query,
+		id,
+		params.ResumeStatus,
+		params.ResumeFailureMessage,
+		params.ResumePDFKey,
+		params.ResumeJSONKey,
+	).Scan(
+		&eval.ID, &eval.UserJobID, &eval.EvaluationStatus,
+		&eval.CandidateProfileData, &eval.JobProfileData, &eval.ScoringConfigID,
+		&eval.EvaluationData, &eval.OverallScore, &eval.EligibilityStatus,
+		&eval.RecommendationLabel, &eval.FailureMessage,
+		&eval.ReportData, &eval.ReportStatus, &eval.ReportFailureMessage,
+		&eval.ResumeStatus, &eval.ResumeFailureMessage, &eval.ResumePDFKey,
+		&eval.ResumeJSONKey,
+		&eval.CreatedAt, &eval.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, constants.ErrNotFound
+		}
+		return nil, fmt.Errorf("update matching evaluation resume: %w", err)
+	}
 	return eval, nil
 }
