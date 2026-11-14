@@ -18,6 +18,8 @@ dependencies = [
     "python-jobspy>=1.1.0",
     "pytest-asyncio>=0.24.0",
     "weasyprint>=70.0",
+    "boto3>=1.44.3",
+    "boto3-stubs[s3]>=1.44.3",
 ]
 
 [tool.pytest.ini_options]

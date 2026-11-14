@@ -17,6 +17,7 @@ type Matching interface {
 	UpdateEvaluationReport(ctx context.Context, id uuid.UUID, req UpdateEvaluationReportRequest) (*models.MatchingEvaluation, error)
 	UpdateEvaluationResume(ctx context.Context, id uuid.UUID, req UpdateEvaluationResumeRequest) (*models.MatchingEvaluation, error)
 	GetResume(ctx context.Context, id uuid.UUID, caller *models.Principal) (*models.MatchingEvaluation, error)
+	DownloadResume(ctx context.Context, id uuid.UUID, caller *models.Principal) (*models.DownloadResumeResponse, error)
 	GetReport(ctx context.Context, id uuid.UUID, caller *models.Principal) (*models.MatchingEvaluationReportResponse, error)
 	BulkQueueGenerateReport(ctx context.Context, items []models.BulkGenerateReportItem, caller *models.Principal) ([]*models.MatchingEvaluationSummary, error)
 	BulkQueueGenerateResume(ctx context.Context, items []models.BulkGenerateResumeItem, caller *models.Principal) ([]*models.MatchingEvaluationSummary, error)
@@ -33,6 +34,7 @@ type matchingService struct {
 	projSkillsRepo     repo.ProjectSkills
 	workflowsRepo      repo.Workflows
 	eduRepo            repo.Educations
+	storageRepo        repo.Storage
 }
 
 // NewService constructs a new Matching usecase service.
@@ -48,5 +50,6 @@ func NewService(r *repository.Contract) Matching {
 		projSkillsRepo:     r.ProjectSkillsRepository,
 		workflowsRepo:      r.WorkflowsRepository,
 		eduRepo:            r.EducationsRepository,
+		storageRepo:        r.StorageRepository,
 	}
 }

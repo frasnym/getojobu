@@ -149,3 +149,79 @@ def test_templates_registry_and_rendering() -> None:
     with pytest.raises(ValueError, match="unknown resume template"):
         render_html(draft, template_name="nonexistent_template")
 
+
+def test_r2_storage_repository_handles_unconfigured() -> None:
+    from config.config import R2Config
+    from repository.storage import R2StorageRepository
+
+    repo = R2StorageRepository(R2Config())
+    # Should not raise exception when credentials not set
+    repo.put_object(key="test.pdf", body=b"data", content_type="application/pdf")
+
+
+def test_r2_storage_repository_uploads_when_configured() -> None:
+    from config.config import R2Config
+    from repository.storage import R2StorageRepository
+
+    cfg = R2Config(
+        account_id="test-acc",
+        access_key_id="test-key",
+        secret_access_key="test-secret",
+        bucket_name="getojobu",
+        endpoint_url="https://test-acc.r2.cloudflarestorage.com",
+    )
+    with patch("boto3.client") as mock_boto:
+        mock_s3 = MagicMock()
+        mock_boto.return_value = mock_s3
+        repo = R2StorageRepository(cfg)
+        repo.put_object(
+            key="123/456/eval_resume.pdf",
+            body=b"%PDF-1.4",
+            content_type="application/pdf",
+        )
+        mock_s3.put_object.assert_called_once_with(
+            Bucket="getojobu",
+            Key="123/456/eval_resume.pdf",
+            Body=b"%PDF-1.4",
+            ContentType="application/pdf",
+        )
+
+
+@pytest.mark.asyncio
+async def test_upload_resume_activity_builds_correct_keys() -> None:
+    import base64
+
+    from deliveries.consumer.activities.resume_generation import (
+        init_resume_generation_container,
+        upload_resume_activity,
+    )
+
+    container = MagicMock()
+    mock_storage = MagicMock()
+    container.repository.storage = mock_storage
+    init_resume_generation_container(container)
+
+    pdf_bytes = b"%PDF-dummy"
+    pdf_b64 = base64.b64encode(pdf_bytes).decode("ascii")
+
+    result = await upload_resume_activity(
+        {
+            "evaluation_id": "eval-123",
+            "job_id": 999,
+            "user_id": "user-456",
+            "pdf_base64": pdf_b64,
+            "resume": {"headline": "Engineer"},
+        }
+    )
+
+    assert result["pdf_key"] == "999/user-456/eval-123_resume.pdf"
+    assert result["content_key"] == "999/user-456/eval-123_resume.json"
+
+    assert mock_storage.put_object.call_count == 2
+    mock_storage.put_object.assert_any_call(
+        key="999/user-456/eval-123_resume.pdf",
+        body=pdf_bytes,
+        content_type="application/pdf",
+    )
+
+

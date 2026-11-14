@@ -85,6 +85,13 @@ type MatchingEvaluationReportResponse struct {
 	UpdatedAt            time.Time       `json:"updated_at"`
 }
 
+// DownloadResumeResponse represents the presigned download URL and metadata for a resume.
+type DownloadResumeResponse struct {
+	DownloadURL string    `json:"download_url"`
+	ExpiresAt   time.Time `json:"expires_at"`
+	Filename    string    `json:"filename"`
+}
+
 // MatchingEvaluationSummary represents a lightweight summary of an evaluation.
 type MatchingEvaluationSummary struct {
 	Slug             string     `json:"slug,omitempty"`

@@ -8,17 +8,19 @@ import (
 	"go.temporal.io/sdk/client"
 
 	"github.com/frasnym/getojobu/apps/backend/internal/config"
+	repo "github.com/frasnym/getojobu/apps/backend/internal/repository"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/database"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/graceful"
 )
 
 // Contract holds shared infrastructure dependencies, currently the database
-// connection and Temporal orchestrator client. Placing them here keeps repository
-// and usecase layers free of infrastructure concerns.
+// connection, Temporal orchestrator client, and object storage client.
+// Placing them here keeps repository and usecase layers free of infrastructure concerns.
 type Contract struct {
 	DB                database.DB
 	Temporal          client.Client
 	TemporalTaskQueue string
+	Storage           repo.Storage
 }
 
 // New creates a connection to a PostgreSQL database using config and returns
@@ -74,6 +76,7 @@ func New(cfg *config.Config) (*Contract, graceful.ProcessStopper, error) {
 	}
 	contract.Temporal = temporalClient
 	contract.TemporalTaskQueue = cfg.Temporal.TaskQueue
+	contract.Storage = repo.NewR2StorageRepository(cfg.R2)
 
 	return contract, stopper, nil
 }

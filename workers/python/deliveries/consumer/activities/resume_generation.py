@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import base64
+import json
 from typing import Any, cast
 
 from temporalio import activity
@@ -55,14 +56,44 @@ async def generate_resume_activity(input: dict[str, Any]) -> dict[str, Any]:
 
 @activity.defn
 async def upload_resume_activity(input: dict[str, Any]) -> dict[str, Any]:
-    """Return artifact keys; a storage adapter can persist these keys."""
+    """Upload PDF and JSON artifacts to R2 object storage."""
+    container = init_resume_generation_container()
     evaluation_id = input.get("evaluation_id")
     if not isinstance(evaluation_id, str) or not evaluation_id:
         raise ValueError("evaluation_id is required")
-    prefix = f"resumes/{evaluation_id}"
+
+    job_id = input.get("job_id")
+    user_id = input.get("user_id")
+
+    if job_id and user_id:
+        prefix = f"{job_id}/{user_id}"
+    else:
+        prefix = f"resumes/{evaluation_id}"
+
+    pdf_key = f"{prefix}/{evaluation_id}_resume.pdf"
+    content_key = f"{prefix}/{evaluation_id}_resume.json"
+
+    pdf_base64 = input.get("pdf_base64")
+    if isinstance(pdf_base64, str) and pdf_base64:
+        pdf_bytes = base64.b64decode(pdf_base64.encode("ascii"))
+        container.repository.storage.put_object(
+            key=pdf_key,
+            body=pdf_bytes,
+            content_type="application/pdf",
+        )
+
+    resume_data = input.get("resume")
+    if resume_data is not None:
+        json_bytes = json.dumps(resume_data, indent=2).encode("utf-8")
+        container.repository.storage.put_object(
+            key=content_key,
+            body=json_bytes,
+            content_type="application/json",
+        )
+
     return {
-        "pdf_key": f"{prefix}/resume.pdf",
-        "content_key": f"{prefix}/resume.json",
+        "pdf_key": pdf_key,
+        "content_key": content_key,
     }
 
 

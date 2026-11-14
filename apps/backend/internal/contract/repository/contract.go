@@ -24,6 +24,7 @@ type Contract struct {
 	UserPreferencesRepository     repo.UserPreferences
 	MatchingEvaluationsRepository repo.MatchingEvaluations
 	EducationsRepository          repo.Educations
+	StorageRepository             repo.Storage
 }
 
 // NewRepository creates the repository layer contract from the common
@@ -50,6 +51,7 @@ func NewRepository(comm *common.Contract) (*Contract, error) {
 		UserPreferencesRepository:     repo.NewUserPreferencesRepository(pg),
 		MatchingEvaluationsRepository: repo.NewMatchingEvaluationsRepository(pg),
 		EducationsRepository:          repo.NewEducationsRepository(comm.DB),
+		StorageRepository:             comm.Storage,
 	}
 	return c, nil
 }

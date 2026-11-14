@@ -312,3 +312,103 @@ func TestGetResume(t *testing.T) {
 		assert.Equal(t, eval, res)
 	})
 }
+
+func TestDownloadResume(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	evalRepo := repoMocks.NewMockMatchingEvaluations(ctrl)
+	usersRepo := repoMocks.NewMockUsers(ctrl)
+	userJobsRepo := repoMocks.NewMockUserJobs(ctrl)
+	storageRepo := repoMocks.NewMockStorage(ctrl)
+
+	contract := &repository.Contract{
+		MatchingEvaluationsRepository: evalRepo,
+		UsersRepository:               usersRepo,
+		UserJobsRepository:            userJobsRepo,
+		StorageRepository:             storageRepo,
+	}
+
+	service := matching.NewService(contract)
+	ctx := context.Background()
+	evalID := uuid.New()
+	userJobID := uuid.New()
+	ownerID := uuid.New()
+
+	pdfKey := "123/456/resume.pdf"
+	statusSuccess := string(constants.ResumeStatusSuccess)
+	statusPending := string(constants.ResumeStatusPending)
+
+	t.Run("returns unauthorized when caller is nil", func(t *testing.T) {
+		res, err := service.DownloadResume(ctx, evalID, nil)
+		require.Error(t, err)
+		assert.True(t, errors.Is(err, constants.ErrUnauthorized))
+		assert.Nil(t, res)
+	})
+
+	t.Run("returns error when resume is not success", func(t *testing.T) {
+		eval := &models.MatchingEvaluation{ID: evalID, ResumeStatus: &statusPending}
+		evalRepo.EXPECT().GetByID(ctx, evalID).Return(eval, nil)
+
+		res, err := service.DownloadResume(ctx, evalID, &models.Principal{ActorType: "worker", ID: "worker-1"})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "resume is not available")
+		assert.Nil(t, res)
+	})
+
+	t.Run("returns error when pdf key is missing", func(t *testing.T) {
+		eval := &models.MatchingEvaluation{ID: evalID, ResumeStatus: &statusSuccess, ResumePDFKey: nil}
+		evalRepo.EXPECT().GetByID(ctx, evalID).Return(eval, nil)
+
+		res, err := service.DownloadResume(ctx, evalID, &models.Principal{ActorType: "worker", ID: "worker-1"})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "resume pdf key is missing")
+		assert.Nil(t, res)
+	})
+
+	t.Run("returns forbidden when caller is not owner", func(t *testing.T) {
+		eval := &models.MatchingEvaluation{
+			ID:           evalID,
+			UserJobID:    userJobID,
+			ResumeStatus: &statusSuccess,
+			ResumePDFKey: &pdfKey,
+		}
+		evalRepo.EXPECT().GetByID(ctx, evalID).Return(eval, nil)
+		userJobsRepo.EXPECT().GetByID(ctx, userJobID).Return(&models.UserJob{
+			ID: userJobID, UserID: ownerID,
+		}, nil)
+
+		res, err := service.DownloadResume(ctx, evalID, &models.Principal{ActorType: "", ID: "someone-else"})
+		require.Error(t, err)
+		assert.True(t, errors.Is(err, constants.ErrForbidden))
+		assert.Nil(t, res)
+	})
+
+	t.Run("returns presigned download url with candidate name when owner calls", func(t *testing.T) {
+		eval := &models.MatchingEvaluation{
+			ID:           evalID,
+			UserJobID:    userJobID,
+			ResumeStatus: &statusSuccess,
+			ResumePDFKey: &pdfKey,
+		}
+		evalRepo.EXPECT().GetByID(ctx, evalID).Return(eval, nil)
+		userJobsRepo.EXPECT().GetByID(ctx, userJobID).Return(&models.UserJob{
+			ID: userJobID, UserID: ownerID,
+		}, nil)
+		userName := "Jane Doe"
+		usersRepo.EXPECT().FindByID(ctx, ownerID.String()).Return(&models.User{
+			ID:       ownerID.String(),
+			FullName: &userName,
+		}, nil)
+
+		expectedURL := "https://r2.example.com/download-resume"
+		storageRepo.EXPECT().GetPresignedDownloadURL(ctx, pdfKey, "Jane_Doe_Resume.pdf", 15*time.Minute).Return(expectedURL, nil)
+
+		res, err := service.DownloadResume(ctx, evalID, &models.Principal{ActorType: "", ID: ownerID.String()})
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		assert.Equal(t, expectedURL, res.DownloadURL)
+		assert.Equal(t, "Jane_Doe_Resume.pdf", res.Filename)
+		assert.False(t, res.ExpiresAt.IsZero())
+	})
+}

@@ -2,6 +2,7 @@ package config
 
 import (
 	"errors"
+	"fmt"
 	"log/slog"
 	"os"
 	"strings"
@@ -22,6 +23,16 @@ type Config struct {
 	Clerk       ClerkConfig
 	MachineAuth MachineAuth
 	Temporal    TemporalConfig
+	R2          R2Config
+}
+
+// R2Config holds Cloudflare R2 object storage settings.
+type R2Config struct {
+	AccountID       string
+	AccessKeyID     string
+	SecretAccessKey string
+	BucketName      string
+	EndpointURL     string
 }
 
 // TemporalConfig holds Temporal orchestrator connection settings.
@@ -183,6 +194,15 @@ func Load() (*Config, error) {
 	cfg.Temporal.Host = envString("TEMPORAL_HOST", "localhost:7233")
 	cfg.Temporal.Namespace = envString("TEMPORAL_NAMESPACE", "default")
 	cfg.Temporal.TaskQueue = envString("TEMPORAL_TASK_QUEUE_JOB_ANALYZE", "job-evaluation")
+
+	cfg.R2.AccountID = os.Getenv("R2_ACCOUNT_ID")
+	cfg.R2.AccessKeyID = os.Getenv("R2_ACCESS_KEY_ID")
+	cfg.R2.SecretAccessKey = os.Getenv("R2_SECRET_ACCESS_KEY")
+	cfg.R2.BucketName = envString("R2_BUCKET_NAME", "getojobu")
+	cfg.R2.EndpointURL = os.Getenv("R2_ENDPOINT_URL")
+	if cfg.R2.EndpointURL == "" && cfg.R2.AccountID != "" {
+		cfg.R2.EndpointURL = fmt.Sprintf("https://%s.r2.cloudflarestorage.com", cfg.R2.AccountID)
+	}
 
 	return cfg, nil
 }

@@ -3,6 +3,7 @@ package matching
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -188,6 +189,8 @@ func (s *matchingService) triggerResume(
 
 	input := map[string]interface{}{
 		"evaluation_id":        id.String(),
+		"job_id":               userJob.JobID,
+		"user_id":              userJob.UserID.String(),
 		"candidate_profile":    candidate,
 		"facts":                facts,
 		"job_profile":          job,
@@ -225,6 +228,56 @@ func (s *matchingService) GetResume(
 		}
 	}
 	return eval, nil
+}
+
+func (s *matchingService) DownloadResume(
+	ctx context.Context,
+	id uuid.UUID,
+	caller *models.Principal,
+) (*models.DownloadResumeResponse, error) {
+	if caller == nil {
+		return nil, constants.ErrUnauthorized
+	}
+	eval, err := s.evalRepo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if eval.ResumeStatus == nil || *eval.ResumeStatus != string(constants.ResumeStatusSuccess) {
+		return nil, fmt.Errorf("%w: resume is not available", constants.ErrInvalidRequest)
+	}
+	if eval.ResumePDFKey == nil || strings.TrimSpace(*eval.ResumePDFKey) == "" {
+		return nil, fmt.Errorf("%w: resume pdf key is missing", constants.ErrInvalidRequest)
+	}
+
+	userJob, err := s.userJobsRepo.GetByID(ctx, eval.UserJobID)
+	if err != nil {
+		return nil, fmt.Errorf("get user job: %w", err)
+	}
+	if caller.ActorType == "" && userJob.UserID.String() != caller.ID {
+		return nil, constants.ErrForbidden
+	}
+
+	user, err := s.usersRepo.FindByID(ctx, userJob.UserID.String())
+	filename := "Resume.pdf"
+	if err == nil && user != nil && user.FullName != nil && strings.TrimSpace(*user.FullName) != "" {
+		cleanName := strings.ReplaceAll(strings.TrimSpace(*user.FullName), " ", "_")
+		filename = fmt.Sprintf("%s_Resume.pdf", cleanName)
+	}
+
+	if s.storageRepo == nil {
+		return nil, errors.New("storage repository is not configured")
+	}
+	expiry := 15 * time.Minute
+	downloadURL, err := s.storageRepo.GetPresignedDownloadURL(ctx, *eval.ResumePDFKey, filename, expiry)
+	if err != nil {
+		return nil, fmt.Errorf("generate presigned download url: %w", err)
+	}
+
+	return &models.DownloadResumeResponse{
+		DownloadURL: downloadURL,
+		ExpiresAt:   time.Now().Add(expiry),
+		Filename:    filename,
+	}, nil
 }
 
 func (s *matchingService) BulkQueueGenerateResume(

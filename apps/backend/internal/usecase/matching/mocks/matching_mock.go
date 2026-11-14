@@ -73,6 +73,21 @@ func (mr *MockMatchingMockRecorder) BulkQueueGenerateResume(ctx, items, caller a
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BulkQueueGenerateResume", reflect.TypeOf((*MockMatching)(nil).BulkQueueGenerateResume), ctx, items, caller)
 }
 
+// DownloadResume mocks base method.
+func (m *MockMatching) DownloadResume(ctx context.Context, id uuid.UUID, caller *models.Principal) (*models.DownloadResumeResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DownloadResume", ctx, id, caller)
+	ret0, _ := ret[0].(*models.DownloadResumeResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// DownloadResume indicates an expected call of DownloadResume.
+func (mr *MockMatchingMockRecorder) DownloadResume(ctx, id, caller any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DownloadResume", reflect.TypeOf((*MockMatching)(nil).DownloadResume), ctx, id, caller)
+}
+
 // GetReport mocks base method.
 func (m *MockMatching) GetReport(ctx context.Context, id uuid.UUID, caller *models.Principal) (*models.MatchingEvaluationReportResponse, error) {
 	m.ctrl.T.Helper()

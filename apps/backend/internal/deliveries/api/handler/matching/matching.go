@@ -54,6 +54,9 @@ func (h *handler) Route(g *httpx.Router) {
 	// GET /v1/matching-evaluations/{id}/resume (Clerk user session or worker API key)
 	g.GET("/{id}/resume", h.GetResume, auth.ValidClerkOrAPIKey)
 
+	// GET /v1/matching-evaluations/{id}/resume/download (Clerk user session or worker API key)
+	g.GET("/{id}/resume/download", h.DownloadResume, auth.ValidClerkOrAPIKey)
+
 	// POST /v1/matching-evaluations/bulk-generate-report (strictly worker API key)
 	g.POST("/bulk-generate-report", h.BulkQueueGenerateReport, auth.ValidAPIKey)
 	g.POST("/bulk-generate-resume", h.BulkQueueGenerateResume, auth.ValidAPIKey)
@@ -281,6 +284,40 @@ func (h *handler) GetResume(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 	return httpx.RespondJSON(w, r, http.StatusOK, eval)
+}
+
+// DownloadResume returns a presigned URL to download the generated resume PDF.
+// @Summary Download resume PDF
+// @Description Generates a short-lived presigned download URL for the generated resume PDF. Accessible by owner user or worker API key.
+// @Tags matching
+// @Produce json
+// @Param id path string true "Matching evaluation ID (UUID)"
+// @Success 200 {object} models.DownloadResumeResponse
+// @Failure 400 {object} httpx.Error
+// @Failure 401 {object} httpx.Error
+// @Failure 403 {object} httpx.Error
+// @Failure 404 {object} httpx.Error
+// @security ApiKeyAuth
+// @Router /v1/matching-evaluations/{id}/resume/download [get]
+func (h *handler) DownloadResume(w http.ResponseWriter, r *http.Request) error {
+	id, err := uuid.Parse(r.PathValue("id"))
+	if err != nil {
+		return httpx.Envelope(httpx.CodeInvalidRequest, "invalid evaluation id", "")
+	}
+	res, err := h.matchingUC.DownloadResume(r.Context(), id, ctxval.PrincipalFromContext(r.Context()))
+	if err != nil {
+		if errors.Is(err, constants.ErrNotFound) {
+			return httpx.Envelope(httpx.CodeNotFound, "evaluation not found", "")
+		}
+		if errors.Is(err, constants.ErrForbidden) {
+			return httpx.Envelope(httpx.CodeForbidden, "access denied", "")
+		}
+		if errors.Is(err, constants.ErrInvalidRequest) {
+			return httpx.Envelope(httpx.CodeInvalidRequest, err.Error(), "")
+		}
+		return err
+	}
+	return httpx.RespondJSON(w, r, http.StatusOK, res)
 }
 
 // GetReport returns the candidate-facing match report for an evaluation.

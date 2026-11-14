@@ -50,6 +50,8 @@ class GenerateResumeWorkflow:
             )
             upload_payload: dict[str, Any] = {
                 "evaluation_id": evaluation_id,
+                "job_id": input.get("job_id"),
+                "user_id": input.get("user_id"),
                 **generated,
             }
             artifacts: dict[str, Any] = await workflow.execute_activity(

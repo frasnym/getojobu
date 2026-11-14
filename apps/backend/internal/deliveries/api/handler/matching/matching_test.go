@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -446,5 +447,30 @@ func TestReportHandlers(t *testing.T) {
 
 		rt.Mux().ServeHTTP(rec, req)
 		assert.Equal(t, http.StatusAccepted, rec.Code)
+	})
+
+	t.Run("download resume returns 401 when unauthenticated", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/v1/matching-evaluations/"+evalID.String()+"/resume/download", nil)
+		rec := httptest.NewRecorder()
+
+		rt.Mux().ServeHTTP(rec, req)
+		assert.Equal(t, http.StatusUnauthorized, rec.Code)
+	})
+
+	t.Run("download resume returns 200 with download url", func(t *testing.T) {
+		mockMatching.EXPECT().DownloadResume(gomock.Any(), evalID, gomock.Any()).Return(&models.DownloadResumeResponse{
+			DownloadURL: "https://r2.example.com/123/resume.pdf",
+			ExpiresAt:   time.Now().Add(15 * time.Minute),
+			Filename:    "Alex_Resume.pdf",
+		}, nil)
+
+		req := httptest.NewRequest(http.MethodGet, "/v1/matching-evaluations/"+evalID.String()+"/resume/download", nil)
+		req.Header.Set("Authorization", "Bearer "+apiKey)
+		rec := httptest.NewRecorder()
+
+		rt.Mux().ServeHTTP(rec, req)
+		assert.Equal(t, http.StatusOK, rec.Code)
+		assert.Contains(t, rec.Body.String(), "https://r2.example.com/123/resume.pdf")
+		assert.Contains(t, rec.Body.String(), "Alex_Resume.pdf")
 	})
 }

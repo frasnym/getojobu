@@ -36,10 +36,20 @@ class OmniRouteConfig:
 
 
 @dataclass(frozen=True)
+class R2Config:
+    account_id: str | None = None
+    access_key_id: str | None = None
+    secret_access_key: str | None = None
+    bucket_name: str = "getojobu"
+    endpoint_url: str | None = None
+
+
+@dataclass(frozen=True)
 class Config:
     temporal: TemporalConfig
     api: APIConfig
     omni_route: OmniRouteConfig
+    r2: R2Config = R2Config()
 
 
 class MissingEnvError(ValueError):
@@ -86,5 +96,17 @@ def load() -> Config:
             base_url=_required("OMNIROUTE_BASE_URL"),
             api_key=_required("OMNIROUTE_API_KEY"),
             model=os.getenv("OMNIROUTE_MODEL") or None,
+        ),
+        r2=R2Config(
+            account_id=os.getenv("R2_ACCOUNT_ID"),
+            access_key_id=os.getenv("R2_ACCESS_KEY_ID"),
+            secret_access_key=os.getenv("R2_SECRET_ACCESS_KEY"),
+            bucket_name=_optional("R2_BUCKET_NAME", "getojobu"),
+            endpoint_url=os.getenv("R2_ENDPOINT_URL")
+            or (
+                f"https://{os.getenv('R2_ACCOUNT_ID')}.r2.cloudflarestorage.com"
+                if os.getenv("R2_ACCOUNT_ID")
+                else None
+            ),
         ),
     )
