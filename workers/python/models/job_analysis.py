@@ -33,7 +33,7 @@ class JobRequirement(BaseModel):
 class JobAnalysis(BaseModel):
     """Normalized job description output of Step 1B (extract-job-v1)."""
 
-    id: UUID = Field(default_factory=uuid4)
+    id: str | UUID = Field(default_factory=uuid4)
     job_id: str | None = None  # reference to shared jobs table slug/id
     version: int = 1
     schema_version: str = "1.0"
@@ -53,6 +53,16 @@ class JobAnalysis(BaseModel):
     prompt_version: str = "extract-job-v1"
     model: str | None = None
     created_at: datetime | None = None
+
+    @field_validator("id", mode="before")
+    @classmethod
+    def _validate_id(cls, v: Any) -> Any:
+        if isinstance(v, str):
+            try:
+                return UUID(v)
+            except ValueError:
+                return v
+        return v
 
     @field_validator("family")
     @classmethod

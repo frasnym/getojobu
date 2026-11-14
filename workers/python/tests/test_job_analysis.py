@@ -19,6 +19,20 @@ def test_job_analysis_minimal():
     assert analysis.requirements == []
 
 
+def test_job_analysis_accepts_slug_or_custom_string_id():
+    raw = {
+        "id": "job-motorola-sw-newgrad",
+        "family": "technology",
+        "seniority": "entry",
+        "title": "Software Engineer New Grad",
+        "company": "Motorola Solutions",
+    }
+    analysis = JobAnalysis.model_validate(raw)
+    assert analysis.id == "job-motorola-sw-newgrad"
+    assert analysis.family == "technology"
+    assert analysis.seniority == "entry"
+
+
 def test_job_analysis_with_requirements():
     analysis = JobAnalysis(
         family="technology",
