@@ -16,8 +16,6 @@ import sys
 from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
 
-from temporalio.worker import Worker
-
 from config.config import load as config_load
 from contract.contract import new as contract_new
 from deliveries.consumer.activities.analyze_job import (
@@ -32,6 +30,7 @@ from deliveries.consumer.activities.evaluate_match import (
 from deliveries.consumer.activities.job_scrape import (
     enrich_jobs,
     ingest_jobs,
+    init_job_scrape_container,
     queue_analysis,
     scrape_scan,
 )
@@ -46,6 +45,7 @@ from deliveries.consumer.activities.resume_generation import (
     update_resume_status_activity,
     upload_resume_activity,
 )
+from temporalio.worker import Worker
 from utils.logging import configure, get_logger
 from utils.temporal import connect as temporal_connect
 from workflows.concurrency_limiter import ConcurrencyLimiter
@@ -87,6 +87,7 @@ async def run() -> int:
     init_evaluate_match_container(contract)
     init_report_generation_container(contract)
     init_resume_generation_container(contract)
+    init_job_scrape_container(contract)
 
     activity_executor = ThreadPoolExecutor(max_workers=10)
 

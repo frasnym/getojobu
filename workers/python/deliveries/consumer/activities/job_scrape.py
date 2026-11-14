@@ -19,13 +19,41 @@ from collections.abc import Iterable
 from datetime import UTC, date, datetime, time, timedelta
 from typing import Any, cast
 
-import jobspy
 from temporalio import activity
 
+from config.config import load as config_load
+from contract.contract import WorkerContainer
+from contract.contract import new as contract_new
 from repository.getojobu_api import NewGetojobuAPI
 from utils.logging import get_logger
 
 logger = get_logger("activities.job_scrape")
+
+_container: WorkerContainer | None = None
+
+
+def init_job_scrape_container(
+    container: WorkerContainer | None = None,
+) -> WorkerContainer | None:
+    """Build (or reuse) the dependency container.
+
+    Called from worker.main before starting the Temporal worker.
+    """
+    global _container
+    if container is not None:
+        _container = container
+        return _container
+
+    if _container is None:
+        try:
+            cfg = config_load()
+            c, _stopper, err = contract_new(cfg)
+            if err is None and c is not None:
+                _container = c
+        except Exception as e:  # noqa: BLE001
+            logger.debug("init_job_scrape_container_fallback", error=str(e))
+    return _container
+
 
 # Location normalizer: owner input -> board-specific location string.
 # v1: country-only. Add city rows here when needed.
@@ -134,8 +162,8 @@ def _safe_heartbeat(**details: Any) -> None:
 
 
 @activity.defn
-def scrape_scan(input_data: dict[str, Any]) -> dict[str, Any]:
-    """Issue scrape_jobs() calls per keyword × location × enabled board.
+async def scrape_scan(input_data: dict[str, Any]) -> dict[str, Any]:
+    """Issue scrape calls per keyword × location × enabled board scraper method.
 
     Boards run sequentially within a scan so one board's rate limits do not
     block another. Per-site errors are logged into attrs["errors"] rather than
@@ -166,70 +194,47 @@ def scrape_scan(input_data: dict[str, Any]) -> dict[str, Any]:
     boards_run: list[str] = []
     errors: list[dict[str, Any]] = []
 
-    js: Any = jobspy
+    container = init_job_scrape_container()
+    scraper_service = (
+        container.usecase.scraper if container and container.usecase else None
+    )
 
     if keyword and location:
-        supported = getattr(
-            js,
-            "SUPPORTED_SITES",
-            {"glassdoor", "linkedin", "indeed", "zip_recruiter"},
-        )
-        if board not in supported:
-            logger.info(
-                "board not in JobSpy, skipping",
-                user_ids=user_ids,
-                scan_id=search_id,
-                board=board,
-            )
-        else:
+        if scraper_service is not None:
             try:
-                logger.info(
-                    "scraping",
-                    user_ids=user_ids,
-                    scan_id=search_id,
-                    board=board,
-                    search_term=keyword,
-                    location=location,
-                    results_wanted=20,
-                )
-
-                result = js.scrape_jobs(
-                    site_name=board,
-                    search_term=keyword,
-                    location=location,
-                    results_wanted=20,
-                    hours_old=24,
-                    description_format="plain",
-                    fetch_description=True,
-                )
-
-                records: list[dict[str, Any]] = []
-                if hasattr(result, "to_dict"):
-                    raw_records = result.to_dict("records")
-                    if isinstance(raw_records, list):
-                        records = cast(list[dict[str, Any]], raw_records)
-                elif isinstance(result, list):
-                    records = cast(list[dict[str, Any]], result)
-
-                sanitized_records: list[dict[str, Any]] = []
-                for r in records:
-                    if not r.get("site"):
-                        r["site"] = board
-                    sanitized_records.append(
-                        cast(dict[str, Any], _sanitize_for_json(r))
+                scraper = scraper_service.resolve(board)
+                if scraper is None:
+                    logger.info(
+                        "board scraper disabled, skipping",
+                        user_ids=user_ids,
+                        scan_id=search_id,
+                        board=board,
                     )
-                all_jobs.extend(sanitized_records)
-                if board not in boards_run:
-                    boards_run.append(board)
+                else:
+                    logger.info(
+                        "scraping",
+                        user_ids=user_ids,
+                        scan_id=search_id,
+                        board=board,
+                        method=scraper.name,
+                        search_term=keyword,
+                        location=location,
+                    )
+                    records = await scraper_service.scrape(board, keyword, location)
+                    sanitized_records: list[dict[str, Any]] = [
+                        cast(dict[str, Any], _sanitize_for_json(r)) for r in records
+                    ]
+                    all_jobs.extend(sanitized_records)
+                    if board not in boards_run:
+                        boards_run.append(board)
 
-                logger.info(
-                    "scrape complete",
-                    user_ids=user_ids,
-                    scan_id=search_id,
-                    board=board,
-                    found=len(records),
-                )
-
+                    logger.info(
+                        "scrape complete",
+                        user_ids=user_ids,
+                        scan_id=search_id,
+                        board=board,
+                        found=len(records),
+                    )
             except Exception as e:  # noqa: BLE001
                 logger.warning(
                     "scrape failed for board",
@@ -247,6 +252,17 @@ def scrape_scan(input_data: dict[str, Any]) -> dict[str, Any]:
                         "error": f"{e}",
                     }
                 )
+        else:
+            err_msg = "scraper service is not initialized in worker container"
+            logger.error("scraper_service_not_initialized", board=board)
+            errors.append(
+                {
+                    "board": board,
+                    "search_term": keyword,
+                    "location": location,
+                    "error": err_msg,
+                }
+            )
 
     _safe_heartbeat(
         jobs_found=len(all_jobs),
@@ -325,7 +341,9 @@ def enrich_jobs(input_data: dict[str, Any]) -> dict[str, Any]:
                 continue
 
             posted_raw = row.get("date_posted") or row.get("posted_date")
-            if posted_raw is None:
+            if posted_raw is None or (
+                isinstance(posted_raw, str) and not posted_raw.strip()
+            ):
                 continue
 
             posted: datetime | None = None
@@ -334,8 +352,11 @@ def enrich_jobs(input_data: dict[str, Any]) -> dict[str, Any]:
             elif isinstance(posted_raw, date):
                 posted = datetime.combine(posted_raw, time.min, tzinfo=UTC)
             elif isinstance(posted_raw, str):
-                cleaned = posted_raw.replace("Z", "+00:00")
-                posted = datetime.fromisoformat(cleaned)
+                cleaned = posted_raw.strip().replace("Z", "+00:00")
+                try:
+                    posted = datetime.fromisoformat(cleaned)
+                except ValueError:
+                    continue
 
             if posted is None:
                 continue

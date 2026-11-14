@@ -45,11 +45,24 @@ class R2Config:
 
 
 @dataclass(frozen=True)
+class ScrapeConfig:
+    vendor_methods: dict[str, str]
+
+    def get_method(self, vendor: str) -> str | None:
+        val = self.vendor_methods.get(vendor.strip().lower())
+        return val if val else None
+
+    def is_enabled(self, vendor: str) -> bool:
+        return self.get_method(vendor) is not None
+
+
+@dataclass(frozen=True)
 class Config:
     temporal: TemporalConfig
     api: APIConfig
     omni_route: OmniRouteConfig
     r2: R2Config = R2Config()
+    scrape: ScrapeConfig = ScrapeConfig(vendor_methods={})
 
 
 class MissingEnvError(ValueError):
@@ -72,8 +85,20 @@ def load() -> Config:
 
     Reads TEMPORAL_HOST, TEMPORAL_NAMESPACE,
     TEMPORAL_TASK_QUEUE_JOB_ANALYZE, TEMPORAL_TASK_QUEUE_JOB_SCRAPE, API_BASE_URL,
-    API_KEY, OMNIROUTE_BASE_URL, OMNIROUTE_API_KEY, OMNIROUTE_MODEL.
+    API_KEY, OMNIROUTE_BASE_URL, OMNIROUTE_API_KEY, OMNIROUTE_MODEL,
+    and SCRAPER_METHODS_BY_BOARD_*.
     """
+    vendor_methods: dict[str, str] = {}
+    board_prefix = "SCRAPER_METHODS_BY_BOARD_"
+    for key, value in os.environ.items():
+        if key.startswith(board_prefix):
+            board = key[len(board_prefix) :].strip().lower()
+            if board:
+                vendor_methods[board] = value.strip()
+
+    if not any(bool(method) for method in vendor_methods.values()):
+        raise MissingEnvError("no scraper method enabled for any vendor")
+
     return Config(
         temporal=TemporalConfig(
             host=_optional("TEMPORAL_HOST", "localhost:7233"),
@@ -109,4 +134,5 @@ def load() -> Config:
                 else None
             ),
         ),
+        scrape=ScrapeConfig(vendor_methods=vendor_methods),
     )

@@ -6,7 +6,6 @@ from typing import Any, cast
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from deliveries.consumer.activities.job_scrape import (
     _sanitize_for_json,
     build_job_slug,
@@ -18,6 +17,24 @@ from deliveries.consumer.activities.job_scrape import (
     slugify,
 )
 from workflows.job_scrape import JobScrapeWorkflow
+
+
+@pytest.fixture(autouse=True)
+def setup_job_scrape_container():
+    from deliveries.consumer.activities.job_scrape import init_job_scrape_container
+    from repository.scraper.glassdoor_jobspy import GlassdoorJobspyScraper
+    from usecase.scraper.service import ScraperService
+
+    s_gd = GlassdoorJobspyScraper()
+    service = ScraperService(
+        configured_methods={"glassdoor": "glassdoor-jobspy"},
+        scrapers={s_gd.name: s_gd},
+    )
+    mock_container = MagicMock()
+    mock_container.usecase.scraper = service
+    init_job_scrape_container(mock_container)
+    yield
+    init_job_scrape_container(None)
 
 
 def test_parse_user_ids():
@@ -205,7 +222,8 @@ def test_enrich_jobs_location_normalization():
     assert locs["D3"] == "Unknown City"
 
 
-def test_scrape_scan_with_mocked_jobspy():
+@pytest.mark.asyncio
+async def test_scrape_scan_with_mocked_jobspy():
     mock_jobspy = MagicMock()
     mock_jobspy.SUPPORTED_SITES = {"glassdoor", "linkedin"}
 
@@ -223,7 +241,7 @@ def test_scrape_scan_with_mocked_jobspy():
 
     mock_jobspy.scrape_jobs.return_value = FakeDataFrame()
 
-    with patch("deliveries.consumer.activities.job_scrape.jobspy", mock_jobspy):
+    with patch("repository.scraper.glassdoor_jobspy.jobspy", mock_jobspy):
         input_data = {
             "board": "glassdoor",
             "keyword": "golang",
@@ -231,7 +249,7 @@ def test_scrape_scan_with_mocked_jobspy():
             "user_ids": ["admin"],
             "search_id": "s1",
         }
-        res = scrape_scan(input_data)
+        res = await scrape_scan(input_data)
         assert len(res["jobs"]) == 1
         assert res["jobs"][0]["title"] == "Backend Go"
         assert res["boards"] == ["glassdoor"]
@@ -239,12 +257,13 @@ def test_scrape_scan_with_mocked_jobspy():
         assert mock_jobspy.scrape_jobs.call_count == 1
 
 
-def test_scrape_scan_board_error_resilience():
+@pytest.mark.asyncio
+async def test_scrape_scan_board_error_resilience():
     mock_jobspy = MagicMock()
     mock_jobspy.SUPPORTED_SITES = {"glassdoor", "linkedin"}
     mock_jobspy.scrape_jobs.side_effect = RuntimeError("429 Too Many Requests")
 
-    with patch("deliveries.consumer.activities.job_scrape.jobspy", mock_jobspy):
+    with patch("repository.scraper.glassdoor_jobspy.jobspy", mock_jobspy):
         input_data = {
             "board": "glassdoor",
             "keyword": "golang",
@@ -252,7 +271,7 @@ def test_scrape_scan_board_error_resilience():
             "user_ids": ["admin"],
             "search_id": "s1",
         }
-        res = scrape_scan(input_data)
+        res = await scrape_scan(input_data)
         assert len(res["jobs"]) == 0
         assert len(res["errors"]) == 1
         assert res["errors"][0]["board"] == "glassdoor"
@@ -404,7 +423,8 @@ async def test_queue_analysis_falls_back_to_individual_on_chunk_error():
         assert res["failed"] == ["job-bad"]
 
 
-def test_scrape_scan_single_target_normalized():
+@pytest.mark.asyncio
+async def test_scrape_scan_single_target_normalized():
     mock_jobspy = MagicMock()
     mock_jobspy.SUPPORTED_SITES = {"glassdoor", "linkedin"}
 
@@ -423,7 +443,7 @@ def test_scrape_scan_single_target_normalized():
 
     mock_jobspy.scrape_jobs.return_value = FakeDataFrame()
 
-    with patch("deliveries.consumer.activities.job_scrape.jobspy", mock_jobspy):
+    with patch("repository.scraper.glassdoor_jobspy.jobspy", mock_jobspy):
         input_data = {
             "board": "glassdoor",
             "keyword": "golang",
@@ -431,7 +451,7 @@ def test_scrape_scan_single_target_normalized():
             "user_ids": ["userA", "userB"],
             "search_id": "glassdoor-golang-indonesia",
         }
-        res = scrape_scan(input_data)
+        res = await scrape_scan(input_data)
         assert len(res["jobs"]) == 1
         assert res["jobs"][0]["title"] == "Backend Go Engineer"
         assert res["jobs"][0]["date_posted"] == "2026-11-12"
@@ -514,11 +534,12 @@ async def test_ingest_jobs_passes_user_ids_in_bulk():
         assert res["created_slugs"] == ["job-multi-user"]
 
 
-def test_scrape_scan_rejects_empty_board():
+@pytest.mark.asyncio
+async def test_scrape_scan_rejects_empty_board():
     with pytest.raises(ValueError, match="board is required"):
-        scrape_scan({"board": "", "keyword": "golang", "location": "indonesia"})
+        await scrape_scan({"board": "", "keyword": "golang", "location": "indonesia"})
     with pytest.raises(ValueError, match="board is required"):
-        scrape_scan({"keyword": "golang", "location": "indonesia"})
+        await scrape_scan({"keyword": "golang", "location": "indonesia"})
 
 
 @pytest.mark.asyncio
@@ -567,3 +588,100 @@ async def test_job_scrape_workflow_activities_have_retry_policy():
         assert policy.initial_interval == timedelta(seconds=2)
         assert policy.backoff_coefficient == 2.0
         assert policy.maximum_interval == timedelta(seconds=30)
+
+
+@pytest.mark.asyncio
+async def test_scrape_scan_with_scraper_service():
+    from deliveries.consumer.activities.job_scrape import init_job_scrape_container
+    from repository.scraper.base import ScraperRepository
+    from usecase.scraper.service import ScraperService
+
+    class MockScraper(ScraperRepository):
+        def __init__(self, name: str, vendor: str):
+            self.name = name
+            self.vendor = vendor
+
+        async def scrape(self, keyword: str, location: str):
+            return [
+                {
+                    "title": "Senior Go Developer",
+                    "company": "Acme",
+                    "location": "Dubai",
+                    "site": self.vendor,
+                    "date_posted": "2026-11-14",
+                }
+            ]
+
+    s_li = MockScraper("linkedin-apify-curious_coder", "linkedin")
+    service = ScraperService(
+        configured_methods={
+            "linkedin": "linkedin-apify-curious_coder",
+            "glassdoor": "",
+        },
+        scrapers={s_li.name: s_li},
+    )
+
+    mock_container = MagicMock()
+    mock_container.usecase.scraper = service
+    init_job_scrape_container(mock_container)
+
+    try:
+        # 1. Enabled board: linkedin
+        input_data = {
+            "board": "linkedin",
+            "keyword": "golang",
+            "location": "dubai",
+            "user_ids": ["admin"],
+            "search_id": "s-li-1",
+        }
+        res = await scrape_scan(input_data)
+        assert len(res["jobs"]) == 1
+        assert res["jobs"][0]["title"] == "Senior Go Developer"
+        assert res["boards"] == ["linkedin"]
+        assert len(res["errors"]) == 0
+
+        # 2. Disabled board: glassdoor -> skips and logs
+        input_disabled = {
+            "board": "glassdoor",
+            "keyword": "golang",
+            "location": "dubai",
+            "user_ids": ["admin"],
+            "search_id": "s-gd-1",
+        }
+        res_disabled = await scrape_scan(input_disabled)
+        assert len(res_disabled["jobs"]) == 0
+        assert res_disabled["boards"] == []
+        assert len(res_disabled["errors"]) == 0
+
+    finally:
+        init_job_scrape_container(None)
+
+
+@pytest.mark.asyncio
+async def test_scrape_scan_unregistered_method_error_resilience():
+    from deliveries.consumer.activities.job_scrape import init_job_scrape_container
+    from usecase.scraper.service import ScraperService
+
+    service = ScraperService(
+        configured_methods={"linkedin": "linkedin-nonexistent"},
+        scrapers={},
+    )
+    mock_container = MagicMock()
+    mock_container.usecase.scraper = service
+    init_job_scrape_container(mock_container)
+
+    try:
+        input_data = {
+            "board": "linkedin",
+            "keyword": "golang",
+            "location": "dubai",
+            "user_ids": ["admin"],
+            "search_id": "s-err",
+        }
+        res = await scrape_scan(input_data)
+        assert len(res["jobs"]) == 0
+        assert len(res["errors"]) == 1
+        assert res["errors"][0]["board"] == "linkedin"
+        assert "not registered" in res["errors"][0]["error"]
+    finally:
+        init_job_scrape_container(None)

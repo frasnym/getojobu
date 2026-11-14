@@ -13,9 +13,10 @@ from collections.abc import Callable, Coroutine
 from typing import TYPE_CHECKING, Any
 
 from config.config import Config
+from utils.logging import get_logger
+
 from contract.repository import new as repository_new
 from contract.usecase import new as usecase_new
-from utils.logging import get_logger
 
 if TYPE_CHECKING:
     from contract.repository import RepositoryContract
@@ -56,12 +57,17 @@ def new(
         return None, None, ValueError("config is required")
 
     repository_contract = repository_new(cfg)
-    usecase_contract = usecase_new(
-        api=repository_contract.api,
-        omni_base_url=cfg.omni_route.base_url,
-        omni_api_key=cfg.omni_route.api_key,
-        omni_model=cfg.omni_route.model,
-    )
+    try:
+        usecase_contract = usecase_new(
+            api=repository_contract.api,
+            omni_base_url=cfg.omni_route.base_url,
+            omni_api_key=cfg.omni_route.api_key,
+            omni_model=cfg.omni_route.model,
+            scrape_config=cfg.scrape,
+            scrapers=repository_contract.scrapers,
+        )
+    except Exception as exc:  # noqa: BLE001
+        return None, None, exc
 
     container = WorkerContainer(
         cfg=cfg,
