@@ -9,6 +9,110 @@ from typing import Any, Protocol, cast
 
 from models.evaluation import MatchEvaluationOutput
 
+# ---------------------------------------------------------------------------
+# LLM output sanitisation helpers
+#
+# LLMs sometimes return synonyms or hallucinated values for constrained
+# enum fields.  The helpers below normalise these values *before* Pydantic
+# validation so that minor schema drift does not crash the activity.
+# ---------------------------------------------------------------------------
+
+_VALID_RELATIONSHIPS = frozenset({"direct", "transferable"})
+
+# Mapping of common LLM hallucinated relationship values → valid value.
+# Values containing "transfer" are mapped to "transferable"; everything else
+# (including "gaps", "strengths", "match", etc.) defaults to "direct".
+_RELATIONSHIP_MAP: dict[str, str] = {
+    "direct": "direct",
+    "transferable": "transferable",
+    "transferable skills": "transferable",
+    "transferable skill": "transferable",
+    "indirect": "transferable",
+    "related": "transferable",
+    "partial": "transferable",
+}
+
+_VALID_STATUSES = frozenset({"met", "not_met", "uncertain"})
+
+_STATUS_MAP: dict[str, str] = {
+    "met": "met",
+    "pass": "met",
+    "passed": "met",
+    "yes": "met",
+    "satisfied": "met",
+    "fulfilled": "met",
+    "not_met": "not_met",
+    "not met": "not_met",
+    "unmet": "not_met",
+    "fail": "not_met",
+    "failed": "not_met",
+    "no": "not_met",
+    "unsatisfied": "not_met",
+    "not_satisfied": "not_met",
+    "uncertain": "uncertain",
+    "unknown": "uncertain",
+    "unclear": "uncertain",
+    "partial": "uncertain",
+    "partially": "uncertain",
+    "maybe": "uncertain",
+    "insufficient": "uncertain",
+}
+
+
+def _normalise_relationship(value: str) -> str:
+    """Map an LLM-returned relationship string to a valid literal."""
+    lowered = value.strip().lower()
+    if lowered in _VALID_RELATIONSHIPS:
+        return lowered
+    mapped = _RELATIONSHIP_MAP.get(lowered)
+    if mapped is not None:
+        return mapped
+    # Heuristic: anything containing "transfer" → transferable
+    if "transfer" in lowered:
+        return "transferable"
+    return "direct"
+
+
+def _normalise_status(value: str) -> str:
+    """Map an LLM-returned mandatory-requirement status to a valid literal."""
+    lowered = value.strip().lower()
+    if lowered in _VALID_STATUSES:
+        return lowered
+    mapped = _STATUS_MAP.get(lowered)
+    if mapped is not None:
+        return mapped
+    # Conservative default for anything we cannot classify.
+    return "uncertain"
+
+
+def _sanitise_evaluations(evaluations: list[object]) -> None:
+    """Sanitise evidence relationship values in-place."""
+    for raw_eval in evaluations:
+        if not isinstance(raw_eval, dict):
+            continue
+        eval_dict = cast(dict[str, Any], raw_eval)
+        evidence_list = eval_dict.get("evidence")
+        if not isinstance(evidence_list, list):
+            continue
+        for ev in cast(list[object], evidence_list):
+            if not isinstance(ev, dict):
+                continue
+            ev_dict = cast(dict[str, Any], ev)
+            rel = ev_dict.get("relationship")
+            if isinstance(rel, str) and rel not in _VALID_RELATIONSHIPS:
+                ev_dict["relationship"] = _normalise_relationship(rel)
+
+
+def _sanitise_mandatory_requirements(requirements: list[object]) -> None:
+    """Sanitise mandatory requirement status values in-place."""
+    for raw_req in requirements:
+        if not isinstance(raw_req, dict):
+            continue
+        req_dict = cast(dict[str, Any], raw_req)
+        status = req_dict.get("status")
+        if isinstance(status, str) and status not in _VALID_STATUSES:
+            req_dict["status"] = _normalise_status(status)
+
 
 class LLMClient(Protocol):
     """Protocol for an LLM client used to extract match evaluation."""
@@ -73,6 +177,9 @@ class EvaluateMatch:
 
         evaluations_raw = raw_output.get("evaluations", [])
         if isinstance(evaluations_raw, list):
+            # Sanitise evidence relationship values before category filtering.
+            _sanitise_evaluations(cast(list[object], evaluations_raw))
+
             eval_by_cat: dict[str, dict[str, Any]] = {}
             for raw_item in cast(list[object], evaluations_raw):
                 if not isinstance(raw_item, dict):
@@ -103,6 +210,11 @@ class EvaluateMatch:
                 ]
             else:
                 raw_output["evaluations"] = list(eval_by_cat.values())
+
+        # Sanitise mandatory requirement status values.
+        mandatory_raw = raw_output.get("mandatory_requirements", [])
+        if isinstance(mandatory_raw, list):
+            _sanitise_mandatory_requirements(cast(list[object], mandatory_raw))
 
         model = self._model if isinstance(self._model, str) else None
         if not model:
