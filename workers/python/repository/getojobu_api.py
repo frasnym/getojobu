@@ -40,6 +40,9 @@ class GetojobuAPI(Protocol):
         status: str | None = None,
         evaluation_data: dict[str, Any] | None = None,
         failure_message: str | None = None,
+        provider: str | None = None,
+        model: str | None = None,
+        **extra: Any,
     ) -> dict[str, Any]: ...
 
     async def patch_matching_evaluation_report(
@@ -225,11 +228,19 @@ class _getojobuAPI:
         status: str | None = None,
         evaluation_data: dict[str, Any] | None = None,
         failure_message: str | None = None,
+        provider: str | None = None,
+        model: str | None = None,
+        **extra: Any,
     ) -> dict[str, Any]:
         eval_status = evaluation_status or status or ""
         payload: dict[str, Any] = {"evaluation_status": eval_status}
         if evaluation_data is not None:
-            payload["evaluation_data"] = evaluation_data
+            eval_copy = dict(evaluation_data)
+            if provider and "provider" not in eval_copy:
+                eval_copy["provider"] = provider
+            if model and "model" not in eval_copy:
+                eval_copy["model"] = model
+            payload["evaluation_data"] = eval_copy
         if failure_message is not None:
             payload["failure_message"] = failure_message
 

@@ -362,6 +362,45 @@ async def test_patch_matching_evaluation_success():
 
 
 @pytest.mark.asyncio
+async def test_patch_matching_evaluation_with_provider_and_model_success():
+    eval_id = "11111111-2222-3333-4444-555555555555"
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.headers["authorization"] == "Bearer secret-key"
+        assert request.url.path == f"/v1/matching-evaluations/{eval_id}"
+        assert request.method == "PATCH"
+        body = json.loads(request.content.decode("utf-8"))
+        assert body["evaluation_status"] == "success"
+        assert body["evaluation_data"]["provider"] == "omniroute"
+        assert body["evaluation_data"]["model"] == "use-combo"
+        return httpx.Response(
+            200,
+            json={
+                "success": True,
+                "data": {
+                    "id": eval_id,
+                    "status": "success",
+                },
+                "error": None,
+            },
+        )
+
+    api = NewGetojobuAPI(base_url="http://testserver", api_key="secret-key")
+    api._client = _mock_transport(handler)
+
+    res = await api.patch_matching_evaluation(
+        eval_id,
+        status="success",
+        evaluation_data={"evaluations": []},
+        provider="omniroute",
+        model="use-combo",
+    )
+    assert res["id"] == eval_id
+    assert res["status"] == "success"
+    await api.aclose()
+
+
+@pytest.mark.asyncio
 async def test_trigger_bulk_analyze_compatibility_success():
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.headers["authorization"] == "Bearer secret-key"

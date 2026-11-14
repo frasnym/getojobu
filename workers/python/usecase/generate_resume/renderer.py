@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+import sys
 from typing import Any, Protocol, cast
 
 from models.resume import ResumeDraft
@@ -32,6 +34,12 @@ def render_pdf(
     facts: dict[str, Any] | None = None,
 ) -> bytes:
     """Render a PDF when WeasyPrint is installed, without importing it at startup."""
+    if sys.platform == "darwin":
+        cur_fallback = os.environ.get("DYLD_FALLBACK_LIBRARY_PATH", "")
+        if "/opt/homebrew/lib" not in cur_fallback:
+            os.environ["DYLD_FALLBACK_LIBRARY_PATH"] = (
+                f"/opt/homebrew/lib:{cur_fallback}".rstrip(":")
+            )
     try:
         from weasyprint import HTML
     except (ImportError, OSError) as exc:
