@@ -13,6 +13,7 @@ from typing import Any
 from openai import AsyncOpenAI
 
 from models.evaluation import MatchEvaluationOutput
+from utils.json import parse_llm_json
 
 _PROMPTS_DIR = Path(__file__).resolve().parents[2] / "prompts"
 
@@ -69,7 +70,7 @@ class OpenAIClient:
         if not content:
             raise RuntimeError("extract match evaluation: empty LLM response")
 
-        return json.loads(content)
+        return parse_llm_json(content)
 
     def _render_prompt(
         self,

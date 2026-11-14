@@ -8,6 +8,8 @@ from typing import Any, cast
 
 from openai import AsyncOpenAI
 
+from utils.json import parse_llm_json
+
 _PROMPTS_DIR = Path(__file__).resolve().parents[2] / "prompts"
 
 
@@ -78,7 +80,7 @@ class OpenAIResumeClient:
         content = response.choices[0].message.content
         if not content:
             raise RuntimeError(f"{schema_name}: empty LLM response")
-        parsed = json.loads(content)
+        parsed = parse_llm_json(content)
         if not isinstance(parsed, dict):
             raise TypeError(f"{schema_name}: expected dict, got {type(parsed)}")
         return cast(dict[str, Any], parsed)

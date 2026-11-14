@@ -7,13 +7,13 @@ to match the JobAnalysis schema. No manual json.loads() needed.
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from typing import Any
 
 from openai import AsyncOpenAI
 
 from models.job_analysis import JobAnalysis
+from utils.json import parse_llm_json
 
 _PROMPTS_DIR = Path(__file__).resolve().parents[2] / "prompts"
 
@@ -62,7 +62,7 @@ class OpenAIClient:
             raise RuntimeError("extract job analysis: empty LLM response")
 
         # OmniRoute returns structured output as a JSON string.
-        return json.loads(content)
+        return parse_llm_json(content)
 
     def _render_prompt(self, prompt_version: str, job_description: str) -> str:
         template_path = _PROMPTS_DIR / f"{prompt_version}.txt"
