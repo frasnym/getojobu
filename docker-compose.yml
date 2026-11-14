@@ -36,6 +36,8 @@ services:
     command: ["python", "-m", "worker.main"]
     env_file:
       - /srv/apps/getojobu/workers/python/config/.env  # loaded via env_file so os.Getenv() works (vault-synced)
+    volumes:
+      - getojobu_worker_data:/var/lib/job-scrape
     networks:
       - web
 

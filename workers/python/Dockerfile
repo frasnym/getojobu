@@ -42,7 +42,7 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 COPY --from=builder /app .
 
 # Set permissions
-RUN chown -R appuser:appuser /app
+RUN mkdir -p /var/lib/job-scrape && chown -R appuser:appuser /var/lib/job-scrape /app
 
 USER appuser
 
