@@ -19,8 +19,8 @@ class ReportGap(BaseModel):
     suggestion: str | None = None
 
 
-class MatchReportOutput(BaseModel):
-    """Full candidate-facing match report output."""
+class MatchReportExtraction(BaseModel):
+    """Pure LLM structured output for Step 4 Match Report Generation."""
 
     job_title: str = Field(..., min_length=1)
     summary: str = Field(..., min_length=1)
@@ -30,5 +30,10 @@ class MatchReportOutput(BaseModel):
     cv_improvements: list[str] = Field(default_factory=list[str])
     learning_recommendations: list[str] = Field(default_factory=list[str])
     interview_preparation: list[str] = Field(default_factory=list[str])
+
+
+class MatchReportOutput(MatchReportExtraction):
+    """Full candidate-facing match report output including policy and prompt metadata."""
+
     report_prompt_version: str = Field(default="generate-report-v1")
     recommendation_policy_version: str = Field(default="deterministic-v1")

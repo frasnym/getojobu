@@ -6,10 +6,13 @@ import json
 from pathlib import Path
 from typing import Any
 
+from models.report import MatchReportExtraction
 from openai import AsyncOpenAI
-
-from models.report import MatchReportOutput
 from utils.json import parse_llm_json
+from utils.prompt_sanitizer import (
+    sanitize_evaluation_results,
+    sanitize_job_profile,
+)
 
 _PROMPTS_DIR = Path(__file__).resolve().parents[2] / "prompts"
 
@@ -62,7 +65,7 @@ class OpenAIReportClient:
                 "type": "json_schema",
                 "json_schema": {
                     "name": "match_report",
-                    "schema": MatchReportOutput.model_json_schema(),
+                    "schema": MatchReportExtraction.model_json_schema(),
                     "strict": True,
                 },
             },
@@ -92,8 +95,10 @@ class OpenAIReportClient:
 
         placeholders = {
             "{{candidate_profile}}": json.dumps(candidate_profile, indent=2),
-            "{{job_profile}}": json.dumps(job_profile, indent=2),
-            "{{evaluation_results}}": json.dumps(evaluation_results, indent=2),
+            "{{job_profile}}": json.dumps(sanitize_job_profile(job_profile), indent=2),
+            "{{evaluation_results}}": json.dumps(
+                sanitize_evaluation_results(evaluation_results), indent=2
+            ),
             "{{overall_score}}": str(overall_score),
             "{{eligibility_status}}": eligibility_status,
             "{{recommendation_label}}": recommendation_label,

@@ -30,13 +30,9 @@ class JobRequirement(BaseModel):
         return v
 
 
-class JobAnalysis(BaseModel):
-    """Normalized job description output of Step 1B (extract-job-v1)."""
+class JobExtractionOutput(BaseModel):
+    """Normalized job description output extracted by LLM in Step 1B (extract-job-v1)."""
 
-    id: str | UUID = Field(default_factory=uuid4)
-    job_id: str | None = None  # reference to shared jobs table slug/id
-    version: int = 1
-    schema_version: str = "1.0"
     family: str  # technology | administration | ... | other
     title: str | None = None
     company: str | None = None
@@ -49,20 +45,6 @@ class JobAnalysis(BaseModel):
     minimum_years_experience: int | None = Field(default=None, ge=0)
     requirements: list[JobRequirement] = []
     responsibilities: list[str] = []
-    profile_data: dict[str, Any] = {}  # raw normalized JSONB payload
-    prompt_version: str = "extract-job-v1"
-    model: str | None = None
-    created_at: datetime | None = None
-
-    @field_validator("id", mode="before")
-    @classmethod
-    def _validate_id(cls, v: Any) -> Any:
-        if isinstance(v, str):
-            try:
-                return UUID(v)
-            except ValueError:
-                return v
-        return v
 
     @field_validator("family")
     @classmethod
@@ -101,4 +83,27 @@ class JobAnalysis(BaseModel):
         }
         if v not in allowed:
             raise ValueError(f"seniority must be one of {sorted(allowed)}")
+        return v
+
+
+class JobAnalysis(JobExtractionOutput):
+    """Full domain model for job analysis including database/workflow metadata."""
+
+    id: str | UUID = Field(default_factory=uuid4)
+    job_id: str | None = None  # reference to shared jobs table slug/id
+    version: int = 1
+    schema_version: str = "1.0"
+    profile_data: dict[str, Any] = {}  # raw normalized JSONB payload
+    prompt_version: str = "extract-job-v1"
+    model: str | None = None
+    created_at: datetime | None = None
+
+    @field_validator("id", mode="before")
+    @classmethod
+    def _validate_id(cls, v: Any) -> Any:
+        if isinstance(v, str):
+            try:
+                return UUID(v)
+            except ValueError:
+                return v
         return v

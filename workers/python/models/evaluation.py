@@ -39,8 +39,8 @@ class MandatoryRequirementAssessment(BaseModel):
     evidence: list[str] = Field(default_factory=list[str])
 
 
-class MatchEvaluationOutput(BaseModel):
-    """Full structured output of the Step 2 LLM compatibility evaluation."""
+class MatchEvaluationExtraction(BaseModel):
+    """Pure LLM structured output for Step 2 Compatibility Evaluation."""
 
     evaluations: list[CategoryEvaluation] = Field(
         default_factory=list[CategoryEvaluation]
@@ -48,6 +48,11 @@ class MatchEvaluationOutput(BaseModel):
     mandatory_requirements: list[MandatoryRequirementAssessment] = Field(
         default_factory=list[MandatoryRequirementAssessment]
     )
+
+
+class MatchEvaluationOutput(MatchEvaluationExtraction):
+    """Full domain model for Step 2 compatibility evaluation including execution metadata."""
+
     prompt_version: str = Field(default="evaluate-match-v1")
     model: str | None = None
     provider: str | None = None

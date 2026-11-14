@@ -3,7 +3,9 @@
 Mirrors the backend's model validation patterns.
 """
 
-from models.job_analysis import JobAnalysis, JobRequirement
+import pytest
+from models.job_analysis import JobAnalysis, JobExtractionOutput, JobRequirement
+from pydantic import ValidationError
 
 
 def test_job_analysis_minimal():
@@ -19,6 +21,24 @@ def test_job_analysis_minimal():
     assert analysis.requirements == []
 
 
+def test_job_extraction_output_schema_excludes_metadata():
+    schema = JobExtractionOutput.model_json_schema()
+    props = schema["properties"]
+    assert "id" not in props
+    assert "job_id" not in props
+    assert "version" not in props
+    assert "schema_version" not in props
+    assert "profile_data" not in props
+    assert "prompt_version" not in props
+    assert "model" not in props
+    assert "created_at" not in props
+
+    assert "family" in props
+    assert "seniority" in props
+    assert "requirements" in props
+    assert "responsibilities" in props
+
+
 def test_job_analysis_accepts_slug_or_custom_string_id():
     raw = {
         "id": "job-motorola-sw-newgrad",
@@ -31,6 +51,26 @@ def test_job_analysis_accepts_slug_or_custom_string_id():
     assert analysis.id == "job-motorola-sw-newgrad"
     assert analysis.family == "technology"
     assert analysis.seniority == "entry"
+
+
+def test_job_analysis_rejects_none_id():
+    raw_none = {
+        "id": None,
+        "family": "technology",
+        "seniority": "mid",
+    }
+    with pytest.raises(ValidationError):
+        JobAnalysis.model_validate(raw_none)
+
+
+def test_job_extraction_output_rejects_none_requirements():
+    raw = {
+        "family": "technology",
+        "seniority": "mid",
+        "requirements": None,
+    }
+    with pytest.raises(ValidationError):
+        JobExtractionOutput.model_validate(raw)
 
 
 def test_job_analysis_with_requirements():

@@ -10,9 +10,10 @@ import json
 from pathlib import Path
 from typing import Any
 
-from models.evaluation import MatchEvaluationOutput
+from models.evaluation import MatchEvaluationExtraction
 from openai import AsyncOpenAI
 from utils.json import parse_llm_json
+from utils.prompt_sanitizer import sanitize_job_profile
 
 _PROMPTS_DIR = Path(__file__).resolve().parents[2] / "prompts"
 
@@ -62,7 +63,7 @@ class OpenAIClient:
         else:
             user_content = "Evaluate the candidate profile against the job profile and evaluation configuration according to your instructions."
 
-        schema = MatchEvaluationOutput.model_json_schema()
+        schema = MatchEvaluationExtraction.model_json_schema()
         if (
             category_names
             and "$defs" in schema
@@ -125,7 +126,7 @@ class OpenAIClient:
             "{{candidate_profile}}", json.dumps(candidate_profile, indent=2)
         )
         rendered = rendered.replace(
-            "{{job_profile}}", json.dumps(job_profile, indent=2)
+            "{{job_profile}}", json.dumps(sanitize_job_profile(job_profile), indent=2)
         )
         rendered = rendered.replace(
             "{{evaluation_config}}", json.dumps(evaluation_config, indent=2)

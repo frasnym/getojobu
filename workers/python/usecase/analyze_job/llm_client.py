@@ -10,9 +10,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from models.job_analysis import JobExtractionOutput
 from openai import AsyncOpenAI
-
-from models.job_analysis import JobAnalysis
 from utils.json import parse_llm_json
 
 _PROMPTS_DIR = Path(__file__).resolve().parents[2] / "prompts"
@@ -51,7 +50,7 @@ class OpenAIClient:
                 "type": "json_schema",
                 "json_schema": {
                     "name": "job_analysis",
-                    "schema": JobAnalysis.model_json_schema(),
+                    "schema": JobExtractionOutput.model_json_schema(),
                     "strict": True,
                 },
             },

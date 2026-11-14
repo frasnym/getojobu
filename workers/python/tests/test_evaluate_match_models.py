@@ -1,14 +1,14 @@
 """Tests for Step 2 evaluation domain models."""
 
 import pytest
-from pydantic import ValidationError
-
 from models.evaluation import (
     CategoryEvaluation,
     CategoryEvidence,
     MandatoryRequirementAssessment,
+    MatchEvaluationExtraction,
     MatchEvaluationOutput,
 )
+from pydantic import ValidationError
 
 
 def test_category_evidence_valid() -> None:
@@ -104,3 +104,13 @@ def test_match_evaluation_output_roundtrip() -> None:
     assert "properties" in schema
     assert "evaluations" in schema["properties"]
     assert "mandatory_requirements" in schema["properties"]
+
+
+def test_match_evaluation_extraction_schema_excludes_metadata() -> None:
+    schema = MatchEvaluationExtraction.model_json_schema()
+    props = schema["properties"]
+    assert "evaluations" in props
+    assert "mandatory_requirements" in props
+    assert "prompt_version" not in props
+    assert "model" not in props
+    assert "provider" not in props

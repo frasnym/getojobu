@@ -15,7 +15,7 @@ from __future__ import annotations
 from typing import Any, Protocol
 
 import httpx
-from models.job_analysis import JobAnalysis
+from models.job_analysis import JobAnalysis, JobExtractionOutput
 from repository.getojobu_api import GetojobuAPI
 from utils.logging import get_logger
 
@@ -144,14 +144,16 @@ class AnalyzeJob:
             prompt_version=self._prompt_version,
         )
 
-        analysis = JobAnalysis.model_validate(raw)
-        if job_id:
-            analysis.job_id = job_id
+        extraction = JobExtractionOutput.model_validate(raw)
         model = self._model if isinstance(self._model, str) else None
         if not model:
             val = getattr(self._llm, "_model", None)
             if isinstance(val, str):
                 model = val
-        analysis.model = model
-        analysis.prompt_version = self._prompt_version
-        return analysis
+
+        return JobAnalysis(
+            **extraction.model_dump(),
+            job_id=job_id if job_id else None,
+            model=model,
+            prompt_version=self._prompt_version,
+        )

@@ -3,9 +3,8 @@
 from unittest.mock import AsyncMock
 
 import pytest
+from models.report import MatchReportExtraction, MatchReportOutput
 from pydantic import ValidationError
-
-from models.report import MatchReportOutput
 from usecase.generate_report.service import GenerateReport
 
 
@@ -54,6 +53,17 @@ async def test_generate_report_success() -> None:
     assert result.recommendation_policy_version == "deterministic-v1"
     assert not hasattr(result, "provider")
     assert not hasattr(result, "model")
+
+
+def test_match_report_extraction_schema_excludes_metadata() -> None:
+    schema = MatchReportExtraction.model_json_schema()
+    props = schema["properties"]
+    assert "job_title" in props
+    assert "summary" in props
+    assert "strengths" in props
+    assert "gaps" in props
+    assert "report_prompt_version" not in props
+    assert "recommendation_policy_version" not in props
 
 
 @pytest.mark.asyncio
