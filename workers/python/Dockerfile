@@ -21,6 +21,14 @@ COPY . .
 # Runtime stage
 FROM python:3.11-slim
 
+# Install runtime system dependencies for WeasyPrint
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpango-1.0-0 \
+    libharfbuzz0b \
+    libpangoft2-1.0-0 \
+    fonts-liberation \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
 # Create non-root user for security
