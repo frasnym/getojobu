@@ -10,13 +10,8 @@ from typing import Any
 
 # Metadata keys that should never be sent to the LLM in job_profile
 _INTERNAL_JOB_KEYS: set[str] = {
-    "id",
-    "job_id",
-    "version",
-    "schema_version",
     "prompt_version",
     "model",
-    "created_at",
 }
 
 # Metadata keys that should never be sent to the LLM in evaluation_results

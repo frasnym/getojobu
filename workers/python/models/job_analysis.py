@@ -5,8 +5,6 @@ validation. Uses pydantic so LLM JSON output can be parsed and validated
 in one step.
 """
 
-from datetime import datetime
-
 from pydantic import BaseModel, Field, field_validator
 
 
@@ -87,8 +85,5 @@ class JobExtractionOutput(BaseModel):
 class JobAnalysis(JobExtractionOutput):
     """Full domain model for job analysis including database/workflow metadata."""
 
-    version: int = 1
-    schema_version: str = "1.0"
     prompt_version: str = "extract-job-v1"
     model: str | None = None
-    created_at: datetime | None = None

@@ -5,13 +5,8 @@ from utils.prompt_sanitizer import sanitize_evaluation_results, sanitize_job_pro
 
 def test_sanitize_job_profile_strips_internal_metadata():
     raw_job = {
-        "id": "e0b8d3a1-1234-5678-90ab-cdef12345678",
-        "job_id": "job-motorola-sw-newgrad",
-        "version": 1,
-        "schema_version": "1.0",
         "prompt_version": "extract-job-v1",
         "model": "gpt-4o-mini",
-        "created_at": None,
         "title": "Software Engineer",
         "company": "Motorola Solutions",
         "location": "Chicago, IL",
@@ -34,13 +29,8 @@ def test_sanitize_job_profile_strips_internal_metadata():
     sanitized = sanitize_job_profile(raw_job)
 
     # Internal metadata keys must be removed
-    assert "id" not in sanitized
-    assert "job_id" not in sanitized
-    assert "version" not in sanitized
-    assert "schema_version" not in sanitized
     assert "prompt_version" not in sanitized
     assert "model" not in sanitized
-    assert "created_at" not in sanitized
 
     # Substantive job details must be preserved
     assert sanitized["title"] == "Software Engineer"

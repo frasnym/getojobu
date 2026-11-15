@@ -17,7 +17,6 @@ def test_job_analysis_minimal():
     )
     assert analysis.family == "technology"
     assert analysis.seniority == "senior"
-    assert analysis.version == 1
     assert analysis.requirements == []
 
 
