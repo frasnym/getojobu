@@ -132,9 +132,11 @@ func envLogLevel(name string, defaultValue slog.Level) slog.Level {
 }
 
 // envStringSlice reads name from the environment and splits it by sep,
-// returning an empty slice when unset. Empty entries are trimmed and dropped.
+// returning nil when unset or empty. The whole value is trimmed first so a
+// whitespace-only value is treated as unset. Empty entries are trimmed and
+// dropped; if nothing remains the result is nil.
 func envStringSlice(name, sep string) []string {
-	v := os.Getenv(name)
+	v := strings.TrimSpace(os.Getenv(name))
 	if v == "" {
 		return nil
 	}
@@ -144,6 +146,9 @@ func envStringSlice(name, sep string) []string {
 		if p = strings.TrimSpace(p); p != "" {
 			result = append(result, p)
 		}
+	}
+	if len(result) == 0 {
+		return nil
 	}
 	return result
 }
