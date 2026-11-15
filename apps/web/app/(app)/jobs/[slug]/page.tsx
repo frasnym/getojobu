@@ -2,6 +2,7 @@
 
 import React, { use, useState, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import { useAuth } from "@clerk/nextjs";
 import { useJobDetail } from "@/hooks/use-job-detail";
 import { JobReportHeader, ReportTab } from "@/components/jobs/job-report-header";
 import { JobDetailTab } from "@/components/jobs/job-detail-tab";
@@ -25,13 +26,18 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
 
   const tabParam = searchParams.get("tab") as ReportTab | null;
   const [activeTab, setActiveTab] = useState<ReportTab>("report");
+  const { getToken } = useAuth();
   const [report, setReport] = useState<MatchReport | null>(null);
 
   useEffect(() => {
     if (job?.latest_evaluation?.id) {
-      getMatchReport(job.latest_evaluation.id).then(setReport).catch(() => {});
+      getToken().then((token) => {
+        getMatchReport(job.latest_evaluation!.id, token)
+          .then(setReport)
+          .catch(() => {});
+      });
     }
-  }, [job?.latest_evaluation?.id]);
+  }, [job?.latest_evaluation?.id, getToken]);
 
   useEffect(() => {
     if (tabParam && ["details", "report", "resume"].includes(tabParam)) {

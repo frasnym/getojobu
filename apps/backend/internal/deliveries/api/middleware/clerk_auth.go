@@ -56,6 +56,7 @@ func (a *authMiddleware) ValidClerkSession(next http.Handler) http.Handler {
 			Token: token,
 		})
 		if err != nil {
+			logging.Error(r.Context(), "clerk jwt verification failed", err)
 			httpx.Envelope(httpx.CodeUnauthorized, "invalid token", "").WriteJSON(w)
 			return
 		}

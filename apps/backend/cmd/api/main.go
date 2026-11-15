@@ -21,6 +21,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/clerk/clerk-sdk-go/v2"
+
 	"github.com/frasnym/getojobu/apps/backend/internal/config"
 	"github.com/frasnym/getojobu/apps/backend/internal/contract"
 	"github.com/frasnym/getojobu/apps/backend/internal/deliveries/api"
@@ -43,6 +45,13 @@ func run() error {
 	cfg, err := config.Load()
 	if err != nil {
 		return err
+	}
+
+	// Initialize Clerk SDK with the configured secret key for JWT session verification.
+	if cfg.Clerk.SecretKey != "" {
+		clerk.SetKey(cfg.Clerk.SecretKey)
+	} else {
+		logging.Warn(context.Background(), "CLERK_SECRET_KEY is empty; Clerk JWT verification will fail")
 	}
 
 	// Swagger host: public API domain in production, localhost in local dev.

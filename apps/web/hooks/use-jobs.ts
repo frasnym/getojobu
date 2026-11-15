@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useAuth } from "@clerk/nextjs";
 import { Job } from "@/lib/api/types";
 import { getJobs } from "@/lib/api/endpoints";
 
@@ -26,7 +27,8 @@ export function filterJobs(jobs: Job[], query: string, status: StatusFilter): Jo
   });
 }
 
-export function useJobs(token?: string | null) {
+export function useJobs(explicitToken?: string | null) {
+  const { getToken, isLoaded } = useAuth();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
@@ -35,30 +37,39 @@ export function useJobs(token?: string | null) {
 
   useEffect(() => {
     let mounted = true;
+
+    // Wait until Clerk auth state is loaded if no explicit token was passed
+    if (explicitToken === undefined && !isLoaded) {
+      return;
+    }
+
     setLoading(true);
 
-    getJobs(token)
-      .then((data) => {
+    const load = async () => {
+      try {
+        const token = explicitToken !== undefined ? explicitToken : await getToken();
+        const data = await getJobs(token);
         if (mounted) {
           setJobs(data);
           setError(null);
         }
-      })
-      .catch((err) => {
+      } catch (err: any) {
         if (mounted) {
           setError(err);
         }
-      })
-      .finally(() => {
+      } finally {
         if (mounted) {
           setLoading(false);
         }
-      });
+      }
+    };
+
+    load();
 
     return () => {
       mounted = false;
     };
-  }, [token]);
+  }, [explicitToken, isLoaded, getToken]);
 
   const filteredJobs = useMemo(
     () => filterJobs(jobs, searchQuery, statusFilter),

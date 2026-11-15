@@ -28,8 +28,21 @@ export async function apiClient<T>(path: string, options: FetchOptions = {}): Pr
   const headers = new Headers(customHeaders);
   headers.set("Content-Type", "application/json");
 
-  if (token) {
-    headers.set("Authorization", `Bearer ${token}`);
+  let authToken = token;
+  // If no token was explicitly passed, attempt to retrieve from global Clerk session
+  if (!authToken && typeof window !== "undefined") {
+    try {
+      const clerk = (window as any).Clerk;
+      if (clerk?.session) {
+        authToken = await clerk.session.getToken();
+      }
+    } catch (e) {
+      console.warn("Could not retrieve Clerk token from window.Clerk:", e);
+    }
+  }
+
+  if (authToken) {
+    headers.set("Authorization", `Bearer ${authToken}`);
   }
 
   const baseUrl = getBaseUrl();

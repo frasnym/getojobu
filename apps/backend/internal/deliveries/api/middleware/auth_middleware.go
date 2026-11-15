@@ -4,6 +4,8 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/clerk/clerk-sdk-go/v2"
+
 	"github.com/frasnym/getojobu/apps/backend/internal/config"
 	ucUsers "github.com/frasnym/getojobu/apps/backend/internal/usecase/users"
 )
@@ -40,6 +42,9 @@ type authMiddleware struct {
 // NewAuthMiddleware creates an auth middleware instance from config and
 // identity services.
 func NewAuthMiddleware(cfg *config.Config, userUC ucUsers.User) AuthMiddleware {
+	if cfg != nil && cfg.Clerk.SecretKey != "" {
+		clerk.SetKey(cfg.Clerk.SecretKey)
+	}
 	return &authMiddleware{
 		cfg:    cfg,
 		userUC: userUC,
