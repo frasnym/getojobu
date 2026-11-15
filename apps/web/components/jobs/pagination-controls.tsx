@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 
 export interface PaginationControlsProps {
   page: number;
@@ -77,6 +77,17 @@ export function PaginationControls({
           <button
             type="button"
             disabled={!hasPrev || disabled}
+            onClick={() => onPageChange(1)}
+            aria-label="First page"
+            className="inline-flex items-center gap-1 rounded-lg border border-border bg-card px-2.5 py-1 text-xs font-semibold text-foreground transition-colors hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <ChevronsLeft className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">First</span>
+          </button>
+
+          <button
+            type="button"
+            disabled={!hasPrev || disabled}
             onClick={() => onPageChange(page - 1)}
             aria-label="Previous page"
             className="inline-flex items-center gap-1 rounded-lg border border-border bg-card px-2.5 py-1 text-xs font-semibold text-foreground transition-colors hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-40"
@@ -99,6 +110,17 @@ export function PaginationControls({
           >
             <span className="hidden sm:inline">Next</span>
             <ChevronRight className="h-3.5 w-3.5" />
+          </button>
+
+          <button
+            type="button"
+            disabled={!hasNext || disabled}
+            onClick={() => onPageChange(totalPages)}
+            aria-label="Last page"
+            className="inline-flex items-center gap-1 rounded-lg border border-border bg-card px-2.5 py-1 text-xs font-semibold text-foreground transition-colors hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <span className="hidden sm:inline">Last</span>
+            <ChevronsRight className="h-3.5 w-3.5" />
           </button>
         </div>
       </div>

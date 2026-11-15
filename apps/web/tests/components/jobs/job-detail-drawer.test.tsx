@@ -46,10 +46,14 @@ describe("JobDetailDrawer component", () => {
 
     expect(screen.getByRole("dialog")).toBeInTheDocument();
     expect(screen.getByText("Systems Lead")).toBeInTheDocument();
-    expect(screen.getByText("Datadog")).toBeInTheDocument();
+    // Company appears in header badge + summary grid
+    expect(screen.getAllByText("Datadog")).toHaveLength(2);
+    // Location appears in header + summary grid
+    expect(screen.getAllByText("New York, NY")).toHaveLength(2);
+    expect(screen.getByText("On-site / Hybrid")).toBeInTheDocument();
     expect(screen.getByText("Detailed description of the systems role.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Save to My Job/i })).toBeInTheDocument();
-    expect(screen.getByText("Apply Externally")).toBeInTheDocument();
+    expect(screen.getByText("Apply on Company Site")).toBeInTheDocument();
 
     const saveBtn = screen.getByRole("button", { name: /Save to My Job/i });
     fireEvent.click(saveBtn);
@@ -67,7 +71,7 @@ describe("JobDetailDrawer component", () => {
       <JobDetailDrawer job={jobWithSourceOnly} isOpen={true} onClose={() => {}} />
     );
 
-    const applyLink = screen.getByText("Apply Externally").closest("a");
+    const applyLink = screen.getByText("Apply on Company Site").closest("a");
     expect(applyLink).toHaveAttribute("href", "https://example.com/job");
   });
 
@@ -79,7 +83,7 @@ describe("JobDetailDrawer component", () => {
     );
 
     expect(screen.getByText("No application link available")).toBeInTheDocument();
-    expect(screen.queryByText("Apply Externally")).not.toBeInTheDocument();
+    expect(screen.queryByText("Apply on Company Site")).not.toBeInTheDocument();
   });
 
   it("renders Saved in My Jobs indicator and workspace link when is_owned is true", () => {
