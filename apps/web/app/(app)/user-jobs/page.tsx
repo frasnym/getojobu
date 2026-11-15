@@ -1,11 +1,16 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { useAuth } from "@clerk/nextjs";
 import { useUserJobs } from "@/hooks/use-user-jobs";
 import { JobCard } from "@/components/jobs/job-card";
 import { JobFilters } from "@/components/jobs/job-filters";
 import { PaginationControls } from "@/components/jobs/pagination-controls";
+import { JobDetailDrawer } from "@/components/jobs/job-detail-drawer";
+import { ReportTab } from "@/components/jobs/job-report-header";
+import { triggerJobCompatibility } from "@/lib/api/endpoints";
+import { EvaluationSummary } from "@/lib/api/types";
 import { Sparkles, Briefcase, Compass } from "lucide-react";
 
 export default function UserJobsPage() {
@@ -25,6 +30,44 @@ export default function UserJobsPage() {
     remoteOnly,
     setRemoteOnly,
   } = useUserJobs();
+
+  const { getToken } = useAuth();
+
+  const [selectedJob, setSelectedJob] = useState<import("@/lib/api/types").Job | null>(null);
+  const [activeTab, setActiveTab] = useState<ReportTab>("details");
+  const [evalId, setEvalId] = useState<string | null>(null);
+  const [evaluating, setEvaluating] = useState(false);
+
+  const handleAnalyze = async (force: boolean) => {
+    if (!selectedJob) return;
+    setEvaluating(true);
+    try {
+      const token = await getToken();
+      const summary = await triggerJobCompatibility(selectedJob.slug, force, token);
+      if (summary?.id) {
+        setEvalId(String(summary.id));
+      }
+    } catch (err) {
+      console.error("Evaluation trigger failed:", err);
+    } finally {
+      setEvaluating(false);
+    }
+  };
+
+  const handleTabChange = (tab: ReportTab) => {
+    setActiveTab(tab);
+  };
+
+  useEffect(() => {
+    if (["details", "report", "resume"].includes(activeTab)) {
+      // keep the drawer tab in sync with local state only; no URL navigation needed inside a drawer
+    }
+  }, [activeTab]);
+
+  const handleClose = () => {
+    setSelectedJob(null);
+    setActiveTab("details");
+  };
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 space-y-6">
@@ -116,7 +159,12 @@ export default function UserJobsPage() {
       {!loading && !error && filteredJobs.length > 0 && (
         <div className="grid gap-3 sm:grid-cols-1">
           {filteredJobs.map((job) => (
-            <JobCard key={job.id} job={job} href={`/user-jobs/${job.slug}`} />
+            <JobCard
+              key={job.id}
+              job={job}
+              onSelect={setSelectedJob}
+              isSelected={selectedJob?.slug === job.slug}
+            />
           ))}
         </div>
       )}
@@ -135,6 +183,19 @@ export default function UserJobsPage() {
           limitOptions={[10, 20, 50]}
         />
       )}
+
+      {/* Workspace drawer pop-up (opens on card click instead of a new page) */}
+      <JobDetailDrawer
+        job={selectedJob}
+        isOpen={!!selectedJob}
+        onClose={handleClose}
+        activeTab={activeTab}
+        onTabChange={handleTabChange}
+        evalId={evalId}
+        evaluating={evaluating}
+        onAnalyzeClick={() => handleAnalyze(false)}
+        showOwnedActions={false}
+      />
     </div>
   );
 }

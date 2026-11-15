@@ -8,6 +8,7 @@ import { JobReportHeader, ReportTab } from "@/components/jobs/job-report-header"
 import { JobDetailTab } from "@/components/jobs/job-detail-tab";
 import { MatchReportTab } from "@/components/matching/match-report-tab";
 import { ResumeTab } from "@/components/resume/resume-tab";
+import { JobDetailDrawer } from "@/components/jobs/job-detail-drawer";
 import { AlertCircle } from "lucide-react";
 
 interface UserJobDetailPageProps {
@@ -23,6 +24,7 @@ export default function UserJobDetailPage({ params }: UserJobDetailPageProps) {
     useJobDetail(slug);
 
   const tabParam = searchParams.get("tab") as ReportTab | null;
+  const openDrawer = searchParams.get("openDrawer") === "1";
   const [activeTab, setActiveTab] = useState<ReportTab>("details");
   const { getToken } = useAuth();
   const [evalId, setEvalId] = useState<string | null>(null);
@@ -42,7 +44,14 @@ export default function UserJobDetailPage({ params }: UserJobDetailPageProps) {
 
   const handleTabChange = (tab: ReportTab) => {
     setActiveTab(tab);
-    router.replace(`/user-jobs/${slug}?tab=${tab}`);
+    // Inside the drawer pop-up there is no page URL to sync; keep the tab in local state only.
+    if (!openDrawer) {
+      router.replace(`/user-jobs/${slug}?tab=${tab}`);
+    }
+  };
+
+  const handleDrawerClose = () => {
+    router.push("/user-jobs");
   };
 
   if (loading) {
@@ -64,6 +73,24 @@ export default function UserJobDetailPage({ params }: UserJobDetailPageProps) {
         <p className="mt-2 text-sm text-muted-foreground">
           {error?.message || "The requested job opportunity could not be found."}
         </p>
+      </div>
+    );
+  }
+
+  // Open the workspace drawer directly on this page (used by "Open Evaluation Workspace →").
+  if (openDrawer) {
+    return (
+      <div className="min-h-screen bg-background">
+        <JobDetailDrawer
+          job={job}
+          isOpen={true}
+          onClose={handleDrawerClose}
+          activeTab={activeTab}
+          onTabChange={handleTabChange}
+          evalId={evalId || undefined}
+          evaluating={evaluating}
+          onAnalyzeClick={() => handleAnalyze(false)}
+        />
       </div>
     );
   }

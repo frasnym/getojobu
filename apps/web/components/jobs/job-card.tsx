@@ -7,13 +7,23 @@ import { statusBadgeClasses } from "@/hooks/use-jobs";
 interface JobCardProps {
   job: Job;
   href?: string;
+  onSelect?: (job: Job) => void;
+  isSelected?: boolean;
 }
 
-export function JobCard({ job, href }: JobCardProps) {
+export function JobCard({ job, href, onSelect, isSelected }: JobCardProps) {
   const targetHref = href || `/user-jobs/${job.slug}`;
+  const isClickable = !!onSelect;
 
   return (
-    <div className="group relative rounded-xl border border-border/60 bg-card p-5 transition-all duration-200 hover:border-border hover:shadow-md hover:shadow-primary/5">
+    <div
+      onClick={isClickable ? () => onSelect(job) : undefined}
+      className={`group relative rounded-xl border p-5 transition-all duration-200 ${
+        isSelected
+          ? "border-primary bg-primary/5 shadow-md shadow-primary/5 ring-1 ring-primary/30"
+          : "border-border/60 bg-card hover:border-border hover:shadow-md hover:shadow-primary/5"
+      } ${isClickable ? "cursor-pointer" : ""}`}
+    >
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-1.5 flex-1">
           <div className="flex flex-wrap items-center gap-2">
@@ -32,10 +42,14 @@ export function JobCard({ job, href }: JobCardProps) {
           </div>
 
           <h3 className="text-lg font-bold tracking-tight text-foreground group-hover:text-primary transition-colors">
-            <Link href={targetHref} className="focus:outline-none">
-              <span className="absolute inset-0" aria-hidden="true" />
-              {job.title}
-            </Link>
+            {isClickable ? (
+              <span className="group-hover:text-primary transition-colors">{job.title}</span>
+            ) : (
+              <Link href={targetHref} className="focus:outline-none">
+                <span className="absolute inset-0" aria-hidden="true" />
+                {job.title}
+              </Link>
+            )}
           </h3>
 
           <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground pt-1">
