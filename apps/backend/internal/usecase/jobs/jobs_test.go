@@ -184,40 +184,6 @@ func TestGetBySlug_other_error(t *testing.T) {
 	assert.Contains(t, err.Error(), "db connection lost")
 }
 
-func TestIsOwned_true(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-	repo := mocks.NewMockJobs(ctrl)
-	userJobs := mocks.NewMockUserJobs(ctrl)
-	s := newServiceWithMock(repo, userJobs)
-
-	userJobs.EXPECT().
-		IsOwned(gomock.Any(), "user_1", int64(42)).
-		Return(true, nil)
-
-	owned, err := s.IsOwned(context.Background(), "user_1", 42)
-
-	require.NoError(t, err)
-	assert.True(t, owned)
-}
-
-func TestIsOwned_false(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-	repo := mocks.NewMockJobs(ctrl)
-	userJobs := mocks.NewMockUserJobs(ctrl)
-	s := newServiceWithMock(repo, userJobs)
-
-	userJobs.EXPECT().
-		IsOwned(gomock.Any(), "user_1", int64(42)).
-		Return(false, nil)
-
-	owned, err := s.IsOwned(context.Background(), "user_1", 42)
-
-	require.NoError(t, err)
-	assert.False(t, owned)
-}
-
 func TestList_passes_through(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
@@ -229,10 +195,10 @@ func TestList_passes_through(t *testing.T) {
 
 	t.Run("owned_by_user", func(t *testing.T) {
 		repo.EXPECT().
-			List(gomock.Any(), 20, "user_1").
+			List(gomock.Any(), 20, "user_1", true).
 			Return(expected, nil)
 
-		got, err := s.List(context.Background(), 20, "user_1")
+		got, err := s.List(context.Background(), 20, "user_1", true)
 
 		require.NoError(t, err)
 		require.Len(t, got, 2)
@@ -241,10 +207,10 @@ func TestList_passes_through(t *testing.T) {
 
 	t.Run("all_jobs", func(t *testing.T) {
 		repo.EXPECT().
-			List(gomock.Any(), 5, "").
+			List(gomock.Any(), 5, "", false).
 			Return(expected, nil)
 
-		got, err := s.List(context.Background(), 5, "")
+		got, err := s.List(context.Background(), 5, "", false)
 
 		require.NoError(t, err)
 		require.Len(t, got, 2)
@@ -342,7 +308,6 @@ func TestUpdateStatus_appends_failure_message_when_failing_again(t *testing.T) {
 	assert.Equal(t, "failed", got.Status)
 	assert.Equal(t, combinedMsg, *got.FailureMessage)
 }
-
 
 func strPtr(s string) *string {
 	return &s

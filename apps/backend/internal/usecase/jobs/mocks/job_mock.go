@@ -86,34 +86,19 @@ func (mr *MockJobMockRecorder) GetBySlug(ctx, slug any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBySlug", reflect.TypeOf((*MockJob)(nil).GetBySlug), ctx, slug)
 }
 
-// IsOwned mocks base method.
-func (m *MockJob) IsOwned(ctx context.Context, userID string, jobID int64) (bool, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "IsOwned", ctx, userID, jobID)
-	ret0, _ := ret[0].(bool)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// IsOwned indicates an expected call of IsOwned.
-func (mr *MockJobMockRecorder) IsOwned(ctx, userID, jobID any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsOwned", reflect.TypeOf((*MockJob)(nil).IsOwned), ctx, userID, jobID)
-}
-
 // List mocks base method.
-func (m *MockJob) List(ctx context.Context, limit int, userID string) ([]*models.Job, error) {
+func (m *MockJob) List(ctx context.Context, limit int, userID string, isCheckOwnership bool) ([]*models.Job, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "List", ctx, limit, userID)
+	ret := m.ctrl.Call(m, "List", ctx, limit, userID, isCheckOwnership)
 	ret0, _ := ret[0].([]*models.Job)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // List indicates an expected call of List.
-func (mr *MockJobMockRecorder) List(ctx, limit, userID any) *gomock.Call {
+func (mr *MockJobMockRecorder) List(ctx, limit, userID, isCheckOwnership any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "List", reflect.TypeOf((*MockJob)(nil).List), ctx, limit, userID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "List", reflect.TypeOf((*MockJob)(nil).List), ctx, limit, userID, isCheckOwnership)
 }
 
 // QueueAnalysisBulk mocks base method.

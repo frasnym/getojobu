@@ -18,8 +18,7 @@ type Job interface {
 	Create(ctx context.Context, params models.CreateJobParams) (*models.CreateJobResult, error)
 	CreateBulk(ctx context.Context, params models.BulkCreateJobParams) ([]models.BulkCreateJobResult, error)
 	GetBySlug(ctx context.Context, slug string) (*models.Job, error)
-	IsOwned(ctx context.Context, userID string, jobID int64) (bool, error)
-	List(ctx context.Context, limit int, userID string) ([]*models.Job, error)
+	List(ctx context.Context, limit int, userID string, isCheckOwnership bool) ([]*models.Job, error)
 	SearchByCompany(ctx context.Context, company string, limit int) ([]*models.Job, error)
 	// UpdateStatus validates the status transition and persists the new status.
 	// analyzeResult and failureMessage are optional (nil = keep existing value).
@@ -170,23 +169,14 @@ func (s *jobService) GetBySlug(ctx context.Context, slug string) (*models.Job, e
 }
 
 // List returns the most recent jobs, ordered by created_at descending,
-// limited to limit (clamped to [1, 100]). When userID is not empty, only
-// jobs owned by that user (via user_jobs) are returned.
-func (s *jobService) List(ctx context.Context, limit int, userID string) ([]*models.Job, error) {
-	jobs, err := s.repo.List(ctx, limit, userID)
+// limited to limit (clamped to [1, 100]). When isCheckOwnership is true, each
+// job is marked with isOwned based on whether userID owns it in user_jobs.
+func (s *jobService) List(ctx context.Context, limit int, userID string, isCheckOwnership bool) ([]*models.Job, error) {
+	jobs, err := s.repo.List(ctx, limit, userID, isCheckOwnership)
 	if err != nil {
 		return nil, fmt.Errorf("list jobs: %w", err)
 	}
 	return jobs, nil
-}
-
-// IsOwned reports whether the given user owns the given job.
-func (s *jobService) IsOwned(ctx context.Context, userID string, jobID int64) (bool, error) {
-	owned, err := s.userJobs.IsOwned(ctx, userID, jobID)
-	if err != nil {
-		return false, fmt.Errorf("check job ownership: %w", err)
-	}
-	return owned, nil
 }
 
 // SearchByCompany returns jobs whose company matches the given substring

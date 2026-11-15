@@ -29,6 +29,9 @@ type Job struct {
 	UpdatedAt      time.Time       `json:"updated_at"`
 	UpdatedByType  string          `json:"updated_by_type"`
 	UpdatedByID    string          `json:"updated_by_id"`
+	// IsOwned reports whether the requesting user owns this job (has a row in
+	// user_jobs). Only populated on list endpoints; false elsewhere.
+	IsOwned bool `json:"is_owned"`
 }
 
 // CreateJobParams holds parameters for creating a single job listing.

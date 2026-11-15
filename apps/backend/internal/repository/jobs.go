@@ -27,7 +27,7 @@ type Jobs interface {
 	Create(ctx context.Context, params models.CreateJobParams) (*models.CreateJobResult, error)
 	BulkCreate(ctx context.Context, params models.BulkCreateJobParams) ([]*models.CreateJobResult, error)
 	GetBySlug(ctx context.Context, slug string) (*models.Job, error)
-	List(ctx context.Context, limit int, userID string) ([]*models.Job, error)
+	List(ctx context.Context, limit int, userID string, isCheckOwnership bool) ([]*models.Job, error)
 	SearchByCompany(ctx context.Context, company string, limit int) ([]*models.Job, error)
 	// UpdateStatus transitions the job to a new status and optionally persists
 	// analyzeResult (JSONB) and/or failureMessage. Returns constants.ErrNotFound
@@ -276,46 +276,88 @@ func (r *jobsRepository) BulkCreate(ctx context.Context, params models.BulkCreat
 // List returns the most recent jobs, ordered by created_at descending,
 // limited to limit. When userID is not empty, only jobs owned by that
 // user (via user_jobs) are returned.
-func (r *jobsRepository) List(ctx context.Context, limit int, userID string) (jobs []*models.Job, err error) {
+// List returns the most recent jobs, ordered by created_at descending,
+// limited to limit (clamped to [1, 100]).
+//
+// When isCheckOwnership is true, a single LEFT JOIN against user_jobs marks
+// isOwned on each job for the given userID. When false, no join is performed
+// and every job is returned with isOwned=false.
+func (r *jobsRepository) List(ctx context.Context, limit int, userID string, isCheckOwnership bool) (jobs []*models.Job, err error) {
 	var query string
-	if userID != "" {
+	var args []any
+	if isCheckOwnership {
 		query = `
 			SELECT j.id, j.slug, j.status, j.analyze_result, j.failure_message,
 				j.source, j.external_id, j.source_url, j.apply_url,
 				j.title, j.company, j.location, j.description, j.posted_date,
 				j.is_remote, j.visa_relocation,
-				j.created_at, j.updated_at, j.updated_by_type, j.updated_by_id
-			FROM user_jobs uj
-			JOIN jobs j ON j.id = uj.job_id
-			WHERE uj.user_id = $1
+				j.created_at, j.updated_at, j.updated_by_type, j.updated_by_id,
+				CASE WHEN uj.user_id IS NOT NULL THEN true ELSE false END AS is_owned
+			FROM jobs j
+			LEFT JOIN user_jobs uj ON j.id = uj.job_id AND uj.user_id = $1
 			ORDER BY j.created_at DESC
 			LIMIT $2
 		`
+		args = []any{userID, limit}
 	} else {
 		query = `
 			SELECT id, slug, status, analyze_result, failure_message,
 				source, external_id, source_url, apply_url,
 				title, company, location, description, posted_date,
 				is_remote, visa_relocation,
-				created_at, updated_at, updated_by_type, updated_by_id
+				created_at, updated_at, updated_by_type, updated_by_id,
+				false AS is_owned
 			FROM jobs
 			ORDER BY created_at DESC
 			LIMIT $1
 		`
+		args = []any{limit}
 	}
 
-	var rows pgx.Rows
-	if userID != "" {
-		rows, err = r.Query(ctx, query, userID, limit)
-	} else {
-		rows, err = r.Query(ctx, query, limit)
-	}
+	rows, err := r.Query(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("list jobs: %w", err)
 	}
 	defer rows.Close()
+	return scanJobWithOwnership(rows)
+}
 
-	return scanJobs(rows)
+// scanJobWithOwnership scans rows that include an is_owned column at the end.
+func scanJobWithOwnership(rows pgx.Rows) ([]*models.Job, error) {
+	var jobs []*models.Job
+	for rows.Next() {
+		var j models.Job
+		var externalID, sourceURL, applyURL, description, failureMessage sql.NullString
+		var postedDate sql.NullTime
+		var isRemote, visaRelocation sql.NullBool
+		var isOwned bool
+
+		err := rows.Scan(
+			&j.ID, &j.Slug, &j.Status, &j.AnalyzeResult, &failureMessage,
+			&j.Source, &externalID, &sourceURL, &applyURL,
+			&j.Title, &j.Company, &j.Location, &description,
+			&postedDate, &isRemote, &visaRelocation,
+			&j.CreatedAt, &j.UpdatedAt, &j.UpdatedByType, &j.UpdatedByID,
+			&isOwned,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("scan job: %w", err)
+		}
+		j.ExternalID = utils.NullStringPtr(externalID)
+		j.SourceURL = utils.NullStringPtr(sourceURL)
+		j.ApplyURL = utils.NullStringPtr(applyURL)
+		j.Description = utils.NullStringPtr(description)
+		j.FailureMessage = utils.NullStringPtr(failureMessage)
+		j.PostedDate = utils.NullTime(postedDate)
+		j.IsRemote = utils.NullBoolPtr(isRemote)
+		j.VisaRelocation = utils.NullBoolPtr(visaRelocation)
+		j.IsOwned = isOwned
+		jobs = append(jobs, &j)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate jobs: %w", err)
+	}
+	return jobs, nil
 }
 
 // SearchByCompany returns jobs whose company matches the given substring

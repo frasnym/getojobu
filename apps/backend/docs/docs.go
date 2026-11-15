@@ -236,7 +236,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "List recent jobs ordered by created_at descending. Optional limit (default 20, max 100). Clerk callers see only their owned jobs; API key callers see all jobs.",
+                "description": "List recent jobs ordered by created_at descending. Optional limit (default 20, max 100). Any authenticated user sees all jobs; each job carries an isOwned flag when the caller owns it.",
                 "consumes": [
                     "application/json"
                 ],
@@ -2254,6 +2254,10 @@ const docTemplate = `{
                 },
                 "id": {
                     "type": "integer"
+                },
+                "is_owned": {
+                    "description": "IsOwned reports whether the requesting user owns this job (has a row in\nuser_jobs). Only populated on list endpoints; false elsewhere.",
+                    "type": "boolean"
                 },
                 "is_remote": {
                     "type": "boolean"

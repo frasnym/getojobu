@@ -263,7 +263,7 @@ func (h *handler) BulkQueueAnalyzeJob(w http.ResponseWriter, r *http.Request) er
 
 // @Tags jobs
 // @Summary List jobs
-// @Description List recent jobs ordered by created_at descending. Optional limit (default 20, max 100). Clerk callers see only their owned jobs; API key callers see all jobs.
+// @Description List recent jobs ordered by created_at descending. Optional limit (default 20, max 100). Any authenticated user sees all jobs; each job carries an isOwned flag when the caller owns it.
 // @Accept json
 // @Produce json
 // @Param limit query integer false "Maximum number of jobs to return (default 20, max 100)"
@@ -271,8 +271,8 @@ func (h *handler) BulkQueueAnalyzeJob(w http.ResponseWriter, r *http.Request) er
 // @Failure 401 {object} httpx.Error
 // @security ApiKeyAuth
 // @Router /v1/jobs [get]
-// ListJobs returns jobs. Clerk callers see only their owned jobs; API key
-// callers see all jobs.
+// ListJobs returns all jobs. Clerk callers get an isOwned flag per job; API key
+// callers see isOwned=false on every job.
 func (h *handler) ListJobs(w http.ResponseWriter, r *http.Request) error {
 	ctx := r.Context()
 
@@ -292,12 +292,15 @@ func (h *handler) ListJobs(w http.ResponseWriter, r *http.Request) error {
 
 	var jobs []*models.Job
 	var err error
-	// Clerk: return only jobs owned by this user. API key: return all jobs.
+	// Clerk callers: compute isOwned per job (single LEFT JOIN query).
+	// API key callers: all jobs, isOwned=false, no join.
 	userID := ""
+	isCheckOwnership := false
 	if p.ActorType == "" {
 		userID = p.ID
+		isCheckOwnership = true
 	}
-	jobs, err = h.ucJobs.List(ctx, limit, userID)
+	jobs, err = h.ucJobs.List(ctx, limit, userID, isCheckOwnership)
 	if err != nil {
 		logging.Error(ctx, "list jobs failed", err,
 			"limit", limit, "actor_type", p.ActorType, "actor_id", p.ActorID)
@@ -323,8 +326,7 @@ func (h *handler) ListJobs(w http.ResponseWriter, r *http.Request) error {
 // @Failure 404 {object} httpx.Error
 // @security ApiKeyAuth
 // @Router /v1/jobs/{slug} [get]
-// GetJob returns a single job by slug. API key callers may read any job.
-// Clerk callers may read only jobs they own.
+// GetJob returns a single job by slug. Any authenticated user may read any job.
 func (h *handler) GetJob(w http.ResponseWriter, r *http.Request) error {
 	ctx := r.Context()
 
@@ -346,19 +348,6 @@ func (h *handler) GetJob(w http.ResponseWriter, r *http.Request) error {
 			return httpx.Envelope(httpx.CodeNotFound, "job not found", "")
 		}
 		return err
-	}
-
-	if p.ActorType == "" {
-		// Clerk: ensure the caller owns this job.
-		owned, err := h.ucJobs.IsOwned(ctx, p.ID, job.ID)
-		if err != nil {
-			logging.Error(ctx, "check job ownership failed", err,
-				"slug", slug, "user_id", p.ID, "job_id", job.ID)
-			return err
-		}
-		if !owned {
-			return httpx.Envelope(httpx.CodeNotFound, "job not found", "")
-		}
 	}
 
 	return httpx.RespondJSON(w, r, http.StatusOK, job)

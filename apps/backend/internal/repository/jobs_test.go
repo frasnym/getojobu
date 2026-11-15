@@ -158,10 +158,68 @@ func TestList_ordering_and_limit(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	got, err := repo.List(context.Background(), 3, "")
+	got, err := repo.List(context.Background(), 3, "", false)
 	require.NoError(t, err)
 	require.Len(t, got, 3)
 	assert.LessOrEqual(t, got[0].CreatedAt.Unix(), got[0].CreatedAt.Unix())
+}
+
+func TestList_isOwned_flag(t *testing.T) {
+	db := testJobDB(t)
+	jobsRepo := NewJobsRepository(database.NewPG(db))
+	userJobsRepo := NewUserJobsRepository(database.NewPG(db))
+
+	ctx := context.Background()
+	userID := "user-list-owned"
+
+	// Ensure a test user exists (user_jobs.user_id references users.id).
+	_, err := db.Exec(ctx, "INSERT INTO users (id, clerk_user_id, email, full_name, role) VALUES ($1, $2, $3, $4, 'user')",
+		userID, "clerk_"+userID, userID+"@test.com", "Test User")
+	require.NoError(t, err)
+
+	// Create three jobs.
+	var ownedJobID int64
+	for i := 0; i < 3; i++ {
+		res, err := jobsRepo.Create(ctx, models.CreateJobParams{
+			Slug:          "list-isowned-" + string(rune('a'+i)),
+			Source:        "linkedin",
+			Title:         "Job " + string(rune('a'+i)),
+			Company:       "Co",
+			Location:      "Loc",
+			UpdatedByType: "cron",
+			UpdatedByID:   "cron-scrape",
+		})
+		require.NoError(t, err)
+		if i == 0 {
+			ownedJobID = res.Job.ID
+		}
+	}
+
+	// Link the first job to the user.
+	_, err = userJobsRepo.Create(ctx, userID, ownedJobID)
+	require.NoError(t, err)
+
+	got, err := jobsRepo.List(ctx, 10, userID, true)
+	require.NoError(t, err)
+	require.Len(t, got, 3)
+
+	byID := make(map[int64]*models.Job, len(got))
+	for _, j := range got {
+		byID[j.ID] = j
+	}
+	assert.True(t, byID[ownedJobID].IsOwned, "linked job should be owned")
+	for _, j := range got {
+		if j.ID != ownedJobID {
+			assert.False(t, j.IsOwned, "unlinked job should not be owned")
+		}
+	}
+
+	// Empty userID -> no job is owned.
+	gotAll, err := jobsRepo.List(ctx, 10, "", false)
+	require.NoError(t, err)
+	for _, j := range gotAll {
+		assert.False(t, j.IsOwned, "empty userID should yield isOwned=false")
+	}
 }
 
 func TestSearchByCompany_ILIKE(t *testing.T) {

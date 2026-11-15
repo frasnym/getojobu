@@ -283,7 +283,7 @@ func TestListJobs_default(t *testing.T) {
 
 	expected := []*models.Job{{Slug: "job-1"}, {Slug: "job-2"}}
 	mockJob.EXPECT().
-		List(gomock.Any(), 20, "").
+		List(gomock.Any(), 20, "", false).
 		Return(expected, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/jobs", nil)
@@ -306,7 +306,7 @@ func TestListJobs_empty_returns_empty_array(t *testing.T) {
 	h, mockJob, _ := newHandlerWithMock(ctrl)
 
 	mockJob.EXPECT().
-		List(gomock.Any(), 20, "").
+		List(gomock.Any(), 20, "", false).
 		Return(nil, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/jobs", nil)
@@ -322,14 +322,14 @@ func TestListJobs_empty_returns_empty_array(t *testing.T) {
 	assert.Empty(t, resp.Data)
 }
 
-func TestListJobs_clerk_returns_owned(t *testing.T) {
+func TestListJobs_returns_all_jobs(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	h, mockJob, _ := newHandlerWithMock(ctrl)
 
 	expected := []*models.Job{{Slug: "job-1"}, {Slug: "job-2"}}
 	mockJob.EXPECT().
-		List(gomock.Any(), 20, "user_1").
+		List(gomock.Any(), 20, "user_1", true).
 		Return(expected, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/jobs", nil)
@@ -354,7 +354,7 @@ func TestListJobs_api_key_returns_all(t *testing.T) {
 
 	expected := []*models.Job{{Slug: "job-1"}, {Slug: "job-2"}}
 	mockJob.EXPECT().
-		List(gomock.Any(), 20, "").
+		List(gomock.Any(), 20, "", false).
 		Return(expected, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/jobs", nil)
@@ -383,7 +383,7 @@ func TestListJobs_invalid_limit(t *testing.T) {
 	httpx.HandlerFunc(h.ListJobs).ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
-	mockJob.EXPECT().List(gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
+	mockJob.EXPECT().List(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
 	mockJob.EXPECT().SearchByCompany(gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
 }
 
@@ -393,7 +393,7 @@ func TestListJobs_clamped_limit(t *testing.T) {
 	h, mockJob, _ := newHandlerWithMock(ctrl)
 
 	mockJob.EXPECT().
-		List(gomock.Any(), 100, "user_1").
+		List(gomock.Any(), 100, "user_1", true).
 		Return([]*models.Job{}, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/jobs?limit=500", nil)
@@ -449,6 +449,32 @@ func TestGetJob_not_found(t *testing.T) {
 	mux.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusNotFound, w.Code)
+}
+
+func TestGetJob_clerk_sees_any_job(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	h, mockJob, _ := newHandlerWithMock(ctrl)
+
+	slug := "golang-developer-google-singapore"
+	expected := &models.Job{Slug: slug, Status: "new"}
+	mockJob.EXPECT().
+		GetBySlug(gomock.Any(), slug).
+		Return(expected, nil)
+
+	mux := http.NewServeMux()
+	mux.Handle("GET /jobs/{slug}", httpx.HandlerFunc(h.GetJob))
+
+	// Clerk principal (ActorType == "") can read any job; no ownership check.
+	req := httptest.NewRequest(http.MethodGet, "/jobs/"+slug, nil)
+	req = req.WithContext(ctxval.ContextWithPrincipal(req.Context(), principalCtx("", "user_1")))
+	w := httptest.NewRecorder()
+
+	mux.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	m := bodyAsMap(t, w)
+	assert.Equal(t, slug, m["slug"])
 }
 
 func strPtr(s string) *string {
