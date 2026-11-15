@@ -10,6 +10,7 @@ import (
 	ucProjects "github.com/frasnym/getojobu/apps/backend/internal/usecase/projects"
 	ucProjectSkills "github.com/frasnym/getojobu/apps/backend/internal/usecase/projectskills"
 	ucScoringConfigs "github.com/frasnym/getojobu/apps/backend/internal/usecase/scoringConfigs"
+	ucUserJobs "github.com/frasnym/getojobu/apps/backend/internal/usecase/user_jobs"
 	ucUsers "github.com/frasnym/getojobu/apps/backend/internal/usecase/users"
 )
 
@@ -23,6 +24,7 @@ type Contract struct {
 	Jobs           ucJobs.Job
 	ScoringConfigs ucScoringConfigs.ScoringConfig
 	Matching       ucMatching.Matching
+	UserJobs       ucUserJobs.UserJobs
 }
 
 // NewUsecase creates the usecase layer contract from the repository contract.
@@ -39,6 +41,7 @@ func NewUsecase(r *repository.Contract) (*Contract, error) {
 		Jobs:           ucJobs.NewJobService(r),
 		ScoringConfigs: ucScoringConfigs.NewScoringConfigService(r.ScoringConfigsRepository),
 		Matching:       ucMatching.NewService(r),
+		UserJobs:       ucUserJobs.NewUserJobsService(r),
 	}
 	return c, nil
 }

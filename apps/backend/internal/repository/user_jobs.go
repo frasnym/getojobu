@@ -17,15 +17,13 @@ import (
 
 // UserJobs is the interface for per-user job ownership data access.
 type UserJobs interface {
-	// Create inserts an ownership row linking a user to a job. If the pair
-	// already exists (unique constraint on user_id, job_id), nothing happens
-	// and created is false.
 	Create(ctx context.Context, userID string, jobID int64) (created bool, err error)
 	BulkCreate(ctx context.Context, links []models.UserJobLink) (addedMap map[string]bool, err error)
 	IsOwned(ctx context.Context, userID string, jobID int64) (bool, error)
 	GetByUserAndJob(ctx context.Context, userID string, jobID int64) (*models.UserJob, error)
 	GetByID(ctx context.Context, id uuid.UUID) (*models.UserJob, error)
 	GetUsersByJobID(ctx context.Context, jobID int64) ([]string, error)
+	GetByUser(ctx context.Context, userID string, limit int) ([]*models.Job, error)
 }
 
 type userJobsRepository struct {
@@ -229,4 +227,28 @@ func (r *userJobsRepository) GetUsersByJobID(ctx context.Context, jobID int64) (
 		userIDs = append(userIDs, uid)
 	}
 	return userIDs, rows.Err()
+}
+
+// GetByUser returns jobs owned by the given user (joined with the jobs table),
+// ordered by created_at descending, limited to limit. Each job carries
+// isOwned=true.
+func (r *userJobsRepository) GetByUser(ctx context.Context, userID string, limit int) ([]*models.Job, error) {
+	query := `
+		SELECT j.id, j.slug, j.status, j.analyze_result, j.failure_message,
+			j.source, j.external_id, j.source_url, j.apply_url,
+			j.title, j.company, j.location, j.description, j.posted_date,
+			j.is_remote, j.visa_relocation,
+			j.created_at, j.updated_at, j.updated_by_type, j.updated_by_id,
+			true AS is_owned
+		FROM jobs j
+		JOIN user_jobs uj ON j.id = uj.job_id AND uj.user_id = $1
+		ORDER BY j.created_at DESC
+		LIMIT $2
+	`
+	rows, err := r.Query(ctx, query, userID, limit)
+	if err != nil {
+		return nil, fmt.Errorf("get jobs by user: %w", err)
+	}
+	defer rows.Close()
+	return scanJobWithOwnership(rows)
 }

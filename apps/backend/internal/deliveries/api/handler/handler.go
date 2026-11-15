@@ -11,6 +11,7 @@ import (
 	"github.com/frasnym/getojobu/apps/backend/internal/deliveries/api/handler/matching"
 	"github.com/frasnym/getojobu/apps/backend/internal/deliveries/api/handler/projects"
 	scoringConfigs "github.com/frasnym/getojobu/apps/backend/internal/deliveries/api/handler/scoringconfigs"
+	userJobs "github.com/frasnym/getojobu/apps/backend/internal/deliveries/api/handler/user_jobs"
 	"github.com/frasnym/getojobu/apps/backend/internal/deliveries/api/handler/webhook"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/httpx"
 	httpSwagger "github.com/swaggo/http-swagger"
@@ -56,6 +57,9 @@ func (h *handler) Route(rt *httpx.Router) {
 
 	// Project routes (CRU only; no DELETE).
 	projects.NewHandler(h.contract).Route(v1.Group("/projects"))
+
+	// User-jobs routes (Clerk auth only; list the authenticated user's jobs).
+	userJobs.NewHandler(h.contract).Route(v1.Group("/user-jobs"))
 
 	// Job routes (CRUD + bulk create + scrape orchestration).
 	jobs.NewHandler(h.contract).Route(v1.Group("/jobs"))

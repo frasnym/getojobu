@@ -1722,6 +1722,33 @@ paths:
       summary: Get active scoring configuration
       tags:
       - scoring_configs
+  /v1/user-jobs:
+    get:
+      description: List jobs owned by the authenticated user, ordered by created_at
+        descending. Optional limit (default 20, max 100).
+      parameters:
+      - description: Maximum number of jobs to return (default 20, max 100)
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.Job'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpx.Error'
+      security:
+      - ApiKeyAuth: []
+      summary: List user jobs
+      tags:
+      - user-jobs
   /v1/webhooks/clerk:
     post:
       consumes:

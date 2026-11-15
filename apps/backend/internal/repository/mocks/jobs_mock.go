@@ -86,6 +86,21 @@ func (mr *MockJobsMockRecorder) GetBySlug(ctx, slug any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBySlug", reflect.TypeOf((*MockJobs)(nil).GetBySlug), ctx, slug)
 }
 
+// GetByUser mocks base method.
+func (m *MockJobs) GetByUser(ctx context.Context, userID string, limit int) ([]*models.Job, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetByUser", ctx, userID, limit)
+	ret0, _ := ret[0].([]*models.Job)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetByUser indicates an expected call of GetByUser.
+func (mr *MockJobsMockRecorder) GetByUser(ctx, userID, limit any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetByUser", reflect.TypeOf((*MockJobs)(nil).GetByUser), ctx, userID, limit)
+}
+
 // List mocks base method.
 func (m *MockJobs) List(ctx context.Context, limit int, userID string, isCheckOwnership bool) ([]*models.Job, error) {
 	m.ctrl.T.Helper()
