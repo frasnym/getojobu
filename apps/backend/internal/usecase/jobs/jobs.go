@@ -19,7 +19,6 @@ type Job interface {
 	CreateBulk(ctx context.Context, params models.BulkCreateJobParams) ([]models.BulkCreateJobResult, error)
 	GetBySlug(ctx context.Context, slug string) (*models.Job, error)
 	List(ctx context.Context, limit int, userID string, isCheckOwnership bool) ([]*models.Job, error)
-	SearchByCompany(ctx context.Context, company string, limit int) ([]*models.Job, error)
 	// UpdateStatus validates the status transition and persists the new status.
 	// analyzeResult and failureMessage are optional (nil = keep existing value).
 	// Returns ErrNotFound when slug is unknown, ErrInvalidTransition when the
@@ -177,12 +176,6 @@ func (s *jobService) List(ctx context.Context, limit int, userID string, isCheck
 		return nil, fmt.Errorf("list jobs: %w", err)
 	}
 	return jobs, nil
-}
-
-// SearchByCompany returns jobs whose company matches the given substring
-// case-insensitively.
-func (s *jobService) SearchByCompany(ctx context.Context, company string, limit int) ([]*models.Job, error) {
-	return s.repo.SearchByCompany(ctx, company, limit)
 }
 
 // UpdateStatus validates the status transition for the job identified by slug

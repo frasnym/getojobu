@@ -222,41 +222,6 @@ func TestList_isOwned_flag(t *testing.T) {
 	}
 }
 
-func TestSearchByCompany_ILIKE(t *testing.T) {
-	db := testJobDB(t)
-	repo := NewJobsRepository(database.NewPG(db))
-
-	_, err := repo.Create(context.Background(), models.CreateJobParams{
-		Slug:          "search-by-acme-jakarta",
-		Source:        "linkedin",
-		Title:         "Engineer",
-		Company:       "Acme Corp",
-		Location:      "Jakarta",
-		UpdatedByType: "cron",
-		UpdatedByID:   "cron-scrape",
-	})
-	require.NoError(t, err)
-	_, err = repo.Create(context.Background(), models.CreateJobParams{
-		Slug:          "search-by-beta-jakarta",
-		Source:        "linkedin",
-		Title:         "Engineer",
-		Company:       "Beta Ltd",
-		Location:      "Jakarta",
-		UpdatedByType: "cron",
-		UpdatedByID:   "cron-scrape",
-	})
-	require.NoError(t, err)
-
-	got, err := repo.SearchByCompany(context.Background(), "acme", 20)
-	require.NoError(t, err)
-	require.Len(t, got, 1)
-	assert.Equal(t, "Acme Corp", got[0].Company)
-
-	got, err = repo.SearchByCompany(context.Background(), "ACME", 20)
-	require.NoError(t, err)
-	require.Len(t, got, 1, "ILIKE should be case-insensitive")
-}
-
 func TestUpdateStatus_success(t *testing.T) {
 	db := testJobDB(t)
 	repo := NewJobsRepository(database.NewPG(db))

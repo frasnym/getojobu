@@ -28,7 +28,6 @@ type Jobs interface {
 	BulkCreate(ctx context.Context, params models.BulkCreateJobParams) ([]*models.CreateJobResult, error)
 	GetBySlug(ctx context.Context, slug string) (*models.Job, error)
 	List(ctx context.Context, limit int, userID string, isCheckOwnership bool) ([]*models.Job, error)
-	SearchByCompany(ctx context.Context, company string, limit int) ([]*models.Job, error)
 	// UpdateStatus transitions the job to a new status and optionally persists
 	// analyzeResult (JSONB) and/or failureMessage. Returns constants.ErrNotFound
 	// when no row with the given slug exists.
@@ -358,30 +357,6 @@ func scanJobWithOwnership(rows pgx.Rows) ([]*models.Job, error) {
 		return nil, fmt.Errorf("iterate jobs: %w", err)
 	}
 	return jobs, nil
-}
-
-// SearchByCompany returns jobs whose company matches the given substring
-// case-insensitively (ILIKE), ordered by created_at descending, limited to
-// limit (clamped to [1, 100]).
-func (r *jobsRepository) SearchByCompany(ctx context.Context, company string, limit int) (jobs []*models.Job, err error) {
-	query := `
-		SELECT id, slug, status, analyze_result, failure_message,
-			source, external_id, source_url, apply_url,
-			title, company, location, description, posted_date,
-			is_remote, visa_relocation,
-			created_at, updated_at, updated_by_type, updated_by_id
-		FROM jobs
-		WHERE company ILIKE '%' || $1 || '%'
-		ORDER BY created_at DESC
-		LIMIT $2
-	`
-	rows, err := r.Query(ctx, query, company, limit)
-	if err != nil {
-		return nil, fmt.Errorf("search jobs by company: %w", err)
-	}
-	defer rows.Close()
-
-	return scanJobs(rows)
 }
 
 // UpdateStatus sets the status of the job identified by slug and optionally

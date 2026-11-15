@@ -116,21 +116,6 @@ func (mr *MockJobsMockRecorder) List(ctx, limit, userID, isCheckOwnership any) *
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "List", reflect.TypeOf((*MockJobs)(nil).List), ctx, limit, userID, isCheckOwnership)
 }
 
-// SearchByCompany mocks base method.
-func (m *MockJobs) SearchByCompany(ctx context.Context, company string, limit int) ([]*models.Job, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SearchByCompany", ctx, company, limit)
-	ret0, _ := ret[0].([]*models.Job)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// SearchByCompany indicates an expected call of SearchByCompany.
-func (mr *MockJobsMockRecorder) SearchByCompany(ctx, company, limit any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SearchByCompany", reflect.TypeOf((*MockJobs)(nil).SearchByCompany), ctx, company, limit)
-}
-
 // UpdateStatus mocks base method.
 func (m *MockJobs) UpdateStatus(ctx context.Context, slug, status string, analyzeResult, failureMessage *string, updatedByType, updatedByID string) (*models.Job, error) {
 	m.ctrl.T.Helper()

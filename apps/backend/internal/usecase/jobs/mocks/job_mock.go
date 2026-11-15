@@ -116,21 +116,6 @@ func (mr *MockJobMockRecorder) QueueAnalysisBulk(ctx, items, caller any) *gomock
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueueAnalysisBulk", reflect.TypeOf((*MockJob)(nil).QueueAnalysisBulk), ctx, items, caller)
 }
 
-// SearchByCompany mocks base method.
-func (m *MockJob) SearchByCompany(ctx context.Context, company string, limit int) ([]*models.Job, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SearchByCompany", ctx, company, limit)
-	ret0, _ := ret[0].([]*models.Job)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// SearchByCompany indicates an expected call of SearchByCompany.
-func (mr *MockJobMockRecorder) SearchByCompany(ctx, company, limit any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SearchByCompany", reflect.TypeOf((*MockJob)(nil).SearchByCompany), ctx, company, limit)
-}
-
 // StartJobScrape mocks base method.
 func (m *MockJob) StartJobScrape(ctx context.Context, params models.ScrapeJobsParams) ([]string, error) {
 	m.ctrl.T.Helper()

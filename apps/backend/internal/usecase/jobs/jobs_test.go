@@ -218,25 +218,6 @@ func TestList_passes_through(t *testing.T) {
 	})
 }
 
-func TestSearchByCompany_passes_through(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-	repo := mocks.NewMockJobs(ctrl)
-	userJobs := mocks.NewMockUserJobs(ctrl)
-	s := newServiceWithMock(repo, userJobs)
-
-	expected := []*models.Job{{Slug: "job-1", Company: "Acme Corp"}}
-	repo.EXPECT().
-		SearchByCompany(gomock.Any(), "acme", 20).
-		Return(expected, nil)
-
-	got, err := s.SearchByCompany(context.Background(), "acme", 20)
-
-	require.NoError(t, err)
-	require.Len(t, got, 1)
-	assert.Equal(t, "Acme Corp", got[0].Company)
-}
-
 func TestUpdateStatus_allowed(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()

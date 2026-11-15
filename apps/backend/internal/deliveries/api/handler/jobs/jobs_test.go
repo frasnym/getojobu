@@ -384,7 +384,6 @@ func TestListJobs_invalid_limit(t *testing.T) {
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 	mockJob.EXPECT().List(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
-	mockJob.EXPECT().SearchByCompany(gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
 }
 
 func TestListJobs_clamped_limit(t *testing.T) {
