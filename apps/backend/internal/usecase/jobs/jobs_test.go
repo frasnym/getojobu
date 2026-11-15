@@ -195,24 +195,26 @@ func TestList_passes_through(t *testing.T) {
 
 	t.Run("owned_by_user", func(t *testing.T) {
 		repo.EXPECT().
-			List(gomock.Any(), 20, "user_1", true).
-			Return(expected, nil)
+			List(gomock.Any(), 20, 0, "user_1", true).
+			Return(expected, 2, nil)
 
-		got, err := s.List(context.Background(), 20, "user_1", true)
+		got, total, err := s.List(context.Background(), 20, 0, "user_1", true)
 
 		require.NoError(t, err)
+		assert.Equal(t, 2, total)
 		require.Len(t, got, 2)
 		assert.Equal(t, "job-1", got[0].Slug)
 	})
 
 	t.Run("all_jobs", func(t *testing.T) {
 		repo.EXPECT().
-			List(gomock.Any(), 5, "", false).
-			Return(expected, nil)
+			List(gomock.Any(), 5, 0, "", false).
+			Return(expected, 2, nil)
 
-		got, err := s.List(context.Background(), 5, "", false)
+		got, total, err := s.List(context.Background(), 5, 0, "", false)
 
 		require.NoError(t, err)
+		assert.Equal(t, 2, total)
 		require.Len(t, got, 2)
 		assert.Equal(t, "job-1", got[0].Slug)
 	})

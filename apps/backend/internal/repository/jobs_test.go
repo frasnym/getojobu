@@ -158,8 +158,9 @@ func TestList_ordering_and_limit(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	got, err := repo.List(context.Background(), 3, "", false)
+	got, total, err := repo.List(context.Background(), 3, 0, "", false)
 	require.NoError(t, err)
+	assert.GreaterOrEqual(t, total, 3)
 	require.Len(t, got, 3)
 	assert.LessOrEqual(t, got[0].CreatedAt.Unix(), got[0].CreatedAt.Unix())
 }
@@ -199,8 +200,9 @@ func TestList_isOwned_flag(t *testing.T) {
 	_, err = userJobsRepo.Create(ctx, userID, ownedJobID)
 	require.NoError(t, err)
 
-	got, err := jobsRepo.List(ctx, 10, userID, true)
+	got, total, err := jobsRepo.List(ctx, 10, 0, userID, true)
 	require.NoError(t, err)
+	assert.GreaterOrEqual(t, total, 3)
 	require.Len(t, got, 3)
 
 	byID := make(map[int64]*models.Job, len(got))
@@ -215,7 +217,7 @@ func TestList_isOwned_flag(t *testing.T) {
 	}
 
 	// Empty userID -> no job is owned.
-	gotAll, err := jobsRepo.List(ctx, 10, "", false)
+	gotAll, _, err := jobsRepo.List(ctx, 10, 0, "", false)
 	require.NoError(t, err)
 	for _, j := range gotAll {
 		assert.False(t, j.IsOwned, "empty userID should yield isOwned=false")

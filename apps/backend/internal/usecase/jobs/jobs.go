@@ -18,7 +18,7 @@ type Job interface {
 	Create(ctx context.Context, params models.CreateJobParams) (*models.CreateJobResult, error)
 	CreateBulk(ctx context.Context, params models.BulkCreateJobParams) ([]models.BulkCreateJobResult, error)
 	GetBySlug(ctx context.Context, slug string) (*models.Job, error)
-	List(ctx context.Context, limit int, userID string, isCheckOwnership bool) ([]*models.Job, error)
+	List(ctx context.Context, limit, offset int, userID string, isCheckOwnership bool) ([]*models.Job, int, error)
 	// UpdateStatus validates the status transition and persists the new status.
 	// analyzeResult and failureMessage are optional (nil = keep existing value).
 	// Returns ErrNotFound when slug is unknown, ErrInvalidTransition when the
@@ -167,15 +167,14 @@ func (s *jobService) GetBySlug(ctx context.Context, slug string) (*models.Job, e
 	return job, nil
 }
 
-// List returns the most recent jobs, ordered by created_at descending,
-// limited to limit (clamped to [1, 100]). When isCheckOwnership is true, each
+// List returns paginated jobs ordered by created_at descending. When isCheckOwnership is true, each
 // job is marked with isOwned based on whether userID owns it in user_jobs.
-func (s *jobService) List(ctx context.Context, limit int, userID string, isCheckOwnership bool) ([]*models.Job, error) {
-	jobs, err := s.repo.List(ctx, limit, userID, isCheckOwnership)
+func (s *jobService) List(ctx context.Context, limit, offset int, userID string, isCheckOwnership bool) ([]*models.Job, int, error) {
+	jobs, total, err := s.repo.List(ctx, limit, offset, userID, isCheckOwnership)
 	if err != nil {
-		return nil, fmt.Errorf("list jobs: %w", err)
+		return nil, 0, fmt.Errorf("list jobs: %w", err)
 	}
-	return jobs, nil
+	return jobs, total, nil
 }
 
 // UpdateStatus validates the status transition for the job identified by slug

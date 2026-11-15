@@ -263,11 +263,13 @@ func (h *handler) BulkQueueAnalyzeJob(w http.ResponseWriter, r *http.Request) er
 
 // @Tags jobs
 // @Summary List jobs
-// @Description List recent jobs ordered by created_at descending. Optional limit (default 20, max 100). Any authenticated user sees all jobs; each job carries an isOwned flag when the caller owns it.
+// @Description List jobs with optional pagination. Any authenticated user sees all jobs; each job carries an isOwned flag when the caller owns it.
 // @Accept json
 // @Produce json
-// @Param limit query integer false "Maximum number of jobs to return (default 20, max 100)"
+// @Param page query integer false "Page number (default 1)"
+// @Param limit query integer false "Items per page (default 10, max 50)"
 // @Success 200 {array} models.Job
+// @Failure 400 {object} httpx.Error
 // @Failure 401 {object} httpx.Error
 // @security ApiKeyAuth
 // @Router /v1/jobs [get]
@@ -281,16 +283,37 @@ func (h *handler) ListJobs(w http.ResponseWriter, r *http.Request) error {
 		return httpx.Envelope(httpx.CodeUnauthorized, "unauthenticated", "")
 	}
 
-	limit := 20
-	if v := r.URL.Query().Get("limit"); v != "" {
+	page := 1
+	if v := r.URL.Query().Get("page"); v != "" {
 		n, err := strconv.Atoi(v)
-		if err != nil || n < 1 {
-			return httpx.Envelope(httpx.CodeInvalidRequest, "limit must be a positive integer", "")
+		if err != nil {
+			return httpx.Envelope(httpx.CodeInvalidRequest, "page must be a positive integer", "")
 		}
-		limit = clampLimit(n)
+		page = n
 	}
 
+	limit := 10
+	if v := r.URL.Query().Get("limit"); v != "" {
+		n, err := strconv.Atoi(v)
+		if err != nil {
+			return httpx.Envelope(httpx.CodeInvalidRequest, "limit must be a positive integer", "")
+		}
+		limit = n
+	}
+
+	if page < 1 {
+		page = 1
+	}
+	if limit <= 0 {
+		limit = 10
+	}
+	if limit > 50 {
+		limit = 50
+	}
+	offset := (page - 1) * limit
+
 	var jobs []*models.Job
+	var totalItems int
 	var err error
 	// Clerk callers: compute isOwned per job (single LEFT JOIN query).
 	// API key callers: all jobs, isOwned=false, no join.
@@ -300,10 +323,10 @@ func (h *handler) ListJobs(w http.ResponseWriter, r *http.Request) error {
 		userID = p.ID
 		isCheckOwnership = true
 	}
-	jobs, err = h.ucJobs.List(ctx, limit, userID, isCheckOwnership)
+	jobs, totalItems, err = h.ucJobs.List(ctx, limit, offset, userID, isCheckOwnership)
 	if err != nil {
 		logging.Error(ctx, "list jobs failed", err,
-			"limit", limit, "actor_type", p.ActorType, "actor_id", p.ActorID)
+			"page", page, "limit", limit, "offset", offset, "actor_type", p.ActorType, "actor_id", p.ActorID)
 		return err
 	}
 
@@ -311,7 +334,7 @@ func (h *handler) ListJobs(w http.ResponseWriter, r *http.Request) error {
 		jobs = []*models.Job{}
 	}
 
-	return httpx.RespondJSON(w, r, http.StatusOK, jobs)
+	return httpx.RespondJSON(w, r, http.StatusOK, jobs, httpx.WithPaginationParams(page, limit, totalItems))
 }
 
 // @Tags jobs
@@ -438,14 +461,14 @@ func resolveOwnerUserIDs(p *models.Principal, bodyUserIDs []string) ([]string, e
 	return uids, nil
 }
 
-// clampLimit clamps limit to the inclusive range [1, 100], defaulting to 20
+// clampLimit clamps limit to the inclusive range [1, 50], defaulting to 10
 // when non-positive.
 func clampLimit(limit int) int {
 	if limit <= 0 {
-		return 20
+		return 10
 	}
-	if limit > 100 {
-		return 100
+	if limit > 50 {
+		return 50
 	}
 	return limit
 }

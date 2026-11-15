@@ -23,7 +23,7 @@ type UserJobs interface {
 	GetByUserAndJob(ctx context.Context, userID string, jobID int64) (*models.UserJob, error)
 	GetByID(ctx context.Context, id uuid.UUID) (*models.UserJob, error)
 	GetUsersByJobID(ctx context.Context, jobID int64) ([]string, error)
-	GetByUser(ctx context.Context, userID string, limit int) ([]*models.Job, error)
+	GetByUser(ctx context.Context, userID string, limit, offset int) ([]*models.Job, int, error)
 }
 
 type userJobsRepository struct {
@@ -230,9 +230,13 @@ func (r *userJobsRepository) GetUsersByJobID(ctx context.Context, jobID int64) (
 }
 
 // GetByUser returns jobs owned by the given user (joined with the jobs table),
-// ordered by created_at descending, limited to limit. Each job carries
+// ordered by created_at descending, paginated by limit and offset. Each job carries
 // isOwned=true.
-func (r *userJobsRepository) GetByUser(ctx context.Context, userID string, limit int) ([]*models.Job, error) {
+func (r *userJobsRepository) GetByUser(ctx context.Context, userID string, limit, offset int) (jobs []*models.Job, total int, err error) {
+	if err := r.QueryRow(ctx, `SELECT COUNT(*) FROM user_jobs WHERE user_id = $1`, userID).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("count user jobs: %w", err)
+	}
+
 	query := `
 		SELECT j.id, j.slug, j.status, j.analyze_result, j.failure_message,
 			j.source, j.external_id, j.source_url, j.apply_url,
@@ -243,12 +247,16 @@ func (r *userJobsRepository) GetByUser(ctx context.Context, userID string, limit
 		FROM jobs j
 		JOIN user_jobs uj ON j.id = uj.job_id AND uj.user_id = $1
 		ORDER BY j.created_at DESC
-		LIMIT $2
+		LIMIT $2 OFFSET $3
 	`
-	rows, err := r.Query(ctx, query, userID, limit)
+	rows, err := r.Query(ctx, query, userID, limit, offset)
 	if err != nil {
-		return nil, fmt.Errorf("get jobs by user: %w", err)
+		return nil, 0, fmt.Errorf("get jobs by user: %w", err)
 	}
 	defer rows.Close()
-	return scanJobWithOwnership(rows)
+	jobs, err = scanJobWithOwnership(rows)
+	if err != nil {
+		return nil, 0, err
+	}
+	return jobs, total, nil
 }

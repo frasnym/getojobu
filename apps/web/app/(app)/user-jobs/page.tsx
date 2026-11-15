@@ -5,11 +5,17 @@ import Link from "next/link";
 import { useUserJobs } from "@/hooks/use-user-jobs";
 import { JobCard } from "@/components/jobs/job-card";
 import { JobFilters } from "@/components/jobs/job-filters";
+import { PaginationControls } from "@/components/jobs/pagination-controls";
 import { Sparkles, Briefcase, Compass } from "lucide-react";
 
 export default function UserJobsPage() {
   const {
     filteredJobs,
+    pagination,
+    page,
+    setPage,
+    limit,
+    setLimit,
     loading,
     error,
     searchQuery,
@@ -56,7 +62,7 @@ export default function UserJobsPage() {
         onStatusChange={setStatusFilter}
         remoteOnly={remoteOnly}
         onRemoteChange={setRemoteOnly}
-        totalCount={filteredJobs.length}
+        totalCount={pagination?.totalItems ?? filteredJobs.length}
       />
 
       {/* Loading state */}
@@ -113,6 +119,21 @@ export default function UserJobsPage() {
             <JobCard key={job.id} job={job} href={`/user-jobs/${job.slug}`} />
           ))}
         </div>
+      )}
+
+      {/* Pagination controls */}
+      {!loading && !error && pagination && pagination.totalItems > 0 && (
+        <PaginationControls
+          page={page}
+          limit={limit}
+          totalItems={pagination.totalItems}
+          totalPages={pagination.totalPages}
+          hasNext={pagination.hasNext}
+          hasPrev={pagination.hasPrev}
+          onPageChange={setPage}
+          onLimitChange={setLimit}
+          limitOptions={[10, 20, 50]}
+        />
       )}
     </div>
   );

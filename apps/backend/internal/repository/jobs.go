@@ -27,7 +27,7 @@ type Jobs interface {
 	Create(ctx context.Context, params models.CreateJobParams) (*models.CreateJobResult, error)
 	BulkCreate(ctx context.Context, params models.BulkCreateJobParams) ([]*models.CreateJobResult, error)
 	GetBySlug(ctx context.Context, slug string) (*models.Job, error)
-	List(ctx context.Context, limit int, userID string, isCheckOwnership bool) ([]*models.Job, error)
+	List(ctx context.Context, limit, offset int, userID string, isCheckOwnership bool) ([]*models.Job, int, error)
 	// UpdateStatus transitions the job to a new status and optionally persists
 	// analyzeResult (JSONB) and/or failureMessage. Returns constants.ErrNotFound
 	// when no row with the given slug exists.
@@ -272,16 +272,16 @@ func (r *jobsRepository) BulkCreate(ctx context.Context, params models.BulkCreat
 	return results, nil
 }
 
-// List returns the most recent jobs, ordered by created_at descending,
-// limited to limit. When userID is not empty, only jobs owned by that
-// user (via user_jobs) are returned.
-// List returns the most recent jobs, ordered by created_at descending,
-// limited to limit (clamped to [1, 100]).
+// List returns paginated jobs ordered by created_at descending.
 //
 // When isCheckOwnership is true, a single LEFT JOIN against user_jobs marks
 // isOwned on each job for the given userID. When false, no join is performed
 // and every job is returned with isOwned=false.
-func (r *jobsRepository) List(ctx context.Context, limit int, userID string, isCheckOwnership bool) (jobs []*models.Job, err error) {
+func (r *jobsRepository) List(ctx context.Context, limit, offset int, userID string, isCheckOwnership bool) (jobs []*models.Job, total int, err error) {
+	if err := r.QueryRow(ctx, `SELECT COUNT(*) FROM jobs`).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("count jobs: %w", err)
+	}
+
 	var query string
 	var args []any
 	if isCheckOwnership {
@@ -295,9 +295,9 @@ func (r *jobsRepository) List(ctx context.Context, limit int, userID string, isC
 			FROM jobs j
 			LEFT JOIN user_jobs uj ON j.id = uj.job_id AND uj.user_id = $1
 			ORDER BY j.created_at DESC
-			LIMIT $2
+			LIMIT $2 OFFSET $3
 		`
-		args = []any{userID, limit}
+		args = []any{userID, limit, offset}
 	} else {
 		query = `
 			SELECT id, slug, status, analyze_result, failure_message,
@@ -308,17 +308,21 @@ func (r *jobsRepository) List(ctx context.Context, limit int, userID string, isC
 				false AS is_owned
 			FROM jobs
 			ORDER BY created_at DESC
-			LIMIT $1
+			LIMIT $1 OFFSET $2
 		`
-		args = []any{limit}
+		args = []any{limit, offset}
 	}
 
 	rows, err := r.Query(ctx, query, args...)
 	if err != nil {
-		return nil, fmt.Errorf("list jobs: %w", err)
+		return nil, 0, fmt.Errorf("list jobs: %w", err)
 	}
 	defer rows.Close()
-	return scanJobWithOwnership(rows)
+	jobs, err = scanJobWithOwnership(rows)
+	if err != nil {
+		return nil, 0, err
+	}
+	return jobs, total, nil
 }
 
 // scanJobWithOwnership scans rows that include an is_owned column at the end.

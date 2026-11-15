@@ -236,7 +236,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "List recent jobs ordered by created_at descending. Optional limit (default 20, max 100). Any authenticated user sees all jobs; each job carries an isOwned flag when the caller owns it.",
+                "description": "List jobs with optional pagination. Any authenticated user sees all jobs; each job carries an isOwned flag when the caller owns it.",
                 "consumes": [
                     "application/json"
                 ],
@@ -250,7 +250,13 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "integer",
-                        "description": "Maximum number of jobs to return (default 20, max 100)",
+                        "description": "Page number (default 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Items per page (default 10, max 50)",
                         "name": "limit",
                         "in": "query"
                     }
@@ -263,6 +269,12 @@ const docTemplate = `{
                             "items": {
                                 "$ref": "#/definitions/models.Job"
                             }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpx.Error"
                         }
                     },
                     "401": {
@@ -1712,7 +1724,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "List jobs owned by the authenticated user, ordered by created_at descending. Optional limit (default 20, max 100).",
+                "description": "List jobs owned by the authenticated user, ordered by created_at descending. Optional pagination (default page 1, limit 10, max limit 50).",
                 "produces": [
                     "application/json"
                 ],
@@ -1723,7 +1735,13 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "integer",
-                        "description": "Maximum number of jobs to return (default 20, max 100)",
+                        "description": "Page number (default 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Items per page (default 10, max 50)",
                         "name": "limit",
                         "in": "query"
                     }
@@ -1736,6 +1754,12 @@ const docTemplate = `{
                             "items": {
                                 "$ref": "#/definitions/models.Job"
                             }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpx.Error"
                         }
                     },
                     "401": {

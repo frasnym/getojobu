@@ -1,5 +1,12 @@
+import { ApiPagination } from "./types";
+
 export interface FetchOptions extends RequestInit {
   token?: string | null;
+}
+
+export interface PaginatedResult<T> {
+  data: T;
+  pagination: ApiPagination;
 }
 
 function getBaseUrl(): string {
@@ -83,4 +90,86 @@ export async function apiClient<T>(path: string, options: FetchOptions = {}): Pr
   }
 
   return body as T;
+}
+
+export async function apiClientWithPagination<T>(
+  path: string,
+  options: FetchOptions = {}
+): Promise<PaginatedResult<T>> {
+  const { token, headers: customHeaders, ...rest } = options;
+
+  const headers = new Headers(customHeaders);
+  headers.set("Content-Type", "application/json");
+
+  let authToken = token;
+  if (!authToken && typeof window !== "undefined") {
+    try {
+      const clerk = (window as any).Clerk;
+      if (clerk?.session) {
+        authToken = await clerk.session.getToken();
+      }
+    } catch (e) {
+      console.warn("Could not retrieve Clerk token from window.Clerk:", e);
+    }
+  }
+
+  if (authToken) {
+    headers.set("Authorization", `Bearer ${authToken}`);
+  }
+
+  const baseUrl = getBaseUrl();
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  const url = `${baseUrl}${normalizedPath}`;
+
+  const response = await fetch(url, {
+    ...rest,
+    headers,
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => ({}));
+    const message =
+      errorBody?.error?.message ||
+      errorBody?.message ||
+      `API request failed with status ${response.status}`;
+    const error = new Error(message);
+    (error as any).status = response.status;
+    (error as any).code = errorBody?.error?.code || errorBody?.code;
+    (error as any).details = errorBody?.error?.details || errorBody?.details;
+    throw error;
+  }
+
+  const body = await response.json();
+  if (body && typeof body === "object") {
+    if (body.success === false && body.error) {
+      const message = body.error.message || "API request returned an error";
+      const error = new Error(message);
+      (error as any).status = response.status;
+      (error as any).code = body.error.code;
+      (error as any).details = body.error.details;
+      throw error;
+    }
+    const data = ("data" in body ? body.data : body) as T;
+    const pagination: ApiPagination = body.meta?.pagination ?? {
+      page: 1,
+      limit: Array.isArray(data) ? data.length : 10,
+      totalItems: Array.isArray(data) ? data.length : 0,
+      totalPages: 1,
+      hasNext: false,
+      hasPrev: false,
+    };
+    return { data, pagination };
+  }
+
+  return {
+    data: body as T,
+    pagination: {
+      page: 1,
+      limit: 10,
+      totalItems: Array.isArray(body) ? body.length : 0,
+      totalPages: 1,
+      hasNext: false,
+      hasPrev: false,
+    },
+  };
 }

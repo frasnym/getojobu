@@ -283,8 +283,8 @@ func TestListJobs_default(t *testing.T) {
 
 	expected := []*models.Job{{Slug: "job-1"}, {Slug: "job-2"}}
 	mockJob.EXPECT().
-		List(gomock.Any(), 20, "", false).
-		Return(expected, nil)
+		List(gomock.Any(), 10, 0, "", false).
+		Return(expected, 2, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/jobs", nil)
 	req = req.WithContext(ctxval.ContextWithPrincipal(req.Context(), principalCtx("user", "user_1")))
@@ -306,8 +306,8 @@ func TestListJobs_empty_returns_empty_array(t *testing.T) {
 	h, mockJob, _ := newHandlerWithMock(ctrl)
 
 	mockJob.EXPECT().
-		List(gomock.Any(), 20, "", false).
-		Return(nil, nil)
+		List(gomock.Any(), 10, 0, "", false).
+		Return(nil, 0, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/jobs", nil)
 	req = req.WithContext(ctxval.ContextWithPrincipal(req.Context(), principalCtx("user", "user_1")))
@@ -329,8 +329,8 @@ func TestListJobs_returns_all_jobs(t *testing.T) {
 
 	expected := []*models.Job{{Slug: "job-1"}, {Slug: "job-2"}}
 	mockJob.EXPECT().
-		List(gomock.Any(), 20, "user_1", true).
-		Return(expected, nil)
+		List(gomock.Any(), 10, 0, "user_1", true).
+		Return(expected, 2, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/jobs", nil)
 	req = req.WithContext(ctxval.ContextWithPrincipal(req.Context(), principalCtx("", "user_1")))
@@ -354,8 +354,8 @@ func TestListJobs_api_key_returns_all(t *testing.T) {
 
 	expected := []*models.Job{{Slug: "job-1"}, {Slug: "job-2"}}
 	mockJob.EXPECT().
-		List(gomock.Any(), 20, "", false).
-		Return(expected, nil)
+		List(gomock.Any(), 10, 0, "", false).
+		Return(expected, 2, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/jobs", nil)
 	req = req.WithContext(ctxval.ContextWithPrincipal(req.Context(), principalCtx("api_key", "key_1")))
@@ -383,7 +383,7 @@ func TestListJobs_invalid_limit(t *testing.T) {
 	httpx.HandlerFunc(h.ListJobs).ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
-	mockJob.EXPECT().List(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
+	mockJob.EXPECT().List(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
 }
 
 func TestListJobs_clamped_limit(t *testing.T) {
@@ -392,8 +392,8 @@ func TestListJobs_clamped_limit(t *testing.T) {
 	h, mockJob, _ := newHandlerWithMock(ctrl)
 
 	mockJob.EXPECT().
-		List(gomock.Any(), 100, "user_1", true).
-		Return([]*models.Job{}, nil)
+		List(gomock.Any(), 50, 0, "user_1", true).
+		Return([]*models.Job{}, 0, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/jobs?limit=500", nil)
 	req = req.WithContext(ctxval.ContextWithPrincipal(req.Context(), principalCtx("", "user_1")))

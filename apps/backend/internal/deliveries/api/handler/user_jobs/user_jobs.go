@@ -53,11 +53,13 @@ func (h *handler) Route(g *httpx.Router) {
 // ListUserJobs returns the authenticated user's jobs (jobs linked to the user
 // in user_jobs), ordered by created_at descending.
 // @Summary List user jobs
-// @Description List jobs owned by the authenticated user, ordered by created_at descending. Optional limit (default 20, max 100).
+// @Description List jobs owned by the authenticated user, ordered by created_at descending. Optional pagination (default page 1, limit 10, max limit 50).
 // @Tags user-jobs
 // @Produce json
-// @Param limit query integer false "Maximum number of jobs to return (default 20, max 100)"
+// @Param page query integer false "Page number (default 1)"
+// @Param limit query integer false "Items per page (default 10, max 50)"
 // @Success 200 {array} models.Job
+// @Failure 400 {object} httpx.Error
 // @Failure 401 {object} httpx.Error
 // @security ApiKeyAuth
 // @Router /v1/user-jobs [get]
@@ -67,22 +69,39 @@ func (h *handler) ListUserJobs(w http.ResponseWriter, r *http.Request) error {
 		return httpx.Envelope(httpx.CodeUnauthorized, "unauthenticated", "")
 	}
 
-	limit := 20
+	page := 1
+	if v := r.URL.Query().Get("page"); v != "" {
+		n, err := strconv.Atoi(v)
+		if err != nil {
+			return httpx.Envelope(httpx.CodeInvalidRequest, "page must be a positive integer", "")
+		}
+		page = n
+	}
+
+	limit := 10
 	if v := r.URL.Query().Get("limit"); v != "" {
 		n, err := strconv.Atoi(v)
-		if err != nil || n < 1 {
+		if err != nil {
 			return httpx.Envelope(httpx.CodeInvalidRequest, "limit must be a positive integer", "")
-		}
-		if n > 100 {
-			n = 100
 		}
 		limit = n
 	}
 
-	jobs, err := h.ucJobs.ListByUser(r.Context(), p.ID, limit)
+	if page < 1 {
+		page = 1
+	}
+	if limit <= 0 {
+		limit = 10
+	}
+	if limit > 50 {
+		limit = 50
+	}
+	offset := (page - 1) * limit
+
+	jobs, totalItems, err := h.ucJobs.ListByUser(r.Context(), p.ID, limit, offset)
 	if err != nil {
 		logging.Error(r.Context(), "list user jobs failed", err,
-			"user_id", p.ID, "limit", limit)
+			"user_id", p.ID, "page", page, "limit", limit, "offset", offset)
 		return err
 	}
 
@@ -90,7 +109,7 @@ func (h *handler) ListUserJobs(w http.ResponseWriter, r *http.Request) error {
 		jobs = []*models.Job{}
 	}
 
-	return httpx.RespondJSON(w, r, http.StatusOK, jobs)
+	return httpx.RespondJSON(w, r, http.StatusOK, jobs, httpx.WithPaginationParams(page, limit, totalItems))
 }
 
 // AddUserJob links a job listing to the authenticated user's saved jobs

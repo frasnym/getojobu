@@ -778,11 +778,14 @@ paths:
     get:
       consumes:
       - application/json
-      description: List recent jobs ordered by created_at descending. Optional limit
-        (default 20, max 100). Any authenticated user sees all jobs; each job carries
-        an isOwned flag when the caller owns it.
+      description: List jobs with optional pagination. Any authenticated user sees
+        all jobs; each job carries an isOwned flag when the caller owns it.
       parameters:
-      - description: Maximum number of jobs to return (default 20, max 100)
+      - description: Page number (default 1)
+        in: query
+        name: page
+        type: integer
+      - description: Items per page (default 10, max 50)
         in: query
         name: limit
         type: integer
@@ -795,6 +798,10 @@ paths:
             items:
               $ref: '#/definitions/models.Job'
             type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpx.Error'
         "401":
           description: Unauthorized
           schema:
@@ -1737,9 +1744,13 @@ paths:
   /v1/user-jobs:
     get:
       description: List jobs owned by the authenticated user, ordered by created_at
-        descending. Optional limit (default 20, max 100).
+        descending. Optional pagination (default page 1, limit 10, max limit 50).
       parameters:
-      - description: Maximum number of jobs to return (default 20, max 100)
+      - description: Page number (default 1)
+        in: query
+        name: page
+        type: integer
+      - description: Items per page (default 10, max 50)
         in: query
         name: limit
         type: integer
@@ -1752,6 +1763,10 @@ paths:
             items:
               $ref: '#/definitions/models.Job'
             type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpx.Error'
         "401":
           description: Unauthorized
           schema:

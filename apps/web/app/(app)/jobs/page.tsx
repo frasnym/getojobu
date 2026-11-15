@@ -7,6 +7,7 @@ import { useJobs } from "@/hooks/use-jobs";
 import { ExploreJobCard } from "@/components/jobs/explore-job-card";
 import { JobDetailDrawer } from "@/components/jobs/job-detail-drawer";
 import { JobFilters } from "@/components/jobs/job-filters";
+import { PaginationControls } from "@/components/jobs/pagination-controls";
 import { saveUserJob } from "@/lib/api/endpoints";
 import { Job } from "@/lib/api/types";
 import { Compass, Sparkles, Briefcase } from "lucide-react";
@@ -15,6 +16,11 @@ export default function ExploreJobsPage() {
   const { getToken } = useAuth();
   const {
     filteredJobs,
+    pagination,
+    page,
+    setPage,
+    limit,
+    setLimit,
     loading,
     error,
     searchQuery,
@@ -82,7 +88,7 @@ export default function ExploreJobsPage() {
         onStatusChange={setStatusFilter}
         remoteOnly={remoteOnly}
         onRemoteChange={setRemoteOnly}
-        totalCount={filteredJobs.length}
+        totalCount={pagination?.totalItems ?? filteredJobs.length}
       />
 
       {/* Loading state */}
@@ -135,6 +141,21 @@ export default function ExploreJobsPage() {
             />
           ))}
         </div>
+      )}
+
+      {/* Pagination controls */}
+      {!loading && !error && pagination && pagination.totalItems > 0 && (
+        <PaginationControls
+          page={page}
+          limit={limit}
+          totalItems={pagination.totalItems}
+          totalPages={pagination.totalPages}
+          hasNext={pagination.hasNext}
+          hasPrev={pagination.hasPrev}
+          onPageChange={setPage}
+          onLimitChange={setLimit}
+          limitOptions={[10, 20, 50]}
+        />
       )}
 
       {/* Slide-over right detail drawer */}
