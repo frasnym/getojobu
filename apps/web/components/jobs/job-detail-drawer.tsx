@@ -154,7 +154,7 @@ export function JobDetailDrawer({
             </div>
           </div>
 
-          {/* Workspace controls: Analyze + Apply Externally + segmented tabs */}
+          {/* Workspace controls: Analyze + segmented tabs */}
           {workspaceMode && (
             <div className="pt-2">
               <div className="flex items-center justify-between gap-3 mb-3">
@@ -172,17 +172,6 @@ export function JobDetailDrawer({
                       <span>Analyze Compatibility</span>
                     </button>
                   )}
-                  {applyUrl ? (
-                    <a
-                      href={applyUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-4 py-2 text-xs font-medium text-foreground hover:bg-secondary transition-colors"
-                    >
-                      <span>Apply Externally</span>
-                      <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" />
-                    </a>
-                  ) : null}
                 </div>
               </div>
               <div
