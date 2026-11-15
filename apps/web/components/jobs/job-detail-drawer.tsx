@@ -11,7 +11,6 @@ import {
   X,
   MapPin,
   Globe,
-  Clock,
   Building2,
   Calendar,
   Bookmark,
@@ -105,17 +104,9 @@ export function JobDetailDrawer({
       >
         {/* Drawer Header */}
         <div className="border-b border-border/60 p-6 space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-4">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                {job.company}
-              </span>
-              {job.is_remote === true && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 px-2.5 py-0.5 text-xs font-semibold">
-                  <Globe className="h-3 w-3" />
-                  Remote
-                </span>
-              )}
+              <h2 className="text-2xl font-black tracking-tight text-foreground">{job.title}</h2>
               <span className={statusBadgeClasses(job.status)}>
                 {job.status}
               </span>
@@ -129,29 +120,6 @@ export function JobDetailDrawer({
             >
               <X className="h-5 w-5" />
             </button>
-          </div>
-
-          <div>
-            <h2 className="text-2xl font-black tracking-tight text-foreground">{job.title}</h2>
-            <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground pt-2">
-              <span className="flex items-center gap-1.5">
-                <MapPin className="h-3.5 w-3.5" />
-                <span>{job.location}</span>
-              </span>
-              {job.posted_date && (
-                <span className="flex items-center gap-1.5">
-                  <Clock className="h-3.5 w-3.5" />
-                  <span>
-                    Posted on{" "}
-                    {new Date(job.posted_date).toLocaleDateString(undefined, {
-                      month: "long",
-                      day: "numeric",
-                      year: "numeric",
-                    })}
-                  </span>
-                </span>
-              )}
-            </div>
           </div>
 
           {/* Workspace controls: Analyze + segmented tabs */}

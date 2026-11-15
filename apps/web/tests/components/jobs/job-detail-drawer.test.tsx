@@ -46,10 +46,10 @@ describe("JobDetailDrawer component", () => {
 
     expect(screen.getByRole("dialog")).toBeInTheDocument();
     expect(screen.getByText("Systems Lead")).toBeInTheDocument();
-    // Company appears in header badge + summary grid
-    expect(screen.getAllByText("Datadog")).toHaveLength(2);
-    // Location appears in header + summary grid
-    expect(screen.getAllByText("New York, NY")).toHaveLength(2);
+    // Company appears in summary grid only
+    expect(screen.getAllByText("Datadog")).toHaveLength(1);
+    // Location appears in summary grid only
+    expect(screen.getAllByText("New York, NY")).toHaveLength(1);
     expect(screen.getByText("On-site / Hybrid")).toBeInTheDocument();
     expect(screen.getByText("Detailed description of the systems role.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Save to My Job/i })).toBeInTheDocument();
