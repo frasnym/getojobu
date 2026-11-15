@@ -14,7 +14,7 @@ type Job struct {
 	Status         string          `json:"status"`
 	AnalyzeResult  json.RawMessage `json:"analyze_result,omitempty" swaggertype:"object"`
 	FailureMessage *string         `json:"failure_message,omitempty"`
-	Source         string          `json:"source"`
+	Source         string          `json:"-"` // internal audit/shared fact; not exposed in API responses
 	ExternalID     *string         `json:"external_id,omitempty"`
 	SourceURL      *string         `json:"source_url,omitempty"`
 	ApplyURL       *string         `json:"apply_url,omitempty"`
@@ -27,8 +27,8 @@ type Job struct {
 	VisaRelocation *bool           `json:"visa_relocation,omitempty"`
 	CreatedAt      time.Time       `json:"created_at"`
 	UpdatedAt      time.Time       `json:"updated_at"`
-	UpdatedByType  string          `json:"updated_by_type"`
-	UpdatedByID    string          `json:"updated_by_id"`
+	UpdatedByType  string          `json:"-"` // internal audit attribution; not exposed in API responses
+	UpdatedByID    string          `json:"-"` // internal audit attribution; not exposed in API responses
 	// IsOwned reports whether the requesting user owns this job (has a row in
 	// user_jobs). Only populated on list endpoints; false elsewhere.
 	IsOwned bool `json:"is_owned"`
