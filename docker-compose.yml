@@ -15,6 +15,8 @@ services:
     build:
       context: ./apps/backend
       dockerfile: Dockerfile
+      args:
+        BUILD_VERSION: ${BUILD_VERSION:-unknown}
     container_name: getojobu-api
     restart: unless-stopped
     mem_limit: 512m
@@ -29,6 +31,8 @@ services:
     build:
       context: ./workers/python
       dockerfile: Dockerfile
+      args:
+        BUILD_VERSION: ${BUILD_VERSION:-unknown}
     container_name: getojobu-worker
     restart: unless-stopped
     mem_limit: 512m
