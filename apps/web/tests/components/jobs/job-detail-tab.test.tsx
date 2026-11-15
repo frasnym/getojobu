@@ -31,6 +31,24 @@ describe("JobDetailTab component", () => {
     expect(applyButton).toHaveAttribute("rel", "noopener noreferrer");
   });
 
+  it("falls back to source_url when apply_url is empty", () => {
+    const jobWithSourceOnly: Job = { ...sampleJob, apply_url: undefined, source_url: "https://example.com/job" };
+
+    render(<JobDetailTab job={jobWithSourceOnly} />);
+
+    const applyButton = screen.getByRole("link", { name: /Apply on Company Site/i });
+    expect(applyButton).toHaveAttribute("href", "https://example.com/job");
+  });
+
+  it("shows a warning tag when both apply_url and source_url are empty", () => {
+    const jobWithNoLinks: Job = { ...sampleJob, apply_url: undefined, source_url: undefined };
+
+    render(<JobDetailTab job={jobWithNoLinks} />);
+
+    expect(screen.getByText("No application link available")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Apply on Company Site/i })).not.toBeInTheDocument();
+  });
+
   it("handles empty description with clean fallback message", () => {
     render(<JobDetailTab job={{ ...sampleJob, description: undefined, apply_url: undefined }} />);
     expect(

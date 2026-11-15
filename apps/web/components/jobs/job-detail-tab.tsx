@@ -1,12 +1,13 @@
 import React from "react";
 import { Job } from "@/lib/api/types";
-import { ExternalLink, Building2, MapPin, Globe, Calendar, CheckCircle2 } from "lucide-react";
+import { ExternalLink, Building2, MapPin, Globe, Calendar, CheckCircle2, AlertTriangle } from "lucide-react";
 
 interface JobDetailTabProps {
   job: Job;
 }
 
 export function JobDetailTab({ job }: JobDetailTabProps) {
+  const applyUrl = job.apply_url || job.source_url;
   return (
     <div className="space-y-6">
       {/* Quick summary grid */}
@@ -60,9 +61,9 @@ export function JobDetailTab({ job }: JobDetailTabProps) {
             </p>
           </div>
 
-          {job.apply_url && (
+          {applyUrl ? (
             <a
-              href={job.apply_url}
+              href={applyUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-xs font-bold text-primary-foreground shadow-sm hover:bg-primary/90 transition-colors"
@@ -70,6 +71,11 @@ export function JobDetailTab({ job }: JobDetailTabProps) {
               <span>Apply on Company Site</span>
               <ExternalLink className="h-3.5 w-3.5" />
             </a>
+          ) : (
+            <span className="inline-flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-xs font-medium text-amber-800 dark:border-amber-900/30 dark:bg-amber-900/10 dark:text-amber-300">
+              <AlertTriangle className="h-3 w-3" />
+              <span>No application link available</span>
+            </span>
           )}
         </div>
 

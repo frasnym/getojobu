@@ -60,6 +60,28 @@ describe("JobDetailDrawer component", () => {
     expect(handleClose).toHaveBeenCalled();
   });
 
+  it("falls back to source_url when apply_url is empty", () => {
+    const jobWithSourceOnly: Job = { ...mockJob, apply_url: undefined, source_url: "https://example.com/job" };
+
+    render(
+      <JobDetailDrawer job={jobWithSourceOnly} isOpen={true} onClose={() => {}} />
+    );
+
+    const applyLink = screen.getByText("Apply Externally").closest("a");
+    expect(applyLink).toHaveAttribute("href", "https://example.com/job");
+  });
+
+  it("shows a warning tag when both apply_url and source_url are empty", () => {
+    const jobWithNoLinks: Job = { ...mockJob, apply_url: undefined, source_url: undefined };
+
+    render(
+      <JobDetailDrawer job={jobWithNoLinks} isOpen={true} onClose={() => {}} />
+    );
+
+    expect(screen.getByText("No application link available")).toBeInTheDocument();
+    expect(screen.queryByText("Apply Externally")).not.toBeInTheDocument();
+  });
+
   it("renders Saved in My Jobs indicator and workspace link when is_owned is true", () => {
     const ownedJob: Job = { ...mockJob, is_owned: true };
 

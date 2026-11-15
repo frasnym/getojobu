@@ -10,6 +10,7 @@ import {
   Clock,
   Bookmark,
   Check,
+  AlertTriangle,
   ExternalLink,
   Loader2,
   Sparkles,
@@ -54,6 +55,8 @@ export function JobDetailDrawer({
   }
 
   const isOwned = job.is_owned === true;
+
+  const applyUrl = job.apply_url || job.source_url;
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
@@ -159,9 +162,9 @@ export function JobDetailDrawer({
               </div>
             ) : null}
 
-            {job.apply_url && (
+            {applyUrl ? (
               <a
-                href={job.apply_url}
+                href={applyUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-4 py-2 text-sm font-medium text-foreground hover:bg-secondary transition-colors"
@@ -169,6 +172,11 @@ export function JobDetailDrawer({
                 <span>Apply Externally</span>
                 <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" />
               </a>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-800 dark:border-amber-900/30 dark:bg-amber-900/10 dark:text-amber-300">
+                <AlertTriangle className="h-3.5 w-3.5" />
+                <span>No application link available</span>
+              </span>
             )}
           </div>
         </div>
