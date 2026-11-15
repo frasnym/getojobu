@@ -152,23 +152,36 @@ export function JobDetailDrawer({
             </div>
           </div>
 
-          {/* Workspace controls: Analyze + segmented tabs */}
+          {/* Workspace controls: Analyze + Apply Externally + segmented tabs */}
           {workspaceMode && (
             <div className="pt-2">
               <div className="flex items-center justify-between gap-3 mb-3">
-                {onAnalyzeClick && (
-                  <button
-                    type="button"
-                    onClick={onAnalyzeClick}
-                    disabled={evaluating}
-                    className="inline-flex items-center gap-2 rounded-lg bg-primary px-3.5 py-2 text-xs font-semibold text-primary-foreground shadow transition-colors hover:bg-primary/90 disabled:opacity-50"
-                  >
-                    <RefreshCw
-                      className={`h-3.5 w-3.5 ${evaluating ? "animate-spin" : ""}`}
-                    />
-                    <span>Analyze Compatibility</span>
-                  </button>
-                )}
+                <div className="flex items-center gap-3">
+                  {onAnalyzeClick && (
+                    <button
+                      type="button"
+                      onClick={onAnalyzeClick}
+                      disabled={evaluating}
+                      className="inline-flex items-center gap-2 rounded-lg bg-primary px-3.5 py-2 text-xs font-semibold text-primary-foreground shadow transition-colors hover:bg-primary/90 disabled:opacity-50"
+                    >
+                      <RefreshCw
+                        className={`h-3.5 w-3.5 ${evaluating ? "animate-spin" : ""}`}
+                      />
+                      <span>Analyze Compatibility</span>
+                    </button>
+                  )}
+                  {applyUrl ? (
+                    <a
+                      href={applyUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-4 py-2 text-xs font-medium text-foreground hover:bg-secondary transition-colors"
+                    >
+                      <span>Apply Externally</span>
+                      <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" />
+                    </a>
+                  ) : null}
+                </div>
               </div>
               <div
                 role="tablist"
@@ -237,21 +250,27 @@ export function JobDetailDrawer({
               </>
             ) : null}
 
-            {applyUrl ? (
-              <a
-                href={applyUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-4 py-2 text-sm font-medium text-foreground hover:bg-secondary transition-colors"
-              >
-                <span>Apply Externally</span>
-                <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" />
-              </a>
-            ) : (
-              <span className="inline-flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-800 dark:border-amber-900/30 dark:bg-amber-900/10 dark:text-amber-300">
-                <AlertTriangle className="h-3.5 w-3.5" />
-                <span>No application link available</span>
-              </span>
+            {/* Apply Externally lives beside Analyze Compatibility in workspace mode,
+                 so only show it here in the simple (non-workspace) drawer. */}
+            {!workspaceMode && (
+              <>
+                {applyUrl ? (
+                  <a
+                    href={applyUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-4 py-2 text-sm font-medium text-foreground hover:bg-secondary transition-colors"
+                  >
+                    <span>Apply Externally</span>
+                    <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" />
+                  </a>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-800 dark:border-amber-900/30 dark:bg-amber-900/10 dark:text-amber-300">
+                    <AlertTriangle className="h-3.5 w-3.5" />
+                    <span>No application link available</span>
+                  </span>
+                )}
+              </>
             )}
           </div>
         </div>
