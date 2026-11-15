@@ -55,3 +55,18 @@ func (mr *MockUserJobsMockRecorder) ListByUser(ctx, userID, limit any) *gomock.C
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListByUser", reflect.TypeOf((*MockUserJobs)(nil).ListByUser), ctx, userID, limit)
 }
+
+// Add mocks base method.
+func (m *MockUserJobs) Add(ctx context.Context, userID string, jobID int64) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Add", ctx, userID, jobID)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Add indicates an expected call of Add.
+func (mr *MockUserJobsMockRecorder) Add(ctx, userID, jobID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Add", reflect.TypeOf((*MockUserJobs)(nil).Add), ctx, userID, jobID)
+}

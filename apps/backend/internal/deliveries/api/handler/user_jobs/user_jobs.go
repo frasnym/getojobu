@@ -22,6 +22,17 @@ type handler struct {
 	ucJobs ucUserJobs.UserJobs
 }
 
+// addUserJobRequest is the POST /v1/user-jobs body.
+type addUserJobRequest struct {
+	JobID int64 `json:"job_id"`
+}
+
+// addUserJobResponse is the outcome of adding a job to the user's list.
+type addUserJobResponse struct {
+	JobID   int64 `json:"job_id"`
+	Created bool  `json:"created"`
+}
+
 // NewHandler constructs a user-jobs handler from the full contract.
 func NewHandler(c *contract.Contract) *handler {
 	return &handler{
@@ -36,6 +47,7 @@ func (h *handler) Route(g *httpx.Router) {
 	auth := middleware.NewAuthMiddleware(h.cfg, h.userUC)
 
 	g.GET("", h.ListUserJobs, auth.ValidClerkSession)
+	g.POST("", h.AddUserJob, auth.ValidClerkSession)
 }
 
 // ListUserJobs returns the authenticated user's jobs (jobs linked to the user
@@ -79,4 +91,48 @@ func (h *handler) ListUserJobs(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	return httpx.RespondJSON(w, r, http.StatusOK, jobs)
+}
+
+// AddUserJob links a job listing to the authenticated user's saved jobs
+// (user_jobs). Idempotent: linking an already-linked job returns 200 OK with
+// created=false; a new link returns 201 Created.
+// @Summary Add job to user jobs
+// @Description Link a job listing to the authenticated user's saved jobs. Idempotent: linking an already-linked job returns 200 OK with created=false; a new link returns 201 Created.
+// @Tags user-jobs
+// @Accept json
+// @Produce json
+// @Param job body addUserJobRequest true "Job to add"
+// @Success 201 {object} addUserJobResponse
+// @Success 200 {object} addUserJobResponse
+// @Failure 400 {object} httpx.Error
+// @Failure 401 {object} httpx.Error
+// @security ApiKeyAuth
+// @Router /v1/user-jobs [post]
+func (h *handler) AddUserJob(w http.ResponseWriter, r *http.Request) error {
+	p := ctxval.PrincipalFromContext(r.Context())
+	if p == nil {
+		return httpx.Envelope(httpx.CodeUnauthorized, "unauthenticated", "")
+	}
+
+	var req addUserJobRequest
+	if err := httpx.ParseJSON(r, &req); err != nil {
+		return err
+	}
+
+	if req.JobID <= 0 {
+		return httpx.Envelope(httpx.CodeInvalidRequest, "job_id must be a positive integer", "")
+	}
+
+	created, err := h.ucJobs.Add(r.Context(), p.ID, req.JobID)
+	if err != nil {
+		logging.Error(r.Context(), "add user job failed", err,
+			"user_id", p.ID, "job_id", req.JobID)
+		return err
+	}
+
+	resp := addUserJobResponse{JobID: req.JobID, Created: created}
+	if created {
+		return httpx.RespondJSON(w, r, http.StatusCreated, resp)
+	}
+	return httpx.RespondJSON(w, r, http.StatusOK, resp)
 }

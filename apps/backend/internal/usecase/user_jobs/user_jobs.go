@@ -16,6 +16,11 @@ type UserJobs interface {
 	// ListByUser returns jobs owned by the given user (via user_jobs), ordered
 	// by created_at descending, limited to limit. Each job carries isOwned=true.
 	ListByUser(ctx context.Context, userID string, limit int) ([]*models.Job, error)
+
+	// Add links the given job to the given user in user_jobs. Returns created=true
+	// when a new ownership row was inserted, created=false when the pair already
+	// exists (idempotent via ON CONFLICT DO NOTHING).
+	Add(ctx context.Context, userID string, jobID int64) (created bool, err error)
 }
 
 // userJobsService implements UserJobs backed by the user_jobs repository.
@@ -37,4 +42,15 @@ func (s *userJobsService) ListByUser(ctx context.Context, userID string, limit i
 		return nil, fmt.Errorf("list jobs by user: %w", err)
 	}
 	return jobs, nil
+}
+
+// Add links the given job to the given user in user_jobs. Returns created=true
+// when a new ownership row was inserted, created=false when the pair already
+// exists (idempotent).
+func (s *userJobsService) Add(ctx context.Context, userID string, jobID int64) (bool, error) {
+	created, err := s.repo.Create(ctx, userID, jobID)
+	if err != nil {
+		return false, fmt.Errorf("add user job: %w", err)
+	}
+	return created, nil
 }

@@ -614,6 +614,18 @@ definitions:
       user_experience_id:
         type: string
     type: object
+  user_jobs.addUserJobRequest:
+    properties:
+      job_id:
+        type: integer
+    type: object
+  user_jobs.addUserJobResponse:
+    properties:
+      created:
+        type: boolean
+      job_id:
+        type: integer
+    type: object
   webhook.StatusResponse:
     properties:
       status:
@@ -1747,6 +1759,43 @@ paths:
       security:
       - ApiKeyAuth: []
       summary: List user jobs
+      tags:
+      - user-jobs
+    post:
+      consumes:
+      - application/json
+      description: 'Link a job listing to the authenticated user''s saved jobs. Idempotent:
+        linking an already-linked job returns 200 OK with created=false; a new link
+        returns 201 Created.'
+      parameters:
+      - description: Job to add
+        in: body
+        name: job
+        required: true
+        schema:
+          $ref: '#/definitions/user_jobs.addUserJobRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/user_jobs.addUserJobResponse'
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/user_jobs.addUserJobResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpx.Error'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpx.Error'
+      security:
+      - ApiKeyAuth: []
+      summary: Add job to user jobs
       tags:
       - user-jobs
   /v1/webhooks/clerk:
