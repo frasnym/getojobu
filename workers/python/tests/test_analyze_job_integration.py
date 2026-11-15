@@ -129,7 +129,6 @@ async def test_integration_worker_with_real_temporal_and_fakes():
 
     assert profile.family == "technology"
     assert profile.seniority == "senior"
-    assert profile.title == "Senior Backend Engineer"
     assert llm.calls == 1
 
 
@@ -211,7 +210,6 @@ async def test_activity_flow_success_new_to_analyze_pending_to_analyzed():
 
     parsed_result = json.loads(fake_api.patched["analyze_result"])
     assert parsed_result["family"] == "technology"
-    assert parsed_result["title"] == "Lead Go Developer"
 
 
 @pytest.mark.asyncio

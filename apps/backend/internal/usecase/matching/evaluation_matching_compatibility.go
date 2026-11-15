@@ -170,6 +170,12 @@ func (s *matchingService) TriggerCompatibilityBulk(
 			})
 			continue
 		}
+		// Append company/title/location from the shared jobs table so the
+		// downstream evaluation still has them even though the LLM no longer
+		// re-extracts them (they are redundant with jobs.title/company/location).
+		rawJobProfile["title"] = job.Title
+		rawJobProfile["company"] = job.Company
+		rawJobProfile["location"] = job.Location
 		family, _ := rawJobProfile["family"].(string)
 		if family == "" {
 			family = "other"

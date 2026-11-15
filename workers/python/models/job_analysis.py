@@ -30,9 +30,6 @@ class JobExtractionOutput(BaseModel):
     """Normalized job description output extracted by LLM in Step 1B (extract-job-v1)."""
 
     family: str  # technology | administration | ... | other
-    title: str | None = None
-    company: str | None = None
-    location: str | None = None
     work_arrangement: str | None = None  # remote | hybrid | onsite | unknown
     employment_type: str | None = None
     seniority: (

@@ -12,8 +12,6 @@ def test_job_analysis_minimal():
     analysis = JobAnalysis(
         family="technology",
         seniority="senior",
-        title="Senior Backend Engineer",
-        company="Acme",
     )
     assert analysis.family == "technology"
     assert analysis.seniority == "senior"
@@ -36,18 +34,22 @@ def test_job_extraction_output_schema_excludes_metadata():
     assert "seniority" in props
     assert "requirements" in props
     assert "responsibilities" in props
+    assert "title" not in props
+    assert "company" not in props
+    assert "location" not in props
 
 
 def test_job_analysis_excludes_ids_from_dump():
     analysis = JobAnalysis(
         family="technology",
         seniority="entry",
-        title="Software Engineer New Grad",
-        company="Motorola Solutions",
     )
     data = analysis.model_dump()
     assert "id" not in data
     assert "job_id" not in data
+    assert "title" not in data
+    assert "company" not in data
+    assert "location" not in data
     assert data["family"] == "technology"
     assert data["seniority"] == "entry"
 

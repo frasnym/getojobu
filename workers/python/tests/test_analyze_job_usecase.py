@@ -78,7 +78,6 @@ async def test_analyze_returns_parsed_analysis():
 
     assert analysis.family == "technology"
     assert analysis.seniority == "senior"
-    assert analysis.title == "Senior Backend Engineer"
     assert len(analysis.requirements) == 1
     assert analysis.requirements[0].original_name == "Golang"
     assert analysis.requirements[0].importance == "required"
