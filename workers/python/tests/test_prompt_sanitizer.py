@@ -9,7 +9,6 @@ def test_sanitize_job_profile_strips_internal_metadata():
         "job_id": "job-motorola-sw-newgrad",
         "version": 1,
         "schema_version": "1.0",
-        "profile_data": {},
         "prompt_version": "extract-job-v1",
         "model": "gpt-4o-mini",
         "created_at": None,
@@ -39,7 +38,6 @@ def test_sanitize_job_profile_strips_internal_metadata():
     assert "job_id" not in sanitized
     assert "version" not in sanitized
     assert "schema_version" not in sanitized
-    assert "profile_data" not in sanitized
     assert "prompt_version" not in sanitized
     assert "model" not in sanitized
     assert "created_at" not in sanitized

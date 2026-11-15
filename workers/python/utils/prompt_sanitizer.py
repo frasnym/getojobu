@@ -14,7 +14,6 @@ _INTERNAL_JOB_KEYS: set[str] = {
     "job_id",
     "version",
     "schema_version",
-    "profile_data",
     "prompt_version",
     "model",
     "created_at",

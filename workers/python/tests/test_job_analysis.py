@@ -39,28 +39,18 @@ def test_job_extraction_output_schema_excludes_metadata():
     assert "responsibilities" in props
 
 
-def test_job_analysis_accepts_slug_or_custom_string_id():
+def test_job_analysis_accepts_custom_string_job_id():
     raw = {
-        "id": "job-motorola-sw-newgrad",
+        "job_id": "job-motorola-sw-newgrad",
         "family": "technology",
         "seniority": "entry",
         "title": "Software Engineer New Grad",
         "company": "Motorola Solutions",
     }
     analysis = JobAnalysis.model_validate(raw)
-    assert analysis.id == "job-motorola-sw-newgrad"
+    assert analysis.job_id == "job-motorola-sw-newgrad"
     assert analysis.family == "technology"
     assert analysis.seniority == "entry"
-
-
-def test_job_analysis_rejects_none_id():
-    raw_none = {
-        "id": None,
-        "family": "technology",
-        "seniority": "mid",
-    }
-    with pytest.raises(ValidationError):
-        JobAnalysis.model_validate(raw_none)
 
 
 def test_job_extraction_output_rejects_none_requirements():

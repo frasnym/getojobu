@@ -6,8 +6,6 @@ in one step.
 """
 
 from datetime import datetime
-from typing import Any
-from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -89,21 +87,9 @@ class JobExtractionOutput(BaseModel):
 class JobAnalysis(JobExtractionOutput):
     """Full domain model for job analysis including database/workflow metadata."""
 
-    id: str | UUID = Field(default_factory=uuid4)
     job_id: str | None = None  # reference to shared jobs table slug/id
     version: int = 1
     schema_version: str = "1.0"
-    profile_data: dict[str, Any] = {}  # raw normalized JSONB payload
     prompt_version: str = "extract-job-v1"
     model: str | None = None
     created_at: datetime | None = None
-
-    @field_validator("id", mode="before")
-    @classmethod
-    def _validate_id(cls, v: Any) -> Any:
-        if isinstance(v, str):
-            try:
-                return UUID(v)
-            except ValueError:
-                return v
-        return v
