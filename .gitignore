@@ -3,6 +3,10 @@ workers/python/.env
 
 *debug*
 
+# Node
+node_modules/
+.next/
+
 # Python
 __pycache__/
 *.py[cod]
@@ -20,3 +24,5 @@ venv/
 .coverage
 htmlcov/
 .mypy_cache/
+.agents
+.worktrees/
