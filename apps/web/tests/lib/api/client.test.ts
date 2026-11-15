@@ -55,4 +55,20 @@ describe("API endpoints and mock adapter", () => {
     expect(summary.id).toBeDefined();
     expect(summary.evaluation_status).toBe("success");
   });
+
+  it("throws error when NEXT_PUBLIC_ENABLE_MOCK=false and backend fails", async () => {
+    process.env.NEXT_PUBLIC_ENABLE_MOCK = "false";
+    const originalFetch = global.fetch;
+    global.fetch = async () => {
+      throw new Error("Network connection refused");
+    };
+
+    try {
+      await expect(getJobs()).rejects.toThrow("Network connection refused");
+      await expect(getJobBySlug("some-slug")).rejects.toThrow("Network connection refused");
+    } finally {
+      global.fetch = originalFetch;
+      process.env.NEXT_PUBLIC_ENABLE_MOCK = "true";
+    }
+  });
 });
