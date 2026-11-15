@@ -56,12 +56,31 @@ export async function apiClient<T>(path: string, options: FetchOptions = {}): Pr
 
   if (!response.ok) {
     const errorBody = await response.json().catch(() => ({}));
-    const message = errorBody.message || `API request failed with status ${response.status}`;
+    const message =
+      errorBody?.error?.message ||
+      errorBody?.message ||
+      `API request failed with status ${response.status}`;
     const error = new Error(message);
     (error as any).status = response.status;
-    (error as any).code = errorBody.code;
+    (error as any).code = errorBody?.error?.code || errorBody?.code;
+    (error as any).details = errorBody?.error?.details || errorBody?.details;
     throw error;
   }
 
-  return response.json();
+  const body = await response.json();
+  if (body && typeof body === "object") {
+    if (body.success === false && body.error) {
+      const message = body.error.message || "API request returned an error";
+      const error = new Error(message);
+      (error as any).status = response.status;
+      (error as any).code = body.error.code;
+      (error as any).details = body.error.details;
+      throw error;
+    }
+    if ("data" in body && "success" in body) {
+      return body.data as T;
+    }
+  }
+
+  return body as T;
 }

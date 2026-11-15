@@ -56,6 +56,77 @@ describe("API endpoints and mock adapter", () => {
     expect(summary.evaluation_status).toBe("success");
   });
 
+  it("unwraps canonical backend response envelope when NEXT_PUBLIC_ENABLE_MOCK=false", async () => {
+    process.env.NEXT_PUBLIC_ENABLE_MOCK = "false";
+    const originalFetch = global.fetch;
+    const mockJobsData = [
+      {
+        id: 42,
+        slug: "staff-platform-eng",
+        title: "Staff Platform Engineer",
+        company: "Acme Corp",
+        location: "Remote",
+        status: "analyzed",
+        created_at: "2026-11-15T00:00:00Z",
+      },
+    ];
+
+    global.fetch = async () =>
+      new Response(
+        JSON.stringify({
+          success: true,
+          data: mockJobsData,
+          meta: { timestamp: "2026-11-15T12:00:00Z", requestId: "req-123" },
+          error: null,
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      );
+
+    try {
+      const jobs = await getJobs();
+      expect(Array.isArray(jobs)).toBe(true);
+      expect(jobs).toHaveLength(1);
+      expect(jobs[0].title).toBe("Staff Platform Engineer");
+    } finally {
+      global.fetch = originalFetch;
+      process.env.NEXT_PUBLIC_ENABLE_MOCK = "true";
+    }
+  });
+
+  it("extracts error message and code from canonical error envelope", async () => {
+    process.env.NEXT_PUBLIC_ENABLE_MOCK = "false";
+    const originalFetch = global.fetch;
+    global.fetch = async () =>
+      new Response(
+        JSON.stringify({
+          success: false,
+          data: null,
+          meta: { timestamp: "2026-11-15T12:00:00Z", requestId: "req-err" },
+          error: {
+            code: "UNAUTHORIZED",
+            message: "unauthenticated user token",
+          },
+        }),
+        { status: 401, headers: { "Content-Type": "application/json" } }
+      );
+
+    try {
+      let caughtError: any;
+      try {
+        await getJobs();
+      } catch (err) {
+        caughtError = err;
+      }
+      expect(caughtError).toBeDefined();
+      expect(caughtError.message).toBe("unauthenticated user token");
+      expect(caughtError.code).toBe("UNAUTHORIZED");
+      expect(caughtError.status).toBe(401);
+    } finally {
+      global.fetch = originalFetch;
+      process.env.NEXT_PUBLIC_ENABLE_MOCK = "true";
+    }
+  });
+
   it("throws error when NEXT_PUBLIC_ENABLE_MOCK=false and backend fails", async () => {
     process.env.NEXT_PUBLIC_ENABLE_MOCK = "false";
     const originalFetch = global.fetch;

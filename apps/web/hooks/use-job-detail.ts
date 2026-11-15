@@ -29,7 +29,7 @@ export function useJobDetail(slug: string, explicitToken?: string | null) {
         ]);
         if (mounted) {
           setJob(jobData);
-          setAllJobs(jobsList);
+          setAllJobs(Array.isArray(jobsList) ? jobsList : []);
           setError(null);
         }
       } catch (err: any) {

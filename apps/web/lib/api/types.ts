@@ -76,3 +76,37 @@ export interface DownloadResumeResponse {
   expires_at: string;
   filename: string;
 }
+
+export interface ApiErrorDetail {
+  field?: string;
+  issue?: string;
+}
+
+export interface ApiErrorPayload {
+  code: string;
+  message: string;
+  details?: ApiErrorDetail[];
+}
+
+export interface ApiPagination {
+  page: number;
+  limit: number;
+  totalItems: number;
+  totalPages: number;
+  hasNext: boolean;
+  hasPrev: boolean;
+}
+
+export interface ApiMeta {
+  timestamp: string;
+  requestId: string;
+  pagination?: ApiPagination;
+  build?: string;
+}
+
+export interface ApiResponse<T = any> {
+  success: boolean;
+  data: T;
+  meta: ApiMeta;
+  error?: ApiErrorPayload | null;
+}

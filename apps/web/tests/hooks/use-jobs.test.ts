@@ -62,4 +62,16 @@ describe("filterJobs helper", () => {
     expect(pending).toHaveLength(1);
     expect(pending[0].status).toBe("pending");
   });
+
+  it("handles non-array inputs defensively without throwing TypeError", () => {
+    // If backend envelope or null/undefined is passed, should return empty array safely
+    expect(() => filterJobs(null as any, "", "all")).not.toThrow();
+    expect(filterJobs(null as any, "", "all")).toEqual([]);
+
+    expect(() => filterJobs(undefined as any, "", "all")).not.toThrow();
+    expect(filterJobs(undefined as any, "", "all")).toEqual([]);
+
+    expect(() => filterJobs({ success: true, data: [] } as any, "", "all")).not.toThrow();
+    expect(filterJobs({ success: true, data: [] } as any, "", "all")).toEqual([]);
+  });
 });

@@ -6,6 +6,9 @@ import { getJobs } from "@/lib/api/endpoints";
 export type StatusFilter = "all" | "analyzed" | "pending" | "failed";
 
 export function filterJobs(jobs: Job[], query: string, status: StatusFilter): Job[] {
+  if (!Array.isArray(jobs)) {
+    return [];
+  }
   const normalizedQuery = query.trim().toLowerCase();
 
   return jobs.filter((job) => {
@@ -50,7 +53,7 @@ export function useJobs(explicitToken?: string | null) {
         const token = explicitToken !== undefined ? explicitToken : await getToken();
         const data = await getJobs(token);
         if (mounted) {
-          setJobs(data);
+          setJobs(Array.isArray(data) ? data : []);
           setError(null);
         }
       } catch (err: any) {
