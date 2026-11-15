@@ -21,18 +21,22 @@ const mockUserJobs: Job[] = [
     status: "analyzed",
     is_owned: true,
     created_at: "2026-11-13T10:00:00Z",
-    latest_evaluation: {
-      id: "eval-1",
-      evaluation_status: "success",
-      overall_score: 88,
-      eligibility_status: "eligible",
-    },
   },
 ];
 
 describe("useUserJobs hook", () => {
   it("fetches user jobs and returns filtered list", async () => {
-    vi.spyOn(endpoints, "getUserJobs").mockResolvedValue(mockUserJobs);
+    vi.spyOn(endpoints, "getUserJobs").mockResolvedValue({
+      data: mockUserJobs,
+      pagination: {
+        page: 1,
+        limit: 10,
+        totalItems: mockUserJobs.length,
+        totalPages: 1,
+        hasNext: false,
+        hasPrev: false,
+      },
+    });
 
     const { result } = renderHook(() => useUserJobs());
 
@@ -43,10 +47,21 @@ describe("useUserJobs hook", () => {
     expect(result.current.jobs).toHaveLength(1);
     expect(result.current.filteredJobs).toHaveLength(1);
     expect(result.current.jobs[0].title).toBe("Senior Go Engineer");
+    expect(result.current.pagination?.totalItems).toBe(1);
   });
 
   it("handles empty or non-array returns gracefully", async () => {
-    vi.spyOn(endpoints, "getUserJobs").mockResolvedValue([] as Job[]);
+    vi.spyOn(endpoints, "getUserJobs").mockResolvedValue({
+      data: [] as Job[],
+      pagination: {
+        page: 1,
+        limit: 10,
+        totalItems: 0,
+        totalPages: 1,
+        hasNext: false,
+        hasPrev: false,
+      },
+    });
 
     const { result } = renderHook(() => useUserJobs());
 

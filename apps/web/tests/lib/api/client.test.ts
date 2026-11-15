@@ -13,25 +13,25 @@ describe("API endpoints and mock adapter", () => {
     process.env.NEXT_PUBLIC_ENABLE_MOCK = "true";
   });
 
-  it("getJobs returns a list of jobs with match score information", async () => {
-    const jobs = await getJobs();
-    expect(Array.isArray(jobs)).toBe(true);
-    expect(jobs.length).toBeGreaterThan(0);
-    const first = jobs[0];
+  it("getJobs returns a list of jobs with match score information and pagination", async () => {
+    const res = await getJobs();
+    expect(Array.isArray(res.data)).toBe(true);
+    expect(res.data.length).toBeGreaterThan(0);
+    expect(res.pagination).toBeDefined();
+    expect(res.pagination.page).toBe(1);
+    expect(res.pagination.limit).toBe(10);
+    const first = res.data[0];
     expect(first).toHaveProperty("slug");
     expect(first).toHaveProperty("title");
     expect(first).toHaveProperty("company");
     expect(first).toHaveProperty("status");
   });
 
-  it("getJobBySlug returns full job details with latest evaluation", async () => {
+  it("getJobBySlug returns full job details", async () => {
     const job = await getJobBySlug("senior-go-engineer-stripe-remote");
     expect(job).toBeDefined();
     expect(job.title).toContain("Senior Go");
     expect(job.company).toBe("Stripe");
-    expect(job.latest_evaluation).toBeDefined();
-    expect(job.latest_evaluation?.overall_score).toBe(88.5);
-    expect(job.latest_evaluation?.eligibility_status).toBe("eligible");
   });
 
   it("getMatchReport returns complete score breakdown, categories, and evidence", async () => {
@@ -83,10 +83,10 @@ describe("API endpoints and mock adapter", () => {
       );
 
     try {
-      const jobs = await getJobs();
-      expect(Array.isArray(jobs)).toBe(true);
-      expect(jobs).toHaveLength(1);
-      expect(jobs[0].title).toBe("Staff Platform Engineer");
+      const res = await getJobs();
+      expect(Array.isArray(res.data)).toBe(true);
+      expect(res.data).toHaveLength(1);
+      expect(res.data[0].title).toBe("Staff Platform Engineer");
     } finally {
       global.fetch = originalFetch;
       process.env.NEXT_PUBLIC_ENABLE_MOCK = "true";

@@ -1,4 +1,4 @@
-import { apiClient, isMockEnabled } from "./client";
+import { apiClient, apiClientWithPagination, isMockEnabled, PaginatedResult } from "./client";
 import {
   Job,
   MatchReport,
@@ -11,20 +11,29 @@ import {
   MOCK_RESUME_DOWNLOADS,
   getMockUserJobs,
   mockSaveJob,
+  paginateList,
 } from "./mock-adapter";
 
-export async function getJobs(token?: string | null): Promise<Job[]> {
+export async function getJobs(
+  token?: string | null,
+  page: number = 1,
+  limit: number = 10
+): Promise<PaginatedResult<Job[]>> {
   if (isMockEnabled()) {
-    return Promise.resolve([...MOCK_JOBS]);
+    return Promise.resolve(paginateList([...MOCK_JOBS], page, limit));
   }
-  return apiClient<Job[]>("/v1/jobs", { token });
+  return apiClientWithPagination<Job[]>(`/v1/jobs?page=${page}&limit=${limit}`, { token });
 }
 
-export async function getUserJobs(token?: string | null): Promise<Job[]> {
+export async function getUserJobs(
+  token?: string | null,
+  page: number = 1,
+  limit: number = 10
+): Promise<PaginatedResult<Job[]>> {
   if (isMockEnabled()) {
-    return Promise.resolve(getMockUserJobs());
+    return Promise.resolve(paginateList(getMockUserJobs(), page, limit));
   }
-  return apiClient<Job[]>("/v1/user-jobs", { token });
+  return apiClientWithPagination<Job[]>(`/v1/user-jobs?page=${page}&limit=${limit}`, { token });
 }
 
 export async function saveUserJob(
@@ -59,18 +68,16 @@ export async function triggerJobCompatibility(
 ): Promise<EvaluationSummary> {
   if (isMockEnabled()) {
     const job = MOCK_JOBS.find((j) => j.slug === slug);
-    return Promise.resolve(
-      job?.latest_evaluation || {
-        id: `eval-${slug}-new`,
-        evaluation_status: "success",
-        overall_score: 85.0,
-        eligibility_status: "eligible",
-        recommendation_label: "strong_match",
-        report_status: "ready",
-        resume_status: "ready",
-        created_at: new Date().toISOString(),
-      }
-    );
+    return Promise.resolve({
+      id: `eval-${slug}-new`,
+      evaluation_status: "success",
+      overall_score: 85.0,
+      eligibility_status: "eligible",
+      recommendation_label: "strong_match",
+      report_status: "ready",
+      resume_status: "ready",
+      created_at: new Date().toISOString(),
+    });
   }
   const result = await apiClient<EvaluationSummary[]>(
     "/v1/jobs/bulk-analyze-compatibility",

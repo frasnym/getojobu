@@ -64,7 +64,6 @@ export function useJobDetail(slug: string, explicitToken?: string | null) {
       setEvaluating(true);
       const token = explicitToken !== undefined ? explicitToken : await getToken();
       const summary = await triggerJobCompatibility(job.slug, force, token);
-      setJob((prev) => (prev ? { ...prev, latest_evaluation: summary } : prev));
       return summary;
     } catch (err: any) {
       console.error("Evaluation trigger failed:", err);

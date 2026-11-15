@@ -14,29 +14,19 @@ const mockJob: Job = {
   is_remote: true,
   posted_date: "2026-11-13T10:00:00Z",
   created_at: "2026-11-13T10:00:00Z",
-  latest_evaluation: {
-    id: "eval-001",
-    evaluation_status: "success",
-    overall_score: 88.5,
-    eligibility_status: "eligible",
-    recommendation_label: "strong_match",
-  },
 };
 
 describe("JobCard component", () => {
-  it("renders job title, company, location, and match score badge", () => {
+  it("renders job title, company, location, and remote badge", () => {
     render(<JobCard job={mockJob} />);
     expect(screen.getByText("Senior Go Engineer")).toBeInTheDocument();
     expect(screen.getByText("Stripe")).toBeInTheDocument();
     expect(screen.getByText("Remote, US")).toBeInTheDocument();
     expect(screen.getByText("Remote")).toBeInTheDocument();
-    expect(screen.getByText(/88(\.5)?%/)).toBeInTheDocument();
-    expect(screen.getByText(/Strong Match/i)).toBeInTheDocument();
   });
 
-  it("handles unevaluated jobs cleanly", () => {
-    const unevaluatedJob: Job = { ...mockJob, latest_evaluation: null };
-    render(<JobCard job={unevaluatedJob} />);
-    expect(screen.getByText("Not evaluated")).toBeInTheDocument();
+  it("renders the details trigger", () => {
+    render(<JobCard job={mockJob} />);
+    expect(screen.getByText(/Details/i)).toBeInTheDocument();
   });
 });

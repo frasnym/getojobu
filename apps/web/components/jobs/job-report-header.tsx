@@ -10,8 +10,6 @@ import {
   Globe,
   MapPin,
   FileText,
-  CheckCircle2,
-  AlertTriangle,
 } from "lucide-react";
 
 export type ReportTab = "details" | "report" | "resume";
@@ -37,18 +35,9 @@ export function JobReportHeader({
   evaluating = false,
   basePath = "/user-jobs",
 }: JobReportHeaderProps) {
-  const evalSummary = job.latest_evaluation;
-  const score = evalSummary?.overall_score;
-  const recommendation = evalSummary?.recommendation_label?.replace("_", " ");
-  const isEligible = evalSummary?.eligibility_status === "eligible";
-
   const tabs: { id: ReportTab; label: string; badge?: string }[] = [
     { id: "details", label: "Job Details" },
-    {
-      id: "report",
-      label: "Match Report",
-      badge: score !== undefined ? `${score.toFixed(0)}%` : undefined,
-    },
+    { id: "report", label: "Match Report" },
     { id: "resume", label: "Tailored Resume" },
   ];
 
@@ -125,36 +114,8 @@ export function JobReportHeader({
             </h1>
           </div>
 
-          {/* Match Score Badge & Primary Action */}
+          {/* Primary Action */}
           <div className="flex flex-wrap items-center gap-3">
-            {evalSummary && score !== undefined ? (
-              <div
-                className={`inline-flex items-center gap-2 rounded-xl border px-3.5 py-2 shadow-sm ${
-                  isEligible
-                    ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-                    : "border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400"
-                }`}
-              >
-                <div className="flex flex-col">
-                  <div className="flex items-center gap-1.5">
-                    {isEligible ? (
-                      <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                    ) : (
-                      <AlertTriangle className="h-4 w-4 text-amber-500" />
-                    )}
-                    <span className="text-base font-extrabold tracking-tight">
-                      {score.toFixed(1)}% Match
-                    </span>
-                  </div>
-                  {recommendation && (
-                    <span className="text-[10px] font-medium uppercase tracking-wider opacity-90">
-                      {recommendation}
-                    </span>
-                  )}
-                </div>
-              </div>
-            ) : null}
-
             {onAnalyzeClick && (
               <button
                 type="button"
@@ -165,9 +126,7 @@ export function JobReportHeader({
                 <RefreshCw
                   className={`h-3.5 w-3.5 ${evaluating ? "animate-spin" : ""}`}
                 />
-                <span>
-                  {evalSummary ? "Re-evaluate Match" : "Analyze Compatibility"}
-                </span>
+                <span>Analyze Compatibility</span>
               </button>
             )}
           </div>

@@ -13,18 +13,10 @@ const mockJob: Job = {
   location: "Remote",
   is_remote: true,
   created_at: "2026-11-13T10:00:00Z",
-  latest_evaluation: {
-    id: "eval-001",
-    evaluation_status: "success",
-    overall_score: 88.5,
-    eligibility_status: "eligible",
-    recommendation_label: "strong_match",
-    resume_status: "ready",
-  },
 };
 
 describe("JobReportHeader component", () => {
-  it("renders job title, company, back link, and match score", () => {
+  it("renders job title, company, back link", () => {
     render(
       <JobReportHeader
         job={mockJob}
@@ -38,7 +30,6 @@ describe("JobReportHeader component", () => {
     expect(screen.getByText("Senior Go Engineer")).toBeInTheDocument();
     expect(screen.getByText("Stripe")).toBeInTheDocument();
     expect(screen.getByText("Back to My Jobs")).toBeInTheDocument();
-    expect(screen.getByText(/88(\.5)?%/)).toBeInTheDocument();
   });
 
   it("calls onTabChange when segmented tabs are clicked", () => {

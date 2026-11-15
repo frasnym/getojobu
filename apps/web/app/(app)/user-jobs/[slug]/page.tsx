@@ -8,8 +8,6 @@ import { JobReportHeader, ReportTab } from "@/components/jobs/job-report-header"
 import { JobDetailTab } from "@/components/jobs/job-detail-tab";
 import { MatchReportTab } from "@/components/matching/match-report-tab";
 import { ResumeTab } from "@/components/resume/resume-tab";
-import { getMatchReport } from "@/lib/api/endpoints";
-import { MatchReport } from "@/lib/api/types";
 import { AlertCircle } from "lucide-react";
 
 interface UserJobDetailPageProps {
@@ -25,28 +23,22 @@ export default function UserJobDetailPage({ params }: UserJobDetailPageProps) {
     useJobDetail(slug);
 
   const tabParam = searchParams.get("tab") as ReportTab | null;
-  const [activeTab, setActiveTab] = useState<ReportTab>("report");
+  const [activeTab, setActiveTab] = useState<ReportTab>("details");
   const { getToken } = useAuth();
-  const [report, setReport] = useState<MatchReport | null>(null);
-
-  useEffect(() => {
-    if (job?.latest_evaluation?.id) {
-      getToken().then((token) => {
-        getMatchReport(job.latest_evaluation!.id, token)
-          .then(setReport)
-          .catch(() => {});
-      });
-    }
-  }, [job?.latest_evaluation?.id, getToken]);
+  const [evalId, setEvalId] = useState<string | null>(null);
 
   useEffect(() => {
     if (tabParam && ["details", "report", "resume"].includes(tabParam)) {
       setActiveTab(tabParam);
-    } else if (job) {
-      // Default to "report" if evaluated, otherwise "details"
-      setActiveTab(job.latest_evaluation ? "report" : "details");
     }
-  }, [tabParam, job]);
+  }, [tabParam]);
+
+  const handleAnalyze = async (force: boolean) => {
+    const summary = await runEvaluation(force);
+    if (summary?.id) {
+      setEvalId(String(summary.id));
+    }
+  };
 
   const handleTabChange = (tab: ReportTab) => {
     setActiveTab(tab);
@@ -96,8 +88,8 @@ export default function UserJobDetailPage({ params }: UserJobDetailPageProps) {
         {/* Tab 2: Match Report */}
         {activeTab === "report" && (
           <MatchReportTab
-            evalId={job.latest_evaluation?.id}
-            onAnalyzeClick={() => runEvaluation(false)}
+            evalId={evalId || undefined}
+            onAnalyzeClick={() => handleAnalyze(false)}
             evaluating={evaluating}
           />
         )}
@@ -105,10 +97,8 @@ export default function UserJobDetailPage({ params }: UserJobDetailPageProps) {
         {/* Tab 3: Tailored Resume */}
         {activeTab === "resume" && (
           <ResumeTab
-            evalId={job.latest_evaluation?.id}
-            resumeStatus={job.latest_evaluation?.resume_status}
-            cvImprovements={report?.report_data?.cv_improvements}
-            onAnalyzeClick={() => runEvaluation(false)}
+            evalId={evalId || undefined}
+            onAnalyzeClick={() => handleAnalyze(false)}
             evaluating={evaluating}
           />
         )}

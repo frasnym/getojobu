@@ -24,7 +24,6 @@ export interface Job {
   posted_date?: string;
   created_at: string;
   updated_at?: string;
-  latest_evaluation?: EvaluationSummary | null;
   is_owned?: boolean;
 }
 
