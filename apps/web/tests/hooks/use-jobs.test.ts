@@ -9,6 +9,7 @@ const sampleJobs: Job[] = [
     title: "Senior Go Engineer",
     company: "Stripe",
     location: "Remote",
+    is_remote: true,
     status: "analyzed",
     created_at: "2026-11-13T10:00:00Z",
     latest_evaluation: {
@@ -24,6 +25,7 @@ const sampleJobs: Job[] = [
     title: "Lead C++ Systems Architect",
     company: "Cloudflare",
     location: "Austin, TX",
+    is_remote: false,
     status: "pending",
     created_at: "2026-11-14T10:00:00Z",
     latest_evaluation: null,
@@ -34,6 +36,7 @@ const sampleJobs: Job[] = [
     title: "Staff Frontend Engineer",
     company: "Vercel",
     location: "Remote",
+    is_remote: true,
     status: "failed",
     created_at: "2026-11-12T10:00:00Z",
     latest_evaluation: null,
@@ -61,6 +64,15 @@ describe("filterJobs helper", () => {
     const pending = filterJobs(sampleJobs, "", "pending");
     expect(pending).toHaveLength(1);
     expect(pending[0].status).toBe("pending");
+  });
+
+  it("filters by remoteOnly flag correctly", () => {
+    const remoteJobs = filterJobs(sampleJobs, "", "all", true);
+    expect(remoteJobs).toHaveLength(2);
+    expect(remoteJobs.every((j) => j.is_remote === true)).toBe(true);
+
+    const nonRemoteSearch = filterJobs(sampleJobs, "cloudflare", "all", true);
+    expect(nonRemoteSearch).toHaveLength(0);
   });
 
   it("handles non-array inputs defensively without throwing TypeError", () => {

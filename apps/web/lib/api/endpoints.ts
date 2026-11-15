@@ -27,14 +27,17 @@ export async function getUserJobs(token?: string | null): Promise<Job[]> {
   return apiClient<Job[]>("/v1/user-jobs", { token });
 }
 
-export async function saveUserJob(slug: string, token?: string | null): Promise<Job> {
+export async function saveUserJob(
+  job: { id: number; slug: string },
+  token?: string | null
+): Promise<any> {
   if (isMockEnabled()) {
-    return Promise.resolve(mockSaveJob(slug));
+    return Promise.resolve(mockSaveJob(job.slug));
   }
-  return apiClient<Job>("/v1/user-jobs", {
+  return apiClient<{ job_id: number; created: boolean }>("/v1/user-jobs", {
     method: "POST",
     token,
-    body: JSON.stringify({ slug }),
+    body: JSON.stringify({ job_id: job.id }),
   });
 }
 

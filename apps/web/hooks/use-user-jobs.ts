@@ -11,6 +11,7 @@ export function useUserJobs(explicitToken?: string | null) {
   const [error, setError] = useState<Error | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [remoteOnly, setRemoteOnly] = useState(false);
 
   const load = async (mountedRef?: { current: boolean }) => {
     try {
@@ -47,8 +48,8 @@ export function useUserJobs(explicitToken?: string | null) {
   }, [explicitToken, isLoaded, getToken]);
 
   const filteredJobs = useMemo(
-    () => filterJobs(jobs, searchQuery, statusFilter),
-    [jobs, searchQuery, statusFilter]
+    () => filterJobs(jobs, searchQuery, statusFilter, remoteOnly),
+    [jobs, searchQuery, statusFilter, remoteOnly]
   );
 
   return {
@@ -60,6 +61,8 @@ export function useUserJobs(explicitToken?: string | null) {
     setSearchQuery,
     statusFilter,
     setStatusFilter,
+    remoteOnly,
+    setRemoteOnly,
     refetch: () => load(),
   };
 }

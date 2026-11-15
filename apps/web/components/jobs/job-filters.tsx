@@ -1,5 +1,5 @@
 import React from "react";
-import { Search } from "lucide-react";
+import { Search, Globe } from "lucide-react";
 import { StatusFilter } from "@/hooks/use-jobs";
 
 interface JobFiltersProps {
@@ -8,6 +8,8 @@ interface JobFiltersProps {
   statusFilter: StatusFilter;
   onStatusChange: (status: StatusFilter) => void;
   totalCount: number;
+  remoteOnly?: boolean;
+  onRemoteChange?: (remote: boolean) => void;
 }
 
 export function JobFilters({
@@ -16,6 +18,8 @@ export function JobFilters({
   statusFilter,
   onStatusChange,
   totalCount,
+  remoteOnly = false,
+  onRemoteChange,
 }: JobFiltersProps) {
   const statuses: { label: string; value: StatusFilter }[] = [
     { label: "All", value: "all" },
@@ -38,8 +42,24 @@ export function JobFilters({
         />
       </div>
 
-      {/* Status Pills */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
+      {/* Filter Options (Remote Toggle + Status Pills) */}
+      <div className="flex flex-wrap items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
+        {onRemoteChange !== undefined && (
+          <button
+            type="button"
+            aria-pressed={remoteOnly}
+            onClick={() => onRemoteChange(!remoteOnly)}
+            className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all ${
+              remoteOnly
+                ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 shadow-sm"
+                : "border-border/60 bg-secondary/60 text-muted-foreground hover:bg-secondary hover:text-foreground"
+            }`}
+          >
+            <Globe className={`h-3.5 w-3.5 ${remoteOnly ? "text-emerald-500" : ""}`} />
+            <span>Remote Only</span>
+          </button>
+        )}
+
         {statuses.map((s) => (
           <button
             key={s.value}

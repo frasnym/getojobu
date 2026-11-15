@@ -16,6 +16,8 @@ export default function UserJobsPage() {
     setSearchQuery,
     statusFilter,
     setStatusFilter,
+    remoteOnly,
+    setRemoteOnly,
   } = useUserJobs();
 
   return (
@@ -52,6 +54,8 @@ export default function UserJobsPage() {
         onSearchChange={setSearchQuery}
         statusFilter={statusFilter}
         onStatusChange={setStatusFilter}
+        remoteOnly={remoteOnly}
+        onRemoteChange={setRemoteOnly}
         totalCount={filteredJobs.length}
       />
 

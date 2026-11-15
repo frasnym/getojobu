@@ -21,6 +21,8 @@ export default function ExploreJobsPage() {
     setSearchQuery,
     statusFilter,
     setStatusFilter,
+    remoteOnly,
+    setRemoteOnly,
     setJobOwned,
   } = useJobs();
 
@@ -31,7 +33,7 @@ export default function ExploreJobsPage() {
     try {
       setSavingSlug(job.slug);
       const token = await getToken();
-      await saveUserJob(job.slug, token);
+      await saveUserJob(job, token);
       // Optimistically update ownership in jobs list
       setJobOwned(job.slug, true);
       if (selectedJob?.slug === job.slug) {
@@ -78,6 +80,8 @@ export default function ExploreJobsPage() {
         onSearchChange={setSearchQuery}
         statusFilter={statusFilter}
         onStatusChange={setStatusFilter}
+        remoteOnly={remoteOnly}
+        onRemoteChange={setRemoteOnly}
         totalCount={filteredJobs.length}
       />
 

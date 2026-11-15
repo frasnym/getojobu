@@ -59,4 +59,22 @@ describe("ExploreJobCard component", () => {
     expect(screen.getByText("In My Jobs")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Save to My Job/i })).not.toBeInTheDocument();
   });
+
+  it("renders Remote green tag when is_remote is true and hides it when false", () => {
+    const { rerender } = render(
+      <ExploreJobCard
+        job={{ ...mockJob, is_remote: true }}
+        onSelect={() => {}}
+      />
+    );
+    expect(screen.getByText("Remote")).toBeInTheDocument();
+
+    rerender(
+      <ExploreJobCard
+        job={{ ...mockJob, is_remote: false }}
+        onSelect={() => {}}
+      />
+    );
+    expect(screen.queryByText("Remote")).not.toBeInTheDocument();
+  });
 });

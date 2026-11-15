@@ -5,13 +5,23 @@ import { getJobs } from "@/lib/api/endpoints";
 
 export type StatusFilter = "all" | "analyzed" | "pending" | "failed";
 
-export function filterJobs(jobs: Job[], query: string, status: StatusFilter): Job[] {
+export function filterJobs(
+  jobs: Job[],
+  query: string,
+  status: StatusFilter,
+  remoteOnly: boolean = false
+): Job[] {
   if (!Array.isArray(jobs)) {
     return [];
   }
   const normalizedQuery = query.trim().toLowerCase();
 
   return jobs.filter((job) => {
+    // Remote filter
+    if (remoteOnly && job.is_remote !== true) {
+      return false;
+    }
+
     // Status filter
     if (status !== "all" && job.status.toLowerCase() !== status.toLowerCase()) {
       return false;
@@ -37,6 +47,7 @@ export function useJobs(explicitToken?: string | null) {
   const [error, setError] = useState<Error | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [remoteOnly, setRemoteOnly] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -75,8 +86,8 @@ export function useJobs(explicitToken?: string | null) {
   }, [explicitToken, isLoaded, getToken]);
 
   const filteredJobs = useMemo(
-    () => filterJobs(jobs, searchQuery, statusFilter),
-    [jobs, searchQuery, statusFilter]
+    () => filterJobs(jobs, searchQuery, statusFilter, remoteOnly),
+    [jobs, searchQuery, statusFilter, remoteOnly]
   );
 
   const setJobOwned = (slug: string, isOwned: boolean = true) => {
@@ -108,6 +119,8 @@ export function useJobs(explicitToken?: string | null) {
     setSearchQuery,
     statusFilter,
     setStatusFilter,
+    remoteOnly,
+    setRemoteOnly,
     setJobOwned,
     refetch,
   };

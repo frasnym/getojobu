@@ -34,8 +34,8 @@ export function ExploreJobCard({
             <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               {job.company}
             </span>
-            {job.is_remote && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-500">
+            {job.is_remote === true && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 px-2 py-0.5 text-[11px] font-semibold">
                 <Globe className="h-3 w-3" />
                 Remote
               </span>
