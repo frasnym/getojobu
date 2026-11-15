@@ -87,7 +87,6 @@ class JobExtractionOutput(BaseModel):
 class JobAnalysis(JobExtractionOutput):
     """Full domain model for job analysis including database/workflow metadata."""
 
-    job_id: str | None = None  # reference to shared jobs table slug/id
     version: int = 1
     schema_version: str = "1.0"
     prompt_version: str = "extract-job-v1"

@@ -79,7 +79,6 @@ async def test_analyze_returns_parsed_analysis():
     assert analysis.family == "technology"
     assert analysis.seniority == "senior"
     assert analysis.title == "Senior Backend Engineer"
-    assert analysis.job_id == "1"
     assert len(analysis.requirements) == 1
     assert analysis.requirements[0].original_name == "Golang"
     assert analysis.requirements[0].importance == "required"
@@ -103,7 +102,6 @@ async def test_analyze_sets_metadata_defaults():
 
     analysis = await svc.analyze(slug="job-42")
 
-    assert analysis.job_id == "42"
     assert analysis.model == "use-combo"
     assert analysis.prompt_version == "extract-job-v1"
     assert llm.calls == 1
@@ -124,6 +122,5 @@ async def test_analyze_metadata_empty_when_unset():
 
     analysis = await svc.analyze(slug="job-42")
 
-    assert analysis.job_id == "42"
     assert analysis.model is None
     assert analysis.prompt_version == "extract-job-v1"

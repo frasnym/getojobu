@@ -130,7 +130,6 @@ async def test_integration_worker_with_real_temporal_and_fakes():
     assert profile.family == "technology"
     assert profile.seniority == "senior"
     assert profile.title == "Senior Backend Engineer"
-    assert profile.job_id == "101"
     assert llm.calls == 1
 
 
@@ -199,7 +198,6 @@ async def test_activity_flow_success_new_to_analyze_pending_to_analyzed():
     result = await analyze_job_activity(
         {
             "slug": slug,
-            "job_id": "101",
         }
     )
 

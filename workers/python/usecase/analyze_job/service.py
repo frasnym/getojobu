@@ -51,7 +51,6 @@ class AnalyzeJob:
         slug: str,
         *,
         job_description: str | None = None,
-        job_id: str | None = None,
     ) -> JobAnalysis:
         """Run the complete 5-step job analysis lifecycle for a given job slug."""
         if not slug or not slug.strip():
@@ -91,11 +90,9 @@ class AnalyzeJob:
             )
             raise ValueError(err_msg)
 
-        resolved_job_id = job_id or str(job.get("id", ""))
-
         # 4. Perform LLM analysis
         try:
-            analysis = await self._call_llm(job_description=jd, job_id=resolved_job_id)
+            analysis = await self._call_llm(job_description=jd)
         except Exception as exc:
             # 5b. Transition status to 'failed' on error
             try:
@@ -135,7 +132,7 @@ class AnalyzeJob:
 
         return analysis
 
-    async def _call_llm(self, *, job_description: str, job_id: str) -> JobAnalysis:
+    async def _call_llm(self, *, job_description: str) -> JobAnalysis:
         if self._llm is None:
             raise ValueError("llm client is required")
 
@@ -153,7 +150,6 @@ class AnalyzeJob:
 
         return JobAnalysis(
             **extraction.model_dump(),
-            job_id=job_id if job_id else None,
             model=model,
             prompt_version=self._prompt_version,
         )

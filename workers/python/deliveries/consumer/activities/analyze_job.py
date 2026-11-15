@@ -46,7 +46,6 @@ async def analyze_job_activity(input: dict[str, Any]) -> dict[str, Any]:
         {
             "slug": str,             # required slug of the job listing
             "job_description": str,  # optional (fetched from Go API if omitted)
-            "job_id": str | None,    # optional reference to shared jobs table
         }
 
     Output: the stored JobAnalysis as a dict.
@@ -59,6 +58,5 @@ async def analyze_job_activity(input: dict[str, Any]) -> dict[str, Any]:
     analysis = await container.usecase.analyze_job.analyze(
         slug=slug,
         job_description=input.get("job_description"),
-        job_id=input.get("job_id"),
     )
     return analysis.model_dump()
