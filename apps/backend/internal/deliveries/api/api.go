@@ -47,10 +47,11 @@ func New(c *contract.Contract) (*API, error) {
 	rt := httpx.New()
 	handler.New(c).Route(rt)
 
-	// Assemble middleware chain: envelope (404/405 → JSON) → mux → logging → request ID → recovery.
+	// Assemble middleware chain: envelope (404/405 → JSON) → mux → logging → request ID → CORS → recovery.
 	var handlerChain http.Handler = rt.EnvelopeHandler(rt.Mux())
 	handlerChain = middleware.Logging(handlerChain)
 	handlerChain = middleware.RequestID(handlerChain)
+	handlerChain = middleware.CORS(handlerChain)
 	handlerChain = middleware.Recovery(handlerChain)
 
 	server := &http.Server{

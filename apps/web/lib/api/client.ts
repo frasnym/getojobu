@@ -2,7 +2,18 @@ export interface FetchOptions extends RequestInit {
   token?: string | null;
 }
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+function getBaseUrl(): string {
+  // In a browser environment, use relative path so Next.js rewrites proxy requests
+  // to the Go backend over same-origin, eliminating browser CORS preflight blocks.
+  if (typeof window !== "undefined" && window.location?.origin) {
+    return "";
+  }
+  return (
+    process.env.NEXT_PUBLIC_API_URL ||
+    process.env.NEXT_PUBLIC_BACKEND_URL ||
+    "https://api.getojobu.web.id"
+  ).replace(/\/+$/, "");
+}
 
 export function isMockEnabled(): boolean {
   if (typeof process !== "undefined" && process.env.NEXT_PUBLIC_ENABLE_MOCK === "true") {
@@ -21,7 +32,9 @@ export async function apiClient<T>(path: string, options: FetchOptions = {}): Pr
     headers.set("Authorization", `Bearer ${token}`);
   }
 
-  const url = `${API_BASE_URL}${path.startsWith("/") ? path : `/${path}`}`;
+  const baseUrl = getBaseUrl();
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  const url = `${baseUrl}${normalizedPath}`;
 
   const response = await fetch(url, {
     ...rest,
