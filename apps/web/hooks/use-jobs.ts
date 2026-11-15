@@ -1,9 +1,29 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useAuth } from "@clerk/nextjs";
-import { Job } from "@/lib/api/types";
+import { Job, ApiPagination } from "@/lib/api/types";
 import { getJobs } from "@/lib/api/endpoints";
 
-export type StatusFilter = "all" | "analyzed" | "pending" | "failed";
+export type StatusFilter = "all" | "analyzed" | "analyze_pending" | "failed";
+
+// Tailwind classes for the job status badge, keyed by backend job status.
+export function statusBadgeClasses(status: string): string {
+  const base =
+    "rounded-full px-2 py-0.5 text-[11px] font-medium capitalize border";
+  switch (status.toLowerCase()) {
+    case "analyzed":
+      // green
+      return `${base} border-emerald-500/20 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400`;
+    case "failed":
+      // red
+      return `${base} border-destructive/20 bg-destructive/15 text-destructive`;
+    case "analyze_pending":
+    case "pending":
+      // yellow
+      return `${base} border-amber-500/20 bg-amber-500/15 text-amber-600 dark:text-amber-400`;
+    default:
+      return `${base} border-border/60 bg-secondary text-secondary-foreground`;
+  }
+}
 
 export function filterJobs(
   jobs: Job[],
@@ -43,47 +63,61 @@ export function filterJobs(
 export function useJobs(explicitToken?: string | null) {
   const { getToken, isLoaded } = useAuth();
   const [jobs, setJobs] = useState<Job[]>([]);
+  const [pagination, setPagination] = useState<ApiPagination | null>(null);
+  const [page, setPageState] = useState<number>(1);
+  const [limit, setLimitState] = useState<number>(10);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [remoteOnly, setRemoteOnly] = useState(false);
 
-  useEffect(() => {
-    let mounted = true;
+  const setPage = useCallback((newPage: number) => {
+    setPageState(Math.max(1, newPage));
+  }, []);
 
-    // Wait until Clerk auth state is loaded if no explicit token was passed
+  const setLimit = useCallback((newLimit: number) => {
+    setLimitState(newLimit);
+    setPageState(1); // Reset to page 1 on limit change
+  }, []);
+
+  const load = useCallback(
+    async (mountedRef?: { current: boolean }) => {
+      try {
+        setLoading(true);
+        const token = explicitToken !== undefined ? explicitToken : await getToken();
+        const res = await getJobs(token, page, limit);
+        if (!mountedRef || mountedRef.current) {
+          setJobs(Array.isArray(res.data) ? res.data : []);
+          setPagination(res.pagination);
+          setError(null);
+        }
+      } catch (err: any) {
+        if (!mountedRef || mountedRef.current) {
+          setError(err);
+        }
+      } finally {
+        if (!mountedRef || mountedRef.current) {
+          setLoading(false);
+        }
+      }
+    },
+    [explicitToken, getToken, page, limit]
+  );
+
+  useEffect(() => {
+    const mountedRef = { current: true };
+
     if (explicitToken === undefined && !isLoaded) {
       return;
     }
 
-    setLoading(true);
-
-    const load = async () => {
-      try {
-        const token = explicitToken !== undefined ? explicitToken : await getToken();
-        const data = await getJobs(token);
-        if (mounted) {
-          setJobs(Array.isArray(data) ? data : []);
-          setError(null);
-        }
-      } catch (err: any) {
-        if (mounted) {
-          setError(err);
-        }
-      } finally {
-        if (mounted) {
-          setLoading(false);
-        }
-      }
-    };
-
-    load();
+    load(mountedRef);
 
     return () => {
-      mounted = false;
+      mountedRef.current = false;
     };
-  }, [explicitToken, isLoaded, getToken]);
+  }, [explicitToken, isLoaded, load]);
 
   const filteredJobs = useMemo(
     () => filterJobs(jobs, searchQuery, statusFilter, remoteOnly),
@@ -96,32 +130,38 @@ export function useJobs(explicitToken?: string | null) {
     );
   };
 
-  const refetch = async () => {
-    try {
-      setLoading(true);
-      const token = explicitToken !== undefined ? explicitToken : await getToken();
-      const data = await getJobs(token);
-      setJobs(Array.isArray(data) ? data : []);
-      setError(null);
-    } catch (err: any) {
-      setError(err);
-    } finally {
-      setLoading(false);
-    }
+  const handleSearchChange = (query: string) => {
+    setSearchQuery(query);
+    setPageState(1);
+  };
+
+  const handleStatusChange = (status: StatusFilter) => {
+    setStatusFilter(status);
+    setPageState(1);
+  };
+
+  const handleRemoteChange = (remote: boolean) => {
+    setRemoteOnly(remote);
+    setPageState(1);
   };
 
   return {
     jobs,
     filteredJobs,
+    pagination,
+    page,
+    setPage,
+    limit,
+    setLimit,
     loading,
     error,
     searchQuery,
-    setSearchQuery,
+    setSearchQuery: handleSearchChange,
     statusFilter,
-    setStatusFilter,
+    setStatusFilter: handleStatusChange,
     remoteOnly,
-    setRemoteOnly,
+    setRemoteOnly: handleRemoteChange,
     setJobOwned,
-    refetch,
+    refetch: () => load(),
   };
 }

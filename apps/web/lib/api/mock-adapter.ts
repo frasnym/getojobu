@@ -1,4 +1,4 @@
-import { Job, MatchReport, DownloadResumeResponse, EvaluationSummary } from "./types";
+import { Job, MatchReport, DownloadResumeResponse, ApiPagination } from "./types";
 
 export const MOCK_JOBS: Job[] = [
   {
@@ -26,17 +26,6 @@ Stripe is a financial infrastructure platform for the internet. Millions of comp
 - Deep expertise in distributed systems, concurrency, and high-throughput APIs.
 - Production experience with PostgreSQL, message queues, and containerization.
 - Strong communication and asynchronous collaboration skills.`,
-    latest_evaluation: {
-      id: "eval-stripe-001",
-      evaluation_status: "success",
-      overall_score: 88.5,
-      eligibility_status: "eligible",
-      recommendation_label: "strong_match",
-      report_status: "ready",
-      resume_status: "ready",
-      created_at: "2026-11-14T08:30:00Z",
-      updated_at: "2026-11-14T08:35:00Z",
-    },
   },
   {
     id: 2,
@@ -51,22 +40,11 @@ Stripe is a financial infrastructure platform for the internet. Millions of comp
     created_at: "2026-11-12T09:00:00Z",
     is_owned: true,
     description: `Datadog is the monitoring and security platform for cloud applications. We are seeking a Staff Backend Engineer to drive architectural decisions across high-volume time-series telemetry ingestion pipelines.`,
-    latest_evaluation: {
-      id: "eval-datadog-002",
-      evaluation_status: "success",
-      overall_score: 76.0,
-      eligibility_status: "eligible",
-      recommendation_label: "good_match",
-      report_status: "ready",
-      resume_status: "ready",
-      created_at: "2026-11-13T14:10:00Z",
-      updated_at: "2026-11-13T14:15:00Z",
-    },
   },
   {
     id: 3,
     slug: "lead-systems-engineer-cloudflare-remote",
-    status: "pending",
+    status: "analyze_pending",
     title: "Lead Systems Engineer - Edge Compute",
     company: "Cloudflare",
     location: "Remote",
@@ -76,7 +54,6 @@ Stripe is a financial infrastructure platform for the internet. Millions of comp
     created_at: "2026-11-14T11:00:00Z",
     is_owned: false,
     description: `Cloudflare's mission is to help build a better Internet. We are seeking a Systems Engineer with deep Go/Rust experience to improve Workers and Edge runtime routing.`,
-    latest_evaluation: null,
   },
   {
     id: 4,
@@ -102,7 +79,6 @@ Vercel is the platform for frontend developers, providing the speed and reliabil
 - 5+ years of modern React and Next.js frontend engineering.
 - Deep understanding of web performance, Core Web Vitals, and responsive UI architecture.
 - Experience building design systems and shared component libraries.`,
-    latest_evaluation: null,
   },
 ];
 
@@ -208,8 +184,33 @@ export const MOCK_RESUME_DOWNLOADS: Record<string, DownloadResumeResponse> = {
   },
 };
 
+export function paginateList<T>(
+  items: T[],
+  page: number = 1,
+  limit: number = 10
+): { data: T[]; pagination: ApiPagination } {
+  const safePage = Math.max(1, page);
+  const safeLimit = Math.max(1, Math.min(50, limit));
+  const totalItems = items.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / safeLimit));
+  const startIndex = (safePage - 1) * safeLimit;
+  const data = items.slice(startIndex, startIndex + safeLimit);
+
+  return {
+    data,
+    pagination: {
+      page: safePage,
+      limit: safeLimit,
+      totalItems,
+      totalPages,
+      hasNext: safePage < totalPages,
+      hasPrev: safePage > 1,
+    },
+  };
+}
+
 export function getMockUserJobs(): Job[] {
-  return MOCK_JOBS.filter((j) => j.is_owned || j.latest_evaluation !== null);
+  return MOCK_JOBS.filter((j) => j.is_owned);
 }
 
 export function mockSaveJob(slug: string): Job {

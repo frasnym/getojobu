@@ -1,7 +1,7 @@
 import React from "react";
 import { Job } from "@/lib/api/types";
 import { MapPin, Globe, Clock, ArrowRight, Bookmark, Check, Loader2 } from "lucide-react";
-
+import { statusBadgeClasses } from "@/hooks/use-jobs";
 interface ExploreJobCardProps {
   job: Job;
   isSelected?: boolean;
@@ -40,7 +40,7 @@ export function ExploreJobCard({
                 Remote
               </span>
             )}
-            <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px] font-medium text-secondary-foreground capitalize">
+            <span className={statusBadgeClasses(job.status)}>
               {job.status}
             </span>
 

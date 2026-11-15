@@ -24,7 +24,7 @@ export function JobFilters({
   const statuses: { label: string; value: StatusFilter }[] = [
     { label: "All", value: "all" },
     { label: "Analyzed", value: "analyzed" },
-    { label: "Pending", value: "pending" },
+    { label: "Pending", value: "analyze_pending" },
     { label: "Failed", value: "failed" },
   ];
 

@@ -14,6 +14,7 @@ import {
   Loader2,
   Sparkles,
 } from "lucide-react";
+import { statusBadgeClasses } from "@/hooks/use-jobs";
 
 interface JobDetailDrawerProps {
   job: Job | null;
@@ -83,7 +84,7 @@ export function JobDetailDrawer({
                   Remote
                 </span>
               )}
-              <span className="rounded-full bg-secondary px-2.5 py-0.5 text-xs font-medium text-secondary-foreground capitalize">
+              <span className={statusBadgeClasses(job.status)}>
                 {job.status}
               </span>
             </div>
