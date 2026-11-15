@@ -1,6 +1,6 @@
 import React from "react";
-import { Search, Globe } from "lucide-react";
-import { StatusFilter } from "@/hooks/use-jobs";
+import { Search, Globe, Bookmark } from "lucide-react";
+import { StatusFilter, OwnedFilter } from "@/hooks/use-jobs";
 
 interface JobFiltersProps {
   searchQuery: string;
@@ -10,6 +10,8 @@ interface JobFiltersProps {
   totalCount: number;
   remoteOnly?: boolean;
   onRemoteChange?: (remote: boolean) => void;
+  ownedFilter?: OwnedFilter;
+  onOwnedFilterChange?: (owned: OwnedFilter) => void;
 }
 
 export function JobFilters({
@@ -20,12 +22,20 @@ export function JobFilters({
   totalCount,
   remoteOnly = false,
   onRemoteChange,
+  ownedFilter = "all",
+  onOwnedFilterChange,
 }: JobFiltersProps) {
   const statuses: { label: string; value: StatusFilter }[] = [
     { label: "All", value: "all" },
     { label: "Analyzed", value: "analyzed" },
     { label: "Pending", value: "analyze_pending" },
     { label: "Failed", value: "failed" },
+  ];
+
+  const ownedFilters: { label: string; value: OwnedFilter }[] = [
+    { label: "All", value: "all" },
+    { label: "Saved", value: "owned" },
+    { label: "Not Saved", value: "not_owned" },
   ];
 
   return (
@@ -74,6 +84,30 @@ export function JobFilters({
             {s.label}
           </button>
         ))}
+
+        {/* Owned filter pills */}
+        {onOwnedFilterChange !== undefined && (
+          <>
+            <span className="mx-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">
+              Saved
+            </span>
+            {ownedFilters.map((o) => (
+              <button
+                key={o.value}
+                type="button"
+                onClick={() => onOwnedFilterChange(o.value)}
+                className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
+                  ownedFilter === o.value
+                    ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 shadow-sm"
+                    : "bg-secondary/60 text-muted-foreground hover:bg-secondary hover:text-foreground"
+                }`}
+              >
+                {o.label}
+              </button>
+            ))}
+          </>
+        )}
+
         <span className="ml-2 text-xs text-muted-foreground whitespace-nowrap">
           {totalCount} {totalCount === 1 ? "job" : "jobs"}
         </span>

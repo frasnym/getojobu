@@ -29,6 +29,8 @@ export default function ExploreJobsPage() {
     setStatusFilter,
     remoteOnly,
     setRemoteOnly,
+    ownedFilter,
+    setOwnedFilter,
     setJobOwned,
   } = useJobs();
 
@@ -88,6 +90,8 @@ export default function ExploreJobsPage() {
         onStatusChange={setStatusFilter}
         remoteOnly={remoteOnly}
         onRemoteChange={setRemoteOnly}
+        ownedFilter={ownedFilter}
+        onOwnedFilterChange={setOwnedFilter}
         totalCount={pagination?.totalItems ?? filteredJobs.length}
       />
 

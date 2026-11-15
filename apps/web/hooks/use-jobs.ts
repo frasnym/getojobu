@@ -4,6 +4,7 @@ import { Job, ApiPagination } from "@/lib/api/types";
 import { getJobs } from "@/lib/api/endpoints";
 
 export type StatusFilter = "all" | "analyzed" | "analyze_pending" | "failed";
+export type OwnedFilter = "all" | "owned" | "not_owned";
 
 // Tailwind classes for the job status badge, keyed by backend job status.
 export function statusBadgeClasses(status: string): string {
@@ -29,7 +30,8 @@ export function filterJobs(
   jobs: Job[],
   query: string,
   status: StatusFilter,
-  remoteOnly: boolean = false
+  remoteOnly: boolean = false,
+  isOwned: OwnedFilter = "all"
 ): Job[] {
   if (!Array.isArray(jobs)) {
     return [];
@@ -39,6 +41,14 @@ export function filterJobs(
   return jobs.filter((job) => {
     // Remote filter
     if (remoteOnly && job.is_remote !== true) {
+      return false;
+    }
+
+    // Owned filter
+    if (isOwned === "owned" && job.is_owned !== true) {
+      return false;
+    }
+    if (isOwned === "not_owned" && job.is_owned === true) {
       return false;
     }
 
@@ -71,6 +81,7 @@ export function useJobs(explicitToken?: string | null) {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [remoteOnly, setRemoteOnly] = useState(false);
+  const [ownedFilter, setOwnedFilter] = useState<OwnedFilter>("all");
 
   const setPage = useCallback((newPage: number) => {
     setPageState(Math.max(1, newPage));
@@ -120,8 +131,8 @@ export function useJobs(explicitToken?: string | null) {
   }, [explicitToken, isLoaded, load]);
 
   const filteredJobs = useMemo(
-    () => filterJobs(jobs, searchQuery, statusFilter, remoteOnly),
-    [jobs, searchQuery, statusFilter, remoteOnly]
+    () => filterJobs(jobs, searchQuery, statusFilter, remoteOnly, ownedFilter),
+    [jobs, searchQuery, statusFilter, remoteOnly, ownedFilter]
   );
 
   const setJobOwned = (slug: string, isOwned: boolean = true) => {
@@ -145,6 +156,11 @@ export function useJobs(explicitToken?: string | null) {
     setPageState(1);
   };
 
+  const handleOwnedFilterChange = (owned: OwnedFilter) => {
+    setOwnedFilter(owned);
+    setPageState(1);
+  };
+
   return {
     jobs,
     filteredJobs,
@@ -161,6 +177,8 @@ export function useJobs(explicitToken?: string | null) {
     setStatusFilter: handleStatusChange,
     remoteOnly,
     setRemoteOnly: handleRemoteChange,
+    ownedFilter,
+    setOwnedFilter: handleOwnedFilterChange,
     setJobOwned,
     refetch: () => load(),
   };
