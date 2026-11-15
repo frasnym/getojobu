@@ -79,6 +79,26 @@ export function useJobs(explicitToken?: string | null) {
     [jobs, searchQuery, statusFilter]
   );
 
+  const setJobOwned = (slug: string, isOwned: boolean = true) => {
+    setJobs((prev) =>
+      prev.map((j) => (j.slug === slug ? { ...j, is_owned: isOwned } : j))
+    );
+  };
+
+  const refetch = async () => {
+    try {
+      setLoading(true);
+      const token = explicitToken !== undefined ? explicitToken : await getToken();
+      const data = await getJobs(token);
+      setJobs(Array.isArray(data) ? data : []);
+      setError(null);
+    } catch (err: any) {
+      setError(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return {
     jobs,
     filteredJobs,
@@ -88,5 +108,7 @@ export function useJobs(explicitToken?: string | null) {
     setSearchQuery,
     statusFilter,
     setStatusFilter,
+    setJobOwned,
+    refetch,
   };
 }

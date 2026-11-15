@@ -12,6 +12,7 @@ export const MOCK_JOBS: Job[] = [
     apply_url: "https://stripe.com/jobs/senior-go-infra",
     posted_date: "2026-11-13T10:00:00Z",
     created_at: "2026-11-13T10:00:00Z",
+    is_owned: true,
     description: `### About Stripe
 Stripe is a financial infrastructure platform for the internet. Millions of companies use Stripe to accept payments, grow their revenue, and accelerate new business opportunities.
 
@@ -48,6 +49,7 @@ Stripe is a financial infrastructure platform for the internet. Millions of comp
     apply_url: "https://datadog.com/jobs/staff-backend",
     posted_date: "2026-11-12T09:00:00Z",
     created_at: "2026-11-12T09:00:00Z",
+    is_owned: true,
     description: `Datadog is the monitoring and security platform for cloud applications. We are seeking a Staff Backend Engineer to drive architectural decisions across high-volume time-series telemetry ingestion pipelines.`,
     latest_evaluation: {
       id: "eval-datadog-002",
@@ -72,7 +74,34 @@ Stripe is a financial infrastructure platform for the internet. Millions of comp
     apply_url: "https://cloudflare.com/careers/lead-systems",
     posted_date: "2026-11-14T11:00:00Z",
     created_at: "2026-11-14T11:00:00Z",
+    is_owned: false,
     description: `Cloudflare's mission is to help build a better Internet. We are seeking a Systems Engineer with deep Go/Rust experience to improve Workers and Edge runtime routing.`,
+    latest_evaluation: null,
+  },
+  {
+    id: 4,
+    slug: "senior-frontend-engineer-vercel-remote",
+    status: "analyzed",
+    title: "Senior Frontend Engineer - Platform UI",
+    company: "Vercel",
+    location: "Remote, Global",
+    is_remote: true,
+    apply_url: "https://vercel.com/careers/frontend",
+    posted_date: "2026-11-15T08:00:00Z",
+    created_at: "2026-11-15T08:00:00Z",
+    is_owned: false,
+    description: `### About Vercel
+Vercel is the platform for frontend developers, providing the speed and reliability innovators need to create at the moment of inspiration.
+
+### Responsibilities
+- Build and optimize highly responsive, accessible UI components with Next.js and React 19.
+- Work alongside design systems and DX engineering teams to elevate web developer workflows.
+- Enhance performance metrics across global dashboard analytics.
+
+### Requirements
+- 5+ years of modern React and Next.js frontend engineering.
+- Deep understanding of web performance, Core Web Vitals, and responsive UI architecture.
+- Experience building design systems and shared component libraries.`,
     latest_evaluation: null,
   },
 ];
@@ -178,3 +207,16 @@ export const MOCK_RESUME_DOWNLOADS: Record<string, DownloadResumeResponse> = {
     filename: "Alex_Rivera_Stripe_Tailored_Resume.pdf",
   },
 };
+
+export function getMockUserJobs(): Job[] {
+  return MOCK_JOBS.filter((j) => j.is_owned || j.latest_evaluation !== null);
+}
+
+export function mockSaveJob(slug: string): Job {
+  const job = MOCK_JOBS.find((j) => j.slug === slug);
+  if (!job) {
+    throw new Error(`Job not found: ${slug}`);
+  }
+  job.is_owned = true;
+  return { ...job, is_owned: true };
+}

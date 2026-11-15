@@ -9,6 +9,8 @@ import {
   MOCK_JOBS,
   MOCK_REPORTS,
   MOCK_RESUME_DOWNLOADS,
+  getMockUserJobs,
+  mockSaveJob,
 } from "./mock-adapter";
 
 export async function getJobs(token?: string | null): Promise<Job[]> {
@@ -16,6 +18,24 @@ export async function getJobs(token?: string | null): Promise<Job[]> {
     return Promise.resolve([...MOCK_JOBS]);
   }
   return apiClient<Job[]>("/v1/jobs", { token });
+}
+
+export async function getUserJobs(token?: string | null): Promise<Job[]> {
+  if (isMockEnabled()) {
+    return Promise.resolve(getMockUserJobs());
+  }
+  return apiClient<Job[]>("/v1/user-jobs", { token });
+}
+
+export async function saveUserJob(slug: string, token?: string | null): Promise<Job> {
+  if (isMockEnabled()) {
+    return Promise.resolve(mockSaveJob(slug));
+  }
+  return apiClient<Job>("/v1/user-jobs", {
+    method: "POST",
+    token,
+    body: JSON.stringify({ slug }),
+  });
 }
 
 export async function getJobBySlug(slug: string, token?: string | null): Promise<Job> {

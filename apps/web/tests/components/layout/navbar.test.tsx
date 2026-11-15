@@ -10,11 +10,16 @@ vi.mock("@clerk/nextjs", () => ({
   SignInButton: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
+vi.mock("next/navigation", () => ({
+  usePathname: () => "/user-jobs",
+}));
+
 describe("Navbar component", () => {
   it("renders the getojobu branding and navigation links", () => {
     render(<Navbar />);
     expect(screen.getByText("getojobu")).toBeInTheDocument();
-    expect(screen.getByText("Jobs & Matches")).toBeInTheDocument();
+    expect(screen.getByText("My Jobs")).toBeInTheDocument();
+    expect(screen.getByText("Explore Jobs")).toBeInTheDocument();
     expect(screen.getByTestId("clerk-user-button")).toBeInTheDocument();
   });
 });

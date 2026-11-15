@@ -5,9 +5,11 @@ import { MapPin, Globe, Sparkles, Clock, ArrowRight } from "lucide-react";
 
 interface JobCardProps {
   job: Job;
+  href?: string;
 }
 
-export function JobCard({ job }: JobCardProps) {
+export function JobCard({ job, href }: JobCardProps) {
+  const targetHref = href || `/user-jobs/${job.slug}`;
   const evalSummary = job.latest_evaluation;
   const score = evalSummary?.overall_score;
   const recommendation = evalSummary?.recommendation_label?.replace("_", " ");
@@ -33,7 +35,7 @@ export function JobCard({ job }: JobCardProps) {
           </div>
 
           <h3 className="text-lg font-bold tracking-tight text-foreground group-hover:text-primary transition-colors">
-            <Link href={`/jobs/${job.slug}`} className="focus:outline-none">
+            <Link href={targetHref} className="focus:outline-none">
               <span className="absolute inset-0" aria-hidden="true" />
               {job.title}
             </Link>

@@ -24,6 +24,7 @@ interface JobReportHeaderProps {
   nextSlug?: string;
   onAnalyzeClick?: () => void;
   evaluating?: boolean;
+  basePath?: string;
 }
 
 export function JobReportHeader({
@@ -34,6 +35,7 @@ export function JobReportHeader({
   nextSlug,
   onAnalyzeClick,
   evaluating = false,
+  basePath = "/user-jobs",
 }: JobReportHeaderProps) {
   const evalSummary = job.latest_evaluation;
   const score = evalSummary?.overall_score;
@@ -56,18 +58,18 @@ export function JobReportHeader({
         {/* Navigation & Controls */}
         <div className="flex items-center justify-between">
           <Link
-            href="/"
+            href={basePath}
             className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
-            <span>Back to Jobs</span>
+            <span>Back to My Jobs</span>
           </Link>
 
           {/* Sequential Prev/Next Quick Switcher */}
           <div className="flex items-center gap-1 text-xs">
             {prevSlug ? (
               <Link
-                href={`/jobs/${prevSlug}`}
+                href={`${basePath}/${prevSlug}`}
                 className="inline-flex items-center gap-1 rounded-md border border-border px-2.5 py-1 font-medium text-foreground hover:bg-secondary transition-colors"
                 title="Previous job"
               >
@@ -83,7 +85,7 @@ export function JobReportHeader({
 
             {nextSlug ? (
               <Link
-                href={`/jobs/${nextSlug}`}
+                href={`${basePath}/${nextSlug}`}
                 className="inline-flex items-center gap-1 rounded-md border border-border px-2.5 py-1 font-medium text-foreground hover:bg-secondary transition-colors"
                 title="Next job"
               >

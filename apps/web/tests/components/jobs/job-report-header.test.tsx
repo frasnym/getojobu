@@ -37,7 +37,7 @@ describe("JobReportHeader component", () => {
 
     expect(screen.getByText("Senior Go Engineer")).toBeInTheDocument();
     expect(screen.getByText("Stripe")).toBeInTheDocument();
-    expect(screen.getByText("Back to Jobs")).toBeInTheDocument();
+    expect(screen.getByText("Back to My Jobs")).toBeInTheDocument();
     expect(screen.getByText(/88(\.5)?%/)).toBeInTheDocument();
   });
 
