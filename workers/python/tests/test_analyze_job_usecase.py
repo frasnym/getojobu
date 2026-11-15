@@ -101,8 +101,8 @@ async def test_analyze_sets_metadata_defaults():
 
     analysis = await svc.analyze(slug="job-42")
 
-    assert analysis.model == "use-combo"
-    assert analysis.prompt_version == "extract-job-v1"
+    assert analysis.metadata["model"] == "use-combo"
+    assert analysis.metadata["prompt_version"] == "extract-job-v1"
     assert llm.calls == 1
 
 
@@ -121,5 +121,5 @@ async def test_analyze_metadata_empty_when_unset():
 
     analysis = await svc.analyze(slug="job-42")
 
-    assert analysis.model is None
-    assert analysis.prompt_version == "extract-job-v1"
+    assert analysis.metadata["model"] is None
+    assert analysis.metadata["prompt_version"] == "extract-job-v1"

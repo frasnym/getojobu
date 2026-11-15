@@ -5,6 +5,8 @@ validation. Uses pydantic so LLM JSON output can be parsed and validated
 in one step.
 """
 
+from typing import Any
+
 from pydantic import BaseModel, Field, field_validator
 
 
@@ -80,7 +82,13 @@ class JobExtractionOutput(BaseModel):
 
 
 class JobAnalysis(JobExtractionOutput):
-    """Full domain model for job analysis including database/workflow metadata."""
+    """Full domain model for job analysis including database/workflow metadata.
 
-    prompt_version: str = "extract-job-v1"
-    model: str | None = None
+    `model` and `prompt_version` are nested under ``metadata`` so they do not
+    collide with job-profile fields (title, company, location, etc.) that live
+    on the shared jobs table.
+    """
+
+    metadata: dict[str, Any] = Field(
+        default_factory=lambda: {"model": None, "prompt_version": "extract-job-v1"}
+    )

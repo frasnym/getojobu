@@ -150,6 +150,5 @@ class AnalyzeJob:
 
         return JobAnalysis(
             **extraction.model_dump(),
-            model=model,
-            prompt_version=self._prompt_version,
+            metadata={"model": model, "prompt_version": self._prompt_version},
         )

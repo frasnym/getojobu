@@ -176,6 +176,10 @@ func (s *matchingService) TriggerCompatibilityBulk(
 		rawJobProfile["title"] = job.Title
 		rawJobProfile["company"] = job.Company
 		rawJobProfile["location"] = job.Location
+		// Strip service metadata (model/prompt_version) from what is sent to
+		// Temporal — it is stored in jobs.analyze_result.metadata but should
+		// not flow into the match workflow.
+		delete(rawJobProfile, "metadata")
 		family, _ := rawJobProfile["family"].(string)
 		if family == "" {
 			family = "other"
