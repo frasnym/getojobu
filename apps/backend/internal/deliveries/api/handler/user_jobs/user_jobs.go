@@ -74,9 +74,10 @@ func (h *handler) Route(g *httpx.Router) {
 }
 
 // ListUserJobs returns the authenticated user's jobs (jobs linked to the user
-// in user_jobs), ordered by created_at descending.
+// in user_jobs), ordered by is_hidden ascending (visible jobs first) and then
+// created_at descending.
 // @Summary List user jobs
-// @Description List jobs owned by the authenticated user, ordered by created_at descending. Optional pagination (default page 1, limit 10, max limit 50).
+// @Description List jobs owned by the authenticated user, ordered by is_hidden ascending (visible first) then created_at descending. Optional pagination (default page 1, limit 10, max limit 50).
 // @Tags user-jobs
 // @Produce json
 // @Param page query integer false "Page number (default 1)"

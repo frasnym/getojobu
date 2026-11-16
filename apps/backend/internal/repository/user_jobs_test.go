@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -188,4 +189,74 @@ func TestUserJobs_SetBulkHideStatus(t *testing.T) {
 	updated, err = repo.SetBulkHideStatus(ctx, userID, nil, true)
 	require.NoError(t, err)
 	assert.Equal(t, 0, updated)
+}
+
+func TestUserJobs_GetByUser_ordersVisibleFirstThenCreatedAtDesc(t *testing.T) {
+	db := testJobDB(t)
+	repo := NewUserJobsRepository(database.NewPG(db))
+	jobsRepo := NewJobsRepository(database.NewPG(db))
+
+	ctx := context.Background()
+	userID := uuid.NewString()
+
+	_, err := db.Exec(ctx, "INSERT INTO users (id, clerk_user_id, email, full_name, role) VALUES ($1, $2, $3, $4, 'user')",
+		userID, "clerk_"+userID, userID+"@test.com", "Test User")
+	require.NoError(t, err)
+
+	createJob := func(slug string) int64 {
+		t.Helper()
+		res, err := jobsRepo.Create(ctx, models.CreateJobParams{
+			Slug:          slug,
+			Source:        "linkedin",
+			Title:         "Engineer",
+			Company:       "Acme",
+			Location:      "Jakarta",
+			UpdatedByType: "user",
+			UpdatedByID:   userID,
+		})
+		require.NoError(t, err)
+		return res.Job.ID
+	}
+
+	jobVisOld := createJob("order-vis-old-" + userID) // visible, older
+	jobVisNew := createJob("order-vis-new-" + userID) // visible, newer
+	jobHidOld := createJob("order-hid-old-" + userID) // hidden, older
+	jobHidNew := createJob("order-hid-new-" + userID) // hidden, newer
+
+	// Insert user_jobs links directly with explicit created_at / is_hidden.
+	now := time.Now()
+	ins := `INSERT INTO user_jobs (id, user_id, job_id, is_hidden, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6)`
+	insertLink := func(id string, jobID int64, hidden bool, created time.Time) {
+		t.Helper()
+		_, err := db.Exec(ctx, ins, id, userID, jobID, hidden, created, created)
+		require.NoError(t, err)
+	}
+
+	idVisOld := uuid.NewString()
+	idVisNew := uuid.NewString()
+	idHidOld := uuid.NewString()
+	idHidNew := uuid.NewString()
+
+	visOldTime := now.Add(-3 * time.Hour)
+	visNewTime := now.Add(-1 * time.Hour)
+	hidOldTime := now.Add(-2 * time.Hour)
+	hidNewTime := now.Add(-30 * time.Minute)
+
+	insertLink(idVisOld, jobVisOld, false, visOldTime)
+	insertLink(idVisNew, jobVisNew, false, visNewTime)
+	insertLink(idHidOld, jobHidOld, true, hidOldTime)
+	insertLink(idHidNew, jobHidNew, true, hidNewTime)
+
+	rows, total, err := repo.GetByUser(ctx, userID, models.UserJobFilter{}, 50, 0)
+	require.NoError(t, err)
+	require.Equal(t, 4, total)
+	require.Len(t, rows, 4)
+
+	// Visible (is_hidden=false) first, each group ordered by created_at desc.
+	assert.Equal(t, jobVisNew, rows[0].Job.ID)
+	assert.Equal(t, jobVisOld, rows[1].Job.ID)
+	// Hidden (is_hidden=true) after, each group ordered by created_at desc.
+	assert.Equal(t, jobHidNew, rows[2].Job.ID)
+	assert.Equal(t, jobHidOld, rows[3].Job.ID)
 }

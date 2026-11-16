@@ -1674,7 +1674,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "List jobs owned by the authenticated user, ordered by created_at descending. Optional pagination (default page 1, limit 10, max limit 50).",
+                "description": "List jobs owned by the authenticated user, ordered by is_hidden ascending (visible first) then created_at descending. Optional pagination (default page 1, limit 10, max limit 50).",
                 "produces": [
                     "application/json"
                 ],

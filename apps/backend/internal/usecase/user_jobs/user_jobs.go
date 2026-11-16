@@ -14,7 +14,8 @@ import (
 // shared job listing.
 type UserJobs interface {
 	// ListByUser returns jobs owned by the given user (via user_jobs), ordered
-	// by created_at descending, paginated by limit and offset.
+	// by is_hidden ascending (visible jobs first) and then created_at descending,
+	// paginated by limit and offset.
 	ListByUser(ctx context.Context, userID string, filter models.UserJobFilter, limit, offset int) ([]*models.UserJobWithJob, int, error)
 
 	// Add links the given job to the given user in user_jobs. Returns created=true

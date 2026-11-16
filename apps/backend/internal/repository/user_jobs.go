@@ -240,8 +240,9 @@ func (r *userJobsRepository) GetUsersByJobID(ctx context.Context, jobID int64) (
 }
 
 // GetByUser returns user_jobs rows owned by the given user (joined with the jobs table),
-// ordered by user_jobs.created_at descending, paginated by limit and offset.
-// When filter fields are set, they are applied as parameterized SQL constraints.
+// ordered by is_hidden ascending (visible jobs first) and then created_at descending,
+// paginated by limit and offset. When filter fields are set, they are applied as
+// parameterized SQL constraints.
 func (r *userJobsRepository) GetByUser(ctx context.Context, userID string, filter models.UserJobFilter, limit, offset int) (rows []*models.UserJobWithJob, total int, err error) {
 	// Optional count filters applied via join on jobs and latest matching evaluation.
 	countWhere, countArgs := whereClauses(filter)
@@ -283,7 +284,7 @@ func (r *userJobsRepository) GetByUser(ctx context.Context, userID string, filte
 		JOIN jobs j ON j.id = uj.job_id
 		LEFT JOIN matching_evaluations me ON me.id = uj.latest_evaluation_id
 		WHERE uj.user_id = $1%s
-		ORDER BY uj.created_at DESC
+		ORDER BY uj.is_hidden ASC, uj.created_at DESC
 		LIMIT $%d OFFSET $%d
 	`, selectCols, whereClause, limitIdx, offsetIdx)
 
