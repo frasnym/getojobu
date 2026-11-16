@@ -74,6 +74,86 @@ func TestBulkQueueGenerateResume(t *testing.T) {
 		assert.Contains(t, *res[0].Error, "not found")
 	})
 
+	t.Run("clerk user is denied when evaluation is not owned", func(t *testing.T) {
+		userJobID := uuid.New()
+		ownerID := uuid.New()
+		eval := &models.MatchingEvaluation{ID: evalID, UserJobID: userJobID}
+		evalRepo.EXPECT().GetByID(ctx, evalID).Return(eval, nil)
+		userJobsRepo.EXPECT().GetByID(ctx, userJobID).Return(&models.UserJob{
+			ID: userJobID, UserID: ownerID,
+		}, nil)
+
+		clerkCaller := &models.Principal{ActorType: "", ID: "someone-else"}
+		res, err := service.BulkQueueGenerateResume(ctx, []models.BulkGenerateResumeItem{
+			{ID: evalID, Force: true},
+		}, clerkCaller)
+		require.NoError(t, err)
+		require.Len(t, res, 1)
+		require.NotNil(t, res[0].Error)
+		assert.Contains(t, *res[0].Error, "not authorized")
+	})
+
+	t.Run("clerk user is denied when evaluation has no user job link", func(t *testing.T) {
+		eval := &models.MatchingEvaluation{ID: evalID}
+		evalRepo.EXPECT().GetByID(ctx, evalID).Return(eval, nil)
+		userJobsRepo.EXPECT().GetByID(ctx, uuid.Nil).Return(nil, constants.ErrNotFound)
+
+		clerkCaller := &models.Principal{ActorType: "", ID: "user-1"}
+		res, err := service.BulkQueueGenerateResume(ctx, []models.BulkGenerateResumeItem{
+			{ID: evalID, Force: true},
+		}, clerkCaller)
+		require.NoError(t, err)
+		require.Len(t, res, 1)
+		require.NotNil(t, res[0].Error)
+	})
+
+	t.Run("clerk user can retry when evaluation is owned", func(t *testing.T) {
+		userJobID := uuid.New()
+		userID := uuid.New()
+		failedStatus := string(constants.ResumeStatusFailed)
+		eval := &models.MatchingEvaluation{
+			ID:                   evalID,
+			UserJobID:            userJobID,
+			EvaluationStatus:     string(constants.MatchingStatusSuccess),
+			RecommendationLabel:  &strongRec,
+			CandidateProfileData: json.RawMessage(`{"skills":["Go"],"experience":[]}`),
+			JobProfileData:       json.RawMessage(`{"title":"Senior Engineer"}`),
+			EvaluationData:       json.RawMessage(`{"summary":"Great fit"}`),
+			ResumeStatus:         &failedStatus,
+		}
+
+		evalRepo.EXPECT().GetByID(ctx, evalID).Return(eval, nil)
+		userJobsRepo.EXPECT().GetByID(ctx, userJobID).Return(&models.UserJob{
+			ID: userJobID, UserID: userID,
+		}, nil)
+		// triggerResume fetches the evaluation and user job again.
+		evalRepo.EXPECT().GetByID(ctx, evalID).Return(eval, nil)
+		userJobsRepo.EXPECT().GetByID(ctx, userJobID).Return(&models.UserJob{
+			ID: userJobID, UserID: userID,
+		}, nil)
+		now := time.Now()
+		fullName := "Jane Doe"
+		email := "jane@example.com"
+		usersRepo.EXPECT().FindByID(ctx, userID.String()).Return(&models.User{
+			ID:                    userID.String(),
+			FullName:              &fullName,
+			Email:                 &email,
+			OnboardingCompletedAt: &now,
+		}, nil)
+		eduRepo.EXPECT().ListByUser(ctx, userID.String()).Return([]*models.UserEducation{}, nil)
+		expRepo.EXPECT().ListByUser(ctx, userID.String()).Return([]*models.Experience{}, nil)
+		workflowsRepo.EXPECT().StartLimiterWorkItem(ctx, gomock.Any(), models.LimiterJobTypeResume, gomock.Any()).Return("wf-resume-1", nil)
+
+		clerkCaller := &models.Principal{ActorType: "", ID: userID.String()}
+		res, err := service.BulkQueueGenerateResume(ctx, []models.BulkGenerateResumeItem{
+			{ID: evalID, Force: true},
+		}, clerkCaller)
+		require.NoError(t, err)
+		require.Len(t, res, 1)
+		require.Nil(t, res[0].Error)
+		assert.Equal(t, evalID, *res[0].ID)
+	})
+
 	t.Run("rejects non-successful evaluation status", func(t *testing.T) {
 		eval := &models.MatchingEvaluation{
 			ID:                  evalID,

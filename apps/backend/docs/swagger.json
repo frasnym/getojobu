@@ -753,7 +753,7 @@
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Enqueues resume generation for multiple matching evaluation IDs. Worker API key required.",
+                "description": "Enqueues resume generation for multiple matching evaluation IDs. Clerk users may only enqueue evaluations they own; worker API key callers may enqueue any evaluation.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1990,56 +1990,14 @@
         "dto.EvaluationResponse": {
             "type": "object",
             "properties": {
-                "created_at": {
-                    "type": "string"
-                },
-                "eligibility_status": {
-                    "type": "string"
-                },
-                "evaluation_data": {
-                    "type": "object"
-                },
-                "evaluation_status": {
-                    "type": "string"
-                },
-                "failure_message": {
-                    "type": "string"
+                "evaluation": {
+                    "$ref": "#/definitions/dto.MatchingEvaluationResponse"
                 },
                 "id": {
                     "type": "string"
                 },
                 "job": {
                     "$ref": "#/definitions/dto.JobResponse"
-                },
-                "overall_score": {
-                    "type": "number"
-                },
-                "recommendation_label": {
-                    "type": "string"
-                },
-                "report_data": {
-                    "type": "object"
-                },
-                "report_failure_message": {
-                    "type": "string"
-                },
-                "report_status": {
-                    "type": "string"
-                },
-                "resume_failure_message": {
-                    "type": "string"
-                },
-                "resume_json_key": {
-                    "type": "string"
-                },
-                "resume_pdf_key": {
-                    "type": "string"
-                },
-                "resume_status": {
-                    "type": "string"
-                },
-                "updated_at": {
-                    "type": "string"
                 },
                 "user_job_id": {
                     "type": "string"

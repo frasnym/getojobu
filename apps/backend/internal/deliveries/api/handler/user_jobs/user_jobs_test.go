@@ -665,9 +665,14 @@ func TestGetEvaluation_includesJob(t *testing.T) {
 	assert.EqualValues(t, 648, job["id"])
 	assert.Equal(t, "job-slug", job["slug"])
 
-	evalData := data["evaluation_data"].(map[string]interface{})
+	evalObj := data["evaluation"].(map[string]interface{})
+	assert.Equal(t, evalID.String(), evalObj["id"])
+	assert.Equal(t, ujID.String(), evalObj["user_job_id"])
+	assert.Equal(t, "success", evalObj["evaluation_status"])
+
+	evalData := evalObj["evaluation_data"].(map[string]interface{})
 	assert.Nil(t, evalData["metadata"])
-	reportData := data["report_data"].(map[string]interface{})
+	reportData := evalObj["report_data"].(map[string]interface{})
 	assert.Nil(t, reportData["metadata"])
 }
 

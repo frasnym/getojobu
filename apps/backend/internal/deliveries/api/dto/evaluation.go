@@ -32,10 +32,14 @@ type MatchingEvaluationResponse struct {
 }
 
 // EvaluationResponse is a matching evaluation together with the job it
-// evaluates, as returned on the candidate-facing endpoint.
+// evaluates, as returned on the candidate-facing endpoint. The evaluation is
+// nested under its own "evaluation" key (mirroring "job"), so it is not merged
+// with the user-jobs data at the root.
 type EvaluationResponse struct {
-	MatchingEvaluationResponse
-	Job JobResponse `json:"job"`
+	ID         uuid.UUID                   `json:"id"`
+	UserJobID  uuid.UUID                   `json:"user_job_id"`
+	Job        JobResponse                 `json:"job"`
+	Evaluation *MatchingEvaluationResponse `json:"evaluation"`
 }
 
 // NewMatchingEvaluationResponse maps an evaluation to its job-less API shape.
@@ -68,8 +72,11 @@ func NewMatchingEvaluationResponse(eval *models.MatchingEvaluation) MatchingEval
 // NewEvaluationResponse maps an evaluation plus its job to the candidate-facing
 // API shape.
 func NewEvaluationResponse(eval *models.MatchingEvaluation, job *models.Job) EvaluationResponse {
+	evalResp := NewMatchingEvaluationResponse(eval)
 	return EvaluationResponse{
-		MatchingEvaluationResponse: NewMatchingEvaluationResponse(eval),
-		Job:                        NewJobResponse(job, nil),
+		ID:         eval.ID,
+		UserJobID:  eval.UserJobID,
+		Job:        NewJobResponse(job, nil),
+		Evaluation: &evalResp,
 	}
 }

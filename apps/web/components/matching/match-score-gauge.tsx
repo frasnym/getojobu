@@ -17,9 +17,9 @@ export function MatchScoreGauge({
 
   return (
     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 rounded-xl border border-border/60 bg-card p-6">
-      <div className="flex items-center gap-5">
+      <div className="flex items-center gap-6">
         {/* Radial / Circular Score Display */}
-        <div className="relative flex h-24 w-24 shrink-0 items-center justify-center rounded-full border-4 border-emerald-500/20 bg-background shadow-inner">
+        <div className="relative flex h-28 w-28 shrink-0 items-center justify-center rounded-full border-4 border-emerald-500/20 bg-background shadow-inner">
           <svg className="absolute inset-0 h-full w-full -rotate-90" viewBox="0 0 36 36">
             <path
               className="text-muted/20"
@@ -38,13 +38,13 @@ export function MatchScoreGauge({
               d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
             />
           </svg>
-          <span className="text-xl font-black tracking-tight text-foreground">
+          <span className="text-2xl font-black tracking-tight text-foreground">
             {Number.isInteger(score) ? score : score.toFixed(1)}%
           </span>
         </div>
 
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
+        <div className="min-w-0 space-y-1.5">
+          <div className="flex flex-wrap items-center gap-2">
             <span
               className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-bold ${
                 isEligible
@@ -73,7 +73,7 @@ export function MatchScoreGauge({
         </div>
       </div>
 
-      <div className="flex flex-col justify-center sm:items-end border-t sm:border-t-0 sm:border-l border-border/40 pt-4 sm:pt-0 sm:pl-6 text-xs text-muted-foreground space-y-1">
+      <div className="flex shrink-0 flex-col justify-center sm:items-end border-t sm:border-t-0 sm:border-l border-border/40 pt-4 sm:pt-0 sm:pl-6 text-xs text-muted-foreground space-y-1">
         <span className="font-semibold text-foreground">Scoring Methodology</span>
         <span>Weighted evaluation of core mastery, reliability, and requirements</span>
       </div>

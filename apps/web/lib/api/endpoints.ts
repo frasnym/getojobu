@@ -4,6 +4,7 @@ import {
   UserJob,
   DownloadResumeResponse,
   EvaluationSummary,
+  EvaluationDetail,
 } from "./types";
 
 export async function getJobs(
@@ -92,8 +93,8 @@ export async function setUserJobHideStatus(
 export async function getUserJobEvaluation(
   userJobId: string,
   token?: string | null
-): Promise<EvaluationSummary> {
-  return apiClient<EvaluationSummary>(
+): Promise<EvaluationDetail> {
+  return apiClient<EvaluationDetail>(
     `/v1/user-jobs/${userJobId}/evaluation`,
     { token }
   );
@@ -130,4 +131,28 @@ export async function getResumeDownloadUrl(
     `/v1/matching-evaluations/${evalId}/resume/download`,
     { token }
   );
+}
+
+/** Queue resume generation for an evaluation (retry path). Clerk users must own the evaluation. */
+export async function retryResumeGeneration(
+  evalId: string,
+  token?: string | null,
+  force: boolean = true
+): Promise<EvaluationSummary> {
+  const result = await apiClient<Array<EvaluationSummary & { error?: string | null }>>(
+    "/v1/matching-evaluations/bulk-generate-resume",
+    {
+      method: "POST",
+      token,
+      body: JSON.stringify([{ id: evalId, force }]),
+    }
+  );
+  const item = Array.isArray(result) ? result[0] : undefined;
+  if (!item) {
+    throw new Error("Empty response from bulk-generate-resume");
+  }
+  if (item.error) {
+    throw new Error(item.error);
+  }
+  return item;
 }

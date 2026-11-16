@@ -107,7 +107,11 @@ describe("JobDetailDrawer component", () => {
     const evalSpy = vi.spyOn(endpoints, "getUserJobEvaluation").mockResolvedValue({
       id: "eval-123",
       user_job_id: "uj-456",
-      evaluation_status: "success",
+      evaluation: {
+        id: "eval-123",
+        user_job_id: "uj-456",
+        evaluation_status: "success",
+      },
     });
 
     render(
@@ -143,7 +147,11 @@ describe("JobDetailDrawer component", () => {
     const evalSpy = vi.spyOn(endpoints, "getUserJobEvaluation").mockResolvedValue({
       id: "eval-123",
       user_job_id: "uj-456",
-      evaluation_status: "success",
+      evaluation: {
+        id: "eval-123",
+        user_job_id: "uj-456",
+        evaluation_status: "success",
+      },
     });
 
     const { rerender } = render(

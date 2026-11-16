@@ -57,7 +57,7 @@ func (h *handler) Route(g *httpx.Router) {
 
 	// POST /v1/matching-evaluations/bulk-generate-report (strictly worker API key)
 	g.POST("/bulk-generate-report", h.BulkQueueGenerateReport, auth.ValidAPIKey)
-	g.POST("/bulk-generate-resume", h.BulkQueueGenerateResume, auth.ValidAPIKey)
+	g.POST("/bulk-generate-resume", h.BulkQueueGenerateResume, auth.ValidClerkOrAPIKey)
 }
 
 type updateEvaluationPayload struct {
@@ -418,7 +418,7 @@ func (r bulkGenerateResumeRequest) Validate() error {
 
 // BulkQueueGenerateResume queues resume generation for multiple evaluations.
 // @Summary Bulk queue resume generation
-// @Description Enqueues resume generation for multiple matching evaluation IDs. Worker API key required.
+// @Description Enqueues resume generation for multiple matching evaluation IDs. Clerk users may only enqueue evaluations they own; worker API key callers may enqueue any evaluation.
 // @Tags matching
 // @Accept json
 // @Produce json

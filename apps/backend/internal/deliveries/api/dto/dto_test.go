@@ -191,11 +191,19 @@ func TestEvaluationResponse_includesJob(t *testing.T) {
 	keys := marshalKeys(t, NewEvaluationResponse(eval, sampleJob()))
 
 	assert.Contains(t, keys, "job")
-	assert.Contains(t, keys, "user_job_id")
+	assert.Contains(t, keys, "evaluation")
 	assert.NotContains(t, keys, "user_job")
 	job, ok := keys["job"].(map[string]any)
 	require.True(t, ok, "job must be an object")
 	assert.EqualValues(t, 648, job["id"])
+
+	// Evaluation is nested under its own key, not merged at root.
+	evalObj, ok := keys["evaluation"].(map[string]any)
+	require.True(t, ok, "evaluation must be an object")
+	assert.Equal(t, "5f0c1d8e-0000-0000-0000-000000000000", evalObj["id"])
+	assert.Equal(t, "success", evalObj["evaluation_status"])
+	assert.NotContains(t, keys, "evaluation_status")
+	assert.Contains(t, keys, "user_job_id")
 }
 
 func TestCreateJobResponse_snakeCase(t *testing.T) {

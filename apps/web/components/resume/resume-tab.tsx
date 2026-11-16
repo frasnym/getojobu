@@ -1,12 +1,15 @@
-import React from "react";
+import React, { useState } from "react";
 import { DownloadResumeButton } from "./download-resume-button";
-import { FileText, CheckCircle2, AlertCircle, Clock, Sparkles } from "lucide-react";
+import { retryResumeGeneration } from "@/lib/api/endpoints";
+import { FileText, CheckCircle2, AlertCircle, Clock, Sparkles, Loader2, RotateCw } from "lucide-react";
 
 interface ResumeTabProps {
   evalId?: string;
   resumeStatus?: string;
   cvImprovements?: string[];
   token?: string | null;
+  /** Called after a retry request is queued successfully, so the parent can refetch the latest status. */
+  onRetried?: () => void;
 }
 
 export function ResumeTab({
@@ -14,7 +17,24 @@ export function ResumeTab({
   resumeStatus,
   cvImprovements = [],
   token,
+  onRetried,
 }: ResumeTabProps) {
+  const [retrying, setRetrying] = useState(false);
+  const [retryError, setRetryError] = useState<string | null>(null);
+
+  const handleRetry = async () => {
+    if (!evalId || retrying) return;
+    setRetrying(true);
+    setRetryError(null);
+    try {
+      await retryResumeGeneration(evalId, token);
+      onRetried?.();
+    } catch (err: any) {
+      setRetryError(err?.message || "Failed to queue resume generation. Please try again.");
+    } finally {
+      setRetrying(false);
+    }
+  };
   if (!evalId || !resumeStatus) {
     return (
       <div className="rounded-2xl border border-dashed border-border/80 bg-card/40 p-12 text-center">
@@ -69,6 +89,29 @@ export function ResumeTab({
         {isReady && (
           <div className="shrink-0">
             <DownloadResumeButton evalId={evalId} token={token} />
+          </div>
+        )}
+        {isFailed && (
+          <div className="shrink-0 flex flex-col items-start gap-2">
+            <button
+              type="button"
+              onClick={handleRetry}
+              disabled={retrying}
+              className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-bold text-primary-foreground shadow-sm hover:bg-primary/90 transition-colors disabled:opacity-50"
+            >
+              {retrying ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <RotateCw className="h-4 w-4" />
+              )}
+              <span>{retrying ? "Retrying..." : "Retry Generation"}</span>
+            </button>
+            {retryError && (
+              <p className="flex items-center gap-1.5 text-xs text-destructive font-medium">
+                <AlertCircle className="h-3.5 w-3.5" />
+                <span>{retryError}</span>
+              </p>
+            )}
           </div>
         )}
       </div>

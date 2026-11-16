@@ -30,6 +30,16 @@ export interface EvaluationSummary {
   };
 }
 
+// The /v1/user-jobs/{user_job_id}/evaluation response nests the evaluation
+// under its own "evaluation" key (mirroring "job"), so it is not merged with
+// the user-jobs data at the root.
+export interface EvaluationDetail {
+  id: string;
+  user_job_id: string;
+  job?: Job;
+  evaluation: MatchReport;
+}
+
 export interface Job {
   id: number;
   slug: string;
@@ -97,6 +107,7 @@ export interface MatchReport {
   overall_score?: number;
   eligibility_status?: string;
   recommendation_label?: string;
+  resume_status?: string;
   report_data?: {
     summary?: string;
     strengths?: string[];

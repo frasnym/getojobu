@@ -189,4 +189,3 @@ func TestWorkflowsRepository_IsWorkflowRunning_OtherError(t *testing.T) {
 	assert.False(t, running)
 	assert.Contains(t, err.Error(), "describe workflow execution")
 }
-

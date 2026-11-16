@@ -11,7 +11,7 @@ import { ResumeTab } from "@/components/resume/resume-tab";
 import { JobDetailDrawer } from "@/components/jobs/job-detail-drawer";
 import { getUserJobEvaluation } from "@/lib/api/endpoints";
 import { setUserJobsHideStatus } from "@/lib/api/endpoints";
-import { EvaluationSummary } from "@/lib/api/types";
+import { EvaluationDetail } from "@/lib/api/types";
 import { AlertCircle } from "lucide-react";
 
 interface UserJobDetailPageProps {
@@ -30,9 +30,11 @@ export default function UserJobDetailPage({ params }: UserJobDetailPageProps) {
   const [activeTab, setActiveTab] = useState<ReportTab>("details");
   const { getToken } = useAuth();
   const [evalId, setEvalId] = useState<string | null>(null);
-  const [fetchedEvaluation, setFetchedEvaluation] = useState<EvaluationSummary | null>(null);
+  const [fetchedEvaluation, setFetchedEvaluation] = useState<EvaluationDetail | null>(null);
   const resolvedUserJobId = userJobId ?? job?.user_job?.id;
   const [isHidden, setIsHidden] = useState(false);
+  const [evalRefreshTick, setEvalRefreshTick] = useState(0);
+  const refreshEvaluation = useCallback(() => setEvalRefreshTick((t) => t + 1), []);
 
   const handleHideToggle = useCallback(
     async (userJobIdParam: string, nextHidden: boolean) => {
@@ -81,7 +83,7 @@ export default function UserJobDetailPage({ params }: UserJobDetailPageProps) {
     return () => {
       cancelled = true;
     };
-  }, [job, resolvedUserJobId, getToken]);
+  }, [job, resolvedUserJobId, getToken, evalRefreshTick]);
 
   const handleDrawerClose = () => {
     router.push("/user-jobs");
@@ -151,7 +153,7 @@ export default function UserJobDetailPage({ params }: UserJobDetailPageProps) {
         {/* Tab 2: Match Report */}
         {activeTab === "report" && (
           <MatchReportTab
-            report={fetchedEvaluation || undefined}
+            report={fetchedEvaluation?.evaluation || undefined}
             evalId={evalId || undefined}
           />
         )}
@@ -160,9 +162,10 @@ export default function UserJobDetailPage({ params }: UserJobDetailPageProps) {
         {activeTab === "resume" && (
           <ResumeTab
             evalId={evalId || undefined}
-            resumeStatus={fetchedEvaluation?.resume_status ?? undefined}
-            cvImprovements={fetchedEvaluation?.report_data?.cv_improvements ?? []}
+            resumeStatus={fetchedEvaluation?.evaluation.resume_status ?? undefined}
+            cvImprovements={fetchedEvaluation?.evaluation.report_data?.cv_improvements ?? []}
             token={null}
+            onRetried={refreshEvaluation}
           />
         )}
       </main>

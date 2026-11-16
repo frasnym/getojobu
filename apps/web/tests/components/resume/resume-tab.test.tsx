@@ -10,6 +10,7 @@ vi.mock("@/lib/api/endpoints", () => ({
     expires_at: "2026-11-15T12:00:00Z",
     filename: "Tailored_Resume_Stripe.pdf",
   }),
+  retryResumeGeneration: vi.fn().mockResolvedValue({ id: "eval-001", evaluation_status: "pending" }),
 }));
 
 describe("ResumeTab component", () => {
@@ -65,5 +66,51 @@ describe("ResumeTab component", () => {
     );
 
     expect(screen.getByText(/No Tailored Resume Generated/i)).toBeInTheDocument();
+  });
+
+  it("shows retry button when generation failed", () => {
+    render(
+      <ResumeTab
+        evalId="eval-001"
+        resumeStatus="failed"
+      />
+    );
+
+    expect(screen.getByText(/Generation Failed/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Retry Generation/i })).toBeInTheDocument();
+  });
+
+  it("queues retry and notifies parent when retry is clicked", async () => {
+    const onRetried = vi.fn();
+    render(
+      <ResumeTab
+        evalId="eval-001"
+        resumeStatus="failed"
+        onRetried={onRetried}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Retry Generation/i }));
+
+    await waitFor(() => {
+      expect(api.retryResumeGeneration).toHaveBeenCalledWith("eval-001", undefined);
+      expect(onRetried).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it("shows error message when retry fails", async () => {
+    vi.mocked(api.retryResumeGeneration).mockRejectedValueOnce(new Error("not authorized to generate resume for this evaluation"));
+    render(
+      <ResumeTab
+        evalId="eval-001"
+        resumeStatus="failed"
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Retry Generation/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/not authorized to generate resume for this evaluation/i)).toBeInTheDocument();
+    });
   });
 });

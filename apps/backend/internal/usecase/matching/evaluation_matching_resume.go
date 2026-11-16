@@ -324,6 +324,21 @@ func (s *matchingService) BulkQueueGenerateResume(
 	}
 	summaries := make([]*models.MatchingEvaluationSummary, 0, len(items))
 	for _, item := range items {
+		// Clerk users may only retry resume generation on evaluations they own.
+		if caller.ActorType == "" {
+			owned, err := s.isEvaluationOwnedBy(ctx, item.ID, caller.ID)
+			if err != nil {
+				message := err.Error()
+				summaries = append(summaries, &models.MatchingEvaluationSummary{ID: &item.ID, Error: &message})
+				continue
+			}
+			if !owned {
+				message := "not authorized to generate resume for this evaluation"
+				summaries = append(summaries, &models.MatchingEvaluationSummary{ID: &item.ID, Error: &message})
+				continue
+			}
+		}
+
 		eval, err := s.triggerResume(ctx, item.ID, item.Force)
 		if err != nil {
 			message := err.Error()
@@ -335,4 +350,18 @@ func (s *matchingService) BulkQueueGenerateResume(
 		})
 	}
 	return summaries, nil
+}
+
+// isEvaluationOwnedBy reports whether the matching evaluation belongs to the
+// given internal user via its user_job link.
+func (s *matchingService) isEvaluationOwnedBy(ctx context.Context, evalID uuid.UUID, userID string) (bool, error) {
+	eval, err := s.evalRepo.GetByID(ctx, evalID)
+	if err != nil {
+		return false, fmt.Errorf("get evaluation: %w", err)
+	}
+	userJob, err := s.userJobsRepo.GetByID(ctx, eval.UserJobID)
+	if err != nil {
+		return false, fmt.Errorf("get user job: %w", err)
+	}
+	return userJob.UserID.String() == userID, nil
 }
