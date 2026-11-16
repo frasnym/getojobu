@@ -112,6 +112,7 @@ export default function UserJobsPage() {
 				isFiltersChanged={isFiltersChanged}
 				onQueryAll={queryAll}
 				loading={loading}
+				isDrawerOpen={!!selectedRow}
 			/>
 
 			{/* Loading state */}
@@ -196,6 +197,7 @@ export default function UserJobsPage() {
 				onTabChange={handleTabChange}
 				evalId={evalId}
 				showOwnedActions={false}
+				isHidden={selectedRow?.is_hidden ?? false}
 			/>
 		</div>
 	);

@@ -138,4 +138,38 @@ describe("JobDetailDrawer component", () => {
 
     expect(evalSpy).not.toHaveBeenCalled();
   });
+
+  it("resets fetched evaluation when switching to an unowned job", async () => {
+    const evalSpy = vi.spyOn(endpoints, "getUserJobEvaluation").mockResolvedValue({
+      id: "eval-123",
+      user_job_id: "uj-456",
+      evaluation_status: "success",
+    });
+
+    const { rerender } = render(
+      <JobDetailDrawer
+        job={mockJob}
+        userJobId="uj-456"
+        isOpen={true}
+        onClose={() => {}}
+      />
+    );
+
+    await waitFor(() => {
+      expect(evalSpy).toHaveBeenCalledWith("uj-456", "mock-clerk-test-token");
+    });
+
+    evalSpy.mockClear();
+
+    const anotherJob: Job = { ...mockJob, id: 99, slug: "different-job" };
+    rerender(
+      <JobDetailDrawer
+        job={anotherJob}
+        isOpen={true}
+        onClose={() => {}}
+      />
+    );
+
+    expect(evalSpy).not.toHaveBeenCalled();
+  });
 });

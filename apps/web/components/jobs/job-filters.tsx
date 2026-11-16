@@ -26,6 +26,8 @@ interface JobFiltersProps {
   onQueryAll?: () => void;
   /** Whether a backend query is in flight. */
   loading?: boolean;
+  /** When true (job detail drawer open), hide the Query all / Search all button. */
+  isDrawerOpen?: boolean;
 }
 
 interface FilterOption<T extends string> {
@@ -198,6 +200,7 @@ export function JobFilters({
   isFiltersChanged = false,
   onQueryAll,
   loading = false,
+  isDrawerOpen = false,
 }: JobFiltersProps) {
   // Determine status active color
   let statusColorClass = "bg-primary/10 text-primary border-primary/25";
@@ -294,8 +297,8 @@ export function JobFilters({
           activeColorClass={statusColorClass}
         />
 
-        {/* Query all / Search all — only shown when filters differ from initial state */}
-        {isFiltersChanged && onQueryAll && (
+        {/* Query all / Search all — only shown when filters differ from initial state and no drawer is open */}
+        {isFiltersChanged && onQueryAll && !isDrawerOpen && (
           <button
             type="button"
             onClick={onQueryAll}

@@ -37,6 +37,8 @@ interface JobDetailDrawerProps {
   onTabChange?: (tab: ReportTab) => void;
   evalId?: string | null;
   showOwnedActions?: boolean;
+  /** When true (job is hidden by the user), grey out the job title in the drawer header. */
+  isHidden?: boolean;
 }
 
 const TABS: { id: ReportTab; label: string }[] = [
@@ -56,6 +58,7 @@ export function JobDetailDrawer({
   onTabChange,
   evalId: evalIdProp,
   showOwnedActions = true,
+  isHidden = false,
 }: JobDetailDrawerProps) {
   const { getToken } = useAuth();
   const [fetchedEvaluation, setFetchedEvaluation] = useState<EvaluationSummary | null>(null);
@@ -69,6 +72,12 @@ export function JobDetailDrawer({
   // Resolve the report payload: fetched evaluation (full data, one fetch)
   // takes precedence; otherwise MatchReportTab falls back to evalId fetch.
   const resolvedReport = fetchedEvaluation ?? undefined;
+
+  // Clear fetched evaluation when switching jobs or userJob links to avoid
+  // ghosting a previous job's evaluation into another job's drawer.
+  useEffect(() => {
+    setFetchedEvaluation(null);
+  }, [job?.slug, userJobId]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -148,7 +157,7 @@ export function JobDetailDrawer({
         <div className="border-b border-border/60 p-6 space-y-4">
           <div className="flex items-center justify-between gap-4">
             <div className="flex flex-wrap items-center gap-2">
-              <h2 className="text-2xl font-black tracking-tight text-foreground">{job.title}</h2>
+              <h2 className={`text-2xl font-black tracking-tight ${isHidden ? "text-muted-foreground" : "text-foreground"}`}>{job.title}</h2>
               <span className={statusBadgeClasses(job.status)}>
                 {job.status}
               </span>
