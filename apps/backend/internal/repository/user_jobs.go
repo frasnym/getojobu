@@ -104,7 +104,10 @@ func (r *userJobsRepository) BulkCreate(ctx context.Context, links []models.User
 		)
 
 		for i, link := range chunk {
-			offset := i * 3
+			// Each link contributes exactly two args (user_id, job_id), so
+			// placeholder numbering must increment by 2 per row. Using i * 3
+			// left gaps ($3, $6, ...) unbound and caused SQLSTATE 42P18.
+			offset := i * 2
 			valuesPlaceholders = append(valuesPlaceholders, fmt.Sprintf(
 				"($%d, $%d)",
 				offset+1, offset+2,
