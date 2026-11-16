@@ -439,9 +439,10 @@ func (r *userJobsRepository) SetBulkHideStatus(ctx context.Context, userID strin
 	defer r.Committer(ctx, tx, &err)
 
 	res, err := tx.Exec(ctx, `
-		UPDATE user_jobs
+		UPDATE user_jobs uj
 		SET is_hidden = $3
-		WHERE id = ANY($1::text[]) AND user_id = $2
+		FROM unnest($1::text[]) AS t(uid)
+		WHERE uj.id = t.uid::uuid AND uj.user_id = $2
 	`, userJobIDs, userID, isHidden)
 	if err != nil {
 		return 0, fmt.Errorf("set bulk user_jobs hide status: %w", err)
