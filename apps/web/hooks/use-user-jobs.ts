@@ -95,10 +95,14 @@ export function useUserJobs(explicitToken?: string | null) {
     async (userJobId: string, isHidden: boolean) => {
       const token = explicitToken !== undefined ? explicitToken : await getToken();
       await setUserJobHideStatus(userJobId, isHidden, token);
-      // Refetch the list so the UI reflects the new state.
-      await load();
+      // Update local state directly; no refetch needed.
+      setJobs((prev) =>
+        prev.map((j) =>
+          j.user_job_id === userJobId ? { ...j, is_hidden: isHidden } : j
+        )
+      );
     },
-    [explicitToken, getToken, load]
+    [explicitToken, getToken]
   );
 
   return {
