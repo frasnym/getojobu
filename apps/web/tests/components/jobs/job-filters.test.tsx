@@ -83,12 +83,12 @@ describe("JobFilters component", () => {
       />
     );
 
-    expect(screen.getByText("Status: analyzed")).toBeInTheDocument();
-    expect(screen.getByText("Evaluation: success")).toBeInTheDocument();
+    expect(screen.getByText("Status: Analyzed")).toBeInTheDocument();
+    expect(screen.getByText("Evaluation: Success")).toBeInTheDocument();
 
     // Clear the status chip
     fireEvent.click(
-      screen.getByRole("button", { name: /Remove Status: analyzed filter/i })
+      screen.getByRole("button", { name: /Remove Status: Analyzed filter/i })
     );
     expect(onStatusChange).toHaveBeenCalledWith("all");
   });

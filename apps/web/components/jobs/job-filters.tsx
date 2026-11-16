@@ -178,6 +178,10 @@ function FilterDropdown<T extends string>({
   );
 }
 
+function optionLabel<T extends string>(options: FilterOption<T>[], value: T): string {
+  return options.find((o) => o.value === value)?.label ?? value;
+}
+
 const STATUS_OPTIONS: FilterOption<StatusFilter>[] = [
   { label: "All Statuses", value: "all" },
   { label: "Analyzed", value: "analyzed" },
@@ -306,7 +310,7 @@ export function JobFilters({
   }
   if (statusFilter !== "all") {
     activeChips.push({
-      label: `Status: ${statusFilter}`,
+      label: `Status: ${optionLabel(STATUS_OPTIONS, statusFilter)}`,
       value: "status",
       onRemove: () => onStatusChange("all"),
     });
@@ -320,42 +324,42 @@ export function JobFilters({
   }
   if (ownedFilter !== "all") {
     activeChips.push({
-      label: `Saved: ${ownedFilter}`,
+      label: `Saved: ${optionLabel(OWNED_OPTIONS, ownedFilter)}`,
       value: "owned",
       onRemove: () => onOwnedFilterChange?.("all"),
     });
   }
   if (hideFilter !== "all") {
     activeChips.push({
-      label: `Visibility: ${hideFilter}`,
+      label: `Visibility: ${optionLabel(HIDE_OPTIONS, hideFilter)}`,
       value: "hide",
       onRemove: () => onHideFilterChange?.("all"),
     });
   }
   if (evaluationStatusFilter !== "all") {
     activeChips.push({
-      label: `Evaluation: ${evaluationStatusFilter}`,
+      label: `Evaluation: ${optionLabel(EVALUATION_STATUS_OPTIONS, evaluationStatusFilter)}`,
       value: "evaluation_status",
       onRemove: () => onEvaluationStatusChange?.("all"),
     });
   }
   if (reportStatusFilter !== "all") {
     activeChips.push({
-      label: `Report: ${reportStatusFilter}`,
+      label: `Report: ${optionLabel(REPORT_STATUS_OPTIONS, reportStatusFilter)}`,
       value: "report_status",
       onRemove: () => onReportStatusChange?.("all"),
     });
   }
   if (eligibilityStatusFilter !== "all") {
     activeChips.push({
-      label: `Eligibility: ${eligibilityStatusFilter}`,
+      label: `Eligibility: ${optionLabel(ELIGIBILITY_STATUS_OPTIONS, eligibilityStatusFilter)}`,
       value: "eligibility_status",
       onRemove: () => onEligibilityStatusChange?.("all"),
     });
   }
   if (recommendationLabelFilter !== "all") {
     activeChips.push({
-      label: `Recommendation: ${recommendationLabelFilter}`,
+      label: `Recommendation: ${optionLabel(RECOMMENDATION_LABEL_OPTIONS, recommendationLabelFilter)}`,
       value: "recommendation_label",
       onRemove: () => onRecommendationLabelChange?.("all"),
     });

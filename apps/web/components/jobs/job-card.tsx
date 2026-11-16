@@ -2,7 +2,6 @@ import React from "react";
 import Link from "next/link";
 import { UserJob } from "@/lib/api/types";
 import { MapPin, Globe, Clock, ArrowRight, Eye, EyeOff, Download } from "lucide-react";
-import { statusBadgeClasses } from "@/hooks/use-jobs";
 import {
   EvaluationStatusTag,
   EligibilityTag,
@@ -66,9 +65,6 @@ export function JobCard({
                 Remote
               </span>
             )}
-            <span className={statusBadgeClasses(job.status)}>
-              {job.status}
-            </span>
             {isHidden && (
               <span className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium border-muted-foreground/40 bg-muted/30 text-muted-foreground">
                 <EyeOff className="h-2.5 w-2.5" />
