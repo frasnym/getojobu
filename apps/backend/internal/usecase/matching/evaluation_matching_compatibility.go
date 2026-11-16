@@ -319,7 +319,6 @@ func (s *matchingService) TriggerCompatibilityBulk(
 			} else {
 				// Create new record (first-time or force-re-evaluating a success record)
 				newRecord := &models.MatchingEvaluation{
-					ID:                   uuid.New(),
 					UserJobID:            userJob.ID,
 					EvaluationStatus:     string(constants.MatchingStatusNew),
 					CandidateProfileData: candidateJSON,

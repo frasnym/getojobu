@@ -43,9 +43,6 @@ func (r *matchingEvaluationsRepository) Create(ctx context.Context, eval *models
 	}
 	defer r.Committer(ctx, tx, &err)
 
-	if eval.ID == uuid.Nil {
-		eval.ID = uuid.New()
-	}
 	if eval.EvaluationStatus == "" {
 		eval.EvaluationStatus = string(constants.MatchingStatusNew)
 	}
@@ -55,25 +52,24 @@ func (r *matchingEvaluationsRepository) Create(ctx context.Context, eval *models
 
 	query := `
 		INSERT INTO matching_evaluations (
-			id, user_job_id, evaluation_status,
+			user_job_id, evaluation_status,
 			candidate_profile_data, job_profile_data, scoring_config_id,
 			evaluation_data, overall_score, eligibility_status,
 			recommendation_label, failure_message,
 			report_data, report_status, report_failure_message,
 			created_at, updated_at
 		) VALUES (
-			$1, $2, $3,
-			$4, $5, $6,
-			$7, $8, $9,
-			$10, $11,
-			$12, $13, $14,
-			$15, $16
+			$1, $2,
+			$3, $4, $5,
+			$6, $7, $8,
+			$9, $10,
+			$11, $12, $13,
+			$14, $15
 		)
 		RETURNING id, created_at, updated_at
 	`
 
 	err = tx.QueryRow(ctx, query,
-		eval.ID,
 		eval.UserJobID,
 		eval.EvaluationStatus,
 		eval.CandidateProfileData,

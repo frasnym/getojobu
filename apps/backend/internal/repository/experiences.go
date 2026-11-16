@@ -6,8 +6,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/google/uuid"
-
 	"github.com/frasnym/getojobu/apps/backend/internal/models"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/constants"
@@ -36,19 +34,17 @@ func (r *experiencesRepository) Create(ctx context.Context, params models.Create
 		return nil, fmt.Errorf("create experience: invalid experience_type %q", params.ExperienceType)
 	}
 
-	id := uuid.NewString()
-
 	query := `
 		INSERT INTO user_experiences (
-			id, user_id, experience_type, organization, role_title, location,
+			user_id, experience_type, organization, role_title, location,
 			description, started_at, ended_at, is_current
 		)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 		RETURNING id, user_id, experience_type, organization, role_title, location,
 			description, started_at, ended_at, is_current, created_at, updated_at
 	`
 
-	row := r.db.QueryRow(ctx, query, id, params.UserID, params.ExperienceType, params.Organization,
+	row := r.db.QueryRow(ctx, query, params.UserID, params.ExperienceType, params.Organization,
 		params.RoleTitle, params.Location, params.Description, params.StartedAt, params.EndedAt, params.IsCurrent)
 
 	var e models.Experience

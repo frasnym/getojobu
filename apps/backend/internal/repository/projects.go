@@ -6,8 +6,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/google/uuid"
-
 	"github.com/frasnym/getojobu/apps/backend/internal/models"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/constants"
@@ -32,19 +30,17 @@ func NewProjectsRepository(db database.DB) Projects {
 }
 
 func (r *projectsRepository) Create(ctx context.Context, params models.CreateProjectParams) (*models.Project, error) {
-	id := uuid.NewString()
-
 	query := `
 		INSERT INTO user_projects (
-			id, user_id, user_experience_id, name, description, responsibilities,
+			user_id, user_experience_id, name, description, responsibilities,
 			achievements, started_at, ended_at, is_current
 		)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 		RETURNING id, user_id, user_experience_id, name, description, responsibilities,
 			achievements, started_at, ended_at, is_current, created_at, updated_at
 	`
 
-	row := r.db.QueryRow(ctx, query, id, params.UserID, params.UserExperienceID, params.Name,
+	row := r.db.QueryRow(ctx, query, params.UserID, params.UserExperienceID, params.Name,
 		params.Description, params.Responsibilities, params.Achievements,
 		params.StartedAt, params.EndedAt, params.IsCurrent)
 

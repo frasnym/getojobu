@@ -47,15 +47,14 @@ func (r *userJobsRepository) Create(ctx context.Context, userID string, jobID in
 	}
 	defer r.Committer(ctx, tx, &err)
 
-	id := uuid.NewString()
 	var insertedID string
 	query := `
-		INSERT INTO user_jobs (id, user_id, job_id)
-		VALUES ($1, $2, $3)
+		INSERT INTO user_jobs (user_id, job_id)
+		VALUES ($1, $2)
 		ON CONFLICT (user_id, job_id) DO NOTHING
 		RETURNING id
 	`
-	err = tx.QueryRow(ctx, query, id, userID, jobID).Scan(&insertedID)
+	err = tx.QueryRow(ctx, query, userID, jobID).Scan(&insertedID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			// Ownership conflict: the row already exists. Not an error.
@@ -105,17 +104,16 @@ func (r *userJobsRepository) BulkCreate(ctx context.Context, links []models.User
 		)
 
 		for i, link := range chunk {
-			id := uuid.NewString()
 			offset := i * 3
 			valuesPlaceholders = append(valuesPlaceholders, fmt.Sprintf(
-				"($%d, $%d, $%d)",
-				offset+1, offset+2, offset+3,
+				"($%d, $%d)",
+				offset+1, offset+2,
 			))
-			args = append(args, id, link.UserID, link.JobID)
+			args = append(args, link.UserID, link.JobID)
 		}
 
 		query := fmt.Sprintf(`
-			INSERT INTO user_jobs (id, user_id, job_id)
+			INSERT INTO user_jobs (user_id, job_id)
 			VALUES %s
 			ON CONFLICT (user_id, job_id) DO NOTHING
 			RETURNING user_id, job_id
