@@ -1,3 +1,9 @@
+export interface ReportGap {
+  requirement: string;
+  status?: "met" | "partially_met" | "not_found_in_cv" | string;
+  suggestion?: string | null;
+}
+
 export interface EvaluationSummary {
   id: string;
   user_job_id: string;
@@ -18,7 +24,7 @@ export interface EvaluationSummary {
   report_data?: {
     summary?: string;
     strengths?: string[];
-    gaps?: string[];
+    gaps?: ReportGap[];
     cv_improvements?: string[];
   };
 }
@@ -75,7 +81,7 @@ export interface MatchReport {
   report_data?: {
     summary?: string;
     strengths?: string[];
-    gaps?: string[];
+    gaps?: ReportGap[];
     cv_improvements?: string[];
   };
   evaluation_data?: {

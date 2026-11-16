@@ -18,10 +18,10 @@ describe("PaginationControls component", () => {
       />
     );
 
-    expect(screen.getByText("Showing")).toBeInTheDocument();
+    expect(screen.getByText(/Showing/i)).toBeInTheDocument();
     expect(screen.getByText("45")).toBeInTheDocument();
-    expect(screen.getByText("1")).toBeInTheDocument();
-    expect(screen.getByText("10")).toBeInTheDocument();
+    expect(screen.getAllByText("1")).toHaveLength(2);
+    expect(screen.getAllByText("10")).toHaveLength(2);
     expect(screen.getByText(/Page/)).toBeInTheDocument();
     expect(screen.getByText("5")).toBeInTheDocument();
   });

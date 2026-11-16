@@ -14,7 +14,13 @@ const sampleReport: MatchReport = {
   report_data: {
     summary: "The candidate demonstrates exceptional Go expertise and system reliability.",
     strengths: ["6+ years production Go experience", "High throughput microservices"],
-    gaps: ["No direct Kafka experience"],
+    gaps: [
+      {
+        requirement: "Direct Kafka experience",
+        status: "not_found_in_cv",
+        suggestion: "Highlight transferable messaging experience in RabbitMQ or Redis",
+      },
+    ],
     cv_improvements: ["Quantify TPS in previous roles"],
   },
   evaluation_data: {
@@ -60,7 +66,48 @@ describe("MatchReportTab component", () => {
     expect(screen.getByText(/Built payment gateway handling 15,000 req\/sec/i)).toBeInTheDocument();
     expect(screen.getByText("direct")).toBeInTheDocument();
     expect(screen.getByText(/6\+ years production Go experience/i)).toBeInTheDocument();
-    expect(screen.getByText(/No direct Kafka experience/i)).toBeInTheDocument();
+    expect(screen.getByText(/Direct Kafka experience/i)).toBeInTheDocument();
+  });
+
+  it("renders structured gap objects with requirement, status, and suggestion without crashing", () => {
+    const reportWithStructuredGaps: MatchReport = {
+      ...sampleReport,
+      report_data: {
+        ...sampleReport.report_data,
+        gaps: [
+          {
+            requirement: "Kubernetes cluster administration",
+            status: "not_found_in_cv",
+            suggestion: "Highlight container orchestration or Docker experience if any",
+          },
+          {
+            requirement: "AWS Cloud Architecture",
+            status: "partially_met",
+            suggestion: "Emphasize transferable GCP and on-prem cloud experience",
+          },
+        ],
+      },
+    };
+
+    render(
+      <MatchReportTab
+        evalId="eval-001"
+        report={reportWithStructuredGaps}
+        loading={false}
+      />
+    );
+
+    expect(screen.getByText("Kubernetes cluster administration")).toBeInTheDocument();
+    expect(screen.getByText("Not found in CV")).toBeInTheDocument();
+    expect(
+      screen.getByText("Highlight container orchestration or Docker experience if any")
+    ).toBeInTheDocument();
+
+    expect(screen.getByText("AWS Cloud Architecture")).toBeInTheDocument();
+    expect(screen.getByText("Partially met")).toBeInTheDocument();
+    expect(
+      screen.getByText("Emphasize transferable GCP and on-prem cloud experience")
+    ).toBeInTheDocument();
   });
 
   it("renders empty state with analyze button when no evaluation exists", () => {
