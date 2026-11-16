@@ -11,6 +11,11 @@ import { ResumeTab } from "@/components/resume/resume-tab";
 import { getUserJobEvaluation } from "@/lib/api/endpoints";
 import { EvaluationSummary } from "@/lib/api/types";
 import {
+  EvaluationStatusTag,
+  EligibilityTag,
+  RecommendationTag,
+} from "@/components/jobs/evaluation-tags";
+import {
   X,
   MapPin,
   Globe,
@@ -177,6 +182,16 @@ export function JobDetailDrawer({
               <X className="h-5 w-5" />
             </button>
           </div>
+
+          {fetchedEvaluation && (
+            <div className="flex flex-wrap items-center gap-2.5 pt-3 border-t border-border/40">
+              <EvaluationStatusTag status={fetchedEvaluation.evaluation_status} label="Evaluation" />
+              <EvaluationStatusTag status={fetchedEvaluation.report_status} label="Report" />
+              <EvaluationStatusTag status={fetchedEvaluation.resume_status} label="Resume" />
+              <EligibilityTag status={fetchedEvaluation.eligibility_status} />
+              <RecommendationTag label={fetchedEvaluation.recommendation_label} />
+            </div>
+          )}
 
           {/* Hide/Unhide — placed right under the job title, above the tabs */}
           {onHideToggle && userJobId && (
