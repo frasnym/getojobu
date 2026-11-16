@@ -18,7 +18,6 @@ type Matching interface {
 	UpdateEvaluationResume(ctx context.Context, id uuid.UUID, req UpdateEvaluationResumeRequest) (*models.MatchingEvaluation, error)
 	GetResume(ctx context.Context, id uuid.UUID, caller *models.Principal) (*models.MatchingEvaluation, error)
 	DownloadResume(ctx context.Context, id uuid.UUID, caller *models.Principal) (*models.DownloadResumeResponse, error)
-	GetReport(ctx context.Context, id uuid.UUID, caller *models.Principal) (*models.MatchingEvaluationReportResponse, error)
 	GetEvaluationByUserJobID(ctx context.Context, userID uuid.UUID, userJobID uuid.UUID) (*models.MatchingEvaluation, error)
 	BulkQueueGenerateReport(ctx context.Context, items []models.BulkGenerateReportItem, caller *models.Principal) ([]*models.MatchingEvaluationSummary, error)
 	BulkQueueGenerateResume(ctx context.Context, items []models.BulkGenerateResumeItem, caller *models.Principal) ([]*models.MatchingEvaluationSummary, error)

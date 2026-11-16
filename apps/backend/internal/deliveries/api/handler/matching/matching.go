@@ -45,9 +45,6 @@ func (h *handler) Route(g *httpx.Router) {
 	// PATCH /v1/matching-evaluations/{id}/report (strictly worker API key)
 	g.PATCH("/{id}/report", h.UpdateReport, auth.ValidAPIKey)
 
-	// GET /v1/matching-evaluations/{id}/report (Clerk user session or worker API key)
-	g.GET("/{id}/report", h.GetReport, auth.ValidClerkOrAPIKey)
-
 	// PATCH /v1/matching-evaluations/{id}/resume (strictly worker API key)
 	g.PATCH("/{id}/resume", h.UpdateResume, auth.ValidAPIKey)
 
@@ -318,62 +315,6 @@ func (h *handler) DownloadResume(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 	return httpx.RespondJSON(w, r, http.StatusOK, res)
-}
-
-// GetReport returns the candidate-facing match report for an evaluation.
-// @Summary Get match report
-// @Description Returns the candidate-facing match report. If report generation is still in progress, returns pending status.
-// @Tags matching
-// @Produce json
-// @Param id path string true "Matching evaluation ID (UUID)"
-// @Success 200 {object} models.MatchingEvaluationReportResponse
-// @Failure 401 {object} httpx.Error
-// @Failure 403 {object} httpx.Error
-// @Failure 404 {object} httpx.Error
-// @security ApiKeyAuth
-// @Router /v1/matching-evaluations/{id}/report [get]
-func (h *handler) GetReport(w http.ResponseWriter, r *http.Request) error {
-	ctx := r.Context()
-	p := ctxval.PrincipalFromContext(ctx)
-	if p == nil {
-		return httpx.Envelope(httpx.CodeUnauthorized, "unauthorized", "")
-	}
-
-	idStr := r.PathValue("id")
-	id, err := uuid.Parse(idStr)
-	if err != nil {
-		return httpx.Envelope(httpx.CodeInvalidRequest, "invalid evaluation id", "")
-	}
-
-	report, err := h.matchingUC.GetReport(ctx, id, p)
-	if err != nil {
-		if errors.Is(err, constants.ErrUnauthorized) {
-			return httpx.Envelope(httpx.CodeUnauthorized, "unauthorized", "")
-		}
-		if errors.Is(err, constants.ErrNotFound) {
-			return httpx.Envelope(httpx.CodeNotFound, "evaluation not found", "")
-		}
-		if errors.Is(err, constants.ErrForbidden) {
-			return httpx.Envelope(httpx.CodeForbidden, "access denied", "")
-		}
-		return err
-	}
-
-	// Strip service metadata (model, prompt_version) from report_data
-	// before exposing it to clients. Internal Go usecases still read the
-	// raw field from the DB.
-	if len(report.ReportData) > 0 {
-		var data map[string]any
-		if err := json.Unmarshal(report.ReportData, &data); err == nil {
-			delete(data, "metadata")
-			stripped, err := json.Marshal(data)
-			if err == nil {
-				report.ReportData = stripped
-			}
-		}
-	}
-
-	return httpx.RespondJSON(w, r, http.StatusOK, report)
 }
 
 type bulkGenerateReportItemRequest struct {

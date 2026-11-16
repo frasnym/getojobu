@@ -145,6 +145,7 @@ export default function UserJobDetailPage({ params }: UserJobDetailPageProps) {
         {/* Tab 2: Match Report */}
         {activeTab === "report" && (
           <MatchReportTab
+            report={fetchedEvaluation || undefined}
             evalId={evalId || undefined}
             onAnalyzeClick={() => handleAnalyze(false)}
             evaluating={evaluating}

@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { MatchReport } from "@/lib/api/types";
-import { getMatchReport } from "@/lib/api/endpoints";
 import { MatchScoreGauge } from "./match-score-gauge";
 import { StrengthsGaps } from "./strengths-gaps";
 import { CategoryAccordion } from "./category-accordion";
@@ -22,47 +21,15 @@ export function MatchReportTab({
   evaluating = false,
 }: MatchReportTabProps) {
   const [report, setReport] = useState<MatchReport | null>(initialReport || null);
-  const [loading, setLoading] = useState(initialLoading);
-  const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
     if (initialReport) {
       setReport(initialReport);
       return;
     }
+  }, [initialReport]);
 
-    if (!evalId) {
-      setReport(null);
-      return;
-    }
-
-    let mounted = true;
-    setLoading(true);
-
-    getMatchReport(evalId)
-      .then((data) => {
-        if (mounted) {
-          setReport(data);
-          setError(null);
-        }
-      })
-      .catch((err) => {
-        if (mounted) {
-          setError(err);
-        }
-      })
-      .finally(() => {
-        if (mounted) {
-          setLoading(false);
-        }
-      });
-
-    return () => {
-      mounted = false;
-    };
-  }, [evalId, initialReport]);
-
-  if (loading) {
+  if (initialLoading) {
     return (
       <div className="space-y-6 animate-pulse">
         <div className="h-32 rounded-xl bg-card" />

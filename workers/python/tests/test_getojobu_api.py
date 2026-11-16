@@ -472,37 +472,6 @@ async def test_patch_matching_evaluation_report_success():
 
 
 @pytest.mark.asyncio
-async def test_get_matching_evaluation_report_success():
-    eval_id = "11111111-2222-3333-4444-555555555555"
-
-    def handler(request: httpx.Request) -> httpx.Response:
-        assert request.headers["authorization"] == "Bearer secret-key"
-        assert request.url.path == f"/v1/matching-evaluations/{eval_id}/report"
-        assert request.method == "GET"
-        return httpx.Response(
-            200,
-            json={
-                "success": True,
-                "data": {
-                    "id": eval_id,
-                    "report_status": "success",
-                    "overall_score": 90.0,
-                },
-                "error": None,
-            },
-        )
-
-    api = NewGetojobuAPI(base_url="http://testserver", api_key="secret-key")
-    api._client = _mock_transport(handler)
-
-    res = await api.get_matching_evaluation_report(eval_id)
-    assert res["id"] == eval_id
-    assert res["report_status"] == "success"
-    assert res["overall_score"] == 90.0
-    await api.aclose()
-
-
-@pytest.mark.asyncio
 async def test_patch_matching_evaluation_resume_success():
     eval_id = "11111111-2222-3333-4444-555555555555"
 

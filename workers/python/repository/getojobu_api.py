@@ -69,10 +69,6 @@ class GetojobuAPI(Protocol):
         self, items: list[dict[str, Any]]
     ) -> list[dict[str, Any]]: ...
 
-    async def get_matching_evaluation_report(
-        self, evaluation_id: str
-    ) -> dict[str, Any]: ...
-
     async def trigger_bulk_analyze_compatibility(
         self, items: list[dict[str, Any]]
     ) -> list[dict[str, Any]]: ...
@@ -285,25 +281,6 @@ class _getojobuAPI:
         if not isinstance(unwrapped, dict):
             raise TypeError(
                 f"patch matching evaluation report {evaluation_id!r}: expected dict, got {type(unwrapped)}"
-            )
-        return unwrapped
-
-    async def get_matching_evaluation_report(
-        self, evaluation_id: str
-    ) -> dict[str, Any]:
-        response = await self._client.get(
-            f"/v1/matching-evaluations/{evaluation_id}/report"
-        )
-        self._check_response(
-            response, operation=f"get matching evaluation report {evaluation_id!r}"
-        )
-        raw = response.json()
-        unwrapped = self._unwrap_response(
-            raw, operation=f"get matching evaluation report {evaluation_id!r}"
-        )
-        if not isinstance(unwrapped, dict):
-            raise TypeError(
-                f"get matching evaluation report {evaluation_id!r}: expected dict, got {type(unwrapped)}"
             )
         return unwrapped
 

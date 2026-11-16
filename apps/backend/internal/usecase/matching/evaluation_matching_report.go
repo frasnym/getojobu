@@ -42,46 +42,6 @@ func (s *matchingService) UpdateEvaluationReport(
 	})
 }
 
-func (s *matchingService) GetReport(
-	ctx context.Context,
-	id uuid.UUID,
-	caller *models.Principal,
-) (*models.MatchingEvaluationReportResponse, error) {
-	if caller == nil {
-		return nil, constants.ErrUnauthorized
-	}
-
-	eval, err := s.evalRepo.GetByID(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-
-	// Verify ownership if caller is a Clerk user (machine callers bypass)
-	if caller.ActorType == "" {
-		userJob, err := s.userJobsRepo.GetByID(ctx, eval.UserJobID)
-		if err != nil {
-			return nil, fmt.Errorf("get user job ownership: %w", err)
-		}
-		if userJob.UserID.String() != caller.ID {
-			return nil, constants.ErrForbidden
-		}
-	}
-
-	return &models.MatchingEvaluationReportResponse{
-		ID:                   eval.ID,
-		UserJobID:            eval.UserJobID,
-		EvaluationStatus:     eval.EvaluationStatus,
-		ReportStatus:         eval.ReportStatus,
-		OverallScore:         eval.OverallScore,
-		EligibilityStatus:    eval.EligibilityStatus,
-		RecommendationLabel:  eval.RecommendationLabel,
-		ReportData:           eval.ReportData,
-		ReportFailureMessage: eval.ReportFailureMessage,
-		CreatedAt:            eval.CreatedAt,
-		UpdatedAt:            eval.UpdatedAt,
-	}, nil
-}
-
 func (s *matchingService) BulkQueueGenerateReport(
 	ctx context.Context,
 	items []models.BulkGenerateReportItem,

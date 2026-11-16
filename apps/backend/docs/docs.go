@@ -870,56 +870,6 @@ const docTemplate = `{
             }
         },
         "/v1/matching-evaluations/{id}/report": {
-            "get": {
-                "security": [
-                    {
-                        "ApiKeyAuth": []
-                    }
-                ],
-                "description": "Returns the candidate-facing match report. If report generation is still in progress, returns pending status.",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "matching"
-                ],
-                "summary": "Get match report",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Matching evaluation ID (UUID)",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/models.MatchingEvaluationReportResponse"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/httpx.Error"
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
-                        "schema": {
-                            "$ref": "#/definitions/httpx.Error"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/httpx.Error"
-                        }
-                    }
-                }
-            },
             "patch": {
                 "security": [
                     {

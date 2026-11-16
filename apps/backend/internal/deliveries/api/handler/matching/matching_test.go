@@ -238,29 +238,6 @@ func TestReportHandlers(t *testing.T) {
 		assert.Equal(t, http.StatusOK, rec.Code)
 	})
 
-	t.Run("get report returns 200 with report response", func(t *testing.T) {
-		repStatus := string(constants.ReportStatusSuccess)
-		score := 85.0
-		elig := string(constants.EligibilityStatusEligible)
-		recLabel := string(constants.RecommendationWorthApplying)
-		mockMatching.EXPECT().GetReport(gomock.Any(), evalID, gomock.Any()).Return(&models.MatchingEvaluationReportResponse{
-			ID:                  evalID,
-			EvaluationStatus:    string(constants.MatchingStatusSuccess),
-			ReportStatus:        &repStatus,
-			OverallScore:        &score,
-			EligibilityStatus:   &elig,
-			RecommendationLabel: &recLabel,
-			ReportData:          json.RawMessage(`{"job_title":"Senior Dev"}`),
-		}, nil)
-
-		req := httptest.NewRequest(http.MethodGet, "/v1/matching-evaluations/"+evalID.String()+"/report", nil)
-		req.Header.Set("Authorization", "Bearer "+apiKey)
-		rec := httptest.NewRecorder()
-
-		rt.Mux().ServeHTTP(rec, req)
-		assert.Equal(t, http.StatusOK, rec.Code)
-	})
-
 	t.Run("worker updates report to pending-retry", func(t *testing.T) {
 		repStatus := string(constants.ReportStatusPendingRetry)
 		mockMatching.EXPECT().UpdateEvaluationReport(gomock.Any(), evalID, gomock.Any()).Return(&models.MatchingEvaluation{
@@ -331,14 +308,6 @@ func TestReportHandlers(t *testing.T) {
 
 		rt.Mux().ServeHTTP(rec, req)
 		assert.Equal(t, http.StatusBadRequest, rec.Code)
-	})
-
-	t.Run("get report returns 401 when unauthenticated", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodGet, "/v1/matching-evaluations/"+evalID.String()+"/report", nil)
-		rec := httptest.NewRecorder()
-
-		rt.Mux().ServeHTTP(rec, req)
-		assert.Equal(t, http.StatusUnauthorized, rec.Code)
 	})
 
 	t.Run("bulk queue generate report returns 401 when unauthenticated", func(t *testing.T) {
