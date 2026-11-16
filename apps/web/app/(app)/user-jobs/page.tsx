@@ -29,6 +29,8 @@ export default function UserJobsPage() {
     setStatusFilter,
     remoteOnly,
     setRemoteOnly,
+    hideFilter,
+    setHideFilter,
     hideJob,
   } = useUserJobs();
 
@@ -106,6 +108,8 @@ export default function UserJobsPage() {
         onStatusChange={setStatusFilter}
         remoteOnly={remoteOnly}
         onRemoteChange={setRemoteOnly}
+        hideFilter={hideFilter}
+        onHideFilterChange={setHideFilter}
         totalCount={pagination?.totalItems ?? filteredJobs.length}
       />
 

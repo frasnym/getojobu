@@ -14,6 +14,7 @@ const mockJob: Job = {
   is_remote: true,
   posted_date: "2026-11-13T10:00:00Z",
   created_at: "2026-11-13T10:00:00Z",
+  user_job_id: "11111111-1111-1111-1111-111111111111",
 };
 
 describe("JobCard component", () => {
@@ -42,11 +43,11 @@ describe("JobCard component", () => {
     expect(screen.getByText("Unhide")).toBeInTheDocument();
   });
 
-  it("calls onHideToggle with job id and toggled state when clicked", () => {
+  it("calls onHideToggle with user_job_id and toggled state when clicked", () => {
     const onHideToggle = vi.fn();
     render(<JobCard job={{ ...mockJob, is_hidden: false }} onHideToggle={onHideToggle} />);
     const button = screen.getByRole("button", { name: /Hide job/i });
     fireEvent.click(button);
-    expect(onHideToggle).toHaveBeenCalledWith(1, true);
+    expect(onHideToggle).toHaveBeenCalledWith("11111111-1111-1111-1111-111111111111", true);
   });
 });

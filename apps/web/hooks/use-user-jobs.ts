@@ -4,6 +4,8 @@ import { Job, ApiPagination } from "@/lib/api/types";
 import { getUserJobs, setUserJobHideStatus } from "@/lib/api/endpoints";
 import { StatusFilter, filterJobs } from "./use-jobs";
 
+export type HideFilter = "all" | "visible" | "hidden";
+
 export function useUserJobs(explicitToken?: string | null) {
   const { getToken, isLoaded } = useAuth();
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -15,6 +17,7 @@ export function useUserJobs(explicitToken?: string | null) {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [remoteOnly, setRemoteOnly] = useState(false);
+  const [hideFilter, setHideFilter] = useState<HideFilter>("all");
 
   const setPage = useCallback((newPage: number) => {
     setPageState(Math.max(1, newPage));
@@ -64,8 +67,8 @@ export function useUserJobs(explicitToken?: string | null) {
   }, [explicitToken, isLoaded, load]);
 
   const filteredJobs = useMemo(
-    () => filterJobs(jobs, searchQuery, statusFilter, remoteOnly),
-    [jobs, searchQuery, statusFilter, remoteOnly]
+    () => filterJobs(jobs, searchQuery, statusFilter, remoteOnly, "all", hideFilter),
+    [jobs, searchQuery, statusFilter, remoteOnly, hideFilter]
   );
 
   const handleSearchChange = (query: string) => {
@@ -83,11 +86,16 @@ export function useUserJobs(explicitToken?: string | null) {
     setPageState(1);
   };
 
+  const handleHideFilterChange = (filter: HideFilter) => {
+    setHideFilter(filter);
+    setPageState(1);
+  };
+
   const hideJob = useCallback(
-    async (jobId: number | string, isHidden: boolean) => {
+    async (userJobId: string, isHidden: boolean) => {
       const token = explicitToken !== undefined ? explicitToken : await getToken();
-      await setUserJobHideStatus(jobId, isHidden, token);
-      // Optimistically refresh the list so the UI reflects the new state.
+      await setUserJobHideStatus(userJobId, isHidden, token);
+      // Refetch the list so the UI reflects the new state.
       await load();
     },
     [explicitToken, getToken, load]
@@ -109,6 +117,8 @@ export function useUserJobs(explicitToken?: string | null) {
     setStatusFilter: handleStatusChange,
     remoteOnly,
     setRemoteOnly: handleRemoteChange,
+    hideFilter,
+    setHideFilter: handleHideFilterChange,
     hideJob,
     refetch: () => load(),
   };

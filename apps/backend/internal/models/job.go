@@ -33,6 +33,10 @@ type Job struct {
 	// user_jobs). Only populated on list endpoints; false elsewhere.
 	IsOwned bool `json:"is_owned"`
 
+	// UserJobID is the user_jobs row id for this user↔job link. Populated only
+	// on the user-jobs list endpoint; nil elsewhere.
+	UserJobID *string `json:"user_job_id,omitempty"`
+
 	// IsHidden reports whether the requesting user has hidden this job.
 	// Only populated on the user-jobs list endpoint; false elsewhere.
 	IsHidden bool `json:"is_hidden"`

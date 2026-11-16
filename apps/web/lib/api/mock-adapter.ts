@@ -13,6 +13,7 @@ export const MOCK_JOBS: Job[] = [
     posted_date: "2026-11-13T10:00:00Z",
     created_at: "2026-11-13T10:00:00Z",
     is_owned: true,
+    user_job_id: "0b0b0b0b-0000-0000-0000-000000000001",
     description: `### About Stripe
 Stripe is a financial infrastructure platform for the internet. Millions of companies use Stripe to accept payments, grow their revenue, and accelerate new business opportunities.
 
@@ -39,6 +40,7 @@ Stripe is a financial infrastructure platform for the internet. Millions of comp
     posted_date: "2026-11-12T09:00:00Z",
     created_at: "2026-11-12T09:00:00Z",
     is_owned: true,
+    user_job_id: "0b0b0b0b-0000-0000-0000-000000000002",
     description: `Datadog is the monitoring and security platform for cloud applications. We are seeking a Staff Backend Engineer to drive architectural decisions across high-volume time-series telemetry ingestion pipelines.`,
   },
   {

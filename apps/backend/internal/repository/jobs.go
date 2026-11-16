@@ -292,6 +292,7 @@ func (r *jobsRepository) List(ctx context.Context, limit, offset int, userID str
 				j.is_remote, j.visa_relocation,
 				j.created_at, j.updated_at, j.updated_by_type, j.updated_by_id,
 				CASE WHEN uj.user_id IS NOT NULL THEN true ELSE false END AS is_owned,
+				uj.id AS user_job_id,
 				COALESCE(uj.is_hidden, false) AS is_hidden
 			FROM jobs j
 			LEFT JOIN user_jobs uj ON j.id = uj.job_id AND uj.user_id = $1
@@ -307,6 +308,7 @@ func (r *jobsRepository) List(ctx context.Context, limit, offset int, userID str
 				is_remote, visa_relocation,
 				created_at, updated_at, updated_by_type, updated_by_id,
 				false AS is_owned,
+				NULL AS user_job_id,
 				false AS is_hidden
 			FROM jobs
 			ORDER BY created_at DESC
@@ -337,6 +339,7 @@ func scanJobWithOwnership(rows pgx.Rows) ([]*models.Job, error) {
 		var isRemote, visaRelocation sql.NullBool
 		var isOwned bool
 		var isHidden bool
+		var userJobID sql.NullString
 
 		err := rows.Scan(
 			&j.ID, &j.Slug, &j.Status, &j.AnalyzeResult, &failureMessage,
@@ -345,6 +348,7 @@ func scanJobWithOwnership(rows pgx.Rows) ([]*models.Job, error) {
 			&postedDate, &isRemote, &visaRelocation,
 			&j.CreatedAt, &j.UpdatedAt, &j.UpdatedByType, &j.UpdatedByID,
 			&isOwned,
+			&userJobID,
 			&isHidden,
 		)
 		if err != nil {
@@ -360,6 +364,10 @@ func scanJobWithOwnership(rows pgx.Rows) ([]*models.Job, error) {
 		j.VisaRelocation = utils.NullBoolPtr(visaRelocation)
 		j.IsOwned = isOwned
 		j.IsHidden = isHidden
+		if userJobID.Valid {
+			ujID := userJobID.String
+			j.UserJobID = &ujID
+		}
 		jobs = append(jobs, &j)
 	}
 	if err := rows.Err(); err != nil {

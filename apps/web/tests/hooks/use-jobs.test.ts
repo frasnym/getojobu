@@ -67,6 +67,24 @@ describe("filterJobs helper", () => {
     expect(nonRemoteSearch).toHaveLength(0);
   });
 
+  it("filters by hide status correctly", () => {
+    const withHidden = sampleJobs.map((j, i) => ({
+      ...j,
+      is_hidden: i === 1,
+    }));
+
+    const visible = filterJobs(withHidden, "", "all", false, "all", "visible");
+    expect(visible).toHaveLength(2);
+    expect(visible.every((j) => j.is_hidden === false)).toBe(true);
+
+    const hidden = filterJobs(withHidden, "", "all", false, "all", "hidden");
+    expect(hidden).toHaveLength(1);
+    expect(hidden[0].is_hidden).toBe(true);
+
+    const all = filterJobs(withHidden, "", "all", false, "all", "all");
+    expect(all).toHaveLength(3);
+  });
+
   it("handles non-array inputs defensively without throwing TypeError", () => {
     // If backend envelope or null/undefined is passed, should return empty array safely
     expect(() => filterJobs(null as any, "", "all")).not.toThrow();

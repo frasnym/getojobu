@@ -51,15 +51,15 @@ export async function saveUserJob(
 }
 
 export async function setUserJobHideStatus(
-  jobId: number | string,
+  userJobId: string,
   isHidden: boolean,
   token?: string | null
-): Promise<{ job_id: number; is_hidden: boolean }> {
+): Promise<{ user_job_id: string; is_hidden: boolean }> {
   if (isMockEnabled()) {
-    return Promise.resolve({ job_id: Number(jobId), is_hidden: isHidden });
+    return Promise.resolve({ user_job_id: userJobId, is_hidden: isHidden });
   }
-  return apiClient<{ job_id: number; is_hidden: boolean }>(
-    `/v1/user-jobs/${jobId}/hide`,
+  return apiClient<{ user_job_id: string; is_hidden: boolean }>(
+    `/v1/user-jobs/${userJobId}/hide`,
     {
       method: "PATCH",
       token,

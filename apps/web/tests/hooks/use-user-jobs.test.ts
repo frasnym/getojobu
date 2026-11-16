@@ -20,6 +20,7 @@ const mockUserJobs: Job[] = [
     location: "Remote",
     status: "analyzed",
     is_owned: true,
+    user_job_id: "11111111-1111-1111-1111-111111111111",
     created_at: "2026-11-13T10:00:00Z",
   },
 ];
@@ -76,7 +77,7 @@ describe("useUserJobs hook", () => {
 
   it("hideJob calls the endpoint and refetches the list", async () => {
     const hideSpy = vi.spyOn(endpoints, "setUserJobHideStatus").mockResolvedValue({
-      job_id: 1,
+      user_job_id: "11111111-1111-1111-1111-111111111111",
       is_hidden: true,
     });
     const listSpy = vi.spyOn(endpoints, "getUserJobs").mockResolvedValue({
@@ -98,10 +99,14 @@ describe("useUserJobs hook", () => {
     });
 
     await act(async () => {
-      await result.current.hideJob(1, true);
+      await result.current.hideJob("11111111-1111-1111-1111-111111111111", true);
     });
 
-    expect(hideSpy).toHaveBeenCalledWith(1, true, "test-token");
+    expect(hideSpy).toHaveBeenCalledWith(
+      "11111111-1111-1111-1111-111111111111",
+      true,
+      "test-token"
+    );
     expect(listSpy).toHaveBeenLastCalledWith("test-token", 1, 10);
     expect(result.current.jobs[0].is_hidden).toBe(true);
   });

@@ -5,6 +5,7 @@ import { getJobs } from "@/lib/api/endpoints";
 
 export type StatusFilter = "all" | "analyzed" | "analyze_pending" | "failed";
 export type OwnedFilter = "all" | "owned" | "not_owned";
+export type HideFilter = "all" | "visible" | "hidden";
 
 // Tailwind classes for the job status badge, keyed by backend job status.
 export function statusBadgeClasses(status: string): string {
@@ -31,7 +32,8 @@ export function filterJobs(
   query: string,
   status: StatusFilter,
   remoteOnly: boolean = false,
-  isOwned: OwnedFilter = "all"
+  isOwned: OwnedFilter = "all",
+  hideFilter: HideFilter = "all"
 ): Job[] {
   if (!Array.isArray(jobs)) {
     return [];
@@ -49,6 +51,14 @@ export function filterJobs(
       return false;
     }
     if (isOwned === "not_owned" && job.is_owned === true) {
+      return false;
+    }
+
+    // Hide filter
+    if (hideFilter === "hidden" && job.is_hidden !== true) {
+      return false;
+    }
+    if (hideFilter === "visible" && job.is_hidden === true) {
       return false;
     }
 

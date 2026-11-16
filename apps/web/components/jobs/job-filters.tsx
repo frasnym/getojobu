@@ -1,8 +1,12 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { Search, Globe, ChevronDown, Check, X, Bookmark } from "lucide-react";
-import { StatusFilter, OwnedFilter } from "@/hooks/use-jobs";
+import { Search, Globe, ChevronDown, Check, X, Bookmark, Eye, EyeOff } from "lucide-react";
+import {
+  StatusFilter,
+  OwnedFilter,
+  HideFilter,
+} from "@/hooks/use-jobs";
 
 interface JobFiltersProps {
   searchQuery: string;
@@ -14,6 +18,8 @@ interface JobFiltersProps {
   onRemoteChange?: (remote: boolean) => void;
   ownedFilter?: OwnedFilter;
   onOwnedFilterChange?: (owned: OwnedFilter) => void;
+  hideFilter?: HideFilter;
+  onHideFilterChange?: (filter: HideFilter) => void;
 }
 
 interface FilterOption<T extends string> {
@@ -165,6 +171,12 @@ const OWNED_OPTIONS: FilterOption<OwnedFilter>[] = [
   { label: "Unsaved", value: "not_owned" },
 ];
 
+const HIDE_OPTIONS: FilterOption<HideFilter>[] = [
+  { label: "All", value: "all" },
+  { label: "Visible", value: "visible" },
+  { label: "Hidden", value: "hidden" },
+];
+
 export function JobFilters({
   searchQuery,
   onSearchChange,
@@ -175,6 +187,8 @@ export function JobFilters({
   onRemoteChange,
   ownedFilter = "all",
   onOwnedFilterChange,
+  hideFilter = "all",
+  onHideFilterChange,
 }: JobFiltersProps) {
   // Determine status active color
   let statusColorClass = "bg-primary/10 text-primary border-primary/25";
@@ -241,6 +255,23 @@ export function JobFilters({
                     : "text-muted-foreground"
                 }`}
               />
+            }
+          />
+        )}
+
+        {/* Hide/Show Dropdown */}
+        {onHideFilterChange !== undefined && (
+          <FilterDropdown
+            prefix="Visibility"
+            value={hideFilter}
+            options={HIDE_OPTIONS}
+            onChange={onHideFilterChange}
+            icon={
+              hideFilter === "hidden" ? (
+                <EyeOff className="h-3 w-3 text-muted-foreground" />
+              ) : (
+                <Eye className="h-3 w-3 text-muted-foreground" />
+              )
             }
           />
         )}

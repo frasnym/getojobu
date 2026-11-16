@@ -9,20 +9,23 @@ interface JobCardProps {
   href?: string;
   onSelect?: (job: Job) => void;
   isSelected?: boolean;
-  onHideToggle?: (jobId: number | string, isHidden: boolean) => void | Promise<void>;
+  onHideToggle?: (userJobId: string, isHidden: boolean) => void | Promise<void>;
 }
 
 export function JobCard({ job, href, onSelect, isSelected, onHideToggle }: JobCardProps) {
   const targetHref = href || `/user-jobs/${job.slug}`;
   const isClickable = !!onSelect;
+  const isHidden = job.is_hidden === true;
 
   return (
     <div
       onClick={isClickable ? () => onSelect(job) : undefined}
-      className={`group relative rounded-xl border p-5 transition-all duration-200 ${
+      className={`group relative rounded-xl border p-5 transition-all duration-300 ${
         isSelected
           ? "border-primary bg-primary/5 shadow-md shadow-primary/5 ring-1 ring-primary/30"
-          : "border-border/60 bg-card hover:border-border hover:shadow-md hover:shadow-primary/5"
+          : isHidden
+            ? "border-border/30 bg-muted/40 opacity-60 grayscale hover:border-border/40"
+            : "border-border/60 bg-card hover:border-border hover:shadow-md hover:shadow-primary/5"
       } ${isClickable ? "cursor-pointer" : ""}`}
     >
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -40,6 +43,12 @@ export function JobCard({ job, href, onSelect, isSelected, onHideToggle }: JobCa
             <span className={statusBadgeClasses(job.status)}>
               {job.status}
             </span>
+            {isHidden && (
+              <span className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium border-muted-foreground/40 bg-muted/30 text-muted-foreground">
+                <EyeOff className="h-2.5 w-2.5" />
+                Hidden
+              </span>
+            )}
           </div>
 
           <h3 className="text-lg font-bold tracking-tight text-foreground group-hover:text-primary transition-colors">
@@ -72,12 +81,12 @@ export function JobCard({ job, href, onSelect, isSelected, onHideToggle }: JobCa
 
         {/* Actions */}
         <div className="flex shrink-0 items-center sm:flex-col sm:items-end gap-2 pt-2 sm:pt-0">
-          {onHideToggle && (
+          {onHideToggle && job.user_job_id && (
             <button
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
-                onHideToggle(job.id, !job.is_hidden);
+                onHideToggle(job.user_job_id!, !job.is_hidden);
               }}
               className="inline-flex items-center gap-1 rounded-lg border border-border/60 bg-card px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-secondary transition-colors focus:outline-none focus:ring-2 focus:ring-ring"
               aria-label={job.is_hidden ? "Unhide job" : "Hide job"}
