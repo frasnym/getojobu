@@ -78,7 +78,7 @@ describe("JobFilters component", () => {
     );
 
     expect(screen.getByText("Analyzed")).toBeInTheDocument();
-    const clearBtn = screen.getByRole("button", { name: /Clear Status filter/i });
+    const clearBtn = screen.getByRole("button", { name: /Clear Job Status filter/i });
     expect(clearBtn).toBeInTheDocument();
 
     fireEvent.click(clearBtn);

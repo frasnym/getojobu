@@ -290,7 +290,7 @@ export function JobFilters({
 
         {/* Status Dropdown */}
         <FilterDropdown
-          prefix="Status"
+          prefix="Job Status"
           value={statusFilter}
           options={STATUS_OPTIONS}
           onChange={onStatusChange}
