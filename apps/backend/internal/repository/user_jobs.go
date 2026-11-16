@@ -23,7 +23,7 @@ type UserJobs interface {
 	GetByUserAndJob(ctx context.Context, userID string, jobID int64) (*models.UserJob, error)
 	GetByID(ctx context.Context, id uuid.UUID) (*models.UserJob, error)
 	GetUsersByJobID(ctx context.Context, jobID int64) ([]string, error)
-	GetByUser(ctx context.Context, userID string, limit, offset int) ([]*models.Job, int, error)
+	GetByUser(ctx context.Context, userID string, filter models.UserJobFilter, limit, offset int) ([]*models.Job, int, error)
 	SetHideStatus(ctx context.Context, userID, userJobID string, isHidden bool) error
 }
 
@@ -233,14 +233,25 @@ func (r *userJobsRepository) GetUsersByJobID(ctx context.Context, jobID int64) (
 
 // GetByUser returns jobs owned by the given user (joined with the jobs table),
 // ordered by created_at descending, paginated by limit and offset. Each job carries
-// isOwned=true.
-func (r *userJobsRepository) GetByUser(ctx context.Context, userID string, limit, offset int) (jobs []*models.Job, total int, err error) {
-	if err := r.QueryRow(ctx, `SELECT COUNT(*) FROM user_jobs WHERE user_id = $1`, userID).Scan(&total); err != nil {
+// isOwned=true. When filter fields are set, they are applied as parameterized
+// SQL constraints.
+func (r *userJobsRepository) GetByUser(ctx context.Context, userID string, filter models.UserJobFilter, limit, offset int) (jobs []*models.Job, total int, err error) {
+	// Optional count filters applied via join on jobs.
+	countWhere, countArgs := whereClauses(filter)
+	countQuery := `SELECT COUNT(*) FROM user_jobs uj WHERE uj.user_id = $1`
+	if countWhere != "" {
+		countQuery = `
+			SELECT COUNT(*)
+			FROM user_jobs uj
+			JOIN jobs j ON j.id = uj.job_id
+			WHERE uj.user_id = $1` + countWhere
+	}
+	if err := r.QueryRow(ctx, countQuery, append([]any{userID}, countArgs...)...).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count user jobs: %w", err)
 	}
 
-	query := `
-		SELECT j.id, j.slug, j.status, j.analyze_result, j.failure_message,
+	selectCols := `
+		j.id, j.slug, j.status, j.analyze_result, j.failure_message,
 			j.source, j.external_id, j.source_url, j.apply_url,
 			j.title, j.company, j.location, j.description, j.posted_date,
 			j.is_remote, j.visa_relocation,
@@ -248,12 +259,22 @@ func (r *userJobsRepository) GetByUser(ctx context.Context, userID string, limit
 			true AS is_owned,
 			uj.id AS user_job_id,
 			uj.is_hidden AS is_hidden
+	`
+	whereClause, whereArgs := whereClauses(filter)
+	// Build final args: user_id ($1), then where filters, then limit & offset.
+	args := make([]any, 0, len(whereArgs)+3)
+	args = append(args, userID)
+	args = append(args, whereArgs...)
+	args = append(args, limit, offset)
+
+	query := `
+		SELECT ` + selectCols + `
 		FROM jobs j
-		JOIN user_jobs uj ON j.id = uj.job_id AND uj.user_id = $1
+		JOIN user_jobs uj ON j.id = uj.job_id AND uj.user_id = $1` + whereClause + `
 		ORDER BY j.created_at DESC
 		LIMIT $2 OFFSET $3
 	`
-	rows, err := r.Query(ctx, query, userID, limit, offset)
+	rows, err := r.Query(ctx, query, args...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("get jobs by user: %w", err)
 	}
@@ -263,6 +284,37 @@ func (r *userJobsRepository) GetByUser(ctx context.Context, userID string, limit
 		return nil, 0, err
 	}
 	return jobs, total, nil
+}
+
+// whereClauses builds parameterized WHERE filter fragments for GetByUser.
+// The returned fragment is empty when no filters are active. The returned args
+// are the bound values in placeholder order, excluding the caller's user_id.
+func whereClauses(filter models.UserJobFilter) (string, []any) {
+	var clauses []string
+	args := []any{}
+	next := 2 // $1 is the caller's user_id
+
+	if filter.Status != "" && filter.Status != "all" {
+		args = append(args, filter.Status)
+		clauses = append(clauses, fmt.Sprintf("LOWER(j.status) = LOWER($%d)", next))
+		next++
+	}
+	if filter.RemoteOnly {
+		args = append(args, true)
+		clauses = append(clauses, fmt.Sprintf("j.is_remote = $%d", next))
+		next++
+	}
+	if filter.HideFilter != "" && filter.HideFilter != "all" {
+		isHidden := filter.HideFilter == "hidden"
+		args = append(args, isHidden)
+		clauses = append(clauses, fmt.Sprintf("uj.is_hidden = $%d", next))
+		next++
+	}
+
+	if len(clauses) == 0 {
+		return "", nil
+	}
+	return " AND " + strings.Join(clauses, " AND "), args
 }
 
 // SetHideStatus toggles the is_hidden flag on the user↔job link identified by

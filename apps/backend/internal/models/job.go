@@ -42,6 +42,19 @@ type Job struct {
 	IsHidden bool `json:"is_hidden"`
 }
 
+// UserJobFilter holds optional server-side filters when listing a user's jobs.
+// An empty field means "no constraint"; Usecase/handler pass only the values
+// the caller explicitly requested.
+type UserJobFilter struct {
+	// Status restricts to a single job status. Empty or "all" means no filter.
+	Status string `json:"status,omitempty"`
+	// RemoteOnly restricts to jobs flagged is_remote=true.
+	RemoteOnly bool `json:"remote,omitempty"`
+	// HideFilter restricts by the user's hidden flag: "" or "all" (no filter),
+	// "visible" (is_hidden=false) or "hidden" (is_hidden=true).
+	HideFilter string `json:"hide,omitempty"`
+}
+
 // CreateJobParams holds parameters for creating a single job listing.
 type CreateJobParams struct {
 	Slug           string    `json:"slug"`

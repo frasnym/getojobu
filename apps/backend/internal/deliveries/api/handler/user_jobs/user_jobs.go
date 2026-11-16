@@ -120,7 +120,13 @@ func (h *handler) ListUserJobs(w http.ResponseWriter, r *http.Request) error {
 	}
 	offset := (page - 1) * limit
 
-	jobs, totalItems, err := h.ucJobs.ListByUser(r.Context(), p.ID, limit, offset)
+	filter := models.UserJobFilter{
+		Status:     r.URL.Query().Get("status"),
+		RemoteOnly: r.URL.Query().Get("remote") == "true",
+		HideFilter: r.URL.Query().Get("hide"),
+	}
+
+	jobs, totalItems, err := h.ucJobs.ListByUser(r.Context(), p.ID, filter, limit, offset)
 	if err != nil {
 		logging.Error(r.Context(), "list user jobs failed", err,
 			"user_id", p.ID, "page", page, "limit", limit, "offset", offset)

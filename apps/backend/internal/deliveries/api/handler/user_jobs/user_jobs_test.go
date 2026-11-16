@@ -62,7 +62,7 @@ func TestListUserJobs_success(t *testing.T) {
 	h, mockJobs := newHandlerWithMock(ctrl)
 
 	mockJobs.EXPECT().
-		ListByUser(gomock.Any(), "user_1", 10, 0).
+		ListByUser(gomock.Any(), "user_1", models.UserJobFilter{}, 10, 0).
 		Return([]*models.Job{{ID: 1, Slug: "job-1", Title: "Engineer"}}, 1, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/user-jobs", nil)
@@ -88,7 +88,7 @@ func TestListUserJobs_empty(t *testing.T) {
 	h, mockJobs := newHandlerWithMock(ctrl)
 
 	mockJobs.EXPECT().
-		ListByUser(gomock.Any(), "user_1", 10, 0).
+		ListByUser(gomock.Any(), "user_1", models.UserJobFilter{}, 10, 0).
 		Return([]*models.Job{}, 0, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/user-jobs", nil)
@@ -127,7 +127,7 @@ func TestListUserJobs_limit_clamped(t *testing.T) {
 	h, mockJobs := newHandlerWithMock(ctrl)
 
 	mockJobs.EXPECT().
-		ListByUser(gomock.Any(), "user_1", 50, 0).
+		ListByUser(gomock.Any(), "user_1", models.UserJobFilter{}, 50, 0).
 		Return([]*models.Job{}, 0, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/user-jobs?limit=999", nil)
