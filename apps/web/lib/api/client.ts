@@ -22,13 +22,6 @@ function getBaseUrl(): string {
   ).replace(/\/+$/, "");
 }
 
-export function isMockEnabled(): boolean {
-  if (typeof process !== "undefined" && process.env.NEXT_PUBLIC_ENABLE_MOCK === "true") {
-    return true;
-  }
-  return false;
-}
-
 export async function apiClient<T>(path: string, options: FetchOptions = {}): Promise<T> {
   const { token, headers: customHeaders, ...rest } = options;
 

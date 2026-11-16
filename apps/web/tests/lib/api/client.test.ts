@@ -23,7 +23,7 @@ function mockFetch(response: unknown, status = 200) {
   ) as any;
 }
 
-describe("API endpoints and mock adapter", () => {
+describe("API endpoints", () => {
   it("getJobs returns a list of jobs with match score information and pagination", async () => {
     const mockJobsData = [
       {
@@ -120,8 +120,7 @@ describe("API endpoints and mock adapter", () => {
     expect(summary.evaluation_status).toBe("success");
   });
 
-  it("unwraps canonical backend response envelope when NEXT_PUBLIC_ENABLE_MOCK=false", async () => {
-    process.env.NEXT_PUBLIC_ENABLE_MOCK = "false";
+  it("unwraps canonical backend response envelope", async () => {
     const mockJobsData = [
       {
         id: 42,
@@ -141,18 +140,14 @@ describe("API endpoints and mock adapter", () => {
       error: null,
     });
 
-    try {
-      const res = await getJobs();
-      expect(Array.isArray(res.data)).toBe(true);
-      expect(res.data).toHaveLength(1);
-      expect(res.data[0].title).toBe("Staff Platform Engineer");
-    } finally {
-      process.env.NEXT_PUBLIC_ENABLE_MOCK = "true";
-    }
+    const res = await getJobs();
+    expect(Array.isArray(res.data)).toBe(true);
+    expect(res.data).toHaveLength(1);
+    expect(res.data[0].title).toBe("Staff Platform Engineer");
   });
 
   it("extracts error message and code from canonical error envelope", async () => {
-    process.env.NEXT_PUBLIC_ENABLE_MOCK = "false";
+    mockFetch(
       {
         success: false,
         data: null,
@@ -162,24 +157,19 @@ describe("API endpoints and mock adapter", () => {
       401
     );
 
+    let caughtError: any;
     try {
-      let caughtError: any;
-      try {
-        await getJobs();
-      } catch (err) {
-        caughtError = err;
-      }
-      expect(caughtError).toBeDefined();
-      expect(caughtError.message).toBe("unauthenticated user token");
-      expect(caughtError.code).toBe("UNAUTHORIZED");
-      expect(caughtError.status).toBe(401);
-    } finally {
-      process.env.NEXT_PUBLIC_ENABLE_MOCK = "true";
+      await getJobs();
+    } catch (err) {
+      caughtError = err;
     }
+    expect(caughtError).toBeDefined();
+    expect(caughtError.message).toBe("unauthenticated user token");
+    expect(caughtError.code).toBe("UNAUTHORIZED");
+    expect(caughtError.status).toBe(401);
   });
 
   it("throws error when backend fails", async () => {
-    process.env.NEXT_PUBLIC_ENABLE_MOCK = "false";
     global.fetch = vi.fn(async () => {
       throw new Error("Network connection refused");
     }) as any;
@@ -189,7 +179,6 @@ describe("API endpoints and mock adapter", () => {
       await expect(getJobBySlug("some-slug")).rejects.toThrow("Network connection refused");
     } finally {
       global.fetch = originalFetch;
-      process.env.NEXT_PUBLIC_ENABLE_MOCK = "true";
     }
   });
 });
