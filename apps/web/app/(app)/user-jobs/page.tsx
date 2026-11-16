@@ -11,7 +11,7 @@ import { JobDetailDrawer } from "@/components/jobs/job-detail-drawer";
 import { ReportTab } from "@/components/jobs/job-report-header";
 import { triggerJobCompatibility } from "@/lib/api/endpoints";
 import { EvaluationSummary } from "@/lib/api/types";
-import { Sparkles, Briefcase, Compass } from "lucide-react";
+import { Sparkles, Briefcase, Compass, RefreshCw } from "lucide-react";
 
 export default function UserJobsPage() {
   const {
@@ -32,6 +32,7 @@ export default function UserJobsPage() {
     hideFilter,
     setHideFilter,
     hideJob,
+    refetch,
   } = useUserJobs();
 
   const { getToken } = useAuth();
@@ -103,6 +104,18 @@ export default function UserJobsPage() {
             <Compass className="h-3.5 w-3.5 text-sky-500" />
             <span>Explore More Jobs</span>
           </Link>
+          <button
+            type="button"
+            onClick={() => refetch()}
+            disabled={loading}
+            className="ml-3 inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-semibold text-foreground shadow hover:bg-secondary transition-colors disabled:opacity-50"
+            aria-label="Refresh jobs"
+          >
+            <RefreshCw
+              className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`}
+            />
+            <span>Refresh</span>
+          </button>
         </div>
       </div>
 

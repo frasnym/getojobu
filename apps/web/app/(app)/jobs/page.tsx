@@ -10,7 +10,7 @@ import { JobFilters } from "@/components/jobs/job-filters";
 import { PaginationControls } from "@/components/jobs/pagination-controls";
 import { saveUserJob } from "@/lib/api/endpoints";
 import { Job } from "@/lib/api/types";
-import { Compass, Sparkles, Briefcase } from "lucide-react";
+import { Compass, Sparkles, Briefcase, RefreshCw } from "lucide-react";
 
 export default function ExploreJobsPage() {
   const { getToken } = useAuth();
@@ -32,6 +32,7 @@ export default function ExploreJobsPage() {
     ownedFilter,
     setOwnedFilter,
     setJobOwned,
+    refetch,
   } = useJobs();
 
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
@@ -79,6 +80,18 @@ export default function ExploreJobsPage() {
             <Sparkles className="h-3.5 w-3.5 text-emerald-500" />
             <span>Go to My Jobs</span>
           </Link>
+          <button
+            type="button"
+            onClick={() => refetch()}
+            disabled={loading}
+            className="ml-3 inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-semibold text-foreground shadow hover:bg-secondary transition-colors disabled:opacity-50"
+            aria-label="Refresh jobs"
+          >
+            <RefreshCw
+              className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`}
+            />
+            <span>Refresh</span>
+          </button>
         </div>
       </div>
 
