@@ -19,7 +19,7 @@ export function MatchScoreGauge({
     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 rounded-xl border border-border/60 bg-card p-6">
       <div className="flex items-center gap-5">
         {/* Radial / Circular Score Display */}
-        <div className="relative flex h-20 w-20 shrink-0 items-center justify-center rounded-full border-4 border-emerald-500/20 bg-background shadow-inner">
+        <div className="relative flex h-24 w-24 shrink-0 items-center justify-center rounded-full border-4 border-emerald-500/20 bg-background shadow-inner">
           <svg className="absolute inset-0 h-full w-full -rotate-90" viewBox="0 0 36 36">
             <path
               className="text-muted/20"
