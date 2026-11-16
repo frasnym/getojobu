@@ -69,7 +69,6 @@ class GenerateReport:
         )
 
         # Ensure metadata fields are populated
-        raw_output.setdefault("report_prompt_version", self._prompt_version)
         raw_output.setdefault("recommendation_policy_version", "deterministic-v1")
         raw_output.setdefault(
             "metadata", {"model": self._model, "prompt_version": self._prompt_version}

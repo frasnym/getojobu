@@ -176,7 +176,6 @@ async def test_match_job_workflow_execution():
                 "cv_improvements": [],
                 "learning_recommendations": [],
                 "interview_preparation": [],
-                "report_prompt_version": "generate-report-v1",
                 "recommendation_policy_version": "deterministic-v1",
             }
 

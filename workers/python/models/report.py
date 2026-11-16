@@ -33,9 +33,11 @@ class MatchReportExtraction(BaseModel):
 
 
 class MatchReportOutput(MatchReportExtraction):
-    """Full candidate-facing match report output including policy and prompt metadata."""
+    """Full candidate-facing match report output including policy and prompt metadata.
 
-    report_prompt_version: str = Field(default="generate-report-v1")
+    prompt_version lives on metadata; do not duplicate it as a top-level field.
+    """
+
     recommendation_policy_version: str = Field(default="deterministic-v1")
     metadata: dict[str, Any] = Field(
         default_factory=lambda: {"model": None, "prompt_version": "generate-report-v1"}

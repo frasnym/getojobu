@@ -25,7 +25,6 @@ async def test_generate_report_success() -> None:
         "cv_improvements": ["Highlight Kafka throughput metrics"],
         "learning_recommendations": ["AWS CDK basics"],
         "interview_preparation": ["System design concurrency patterns"],
-        "report_prompt_version": "generate-report-v1",
         "recommendation_policy_version": "deterministic-v1",
     }
 
@@ -49,7 +48,6 @@ async def test_generate_report_success() -> None:
     assert len(result.gaps) == 1
     assert result.gaps[0].requirement == "Kubernetes"
     assert result.gaps[0].status == "not_found_in_cv"
-    assert result.report_prompt_version == "generate-report-v1"
     assert result.recommendation_policy_version == "deterministic-v1"
     assert result.metadata["model"] is None
     assert result.metadata["prompt_version"] == "generate-report-v1"
