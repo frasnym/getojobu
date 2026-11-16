@@ -15,9 +15,7 @@ _INTERNAL_JOB_KEYS: set[str] = {
 
 # Metadata keys that should never be sent to the LLM in evaluation_results
 _INTERNAL_EVALUATION_KEYS: set[str] = {
-    "prompt_version",
-    "model",
-    "provider",
+    "metadata",
 }
 
 

@@ -6,7 +6,7 @@ Uses pydantic for JSON Schema structured output with OpenAI/OmniRoute.
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -51,8 +51,13 @@ class MatchEvaluationExtraction(BaseModel):
 
 
 class MatchEvaluationOutput(MatchEvaluationExtraction):
-    """Full domain model for Step 2 compatibility evaluation including execution metadata."""
+    """Full domain model for Step 2 compatibility evaluation including execution metadata.
 
-    prompt_version: str = Field(default="evaluate-match-v1")
-    model: str | None = None
-    provider: str | None = None
+    ``model`` and ``prompt_version`` are nested under ``metadata`` so they do not
+    collide with LLM-structured output fields and can be stripped from API
+    responses separately from the evaluation results.
+    """
+
+    metadata: dict[str, Any] = Field(
+        default_factory=lambda: {"model": None, "prompt_version": "evaluate-match-v1"}
+    )

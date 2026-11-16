@@ -47,8 +47,8 @@ async def test_evaluate_match_success() -> None:
     assert result.evaluations[0].score == 85
     assert len(result.mandatory_requirements) == 1
     assert result.mandatory_requirements[0].status == "met"
-    assert result.provider is None
-    assert result.model is None
+    assert result.metadata["model"] is None
+    assert result.metadata["prompt_version"] == "evaluate-match-v1"
 
 
 @pytest.mark.asyncio

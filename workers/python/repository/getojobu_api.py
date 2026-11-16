@@ -236,10 +236,6 @@ class _getojobuAPI:
         payload: dict[str, Any] = {"evaluation_status": eval_status}
         if evaluation_data is not None:
             eval_copy = dict(evaluation_data)
-            if provider and "provider" not in eval_copy:
-                eval_copy["provider"] = provider
-            if model and "model" not in eval_copy:
-                eval_copy["model"] = model
             payload["evaluation_data"] = eval_copy
         if failure_message is not None:
             payload["failure_message"] = failure_message

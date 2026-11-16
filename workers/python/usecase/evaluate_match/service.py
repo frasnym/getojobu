@@ -228,8 +228,8 @@ class EvaluateMatch:
             if isinstance(val, str):
                 provider = val
 
-        raw_output.setdefault("prompt_version", self._prompt_version)
-        raw_output.setdefault("model", model)
-        raw_output.setdefault("provider", provider)
+        raw_output.setdefault(
+            "metadata", {"model": model, "prompt_version": self._prompt_version}
+        )
 
         return MatchEvaluationOutput.model_validate(raw_output)

@@ -364,11 +364,11 @@ async def test_match_job_workflow_unit_success():
         executed_activities.append((name, input_data))
         if name == "evaluate_match_activity":
             return {
-                "evaluations": [{"category": "technical_skills", "score": 90, "reason": "strong"}],
+                "evaluations": [
+                    {"category": "technical_skills", "score": 90, "reason": "strong"}
+                ],
                 "mandatory_requirements": [],
-                "prompt_version": "evaluate-match-v1",
-                "model": "model-1",
-                "provider": "omniroute",
+                "metadata": {"model": "model-1", "prompt_version": "evaluate-match-v1"},
             }
         elif name == "update_evaluation_status_activity":
             return {
@@ -392,14 +392,19 @@ async def test_match_job_workflow_unit_success():
             return {"report_status": input_data.get("report_status")}
         return {}
 
-    with patch("workflows.match_job.workflow.execute_activity", side_effect=fake_execute_activity):
-        res = await wf.run({
-            "evaluation_id": "eval-unit-1",
-            "slug": "test-job",
-            "candidate_profile": {"skills": ["go"]},
-            "job_profile": {"family": "technology"},
-            "evaluation_config": {"family": "technology"},
-        })
+    with patch(
+        "workflows.match_job.workflow.execute_activity",
+        side_effect=fake_execute_activity,
+    ):
+        res = await wf.run(
+            {
+                "evaluation_id": "eval-unit-1",
+                "slug": "test-job",
+                "candidate_profile": {"skills": ["go"]},
+                "job_profile": {"family": "technology"},
+                "evaluation_config": {"family": "technology"},
+            }
+        )
 
     assert res["status"] == "success"
     assert res["evaluation_id"] == "eval-unit-1"
@@ -429,7 +434,9 @@ async def test_match_job_workflow_unit_report_failure_retains_success():
         executed_activities.append((name, input_data))
         if name == "evaluate_match_activity":
             return {
-                "evaluations": [{"category": "technical_skills", "score": 85, "reason": "good"}],
+                "evaluations": [
+                    {"category": "technical_skills", "score": 85, "reason": "good"}
+                ],
                 "mandatory_requirements": [],
             }
         elif name == "update_evaluation_status_activity":
@@ -445,14 +452,19 @@ async def test_match_job_workflow_unit_report_failure_retains_success():
             return {"report_status": input_data.get("report_status")}
         return {}
 
-    with patch("workflows.match_job.workflow.execute_activity", side_effect=fake_execute_activity):
-        res = await wf.run({
-            "evaluation_id": "eval-unit-report-fail",
-            "slug": "test-job",
-            "candidate_profile": {"skills": ["go"]},
-            "job_profile": {"family": "technology"},
-            "evaluation_config": {"family": "technology"},
-        })
+    with patch(
+        "workflows.match_job.workflow.execute_activity",
+        side_effect=fake_execute_activity,
+    ):
+        res = await wf.run(
+            {
+                "evaluation_id": "eval-unit-report-fail",
+                "slug": "test-job",
+                "candidate_profile": {"skills": ["go"]},
+                "job_profile": {"family": "technology"},
+                "evaluation_config": {"family": "technology"},
+            }
+        )
 
     assert res["status"] == "success"
     assert res["evaluation_id"] == "eval-unit-report-fail"
@@ -460,8 +472,8 @@ async def test_match_job_workflow_unit_report_failure_retains_success():
     assert "timed out" in res["report_error"]
 
     # Verify update_report_status_activity was called with failed
-    last_report_update = [a for a in executed_activities if a[0] == "update_report_status_activity"][-1]
+    last_report_update = [
+        a for a in executed_activities if a[0] == "update_report_status_activity"
+    ][-1]
     assert last_report_update[1]["report_status"] == "failed"
     assert "timed out" in last_report_update[1]["report_failure_message"]
-
-

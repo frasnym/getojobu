@@ -48,9 +48,7 @@ def test_sanitize_job_profile_handles_empty():
 
 def test_sanitize_evaluation_results_strips_metadata():
     raw_results = {
-        "prompt_version": "evaluate-match-v1",
-        "model": "gpt-4o-mini",
-        "provider": "openai",
+        "metadata": {"model": "gpt-4o-mini", "prompt_version": "evaluate-match-v1"},
         "evaluations": [
             {
                 "category": "technical_skills",
@@ -73,9 +71,7 @@ def test_sanitize_evaluation_results_strips_metadata():
 
     sanitized = sanitize_evaluation_results(raw_results)
 
-    assert "prompt_version" not in sanitized
-    assert "model" not in sanitized
-    assert "provider" not in sanitized
+    assert "metadata" not in sanitized
     assert len(sanitized["evaluations"]) == 1
     assert len(sanitized["mandatory_requirements"]) == 1
 
