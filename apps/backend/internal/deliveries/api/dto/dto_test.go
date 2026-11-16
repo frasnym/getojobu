@@ -75,6 +75,14 @@ func TestJobDetailResponse_omitsUserJobWhenNotOwned(t *testing.T) {
 	assert.Equal(t, false, keys["is_owned"])
 }
 
+func TestJobDetailResponse_handlesNilJob(t *testing.T) {
+	userJobID := uuid.MustParse("ee46d5ea-893d-4951-a3d3-8c32d7459737")
+	res := NewJobDetailResponse(nil, nil, &userJobID)
+	assert.Equal(t, int64(0), res.ID)
+	assert.Nil(t, res.UserJob)
+	assert.Nil(t, res.IsOwned)
+}
+
 func TestJobDetailResponse_omitsOwnershipForAnonymous(t *testing.T) {
 	keys := marshalKeys(t, NewJobDetailResponse(sampleJob(), nil, nil))
 

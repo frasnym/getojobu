@@ -112,7 +112,7 @@ func (r *jobsRepository) GetBySlug(ctx context.Context, slug string, userID stri
 		`
 		job, err := scanJob(r.QueryRow(ctx, query, slug))
 		if err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
+			if errors.Is(err, sql.ErrNoRows) || errors.Is(err, pgx.ErrNoRows) {
 				return nil, constants.ErrNotFound
 			}
 			return nil, fmt.Errorf("get job by slug: %w", err)
@@ -135,7 +135,7 @@ func (r *jobsRepository) GetBySlug(ctx context.Context, slug string, userID stri
 
 	res, err := scanJobWithOwnership(row)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, sql.ErrNoRows) || errors.Is(err, pgx.ErrNoRows) {
 			return nil, constants.ErrNotFound
 		}
 		return nil, fmt.Errorf("get job by slug with ownership: %w", err)

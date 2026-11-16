@@ -79,6 +79,9 @@ func NewJobResponse(job *models.Job, isOwned *bool) JobResponse {
 // NewJobDetailResponse maps the single-job fetch, where the caller's link is
 // exposed so the workspace page can reach the evaluation endpoint.
 func NewJobDetailResponse(job *models.Job, isOwned *bool, userJobID *uuid.UUID) JobResponse {
+	if job == nil {
+		return JobResponse{}
+	}
 	res := NewJobResponse(job, isOwned)
 	if userJobID == nil {
 		return res
