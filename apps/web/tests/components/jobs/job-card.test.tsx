@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import React from "react";
 import { JobCard } from "@/components/jobs/job-card";
-import { UserJob } from "@/lib/api/types";
+import { UserJob, UserJobEvaluation } from "@/lib/api/types";
 
 const mockUserJob: UserJob = {
   id: "11111111-1111-1111-1111-111111111111",
@@ -54,5 +54,71 @@ describe("JobCard component", () => {
     const button = screen.getByRole("button", { name: /Hide job/i });
     fireEvent.click(button);
     expect(onHideToggle).toHaveBeenCalledWith("11111111-1111-1111-1111-111111111111", true);
+  });
+});
+
+describe("JobCard evaluation tags", () => {
+  const baseEvaluation: UserJobEvaluation = {
+    id: "6aa11d70-d507-4913-b27d-a57473e54174",
+    evaluation_status: "success",
+    eligibility_status: "eligible",
+    recommendation_label: "low_match",
+    report_status: "success",
+  };
+
+  const mockEvaluatedUserJob: UserJob = {
+    ...mockUserJob,
+    evaluation: baseEvaluation,
+  };
+
+  const evaluatedJob = (overrides: Partial<UserJobEvaluation>): UserJob => ({
+    ...mockUserJob,
+    evaluation: { ...baseEvaluation, ...overrides },
+  });
+
+  it("renders a green Evaluation tag when evaluation_status is success", () => {
+    render(<JobCard userJob={mockEvaluatedUserJob} />);
+    const tags = screen.getAllByTestId("evaluation-status-tag");
+    expect(tags).toHaveLength(2);
+    expect(tags[0]).toHaveClass("bg-emerald-500/10 text-emerald-600");
+    expect(tags[0]).toHaveTextContent("Evaluation");
+  });
+
+  it("renders a yellow Evaluation tag when evaluation_status is pending", () => {
+    render(<JobCard userJob={evaluatedJob({ evaluation_status: "pending" })} />);
+    const tags = screen.getAllByTestId("evaluation-status-tag");
+    expect(tags[0]).toHaveClass("bg-amber-500/10 text-amber-600");
+  });
+
+  it("renders a red Evaluation tag when evaluation_status is failed", () => {
+    render(<JobCard userJob={evaluatedJob({ evaluation_status: "failed" })} />);
+    const tags = screen.getAllByTestId("evaluation-status-tag");
+    expect(tags[0]).toHaveClass("bg-destructive/10 text-destructive");
+  });
+
+  it("renders a report status tag", () => {
+    render(<JobCard userJob={mockEvaluatedUserJob} />);
+    expect(screen.getAllByTestId("evaluation-status-tag")).toHaveLength(2);
+  });
+
+  it("renders eligibility and recommendation pills like the detail page", () => {
+    render(<JobCard userJob={mockEvaluatedUserJob} />);
+    expect(screen.getByTestId("eligibility-tag")).toHaveTextContent("eligible");
+    expect(screen.getByTestId("eligibility-tag")).toHaveClass(
+      "bg-emerald-500/10 text-emerald-600"
+    );
+    expect(screen.getByTestId("recommendation-tag")).toHaveTextContent(
+      "low match"
+    );
+    expect(screen.getByTestId("recommendation-tag")).toHaveClass(
+      "bg-secondary text-secondary-foreground"
+    );
+  });
+
+  it("renders no evaluation tags when there is no evaluation", () => {
+    render(<JobCard userJob={mockUserJob} />);
+    expect(screen.queryByTestId("evaluation-status-tag")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("eligibility-tag")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("recommendation-tag")).not.toBeInTheDocument();
   });
 });

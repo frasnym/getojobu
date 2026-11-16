@@ -4,6 +4,7 @@ import { UserJob, ApiPagination } from "@/lib/api/types";
 import {
   getUserJobs,
   setUserJobHideStatus,
+  setUserJobsHideStatus,
 } from "@/lib/api/endpoints";
 import { StatusFilter } from "./use-jobs";
 
@@ -196,6 +197,22 @@ export function useUserJobs(explicitToken?: string | null) {
     [explicitToken, getToken]
   );
 
+  const bulkHideJob = useCallback(
+    async (userJobIds: string[], isHidden: boolean) => {
+      if (userJobIds.length === 0) return;
+      const token = explicitToken !== undefined ? explicitToken : await getToken();
+      await setUserJobsHideStatus(userJobIds, isHidden, token);
+      // Update local state directly; no refetch needed.
+      const idSet = new Set(userJobIds);
+      setUserJobs((prev) =>
+        prev.map((uj) =>
+          idSet.has(uj.id) ? { ...uj, is_hidden: isHidden } : uj
+        )
+      );
+    },
+    [explicitToken, getToken]
+  );
+
   return {
     jobs: userJobs,
     userJobs,
@@ -217,6 +234,7 @@ export function useUserJobs(explicitToken?: string | null) {
     hideFilter,
     setHideFilter: handleHideFilterChange,
     hideJob,
+    bulkHideJob,
     refetch: () => load(),
     isFiltersChanged,
     queryAll,

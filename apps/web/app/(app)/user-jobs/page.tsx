@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import Link from "next/link";
 import { useUserJobs } from "@/hooks/use-user-jobs";
 import { JobCard } from "@/components/jobs/job-card";
@@ -9,7 +9,7 @@ import { PaginationControls } from "@/components/jobs/pagination-controls";
 import { JobDetailDrawer } from "@/components/jobs/job-detail-drawer";
 import { ReportTab } from "@/components/jobs/job-report-header";
 import { UserJob } from "@/lib/api/types";
-import { Sparkles, Briefcase, Compass, RefreshCw } from "lucide-react";
+import { Sparkles, Briefcase, Compass, RefreshCw, CheckSquare, Eye, EyeOff, X } from "lucide-react";
 
 export default function UserJobsPage() {
 	const {
@@ -30,6 +30,7 @@ export default function UserJobsPage() {
 		hideFilter,
 		setHideFilter,
 		hideJob,
+		bulkHideJob,
 		refetch,
 		isFiltersChanged,
 		queryAll,
@@ -38,6 +39,51 @@ export default function UserJobsPage() {
 	const [selectedRow, setSelectedRow] = useState<UserJob | null>(null);
 	const [activeTab, setActiveTab] = useState<ReportTab>("details");
 	const [evalId, setEvalId] = useState<string | null>(null);
+
+	// Bulk selection state (checked job ids on the current page).
+	const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set());
+	const [bulkBusy, setBulkBusy] = useState(false);
+
+	const visibleIds = useMemo(() => filteredJobs.map((uj) => uj.id).filter(Boolean), [filteredJobs]);
+	const allVisibleChecked = visibleIds.length > 0 && visibleIds.every((id) => checkedIds.has(id));
+
+	const toggleCheck = useCallback((id: string, checked: boolean) => {
+		setCheckedIds((prev) => {
+			const next = new Set(prev);
+			if (checked) next.add(id);
+			else next.delete(id);
+			return next;
+		});
+	}, []);
+
+	const toggleCheckAll = useCallback(() => {
+		setCheckedIds((prev) => {
+			const next = new Set(prev);
+			if (allVisibleChecked) {
+				visibleIds.forEach((id) => next.delete(id));
+			} else {
+				visibleIds.forEach((id) => next.add(id));
+			}
+			return next;
+		});
+	}, [allVisibleChecked, visibleIds]);
+
+	const clearChecks = useCallback(() => setCheckedIds(new Set()), []);
+
+	const runBulkHide = useCallback(
+		async (isHidden: boolean) => {
+			const ids = Array.from(checkedIds);
+			if (ids.length === 0) return;
+			setBulkBusy(true);
+			try {
+				await bulkHideJob(ids, isHidden);
+				setCheckedIds(new Set());
+			} finally {
+				setBulkBusy(false);
+			}
+		},
+		[checkedIds, bulkHideJob]
+	);
 
 	// Reset eval id when a different job is selected so the drawer fetches
 	// that job's own evaluation rather than leaking a previous job's id.
@@ -95,6 +141,17 @@ export default function UserJobsPage() {
 						<RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
 						<span>Refresh</span>
 					</button>
+					{filteredJobs.length > 0 && (
+						<button
+							type="button"
+							onClick={toggleCheckAll}
+							disabled={bulkBusy}
+							className="ml-3 inline-flex items-center gap-2 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-secondary disabled:opacity-50 disabled:pointer-events-none transition-colors"
+						>
+							<CheckSquare className="h-3.5 w-3.5" />
+							<span>{allVisibleChecked ? "Select none" : "Select all"}</span>
+						</button>
+					)}
 				</div>
 			</div>
 
@@ -159,7 +216,7 @@ export default function UserJobsPage() {
 
 			{/* Job cards list */}
 			{!loading && !error && filteredJobs.length > 0 && (
-				<div className="grid gap-3 sm:grid-cols-1">
+				<div className="space-y-3 sm:grid-cols-1">
 					{filteredJobs.map((userJob) => (
 						<JobCard
 							key={userJob.id}
@@ -167,8 +224,68 @@ export default function UserJobsPage() {
 							onSelect={setSelectedRow}
 							isSelected={selectedRow?.id === userJob.id}
 							onHideToggle={hideJob}
+							selectable
+							isChecked={checkedIds.has(userJob.id)}
+							onCheckChange={(checked) => toggleCheck(userJob.id, checked)}
 						/>
 					))}
+				</div>
+			)}
+
+			{/* Bulk action bar */}
+			{checkedIds.size > 0 && (
+				<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0">
+					<div className="inline-flex items-center gap-2 text-sm font-semibold text-foreground">
+						<span>{checkedIds.size}</span>
+						<span className="text-muted-foreground">selected</span>
+					</div>
+					<div className="flex items-center gap-2">
+						<button
+							type="button"
+							onClick={clearChecks}
+							disabled={bulkBusy}
+							className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-secondary disabled:opacity-50 disabled:pointer-events-none transition-colors"
+						>
+							<X className="h-3.5 w-3.5" />
+							<span>Clear selection</span>
+						</button>
+						<button
+							type="button"
+							onClick={() => runBulkHide(true)}
+							disabled={bulkBusy}
+							className={`inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors disabled:opacity-50 disabled:pointer-events-none ${
+								bulkBusy
+									? "border-border/40 text-muted-foreground bg-muted"
+									: "border-destructive/40 text-destructive hover:bg-destructive/5"
+							}`}
+							aria-label="Hide selected jobs"
+						>
+							{bulkBusy ? (
+								<EyeOff className="h-3.5 w-3.5 animate-spin" />
+							) : (
+								<EyeOff className="h-3.5 w-3.5" />
+							)}
+							<span>{bulkBusy ? "Hiding..." : "Hide selected"}</span>
+						</button>
+						<button
+							type="button"
+							onClick={() => toggleCheckAll()}
+							disabled={bulkBusy}
+							className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-secondary disabled:opacity-50 disabled:pointer-events-none transition-colors"
+						>
+							{allVisibleChecked ? (
+								<>
+									<CheckSquare className="h-3.5 w-3.5" />
+									<span>Select none</span>
+								</>
+							) : (
+								<>
+									<CheckSquare className="h-3.5 w-3.5" />
+									<span>Select all</span>
+								</>
+							)}
+						</button>
+					</div>
 				</div>
 			)}
 

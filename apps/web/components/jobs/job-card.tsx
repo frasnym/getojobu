@@ -3,6 +3,11 @@ import Link from "next/link";
 import { UserJob } from "@/lib/api/types";
 import { MapPin, Globe, Clock, ArrowRight, Eye, EyeOff } from "lucide-react";
 import { statusBadgeClasses } from "@/hooks/use-jobs";
+import {
+  EvaluationStatusTag,
+  EligibilityTag,
+  RecommendationTag,
+} from "@/components/jobs/evaluation-tags";
 
 interface JobCardProps {
   userJob: UserJob;
@@ -10,9 +15,24 @@ interface JobCardProps {
   onSelect?: (userJob: UserJob) => void;
   isSelected?: boolean;
   onHideToggle?: (userJobId: string, isHidden: boolean) => void | Promise<void>;
+  /** When true, renders a checkbox for bulk selection. */
+  selectable?: boolean;
+  /** Whether this card's checkbox is checked. */
+  isChecked?: boolean;
+  /** Called when the checkbox toggles. */
+  onCheckChange?: (checked: boolean) => void;
 }
 
-export function JobCard({ userJob, href, onSelect, isSelected, onHideToggle }: JobCardProps) {
+export function JobCard({
+  userJob,
+  href,
+  onSelect,
+  isSelected,
+  onHideToggle,
+  selectable = false,
+  isChecked = false,
+  onCheckChange,
+}: JobCardProps) {
   const job = userJob.job;
   const targetHref = href || `/user-jobs/${job.slug}`;
   const isClickable = !!onSelect;
@@ -31,6 +51,22 @@ export function JobCard({ userJob, href, onSelect, isSelected, onHideToggle }: J
     >
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-1.5 flex-1">
+          {selectable && (
+            <div className="flex items-center gap-2 mb-1">
+              <label
+                className="inline-flex items-center cursor-pointer shrink-0"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <input
+                  type="checkbox"
+                  checked={isChecked}
+                  onChange={(e) => onCheckChange?.(e.target.checked)}
+                  className="h-4 w-4 rounded border-border text-primary focus:ring-primary cursor-pointer"
+                  aria-label={`Select ${job.title}`}
+                />
+              </label>
+            </div>
+          )}
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               {job.company}
@@ -78,6 +114,15 @@ export function JobCard({ userJob, href, onSelect, isSelected, onHideToggle }: J
               </span>
             )}
           </div>
+
+          {userJob.evaluation && (
+            <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-border/40">
+              <EvaluationStatusTag status={userJob.evaluation.evaluation_status} />
+              <EvaluationStatusTag status={userJob.evaluation.report_status} />
+              <EligibilityTag status={userJob.evaluation.eligibility_status} />
+              <RecommendationTag label={userJob.evaluation.recommendation_label} />
+            </div>
+          )}
         </div>
 
         {/* Actions */}
