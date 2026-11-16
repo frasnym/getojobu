@@ -258,11 +258,21 @@ func (s *matchingService) DownloadResume(
 	}
 
 	user, err := s.usersRepo.FindByID(ctx, userJob.UserID.String())
-	filename := "Resume.pdf"
-	if err == nil && user != nil && user.FullName != nil && strings.TrimSpace(*user.FullName) != "" {
-		cleanName := strings.ReplaceAll(strings.TrimSpace(*user.FullName), " ", "_")
-		filename = fmt.Sprintf("%s_Resume.pdf", cleanName)
+	name := ""
+	if err == nil && user != nil && user.FullName != nil {
+		name = strings.TrimSpace(*user.FullName)
 	}
+
+	// Derive the job title from the evaluation's stored job profile so the
+	// downloaded file name reflects the job the resume was tailored for.
+	var jobProfile map[string]interface{}
+	_ = json.Unmarshal(eval.JobProfileData, &jobProfile)
+	jobTitle := ""
+	if title, ok := jobProfile["title"].(string); ok {
+		jobTitle = strings.TrimSpace(title)
+	}
+
+	filename := resumeFileName(name, jobTitle)
 
 	if s.storageRepo == nil {
 		return nil, errors.New("storage repository is not configured")
@@ -278,6 +288,30 @@ func (s *matchingService) DownloadResume(
 		ExpiresAt:   time.Now().Add(expiry),
 		Filename:    filename,
 	}, nil
+}
+
+// resumeFileName builds the resume download file name as
+// name_resume_job-title.pdf, falling back gracefully when the candidate name
+// or job title is unavailable. Spaces in the name become underscores and
+// spaces in the job title become hyphens. Blank names/titles are omitted.
+func resumeFileName(name, jobTitle string) string {
+	cleanName := strings.ReplaceAll(strings.TrimSpace(name), " ", "_")
+	cleanTitle := strings.ReplaceAll(strings.TrimSpace(jobTitle), " ", "-")
+
+	parts := []string{}
+	if cleanName != "" {
+		parts = append(parts, cleanName)
+	}
+	parts = append(parts, "resume")
+	if cleanTitle != "" {
+		parts = append(parts, cleanTitle)
+	}
+
+	filename := strings.Join(parts, "_")
+	if filename == "" || filename == "resume" {
+		return "Resume.pdf"
+	}
+	return filename + ".pdf"
 }
 
 func (s *matchingService) BulkQueueGenerateResume(
