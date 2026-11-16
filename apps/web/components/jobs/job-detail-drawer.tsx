@@ -143,7 +143,7 @@ export function JobDetailDrawer({
   const tab = activeTab ?? "details";
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end">
+    <div className="fixed inset-0 z-50">
       {/* Backdrop */}
       <div
         className="fixed inset-0 bg-background/80 backdrop-blur-sm transition-opacity animate-in fade-in duration-200"
@@ -156,7 +156,7 @@ export function JobDetailDrawer({
         role="dialog"
         aria-modal="true"
         aria-label={job.title}
-        className="relative z-50 flex h-full w-full max-w-full lg:max-w-[80vw] flex-col bg-card border-l border-border shadow-2xl animate-in slide-in-from-right duration-300"
+        className="fixed z-50 flex top-0 right-0 bottom-0 w-full max-w-full lg:max-w-[80vw] flex-col bg-card border-l border-border shadow-2xl animate-in slide-in-from-right duration-300"
       >
         {/* Drawer Header */}
         <div className="border-b border-border/60 p-6 space-y-4">
