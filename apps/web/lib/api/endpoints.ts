@@ -106,6 +106,7 @@ export async function triggerJobCompatibility(
     const job = MOCK_JOBS.find((j) => j.slug === slug);
     return Promise.resolve({
       id: `eval-${slug}-new`,
+      user_job_id: job?.user_job_id ?? `uj-${slug}`,
       evaluation_status: "success",
       overall_score: 85.0,
       eligibility_status: "eligible",

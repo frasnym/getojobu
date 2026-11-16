@@ -63,12 +63,16 @@ export function JobDetailDrawer({
   showOwnedActions = true,
 }: JobDetailDrawerProps) {
   const { getToken } = useAuth();
-  const [fetchedEvalId, setFetchedEvalId] = useState<string | null>(null);
+  const [fetchedEvaluation, setFetchedEvaluation] = useState<EvaluationSummary | null>(null);
   const [fetchingEvaluation, setFetchingEvaluation] = useState(false);
 
   // Resolve evaluation id: prop (from analyze flow) takes precedence,
-  // otherwise fetch lazily from the user-jobs evaluation endpoint.
-  const resolvedEvalId = evalIdProp ?? fetchedEvalId;
+  // otherwise fall back to the id from the fetched evaluation record.
+  const resolvedEvalId = evalIdProp ?? fetchedEvaluation?.id ?? null;
+
+  // Resolve the report payload: fetched evaluation (full data, one fetch)
+  // takes precedence; otherwise MatchReportTab falls back to evalId fetch.
+  const resolvedReport = fetchedEvaluation ?? undefined;
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -90,6 +94,8 @@ export function JobDetailDrawer({
 
   // Fetch the latest evaluation for this user_job when the drawer opens,
   // unless an evalId was already supplied (e.g. after a fresh analyze).
+  // The /evaluation response already includes evaluation_data and
+  // report_data, so one fetch is enough to render the match report.
   useEffect(() => {
     if (!isOpen || !job || !job.user_job_id) return;
     if (evalIdProp) return; // already have one from the analyze flow
@@ -102,7 +108,7 @@ export function JobDetailDrawer({
         const token = await getToken();
         const evalRec = await getUserJobEvaluation(userJobId, token);
         if (!cancelled && evalRec.id) {
-          setFetchedEvalId(String(evalRec.id));
+          setFetchedEvaluation(evalRec);
         }
       } catch (err) {
         // Evaluation may not exist yet — that's fine, the Analyze button
@@ -260,7 +266,9 @@ export function JobDetailDrawer({
               {tab === "details" && <JobDetailTab job={job} />}
               {tab === "report" && (
                 <MatchReportTab
+                  report={resolvedReport}
                   evalId={resolvedEvalId || undefined}
+                  loading={fetchingEvaluation}
                   onAnalyzeClick={onAnalyzeClick}
                   evaluating={evaluating}
                 />

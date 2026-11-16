@@ -87,6 +87,7 @@ Vercel is the platform for frontend developers, providing the speed and reliabil
 export const MOCK_EVALUATIONS: Record<string, EvaluationSummary> = {
   "0b0b0b0b-0000-0000-0000-000000000001": {
     id: "eval-stripe-001",
+    user_job_id: "0b0b0b0b-0000-0000-0000-000000000001",
     evaluation_status: "success",
     overall_score: 88.5,
     eligibility_status: "eligible",
@@ -95,9 +96,84 @@ export const MOCK_EVALUATIONS: Record<string, EvaluationSummary> = {
     resume_status: "ready",
     created_at: "2026-11-14T08:30:00Z",
     updated_at: "2026-11-14T08:35:00Z",
+    evaluation_data: {
+      evaluations: [
+        {
+          category: "Core Skills & Go Mastery",
+          score: 95,
+          reason:
+            "Extensive background building idiomatic, low-latency Go services with concurrency patterns.",
+          strengths: ["Go concurrency primitives", "Benchmarking and memory profiling"],
+          gaps: [],
+          evidence: [
+            {
+              candidate_evidence:
+                "Built and scaled distributed payment gateway handling 15,000 req/sec in Go",
+              job_requirement:
+                "5+ years experience building production backend systems with Go",
+              relationship: "direct",
+            },
+          ],
+        },
+        {
+          category: "Distributed Systems & Reliability",
+          score: 85,
+          reason:
+            "Solid understanding of fault tolerance, idempotency, and high availability design.",
+          strengths: ["Circuit breakers", "Idempotency keys implementation"],
+          gaps: ["No direct Kafka stream processing cited"],
+          evidence: [
+            {
+              candidate_evidence:
+                "Implemented Temporal workflows for distributed multi-step transaction rollbacks",
+              job_requirement:
+                "Deep expertise in distributed systems and transaction processing",
+              relationship: "direct",
+            },
+            {
+              candidate_evidence:
+                "Managed Redis pub/sub and RabbitMQ asynchronous queues",
+              job_requirement:
+                "Production experience with message queues and event-driven architecture",
+              relationship: "transferable",
+            },
+          ],
+        },
+      ],
+      mandatory_requirements: [
+        {
+          requirement: "Authorized to work in US/EU remote jurisdictions",
+          status: "met",
+          reason: "Candidate profile confirms valid work authorization.",
+        },
+        {
+          requirement: "5+ years Go experience",
+          status: "met",
+          reason: "Candidate has 6+ verified years of production Go.",
+        },
+      ],
+    },
+    report_data: {
+      summary:
+        "The candidate is an exceptionally strong fit for Stripe's infrastructure role. With over 6 years of production Go development, deep concurrency knowledge, and hands-on PostgreSQL optimization, the candidate fulfills all core engineering requirements.",
+      strengths: [
+        "6+ years production Go microservices experience exceeding the 5-year requirement",
+        "Extensive experience with high-throughput transactional database systems and pgx",
+        "Demonstrated track record of maintaining high-availability cloud deployments",
+      ],
+      gaps: [
+        "Limited explicit mention of Kafka streaming in candidate projects; transferable messaging experience in RabbitMQ and Redis",
+      ],
+      cv_improvements: [
+        "Quantify the transactions-per-second throughput in your most recent fintech backend role",
+        "Highlight your experience architecting zero-downtime database migrations in PostgreSQL",
+        "Emphasize distributed tracing and OpenTelemetry observability experience",
+      ],
+    },
   },
   "0b0b0b0b-0000-0000-0000-000000000002": {
     id: "eval-datadog-001",
+    user_job_id: "0b0b0b0b-0000-0000-0000-000000000002",
     evaluation_status: "success",
     overall_score: 76.0,
     eligibility_status: "eligible",

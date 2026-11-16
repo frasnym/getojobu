@@ -1,5 +1,6 @@
 export interface EvaluationSummary {
   id: string;
+  user_job_id: string;
   evaluation_status: "new" | "pending" | "success" | "failed";
   overall_score?: number;
   eligibility_status?: string;
@@ -8,6 +9,18 @@ export interface EvaluationSummary {
   resume_status?: string;
   created_at?: string;
   updated_at?: string;
+  // Report payload — returned alongside the evaluation so the detail view
+  // can render the match report without a second fetch.
+  evaluation_data?: {
+    evaluations: CategoryEvaluation[];
+    mandatory_requirements: MandatoryRequirementAssessment[];
+  };
+  report_data?: {
+    summary?: string;
+    strengths?: string[];
+    gaps?: string[];
+    cv_improvements?: string[];
+  };
 }
 
 export interface Job {
