@@ -142,15 +142,31 @@ export default function UserJobsPage() {
 						<span>Refresh</span>
 					</button>
 					{filteredJobs.length > 0 && (
-						<button
-							type="button"
-							onClick={toggleCheckAll}
-							disabled={bulkBusy}
-							className="ml-3 inline-flex items-center gap-2 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-secondary disabled:opacity-50 disabled:pointer-events-none transition-colors"
-						>
-							<CheckSquare className="h-3.5 w-3.5" />
-							<span>{allVisibleChecked ? "Select none" : "Select all"}</span>
-						</button>
+						<>
+							<button
+								type="button"
+								onClick={toggleCheckAll}
+								disabled={bulkBusy}
+								className="ml-3 inline-flex items-center gap-2 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-secondary disabled:opacity-50 disabled:pointer-events-none transition-colors"
+							>
+								<CheckSquare className="h-3.5 w-3.5" />
+								<span>{allVisibleChecked ? "Select none" : "Select all"}</span>
+							</button>
+							<button
+								type="button"
+								onClick={() => runBulkHide(true)}
+								disabled={bulkBusy || checkedIds.size === 0}
+								className={`ml-3 inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors disabled:opacity-50 disabled:pointer-events-none ${
+									bulkBusy || checkedIds.size === 0
+										? "border-border/40 text-muted-foreground bg-muted"
+										: "border-destructive/40 text-destructive hover:bg-destructive/5"
+								}`}
+								aria-label="Hide selected jobs"
+							>
+								<EyeOff className="h-3.5 w-3.5" />
+								<span>{bulkBusy ? "Hiding..." : "Hide selected"}</span>
+							</button>
+						</>
 					)}
 				</div>
 			</div>

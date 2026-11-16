@@ -5,15 +5,19 @@ import { AlertCircle, AlertTriangle, CheckCircle2 } from "lucide-react";
  * Small status tags for a user job's evaluation, rendered on the
  * user-jobs list card. The eligibility / recommendation pills mirror
  * MatchScoreGauge on the user-job-detail page so both surfaces agree.
+ *
+ * Each status tag is rendered only when its value is non-null.
  */
 
 interface EvaluationStatusTagProps {
   status: string | null | undefined;
+  label?: string;
 }
 
 const evaluationTagStyle = (status: string) => {
   switch (status.toLowerCase()) {
     case "success":
+    case "analyzed":
       return {
         icon: <CheckCircle2 className="h-3 w-3" />,
         className: "border-emerald-500/20 bg-emerald-500/10 text-emerald-600",
@@ -36,7 +40,7 @@ const evaluationTagStyle = (status: string) => {
   }
 };
 
-export function EvaluationStatusTag({ status }: EvaluationStatusTagProps) {
+export function EvaluationStatusTag({ status, label = "Evaluation" }: EvaluationStatusTagProps) {
   if (!status) return null;
   const { icon, className } = evaluationTagStyle(status);
   return (
@@ -45,7 +49,7 @@ export function EvaluationStatusTag({ status }: EvaluationStatusTagProps) {
       className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-bold capitalize ${className}`}
     >
       {icon}
-      <span>Evaluation</span>
+      <span>{label}</span>
     </span>
   );
 }
@@ -72,16 +76,32 @@ export function EligibilityTag({ status }: EligibilityTagProps) {
   );
 }
 
+const recommendationTagStyle = (label: string) => {
+  switch (label.toLowerCase()) {
+    case "strong_match":
+      return { className: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" };
+    case "worth_applying":
+      return { className: "bg-blue-500/10 text-blue-600 dark:text-blue-400" };
+    case "possible_match":
+      return { className: "bg-amber-500/10 text-amber-600 dark:text-amber-400" };
+    case "low_match":
+      return { className: "bg-destructive/10 text-destructive" };
+    default:
+      return { className: "bg-secondary text-secondary-foreground" };
+  }
+};
+
 interface RecommendationTagProps {
   label: string | null | undefined;
 }
 
 export function RecommendationTag({ label }: RecommendationTagProps) {
   if (!label) return null;
+  const { className } = recommendationTagStyle(label);
   return (
     <span
       data-testid="recommendation-tag"
-      className="rounded-full bg-secondary px-2.5 py-0.5 text-xs font-semibold text-secondary-foreground capitalize"
+      className={`rounded-full px-2.5 py-0.5 text-xs font-semibold capitalize ${className}`}
     >
       {label.replace("_", " ")}
     </span>

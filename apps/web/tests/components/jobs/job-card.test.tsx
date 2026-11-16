@@ -64,6 +64,7 @@ describe("JobCard evaluation tags", () => {
     eligibility_status: "eligible",
     recommendation_label: "low_match",
     report_status: "success",
+    resume_status: "success",
   };
 
   const mockEvaluatedUserJob: UserJob = {
@@ -79,26 +80,55 @@ describe("JobCard evaluation tags", () => {
   it("renders a green Evaluation tag when evaluation_status is success", () => {
     render(<JobCard userJob={mockEvaluatedUserJob} />);
     const tags = screen.getAllByTestId("evaluation-status-tag");
-    expect(tags).toHaveLength(2);
-    expect(tags[0]).toHaveClass("bg-emerald-500/10 text-emerald-600");
-    expect(tags[0]).toHaveTextContent("Evaluation");
+    expect(tags).toHaveLength(4);
+    expect(tags[0]).toHaveTextContent("Analyzed");
+    expect(tags[1]).toHaveClass("bg-emerald-500/10 text-emerald-600");
+    expect(tags[1]).toHaveTextContent("Evaluation");
   });
 
   it("renders a yellow Evaluation tag when evaluation_status is pending", () => {
     render(<JobCard userJob={evaluatedJob({ evaluation_status: "pending" })} />);
     const tags = screen.getAllByTestId("evaluation-status-tag");
-    expect(tags[0]).toHaveClass("bg-amber-500/10 text-amber-600");
+    expect(tags[1]).toHaveClass("bg-amber-500/10 text-amber-600");
   });
 
   it("renders a red Evaluation tag when evaluation_status is failed", () => {
     render(<JobCard userJob={evaluatedJob({ evaluation_status: "failed" })} />);
     const tags = screen.getAllByTestId("evaluation-status-tag");
-    expect(tags[0]).toHaveClass("bg-destructive/10 text-destructive");
+    expect(tags[1]).toHaveClass("bg-destructive/10 text-destructive");
   });
 
-  it("renders a report status tag", () => {
+  it("renders an Analyzed tag colored by job.status first", () => {
     render(<JobCard userJob={mockEvaluatedUserJob} />);
-    expect(screen.getAllByTestId("evaluation-status-tag")).toHaveLength(2);
+    const tags = screen.getAllByTestId("evaluation-status-tag");
+    expect(tags[0]).toHaveTextContent("Analyzed");
+    expect(tags[0]).toHaveClass("bg-emerald-500/10 text-emerald-600");
+  });
+
+  it("renders a Report tag colored by report_status", () => {
+    render(<JobCard userJob={mockEvaluatedUserJob} />);
+    const reportTag = screen.getAllByTestId("evaluation-status-tag")[2];
+    expect(reportTag).toHaveClass("bg-emerald-500/10 text-emerald-600");
+    expect(reportTag).toHaveTextContent("Report");
+  });
+
+  it("renders a Resume tag colored by resume_status", () => {
+    render(<JobCard userJob={mockEvaluatedUserJob} />);
+    const resumeTag = screen.getAllByTestId("evaluation-status-tag")[3];
+    expect(resumeTag).toHaveClass("bg-emerald-500/10 text-emerald-600");
+    expect(resumeTag).toHaveTextContent("Resume");
+  });
+
+  it("omits a tag when its status is undefined", () => {
+    render(
+      <JobCard
+        userJob={evaluatedJob({ report_status: undefined, resume_status: undefined })}
+      />
+    );
+    const tags = screen.getAllByTestId("evaluation-status-tag");
+    expect(tags).toHaveLength(2);
+    expect(tags[0]).toHaveTextContent("Analyzed");
+    expect(tags[1]).toHaveTextContent("Evaluation");
   });
 
   it("renders eligibility and recommendation pills like the detail page", () => {
@@ -111,8 +141,28 @@ describe("JobCard evaluation tags", () => {
       "low match"
     );
     expect(screen.getByTestId("recommendation-tag")).toHaveClass(
-      "bg-secondary text-secondary-foreground"
+      "bg-destructive/10 text-destructive"
     );
+  });
+
+  it("colors each recommendation label", () => {
+    const labels: Array<[string, string]> = [
+      ["strong_match", "bg-emerald-500/10 text-emerald-600"],
+      ["worth_applying", "bg-blue-500/10 text-blue-600"],
+      ["possible_match", "bg-amber-500/10 text-amber-600"],
+      ["low_match", "bg-destructive/10 text-destructive"],
+    ];
+    for (const [label, expectedClass] of labels) {
+      render(
+        <JobCard
+          userJob={evaluatedJob({ recommendation_label: label })}
+        />
+      );
+      const tags = screen.getAllByTestId("recommendation-tag");
+      const tag = tags[tags.length - 1];
+      expect(tag).toHaveTextContent(label.replace("_", " "));
+      expect(tag).toHaveClass(expectedClass);
+    }
   });
 
   it("renders no evaluation tags when there is no evaluation", () => {

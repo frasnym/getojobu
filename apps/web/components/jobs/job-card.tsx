@@ -52,9 +52,9 @@ export function JobCard({
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-1.5 flex-1">
           {selectable && (
-            <div className="flex items-center gap-2 mb-1">
+            <div className="flex items-start gap-2 border-b border-border/40 pb-2 mb-2">
               <label
-                className="inline-flex items-center cursor-pointer shrink-0"
+                className="inline-flex items-center shrink-0 mt-0.5 cursor-pointer"
                 onClick={(e) => e.stopPropagation()}
               >
                 <input
@@ -117,8 +117,12 @@ export function JobCard({
 
           {userJob.evaluation && (
             <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-border/40">
-              <EvaluationStatusTag status={userJob.evaluation.evaluation_status} />
-              <EvaluationStatusTag status={userJob.evaluation.report_status} />
+              {job.status && (
+                <EvaluationStatusTag status={job.status} label="Analyzed" />
+              )}
+              <EvaluationStatusTag status={userJob.evaluation.evaluation_status} label="Evaluation" />
+              <EvaluationStatusTag status={userJob.evaluation.report_status} label="Report" />
+              <EvaluationStatusTag status={userJob.evaluation.resume_status} label="Resume" />
               <EligibilityTag status={userJob.evaluation.eligibility_status} />
               <RecommendationTag label={userJob.evaluation.recommendation_label} />
             </div>
