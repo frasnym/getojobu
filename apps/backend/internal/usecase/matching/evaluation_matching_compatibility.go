@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -482,6 +483,34 @@ func (s *matchingService) composeCandidateProfile(ctx context.Context, userID st
 		skillNames = append(skillNames, sk.SkillName)
 	}
 
+	// Assemble education from user_educations table so it is included in
+	// candidate_profile_data passed to the match workflow.
+	var educationLine string
+	var eduRows []*models.UserEducation
+	if s.eduRepo != nil {
+		edus, err := s.eduRepo.ListByUser(ctx, userID)
+		if err == nil && len(edus) > 0 {
+			eduRows = edus
+			top := edus[0]
+			var yearStr string
+			if top.StartYear != nil && top.EndYear != nil {
+				yearStr = fmt.Sprintf("%d-%d", *top.StartYear, *top.EndYear)
+			} else if top.EndYear != nil {
+				yearStr = fmt.Sprintf("%d", *top.EndYear)
+			} else if top.StartYear != nil {
+				yearStr = fmt.Sprintf("%d", *top.StartYear)
+			}
+			parts := []string{fmt.Sprintf("%s in %s, %s", top.Degree, top.FieldOfStudy, top.Institution)}
+			if yearStr != "" {
+				parts = append(parts, yearStr)
+			}
+			if top.GPA != nil && *top.GPA != "" {
+				parts = append(parts, fmt.Sprintf("GPA: %s", *top.GPA))
+			}
+			educationLine = strings.Join(parts, " | ")
+		}
+	}
+
 	expList := make([]map[string]interface{}, 0, len(exps))
 	var totalDays float64
 	for _, e := range exps {
@@ -525,5 +554,7 @@ func (s *matchingService) composeCandidateProfile(ctx context.Context, userID st
 		"skills":           skillNames,
 		"experience":       expList,
 		"projects":         projList,
+		"education":        educationLine,
+		"education_rows":   eduRows,
 	}, nil
 }

@@ -552,4 +552,77 @@ func TestTriggerCompatibilityBulk(t *testing.T) {
 		require.NotNil(t, res[2].Error)
 		assert.Contains(t, *res[2].Error, "job not found")
 	})
+
+	t.Run("includes education in candidate profile data", func(t *testing.T) {
+		eduMock := repoMocks.NewMockEducations(ctrl)
+		contract := &repository.Contract{
+			MatchingEvaluationsRepository: evalRepo,
+			UserJobsRepository:            userJobsRepo,
+			ScoringConfigsRepository:      scoringConfigsRepo,
+			JobsRepository:                jobsRepo,
+			ExperiencesRepository:         expRepo,
+			ProjectsRepository:            projRepo,
+			ProjectSkillsRepository:       projSkillsRepo,
+			WorkflowsRepository:           workflowsRepo,
+			EducationsRepository:          eduMock,
+		}
+		service := matching.NewService(contract)
+
+		startYear := 2018
+		endYear := 2022
+		gpa := "3.8"
+		eduID := uuid.New()
+		educations := []*models.UserEducation{
+			{
+				ID:           eduID,
+				UserID:       userID,
+				Institution:  "Example University",
+				Degree:       "BSc",
+				FieldOfStudy: "Computer Science",
+				StartYear:    &startYear,
+				EndYear:      &endYear,
+				GPA:          &gpa,
+			},
+		}
+		eduMock.EXPECT().ListByUser(ctx, userID.String()).Return(educations, nil)
+
+		jobsRepo.EXPECT().GetBySlug(ctx, slug, "").Return(&models.JobWithOwnership{Job: job}, nil)
+		userJobsRepo.EXPECT().IsOwned(ctx, userID.String(), job.ID).Return(true, nil)
+		scoringConfigsRepo.EXPECT().GetActiveByFamily(ctx, "technology").Return(scoringConfig, nil)
+		userJobsRepo.EXPECT().GetByUserAndJob(ctx, userID.String(), job.ID).Return(userJob, nil)
+		evalRepo.EXPECT().GetLatestByUserAndJob(ctx, userID, job.ID).Return(nil, constants.ErrNotFound)
+		expRepo.EXPECT().ListByUser(ctx, userID.String()).Return([]*models.Experience{}, nil)
+		projRepo.EXPECT().ListByUser(ctx, userID.String()).Return([]*models.Project{}, nil)
+		projSkillsRepo.EXPECT().ListSkillsByUser(ctx, userID.String()).Return([]*models.UserSkill{}, nil)
+
+		var createdEval *models.MatchingEvaluation
+		evalRepo.EXPECT().Create(ctx, gomock.Any()).DoAndReturn(func(_ context.Context, eval *models.MatchingEvaluation) (*models.MatchingEvaluation, error) {
+			createdEval = eval
+			return eval, nil
+		})
+		workflowsRepo.EXPECT().StartLimiterWorkItem(ctx, gomock.Any(), models.LimiterJobTypeMatch, gomock.Any()).Return("wf-id", nil)
+
+		res, err := service.TriggerCompatibilityBulk(ctx, []models.BulkAnalyzeCompatibilityItem{
+			{Slug: slug, Force: true},
+		}, &models.Principal{ID: userID.String()})
+		require.NoError(t, err)
+		require.Len(t, res, 1)
+		assert.Nil(t, res[0].Error)
+		require.NotNil(t, createdEval)
+
+		var candidate map[string]interface{}
+		require.NoError(t, json.Unmarshal(createdEval.CandidateProfileData, &candidate))
+		assert.Equal(t, "BSc in Computer Science, Example University | 2018-2022 | GPA: 3.8", candidate["education"])
+		eduRows, ok := candidate["education_rows"].([]interface{})
+		require.True(t, ok)
+		require.Len(t, eduRows, 1)
+		eduRow, ok := eduRows[0].(map[string]interface{})
+		require.True(t, ok)
+		assert.Equal(t, "Example University", eduRow["institution"])
+		assert.Equal(t, "BSc", eduRow["degree"])
+		assert.Equal(t, "Computer Science", eduRow["field_of_study"])
+		assert.Equal(t, float64(2018), eduRow["start_year"])
+		assert.Equal(t, float64(2022), eduRow["end_year"])
+		assert.Equal(t, "3.8", eduRow["gpa"])
+	})
 }
