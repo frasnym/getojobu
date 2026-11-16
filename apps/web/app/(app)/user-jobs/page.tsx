@@ -41,6 +41,12 @@ export default function UserJobsPage() {
   const [evalId, setEvalId] = useState<string | null>(null);
   const [evaluating, setEvaluating] = useState(false);
 
+  // Reset eval id when a different job is selected so the drawer fetches
+  // that job's own evaluation rather than leaking a previous job's id.
+  useEffect(() => {
+    setEvalId(null);
+  }, [selectedJob?.slug]);
+
   const handleAnalyze = async (force: boolean) => {
     if (!selectedJob) return;
     setEvaluating(true);

@@ -1,4 +1,4 @@
-import { Job, MatchReport, DownloadResumeResponse, ApiPagination } from "./types";
+import { Job, MatchReport, DownloadResumeResponse, ApiPagination, EvaluationSummary } from "./types";
 
 export const MOCK_JOBS: Job[] = [
   {
@@ -83,6 +83,31 @@ Vercel is the platform for frontend developers, providing the speed and reliabil
 - Experience building design systems and shared component libraries.`,
   },
 ];
+
+export const MOCK_EVALUATIONS: Record<string, EvaluationSummary> = {
+  "0b0b0b0b-0000-0000-0000-000000000001": {
+    id: "eval-stripe-001",
+    evaluation_status: "success",
+    overall_score: 88.5,
+    eligibility_status: "eligible",
+    recommendation_label: "strong_match",
+    report_status: "ready",
+    resume_status: "ready",
+    created_at: "2026-11-14T08:30:00Z",
+    updated_at: "2026-11-14T08:35:00Z",
+  },
+  "0b0b0b0b-0000-0000-0000-000000000002": {
+    id: "eval-datadog-001",
+    evaluation_status: "success",
+    overall_score: 76.0,
+    eligibility_status: "eligible",
+    recommendation_label: "good_match",
+    report_status: "ready",
+    resume_status: "pending",
+    created_at: "2026-11-12T12:00:00Z",
+    updated_at: "2026-11-12T12:05:00Z",
+  },
+};
 
 export const MOCK_REPORTS: Record<string, MatchReport> = {
   "eval-stripe-001": {

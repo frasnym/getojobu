@@ -7,6 +7,7 @@ import {
 } from "./types";
 import {
   MOCK_JOBS,
+  MOCK_EVALUATIONS,
   MOCK_REPORTS,
   MOCK_RESUME_DOWNLOADS,
   getMockUserJobs,
@@ -65,6 +66,23 @@ export async function setUserJobHideStatus(
       token,
       body: JSON.stringify({ is_hidden: isHidden }),
     }
+  );
+}
+
+export async function getUserJobEvaluation(
+  userJobId: string,
+  token?: string | null
+): Promise<EvaluationSummary> {
+  if (isMockEnabled()) {
+    const evalRec = MOCK_EVALUATIONS[userJobId];
+    if (!evalRec) {
+      throw new Error(`Evaluation not found for user job: ${userJobId}`);
+    }
+    return Promise.resolve({ ...evalRec });
+  }
+  return apiClient<EvaluationSummary>(
+    `/v1/user-jobs/${userJobId}/evaluation`,
+    { token }
   );
 }
 

@@ -1,12 +1,15 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
+import { useAuth } from "@clerk/nextjs";
 import { Job } from "@/lib/api/types";
 import { ReportTab } from "@/components/jobs/job-report-header";
 import { JobDetailTab } from "@/components/jobs/job-detail-tab";
 import { MatchReportTab } from "@/components/matching/match-report-tab";
 import { ResumeTab } from "@/components/resume/resume-tab";
+import { getUserJobEvaluation } from "@/lib/api/endpoints";
+import { EvaluationSummary } from "@/lib/api/types";
 import {
   X,
   MapPin,
@@ -54,11 +57,19 @@ export function JobDetailDrawer({
   isSaving,
   activeTab,
   onTabChange,
-  evalId,
+  evalId: evalIdProp,
   evaluating = false,
   onAnalyzeClick,
   showOwnedActions = true,
 }: JobDetailDrawerProps) {
+  const { getToken } = useAuth();
+  const [fetchedEvalId, setFetchedEvalId] = useState<string | null>(null);
+  const [fetchingEvaluation, setFetchingEvaluation] = useState(false);
+
+  // Resolve evaluation id: prop (from analyze flow) takes precedence,
+  // otherwise fetch lazily from the user-jobs evaluation endpoint.
+  const resolvedEvalId = evalIdProp ?? fetchedEvalId;
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape" && isOpen) {
@@ -76,6 +87,37 @@ export function JobDetailDrawer({
       document.body.style.overflow = "unset";
     };
   }, [isOpen, onClose]);
+
+  // Fetch the latest evaluation for this user_job when the drawer opens,
+  // unless an evalId was already supplied (e.g. after a fresh analyze).
+  useEffect(() => {
+    if (!isOpen || !job || !job.user_job_id) return;
+    if (evalIdProp) return; // already have one from the analyze flow
+
+    const userJobId = job.user_job_id;
+    let cancelled = false;
+    const load = async () => {
+      setFetchingEvaluation(true);
+      try {
+        const token = await getToken();
+        const evalRec = await getUserJobEvaluation(userJobId, token);
+        if (!cancelled && evalRec.id) {
+          setFetchedEvalId(String(evalRec.id));
+        }
+      } catch (err) {
+        // Evaluation may not exist yet — that's fine, the Analyze button
+        // creates one. Silently ignore so the drawer still opens.
+        console.debug("No existing evaluation for user job", userJobId, err);
+      } finally {
+        if (!cancelled) setFetchingEvaluation(false);
+      }
+    };
+
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, job, job?.user_job_id, evalIdProp, getToken]);
 
   if (!isOpen || !job) {
     return null;
@@ -218,14 +260,14 @@ export function JobDetailDrawer({
               {tab === "details" && <JobDetailTab job={job} />}
               {tab === "report" && (
                 <MatchReportTab
-                  evalId={evalId || undefined}
+                  evalId={resolvedEvalId || undefined}
                   onAnalyzeClick={onAnalyzeClick}
                   evaluating={evaluating}
                 />
               )}
               {tab === "resume" && (
                 <ResumeTab
-                  evalId={evalId || undefined}
+                  evalId={resolvedEvalId || undefined}
                   onAnalyzeClick={onAnalyzeClick}
                   evaluating={evaluating}
                 />
