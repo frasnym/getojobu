@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { describe, it, expect, afterEach, vi } from "vitest";
 import {
   getJobs,
   getJobBySlug,
@@ -7,8 +7,6 @@ import {
 } from "@/lib/api/endpoints";
 
 const originalFetch = global.fetch;
-
-beforeEach(() => {});
 
 afterEach(() => {
   global.fetch = originalFetch;
