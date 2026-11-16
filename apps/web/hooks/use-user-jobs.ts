@@ -69,25 +69,15 @@ export function useUserJobs(explicitToken?: string | null) {
   const [remoteOnly, setRemoteOnly] = useState(false);
   const [hideFilter, setHideFilter] = useState<HideFilter>("all");
 
-  // Capture the initial filter state once (on mount) so we can detect when the
-  // user has changed any filter away from its default. Used to gate the
-  // "Query all" / "Search all" button.
-  const initialFiltersRef = useRef<{
-    searchQuery: string;
-    statusFilter: StatusFilter;
-    remoteOnly: boolean;
-    hideFilter: HideFilter;
-  } | null>(null);
-
-  useEffect(() => {
-    if (initialFiltersRef.current !== null) return;
-    initialFiltersRef.current = {
-      searchQuery,
-      statusFilter,
-      remoteOnly,
-      hideFilter,
-    };
-  }, [searchQuery, statusFilter, remoteOnly, hideFilter]);
+  // Snapshot of the initial filter state (the defaults) captured on first
+  // render. Used to detect when the user has changed any filter away from its
+  // default, which gates the "Query all" / "Search all" button.
+  const initialFiltersRef = useRef({
+    searchQuery,
+    statusFilter,
+    remoteOnly,
+    hideFilter,
+  });
 
   const setPage = useCallback((newPage: number) => {
     setPageState(Math.max(1, newPage));
@@ -165,7 +155,6 @@ export function useUserJobs(explicitToken?: string | null) {
 
   const isFiltersChanged = useMemo(
     () =>
-      initialFiltersRef.current === null ||
       searchQuery !== initialFiltersRef.current.searchQuery ||
       statusFilter !== initialFiltersRef.current.statusFilter ||
       remoteOnly !== initialFiltersRef.current.remoteOnly ||
