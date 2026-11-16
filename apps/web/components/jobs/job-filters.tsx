@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { Search, Globe, ChevronDown, Check, X, Bookmark, Eye, EyeOff } from "lucide-react";
+import { Search, Globe, ChevronDown, Check, X, Bookmark, Eye, EyeOff, RefreshCw } from "lucide-react";
 import {
   StatusFilter,
   OwnedFilter,
@@ -20,6 +20,12 @@ interface JobFiltersProps {
   onOwnedFilterChange?: (owned: OwnedFilter) => void;
   hideFilter?: HideFilter;
   onHideFilterChange?: (filter: HideFilter) => void;
+  /** When true, at least one filter differs from its initial state. */
+  isFiltersChanged?: boolean;
+  /** Query the backend with the current filters (server-side). */
+  onQueryAll?: () => void;
+  /** Whether a backend query is in flight. */
+  loading?: boolean;
 }
 
 interface FilterOption<T extends string> {
@@ -189,6 +195,9 @@ export function JobFilters({
   onOwnedFilterChange,
   hideFilter = "all",
   onHideFilterChange,
+  isFiltersChanged = false,
+  onQueryAll,
+  loading = false,
 }: JobFiltersProps) {
   // Determine status active color
   let statusColorClass = "bg-primary/10 text-primary border-primary/25";
@@ -284,6 +293,32 @@ export function JobFilters({
           onChange={onStatusChange}
           activeColorClass={statusColorClass}
         />
+
+        {/* Query all / Search all — only shown when filters differ from initial state */}
+        {isFiltersChanged && onQueryAll && (
+          <button
+            type="button"
+            onClick={onQueryAll}
+            disabled={loading}
+            className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${
+              loading
+                ? "border-border/40 bg-secondary/50 text-muted-foreground"
+                : "bg-primary text-primary-foreground border-primary hover:bg-primary/90"
+            }`}
+            aria-label={searchQuery ? "Search all jobs on backend" : "Query all jobs on backend"}
+          >
+            {loading ? (
+              <>
+                <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                <span>Searching...</span>
+              </>
+            ) : searchQuery ? (
+              <span>Search all</span>
+            ) : (
+              <span>Query all</span>
+            )}
+          </button>
+        )}
 
         <span className="ml-1 text-xs text-muted-foreground whitespace-nowrap">
           {totalCount} {totalCount === 1 ? "job" : "jobs"}

@@ -16,9 +16,24 @@ export async function getJobs(
 export async function getUserJobs(
   token?: string | null,
   page: number = 1,
-  limit: number = 10
+  limit: number = 10,
+  filters?: { status?: string; remote?: boolean; hide?: string }
 ): Promise<PaginatedResult<Job[]>> {
-  return apiClientWithPagination<Job[]>(`/v1/user-jobs?page=${page}&limit=${limit}`, { token });
+  const params = new URLSearchParams();
+  params.set("page", String(page));
+  params.set("limit", String(limit));
+  if (filters?.status && filters.status !== "all") {
+    params.set("status", filters.status);
+  }
+  if (filters?.remote) {
+    params.set("remote", "true");
+  }
+  if (filters?.hide && filters.hide !== "all") {
+    params.set("hide", filters.hide);
+  }
+  return apiClientWithPagination<Job[]>(`/v1/user-jobs?${params.toString()}`, {
+    token,
+  });
 }
 
 export async function saveUserJob(

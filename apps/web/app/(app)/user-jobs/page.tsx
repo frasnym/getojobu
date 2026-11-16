@@ -31,6 +31,8 @@ export default function UserJobsPage() {
     setHideFilter,
     hideJob,
     refetch,
+    isFiltersChanged,
+    queryAll,
   } = useUserJobs();
 
   const [selectedJob, setSelectedJob] = useState<import("@/lib/api/types").Job | null>(null);
@@ -109,6 +111,9 @@ export default function UserJobsPage() {
         hideFilter={hideFilter}
         onHideFilterChange={setHideFilter}
         totalCount={pagination?.totalItems ?? filteredJobs.length}
+        isFiltersChanged={isFiltersChanged}
+        onQueryAll={queryAll}
+        loading={loading}
       />
 
       {/* Loading state */}
