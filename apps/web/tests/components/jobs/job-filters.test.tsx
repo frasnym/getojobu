@@ -4,7 +4,7 @@ import React from "react";
 import { JobFilters } from "@/components/jobs/job-filters";
 
 describe("JobFilters component", () => {
-  it("renders search input, remote toggle, status dropdown, and count", () => {
+  it("renders search input, Filters button, and count", () => {
     render(
       <JobFilters
         searchQuery=""
@@ -18,8 +18,7 @@ describe("JobFilters component", () => {
     );
 
     expect(screen.getByPlaceholderText(/Filter by role/i)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Remote Only/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Status: All/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Filters/i })).toBeInTheDocument();
     expect(screen.getByText("42 jobs")).toBeInTheDocument();
   });
 
@@ -40,7 +39,7 @@ describe("JobFilters component", () => {
     expect(onSearchChange).toHaveBeenCalledWith("developer");
   });
 
-  it("opens status dropdown and selects an option", () => {
+  it("opens the filters drawer and selects a status option", () => {
     const onStatusChange = vi.fn();
     render(
       <JobFilters
@@ -52,10 +51,14 @@ describe("JobFilters component", () => {
       />
     );
 
+    // Open drawer
+    fireEvent.click(screen.getByRole("button", { name: /Filters/i }));
+    expect(screen.getByRole("dialog", { name: /Filters/i })).toBeInTheDocument();
+
+    // Status dropdown lives inside the drawer
     const trigger = screen.getByRole("button", { name: /Status: All/i });
     fireEvent.click(trigger);
 
-    // Listbox should be visible
     expect(screen.getByRole("listbox", { name: /Status/i })).toBeInTheDocument();
     expect(screen.getByRole("option", { name: /Analyzed/i })).toBeInTheDocument();
     expect(screen.getByRole("option", { name: /Pending/i })).toBeInTheDocument();
@@ -65,27 +68,59 @@ describe("JobFilters component", () => {
     expect(onStatusChange).toHaveBeenCalledWith("analyzed");
   });
 
-  it("renders active status state with clear button and clears on click", () => {
+  it("renders active filter chips and clears them individually", () => {
     const onStatusChange = vi.fn();
+    const onEvaluationStatusChange = vi.fn();
     render(
       <JobFilters
         searchQuery=""
         onSearchChange={vi.fn()}
         statusFilter="analyzed"
         onStatusChange={onStatusChange}
+        evaluationStatusFilter="success"
+        onEvaluationStatusChange={onEvaluationStatusChange}
         totalCount={5}
       />
     );
 
-    expect(screen.getByText("Analyzed")).toBeInTheDocument();
-    const clearBtn = screen.getByRole("button", { name: /Clear Job Status filter/i });
-    expect(clearBtn).toBeInTheDocument();
+    expect(screen.getByText("Status: analyzed")).toBeInTheDocument();
+    expect(screen.getByText("Evaluation: success")).toBeInTheDocument();
 
-    fireEvent.click(clearBtn);
+    // Clear the status chip
+    fireEvent.click(
+      screen.getByRole("button", { name: /Remove Status: analyzed filter/i })
+    );
     expect(onStatusChange).toHaveBeenCalledWith("all");
   });
 
-  it("renders and toggles ownership dropdown when onOwnedFilterChange is provided", () => {
+  it("toggles remote inside the drawer", () => {
+    const onRemoteChange = vi.fn();
+    render(
+      <JobFilters
+        searchQuery=""
+        onSearchChange={vi.fn()}
+        statusFilter="all"
+        onStatusChange={vi.fn()}
+        totalCount={12}
+        remoteOnly={false}
+        onRemoteChange={onRemoteChange}
+      />
+    );
+
+    // Remote toggle is not inline anymore
+    expect(
+      screen.queryByRole("button", { name: /Remote Only/i })
+    ).not.toBeInTheDocument();
+
+    // Open drawer and toggle remote
+    fireEvent.click(screen.getByRole("button", { name: /Filters/i }));
+    const remoteBtn = screen.getByRole("button", { name: /Remote Only/i });
+    expect(remoteBtn).toBeInTheDocument();
+    fireEvent.click(remoteBtn);
+    expect(onRemoteChange).toHaveBeenCalledWith(true);
+  });
+
+  it("selects an ownership option in the drawer", () => {
     const onOwnedChange = vi.fn();
     render(
       <JobFilters
@@ -99,6 +134,7 @@ describe("JobFilters component", () => {
       />
     );
 
+    fireEvent.click(screen.getByRole("button", { name: /Filters/i }));
     const savedTrigger = screen.getByRole("button", { name: /Saved: All/i });
     fireEvent.click(savedTrigger);
 
@@ -110,24 +146,47 @@ describe("JobFilters component", () => {
     expect(onOwnedChange).toHaveBeenCalledWith("owned");
   });
 
-  it("clears ownership filter via clear button", () => {
-    const onOwnedChange = vi.fn();
+  it("clears all filters from the drawer footer", () => {
+    const onStatusChange = vi.fn();
+    const onEvaluationStatusChange = vi.fn();
+    const onRemoteChange = vi.fn();
+    render(
+      <JobFilters
+        searchQuery=""
+        onSearchChange={vi.fn()}
+        statusFilter="analyzed"
+        onStatusChange={onStatusChange}
+        evaluationStatusFilter="success"
+        onEvaluationStatusChange={onEvaluationStatusChange}
+        remoteOnly
+        onRemoteChange={onRemoteChange}
+        totalCount={3}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Filters/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Clear all/i }));
+
+    expect(onStatusChange).toHaveBeenCalledWith("all");
+    expect(onEvaluationStatusChange).toHaveBeenCalledWith("all");
+    expect(onRemoteChange).toHaveBeenCalledWith(false);
+  });
+
+  it("closes the drawer with the Done button", () => {
     render(
       <JobFilters
         searchQuery=""
         onSearchChange={vi.fn()}
         statusFilter="all"
         onStatusChange={vi.fn()}
-        totalCount={12}
-        ownedFilter="owned"
-        onOwnedFilterChange={onOwnedChange}
+        totalCount={10}
       />
     );
 
-    const clearBtn = screen.getByRole("button", { name: /Clear Saved filter/i });
-    expect(clearBtn).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Filters/i }));
+    expect(screen.getByRole("dialog", { name: /Filters/i })).toBeInTheDocument();
 
-    fireEvent.click(clearBtn);
-    expect(onOwnedChange).toHaveBeenCalledWith("all");
+    fireEvent.click(screen.getByRole("button", { name: /Done/i }));
+    expect(screen.queryByRole("dialog", { name: /Filters/i })).not.toBeInTheDocument();
   });
 });

@@ -1,7 +1,7 @@
 import React from "react";
 import Link from "next/link";
 import { UserJob } from "@/lib/api/types";
-import { MapPin, Globe, Clock, ArrowRight, Eye, EyeOff } from "lucide-react";
+import { MapPin, Globe, Clock, ArrowRight, Eye, EyeOff, Download } from "lucide-react";
 import { statusBadgeClasses } from "@/hooks/use-jobs";
 import {
   EvaluationStatusTag,
@@ -15,6 +15,8 @@ interface JobCardProps {
   onSelect?: (userJob: UserJob) => void;
   isSelected?: boolean;
   onHideToggle?: (userJobId: string, isHidden: boolean) => void | Promise<void>;
+  /** Open the drawer on the Resume tab for this job. */
+  onResume?: (userJob: UserJob) => void;
   /** When true, renders a checkbox for bulk selection. */
   selectable?: boolean;
   /** Whether this card's checkbox is checked. */
@@ -29,6 +31,7 @@ export function JobCard({
   onSelect,
   isSelected,
   onHideToggle,
+  onResume,
   selectable = false,
   isChecked = false,
   onCheckChange,
@@ -41,7 +44,7 @@ export function JobCard({
   return (
     <div
       onClick={isClickable ? () => onSelect(userJob) : undefined}
-      className={`group relative rounded-xl border p-5 transition-all duration-300 ${
+      className={`group relative rounded-xl border p-6 transition-all duration-300 ${
         isSelected
           ? "border-primary bg-primary/5 shadow-md shadow-primary/5 ring-1 ring-primary/30"
           : isHidden
@@ -51,8 +54,8 @@ export function JobCard({
               : "border-border/60 bg-card hover:border-border hover:shadow-md hover:shadow-primary/5"
       } ${isClickable ? "cursor-pointer" : ""}`}
     >
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="space-y-1.5 flex-1">
+      <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+        <div className="space-y-2 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               {job.company}
@@ -85,7 +88,7 @@ export function JobCard({
             )}
           </h3>
 
-          <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground pt-1">
+          <div className="flex flex-wrap items-center gap-5 text-xs text-muted-foreground pt-1.5">
             <span className="flex items-center gap-1">
               <MapPin className="h-3.5 w-3.5" />
               {job.location}
@@ -102,7 +105,7 @@ export function JobCard({
           </div>
 
           {userJob.evaluation && (
-            <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-border/40">
+            <div className="flex flex-wrap items-center gap-2.5 pt-3 border-t border-border/40">
               {job.status && (
                 <EvaluationStatusTag status={job.status} label="Analyzed" />
               )}
@@ -145,6 +148,20 @@ export function JobCard({
               <span>Details</span>
               <ArrowRight className="h-3.5 w-3.5" />
             </div>
+            {onResume && userJob.evaluation?.resume_status === "success" && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onResume(userJob);
+                }}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-border/60 bg-card px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-secondary transition-colors focus:outline-none focus:ring-2 focus:ring-ring"
+                aria-label="Download tailored resume"
+              >
+                <Download className="h-3.5 w-3.5" />
+                <span>Resume</span>
+              </button>
+            )}
           </div>
           {selectable && (
             <label

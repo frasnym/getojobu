@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { Search, Globe, ChevronDown, Check, X, Bookmark, Eye, EyeOff, RefreshCw, CheckCircle2, FileText, AlertTriangle, Sparkles } from "lucide-react";
+import { Search, Globe, ChevronDown, Check, X, Bookmark, Eye, EyeOff, RefreshCw, CheckCircle2, FileText, AlertTriangle, Sparkles, SlidersHorizontal, Briefcase } from "lucide-react";
 import {
   StatusFilter,
   OwnedFilter,
@@ -100,9 +100,9 @@ function FilterDropdown<T extends string>({
   }, [open]);
 
   return (
-    <div ref={containerRef} className="relative inline-block text-left">
+    <div ref={containerRef} className="relative w-full text-left">
       <div
-        className={`inline-flex items-center rounded-lg border text-xs font-semibold transition-colors ${
+        className={`inline-flex w-full items-center rounded-lg border text-xs font-semibold transition-colors ${
           isFiltered
             ? activeColorClass
             : "border-border/60 bg-secondary/60 text-muted-foreground hover:bg-secondary hover:text-foreground"
@@ -113,12 +113,12 @@ function FilterDropdown<T extends string>({
           onClick={() => setOpen((prev) => !prev)}
           aria-expanded={open}
           aria-haspopup="listbox"
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 focus:outline-none"
+          className="inline-flex w-full items-center justify-between gap-1.5 px-3 py-1.5 focus:outline-none"
         >
-          {icon}
-          <span>{displayLabel}</span>
+          {icon ?? <span className="h-3 w-3 shrink-0" aria-hidden="true" />}
+          <span className="whitespace-nowrap">{displayLabel}</span>
           <ChevronDown
-            className={`h-3 w-3 text-muted-foreground transition-transform duration-150 ${
+            className={`h-3 w-3 shrink-0 text-muted-foreground transition-transform duration-150 ${
               open ? "rotate-180" : ""
             }`}
           />
@@ -132,7 +132,7 @@ function FilterDropdown<T extends string>({
               onChange(allValue);
               setOpen(false);
             }}
-            className="mr-1.5 rounded-sm p-0.5 hover:bg-foreground/10 transition-colors"
+            className="mr-1.5 shrink-0 rounded-sm p-0.5 hover:bg-foreground/10 transition-colors"
             aria-label={`Clear ${prefix} filter`}
             title={`Clear ${prefix} filter`}
           >
@@ -145,7 +145,7 @@ function FilterDropdown<T extends string>({
         <div
           role="listbox"
           aria-label={prefix}
-          className="absolute left-0 top-full mt-1.5 z-50 min-w-[8.5rem] overflow-hidden rounded-lg border border-border bg-card p-1 shadow-lg ring-1 ring-black/5 dark:ring-white/10 animate-in fade-in-50 zoom-in-95 duration-100"
+          className="absolute left-0 top-full mt-1.5 z-50 w-full min-w-[11rem] overflow-hidden rounded-lg border border-border bg-card p-1 shadow-lg ring-1 ring-black/5 dark:ring-white/10 animate-in fade-in-50 zoom-in-95 duration-100"
         >
           {options.map((opt) => {
             const isSelected = value === opt.value;
@@ -159,7 +159,7 @@ function FilterDropdown<T extends string>({
                   onChange(opt.value);
                   setOpen(false);
                 }}
-                className={`flex w-full items-center justify-between gap-2 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                className={`flex w-full items-center justify-between gap-2 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors whitespace-nowrap ${
                   isSelected
                     ? "bg-primary/10 text-primary font-semibold"
                     : "text-foreground/80 hover:bg-secondary hover:text-foreground"
@@ -263,6 +263,106 @@ export function JobFilters({
       "bg-destructive/15 text-destructive border-destructive/30";
   }
 
+  // Filters drawer state
+  const [filtersDrawerOpen, setFiltersDrawerOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Close drawer on Escape or click outside
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && filtersDrawerOpen) {
+        setFiltersDrawerOpen(false);
+      }
+    };
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        filtersDrawerOpen &&
+        containerRef.current &&
+        !containerRef.current.contains(e.target as Node)
+      ) {
+        setFiltersDrawerOpen(false);
+      }
+    };
+    if (filtersDrawerOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      window.addEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = "hidden";
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      window.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = "unset";
+    };
+  }, [filtersDrawerOpen]);
+
+  // Build list of active filters for chips
+  const activeChips: { label: string; value: string; onRemove: () => void }[] = [];
+  if (searchQuery) {
+    activeChips.push({
+      label: `Search: "${searchQuery}"`,
+      value: "search",
+      onRemove: () => onSearchChange(""),
+    });
+  }
+  if (statusFilter !== "all") {
+    activeChips.push({
+      label: `Status: ${statusFilter}`,
+      value: "status",
+      onRemove: () => onStatusChange("all"),
+    });
+  }
+  if (remoteOnly) {
+    activeChips.push({
+      label: "Remote Only",
+      value: "remote",
+      onRemove: () => onRemoteChange?.(false),
+    });
+  }
+  if (ownedFilter !== "all") {
+    activeChips.push({
+      label: `Saved: ${ownedFilter}`,
+      value: "owned",
+      onRemove: () => onOwnedFilterChange?.("all"),
+    });
+  }
+  if (hideFilter !== "all") {
+    activeChips.push({
+      label: `Visibility: ${hideFilter}`,
+      value: "hide",
+      onRemove: () => onHideFilterChange?.("all"),
+    });
+  }
+  if (evaluationStatusFilter !== "all") {
+    activeChips.push({
+      label: `Evaluation: ${evaluationStatusFilter}`,
+      value: "evaluation_status",
+      onRemove: () => onEvaluationStatusChange?.("all"),
+    });
+  }
+  if (reportStatusFilter !== "all") {
+    activeChips.push({
+      label: `Report: ${reportStatusFilter}`,
+      value: "report_status",
+      onRemove: () => onReportStatusChange?.("all"),
+    });
+  }
+  if (eligibilityStatusFilter !== "all") {
+    activeChips.push({
+      label: `Eligibility: ${eligibilityStatusFilter}`,
+      value: "eligibility_status",
+      onRemove: () => onEligibilityStatusChange?.("all"),
+    });
+  }
+  if (recommendationLabelFilter !== "all") {
+    activeChips.push({
+      label: `Recommendation: ${recommendationLabelFilter}`,
+      value: "recommendation_label",
+      onRemove: () => onRecommendationLabelChange?.("all"),
+    });
+  }
+
+  const hasActiveFilters = activeChips.length > 0;
+
   return (
     <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between py-2">
       {/* Search Input */}
@@ -277,153 +377,44 @@ export function JobFilters({
         />
       </div>
 
-      {/* Filter Options (Remote Toggle + Dropdowns) */}
+      {/* Filter Options: Filters button + active chips + drawer */}
       <div className="flex flex-wrap items-center gap-2 pb-1 sm:pb-0">
-        {onRemoteChange !== undefined && (
-          <button
-            type="button"
-            aria-pressed={remoteOnly}
-            onClick={() => onRemoteChange(!remoteOnly)}
-            className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all ${
-              remoteOnly
-                ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 shadow-xs"
-                : "border-border/60 bg-secondary/60 text-muted-foreground hover:bg-secondary hover:text-foreground"
-            }`}
+        <button
+          type="button"
+          onClick={() => setFiltersDrawerOpen(true)}
+          className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all ${
+            hasActiveFilters
+              ? "bg-primary/10 text-primary border-primary/25"
+              : "border-border/60 bg-secondary/60 text-muted-foreground hover:bg-secondary hover:text-foreground"
+          }`}
+          aria-label="Open filters"
+        >
+          <SlidersHorizontal className="h-3.5 w-3.5" />
+          <span>Filters</span>
+          {hasActiveFilters && (
+            <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
+              {activeChips.length}
+            </span>
+          )}
+        </button>
+
+        {/* Active filter chips */}
+        {activeChips.map((chip) => (
+          <span
+            key={chip.value}
+            className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-card px-2.5 py-1 text-[11px] font-medium text-foreground"
           >
-            <Globe
-              className={`h-3.5 w-3.5 ${
-                remoteOnly ? "text-emerald-500" : ""
-              }`}
-            />
-            <span>Remote Only</span>
-          </button>
-        )}
-
-        {/* Ownership / Saved Dropdown */}
-        {onOwnedFilterChange !== undefined && (
-          <FilterDropdown
-            prefix="Saved"
-            value={ownedFilter}
-            options={OWNED_OPTIONS}
-            onChange={onOwnedFilterChange}
-            activeColorClass="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
-            icon={
-              <Bookmark
-                className={`h-3 w-3 ${
-                  ownedFilter !== "all"
-                    ? "text-emerald-500 fill-emerald-500/20"
-                    : "text-muted-foreground"
-                }`}
-              />
-            }
-          />
-        )}
-
-        {/* Hide/Show Dropdown */}
-        {onHideFilterChange !== undefined && (
-          <FilterDropdown
-            prefix="Visibility"
-            value={hideFilter}
-            options={HIDE_OPTIONS}
-            onChange={onHideFilterChange}
-            icon={
-              hideFilter === "hidden" ? (
-                <EyeOff className="h-3 w-3 text-muted-foreground" />
-              ) : (
-                <Eye className="h-3 w-3 text-muted-foreground" />
-              )
-            }
-          />
-        )}
-
-        {/* Status Dropdown */}
-        <FilterDropdown
-          prefix="Job Status"
-          value={statusFilter}
-          options={STATUS_OPTIONS}
-          onChange={onStatusChange}
-          activeColorClass={statusColorClass}
-        />
-
-        {/* Evaluation Status Dropdown */}
-        {onEvaluationStatusChange !== undefined && (
-          <FilterDropdown
-            prefix="Evaluation"
-            value={evaluationStatusFilter}
-            options={EVALUATION_STATUS_OPTIONS}
-            onChange={onEvaluationStatusChange}
-            activeColorClass="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
-            icon={
-              <CheckCircle2
-                className={`h-3 w-3 ${
-                  evaluationStatusFilter !== "all"
-                    ? "text-emerald-500 fill-emerald-500/20"
-                    : "text-muted-foreground"
-                }`}
-              />
-            }
-          />
-        )}
-
-        {/* Report Status Dropdown */}
-        {onReportStatusChange !== undefined && (
-          <FilterDropdown
-            prefix="Report"
-            value={reportStatusFilter}
-            options={REPORT_STATUS_OPTIONS}
-            onChange={onReportStatusChange}
-            activeColorClass="bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30"
-            icon={
-              <FileText
-                className={`h-3 w-3 ${
-                  reportStatusFilter !== "all"
-                    ? "text-blue-500 fill-blue-500/20"
-                    : "text-muted-foreground"
-                }`}
-              />
-            }
-          />
-        )}
-
-        {/* Eligibility Status Dropdown */}
-        {onEligibilityStatusChange !== undefined && (
-          <FilterDropdown
-            prefix="Eligibility"
-            value={eligibilityStatusFilter}
-            options={ELIGIBILITY_STATUS_OPTIONS}
-            onChange={onEligibilityStatusChange}
-            activeColorClass="bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30"
-            icon={
-              <AlertTriangle
-                className={`h-3 w-3 ${
-                  eligibilityStatusFilter !== "all"
-                    ? "text-amber-500 fill-amber-500/20"
-                    : "text-muted-foreground"
-                }`}
-              />
-            }
-          />
-        )}
-
-        {/* Recommendation Label Dropdown */}
-        {onRecommendationLabelChange !== undefined && (
-          <FilterDropdown
-            prefix="Recommendation"
-            value={recommendationLabelFilter}
-            options={RECOMMENDATION_LABEL_OPTIONS}
-            onChange={onRecommendationLabelChange}
-            activeColorClass="bg-destructive/15 text-destructive border-destructive/30"
-            icon={
-              <Sparkles
-                className={`h-3 w-3 ${
-                  recommendationLabelFilter !== "all"
-                    ? "text-destructive fill-destructive/20"
-                    : "text-muted-foreground"
-                }`}
-              />
-            }
-          />
-        )}
+            {chip.label}
+            <button
+              type="button"
+              onClick={chip.onRemove}
+              className="rounded-full p-0.5 hover:bg-secondary transition-colors"
+              aria-label={`Remove ${chip.label} filter`}
+            >
+              <X className="h-3 w-3 text-muted-foreground" />
+            </button>
+          </span>
+        ))}
 
         {/* Query all / Search all — only shown when filters differ from initial state and no drawer is open */}
         {isFiltersChanged && onQueryAll && !isDrawerOpen && (
@@ -455,6 +446,232 @@ export function JobFilters({
           {totalCount} {totalCount === 1 ? "job" : "jobs"}
         </span>
       </div>
+
+      {/* Filters Drawer */}
+      {filtersDrawerOpen && (
+        <div className="fixed inset-0 z-50">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            onClick={() => setFiltersDrawerOpen(false)}
+          />
+          {/* Panel */}
+          <div
+            ref={containerRef}
+            className="absolute right-0 top-0 flex h-full w-full max-w-lg flex-col bg-card shadow-2xl border-l border-border/60 animate-in slide-in-from-right duration-200"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Filters"
+          >
+            {/* Drawer Header */}
+            <div className="flex items-center justify-between border-b border-border/40 px-5 py-4">
+              <h3 className="text-base font-bold text-foreground">Filters</h3>
+              <button
+                type="button"
+                onClick={() => setFiltersDrawerOpen(false)}
+                className="rounded-lg p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+                aria-label="Close filters"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* Drawer Content */}
+            <div className="flex-1 overflow-y-auto px-5 py-4 space-y-6">
+              {/* Job group */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  Job
+                </h4>
+                <div className="grid grid-cols-2 gap-3">
+                  <FilterDropdown
+                    prefix="Job Status"
+                    value={statusFilter}
+                    options={STATUS_OPTIONS}
+                    onChange={onStatusChange}
+                    activeColorClass={statusColorClass}
+                    icon={
+                      <Briefcase
+                        className={`h-3 w-3 ${
+                          statusFilter !== "all"
+                            ? "text-primary"
+                            : "text-muted-foreground"
+                        }`}
+                      />
+                    }
+                  />
+                  {onRemoteChange !== undefined && (
+                    <button
+                      type="button"
+                      aria-pressed={remoteOnly}
+                      onClick={() => onRemoteChange(!remoteOnly)}
+                      className={`inline-flex w-full items-center justify-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all ${
+                        remoteOnly
+                          ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 shadow-xs"
+                          : "border-border/60 bg-secondary/60 text-muted-foreground hover:bg-secondary hover:text-foreground"
+                      }`}
+                    >
+                      <Globe
+                        className={`h-3.5 w-3.5 ${
+                          remoteOnly ? "text-emerald-500" : ""
+                        }`}
+                      />
+                      <span>Remote Only</span>
+                    </button>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  {onOwnedFilterChange !== undefined && (
+                    <FilterDropdown
+                      prefix="Saved"
+                      value={ownedFilter}
+                      options={OWNED_OPTIONS}
+                      onChange={onOwnedFilterChange}
+                      activeColorClass="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
+                      icon={
+                        <Bookmark
+                          className={`h-3 w-3 ${
+                            ownedFilter !== "all"
+                              ? "text-emerald-500 fill-emerald-500/20"
+                              : "text-muted-foreground"
+                          }`}
+                        />
+                      }
+                    />
+                  )}
+                  {onHideFilterChange !== undefined && (
+                    <FilterDropdown
+                      prefix="Visibility"
+                      value={hideFilter}
+                      options={HIDE_OPTIONS}
+                      onChange={onHideFilterChange}
+                      icon={
+                        hideFilter === "hidden" ? (
+                          <EyeOff className="h-3 w-3 text-muted-foreground" />
+                        ) : (
+                          <Eye className="h-3 w-3 text-muted-foreground" />
+                        )
+                      }
+                    />
+                  )}
+                </div>
+              </div>
+
+              {/* Evaluation group */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  Evaluation
+                </h4>
+                <div className="grid grid-cols-2 gap-3">
+                  {onEvaluationStatusChange !== undefined && (
+                    <FilterDropdown
+                      prefix="Evaluation"
+                      value={evaluationStatusFilter}
+                      options={EVALUATION_STATUS_OPTIONS}
+                      onChange={onEvaluationStatusChange}
+                      activeColorClass="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
+                      icon={
+                        <CheckCircle2
+                          className={`h-3 w-3 ${
+                            evaluationStatusFilter !== "all"
+                              ? "text-emerald-500 fill-emerald-500/20"
+                              : "text-muted-foreground"
+                          }`}
+                        />
+                      }
+                    />
+                  )}
+                  {onReportStatusChange !== undefined && (
+                    <FilterDropdown
+                      prefix="Report"
+                      value={reportStatusFilter}
+                      options={REPORT_STATUS_OPTIONS}
+                      onChange={onReportStatusChange}
+                      activeColorClass="bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30"
+                      icon={
+                        <FileText
+                          className={`h-3 w-3 ${
+                            reportStatusFilter !== "all"
+                              ? "text-blue-500 fill-blue-500/20"
+                              : "text-muted-foreground"
+                          }`}
+                        />
+                      }
+                    />
+                  )}
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  {onEligibilityStatusChange !== undefined && (
+                    <FilterDropdown
+                      prefix="Eligibility"
+                      value={eligibilityStatusFilter}
+                      options={ELIGIBILITY_STATUS_OPTIONS}
+                      onChange={onEligibilityStatusChange}
+                      activeColorClass="bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30"
+                      icon={
+                        <AlertTriangle
+                          className={`h-3 w-3 ${
+                            eligibilityStatusFilter !== "all"
+                              ? "text-amber-500 fill-amber-500/20"
+                              : "text-muted-foreground"
+                          }`}
+                        />
+                      }
+                    />
+                  )}
+                  {onRecommendationLabelChange !== undefined && (
+                    <FilterDropdown
+                      prefix="Recommendation"
+                      value={recommendationLabelFilter}
+                      options={RECOMMENDATION_LABEL_OPTIONS}
+                      onChange={onRecommendationLabelChange}
+                      activeColorClass="bg-destructive/15 text-destructive border-destructive/30"
+                      icon={
+                        <Sparkles
+                          className={`h-3 w-3 ${
+                            recommendationLabelFilter !== "all"
+                              ? "text-destructive fill-destructive/20"
+                              : "text-muted-foreground"
+                          }`}
+                        />
+                      }
+                    />
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Drawer Footer */}
+            <div className="flex items-center justify-between gap-2 border-t border-border/40 px-5 py-4">
+              <button
+                type="button"
+                onClick={() => {
+                  onStatusChange("all");
+                  onRemoteChange?.(false);
+                  onOwnedFilterChange?.("all");
+                  onHideFilterChange?.("all");
+                  onEvaluationStatusChange?.("all");
+                  onReportStatusChange?.("all");
+                  onEligibilityStatusChange?.("all");
+                  onRecommendationLabelChange?.("all");
+                }}
+                disabled={!hasActiveFilters}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-border/60 px-3 py-2 text-xs font-semibold text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors disabled:opacity-50 disabled:pointer-events-none"
+              >
+                <X className="h-3.5 w-3.5" />
+                Clear all
+              </button>
+              <button
+                type="button"
+                onClick={() => setFiltersDrawerOpen(false)}
+                className="inline-flex items-center rounded-lg bg-primary px-4 py-2 text-xs font-bold text-primary-foreground shadow-sm hover:bg-primary/90 transition-colors"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

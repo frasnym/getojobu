@@ -114,8 +114,13 @@ export default function UserJobsPage() {
 		setActiveTab("details");
 	};
 
+	const handleResume = (userJob: UserJob) => {
+		setSelectedRow(userJob);
+		setActiveTab("resume");
+	};
+
 	return (
-		<div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 space-y-6">
+		<div className="mx-auto max-w-screen-2xl px-4 py-8 sm:px-6 lg:px-10 space-y-8">
 			{/* Header section */}
 			<div className="flex flex-col gap-1 border-b border-border/40 pb-5 sm:flex-row sm:items-center sm:justify-between">
 				<div>
@@ -208,7 +213,7 @@ export default function UserJobsPage() {
 			{loading && (
 				<div className="grid gap-4 sm:grid-cols-1">
 					{[1, 2, 3].map((i) => (
-						<div key={i} className="h-28 rounded-xl border border-border/40 bg-card/50 p-5 animate-pulse" />
+						<div key={i} className="h-28 rounded-xl border border-border/40 bg-card/50 p-6 animate-pulse" />
 					))}
 				</div>
 			)}
@@ -248,7 +253,7 @@ export default function UserJobsPage() {
 
 			{/* Job cards list */}
 			{!loading && !error && filteredJobs.length > 0 && (
-				<div className="space-y-3 sm:grid-cols-1">
+				<div className="space-y-4 sm:grid-cols-1">
 					{filteredJobs.map((userJob) => (
 						<JobCard
 							key={userJob.id}
@@ -256,6 +261,7 @@ export default function UserJobsPage() {
 							onSelect={setSelectedRow}
 							isSelected={selectedRow?.id === userJob.id}
 							onHideToggle={hideJob}
+							onResume={handleResume}
 							selectable
 							isChecked={checkedIds.has(userJob.id)}
 							onCheckChange={(checked) => toggleCheck(userJob.id, checked)}
