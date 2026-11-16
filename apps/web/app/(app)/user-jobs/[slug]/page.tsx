@@ -22,8 +22,7 @@ export default function UserJobDetailPage({ params }: UserJobDetailPageProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const { job, loading, error, prevSlug, nextSlug, evaluating, runEvaluation } =
-    useJobDetail(slug);
+  const { job, loading, error, prevSlug, nextSlug } = useJobDetail(slug);
 
   const tabParam = searchParams.get("tab") as ReportTab | null;
   const openDrawer = searchParams.get("openDrawer") === "1";
@@ -37,13 +36,6 @@ export default function UserJobDetailPage({ params }: UserJobDetailPageProps) {
       setActiveTab(tabParam);
     }
   }, [tabParam]);
-
-  const handleAnalyze = async (force: boolean) => {
-    const summary = await runEvaluation(force);
-    if (summary?.id) {
-      setEvalId(String(summary.id));
-    }
-  };
 
   const handleTabChange = (tab: ReportTab) => {
     setActiveTab(tab);
@@ -118,8 +110,6 @@ export default function UserJobDetailPage({ params }: UserJobDetailPageProps) {
           activeTab={activeTab}
           onTabChange={handleTabChange}
           evalId={evalId || undefined}
-          evaluating={evaluating}
-          onAnalyzeClick={() => handleAnalyze(false)}
         />
       </div>
     );
@@ -133,8 +123,6 @@ export default function UserJobDetailPage({ params }: UserJobDetailPageProps) {
         onTabChange={handleTabChange}
         prevSlug={prevSlug}
         nextSlug={nextSlug}
-        onAnalyzeClick={() => runEvaluation(true)}
-        evaluating={evaluating}
         basePath="/user-jobs"
       />
 
@@ -147,8 +135,6 @@ export default function UserJobDetailPage({ params }: UserJobDetailPageProps) {
           <MatchReportTab
             report={fetchedEvaluation || undefined}
             evalId={evalId || undefined}
-            onAnalyzeClick={() => handleAnalyze(false)}
-            evaluating={evaluating}
           />
         )}
 
@@ -159,8 +145,6 @@ export default function UserJobDetailPage({ params }: UserJobDetailPageProps) {
             resumeStatus={fetchedEvaluation?.resume_status ?? undefined}
             cvImprovements={fetchedEvaluation?.report_data?.cv_improvements ?? []}
             token={null}
-            onAnalyzeClick={() => handleAnalyze(false)}
-            evaluating={evaluating}
           />
         )}
       </main>

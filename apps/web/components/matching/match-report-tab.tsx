@@ -3,22 +3,18 @@ import { MatchReport } from "@/lib/api/types";
 import { MatchScoreGauge } from "./match-score-gauge";
 import { StrengthsGaps } from "./strengths-gaps";
 import { CategoryAccordion } from "./category-accordion";
-import { CheckCircle2, XCircle, Sparkles, AlertCircle, RefreshCw } from "lucide-react";
+import { CheckCircle2, XCircle, Sparkles, AlertCircle } from "lucide-react";
 
 interface MatchReportTabProps {
   evalId?: string;
   report?: MatchReport | null;
   loading?: boolean;
-  onAnalyzeClick?: () => void;
-  evaluating?: boolean;
 }
 
 export function MatchReportTab({
   evalId,
   report: initialReport,
   loading: initialLoading = false,
-  onAnalyzeClick,
-  evaluating = false,
 }: MatchReportTabProps) {
   const [report, setReport] = useState<MatchReport | null>(initialReport || null);
 
@@ -49,19 +45,6 @@ export function MatchReportTab({
         <p className="mt-2 text-sm text-muted-foreground max-w-md mx-auto">
           This job has not been evaluated against your career profile yet. Run a match analysis to generate scores, strengths, gaps, and tailored evidence.
         </p>
-        {onAnalyzeClick && (
-          <div className="mt-6">
-            <button
-              type="button"
-              onClick={onAnalyzeClick}
-              disabled={evaluating}
-              className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-xs font-bold text-primary-foreground shadow hover:bg-primary/90 transition-colors disabled:opacity-50"
-            >
-              <RefreshCw className={`h-3.5 w-3.5 ${evaluating ? "animate-spin" : ""}`} />
-              <span>Analyze Compatibility Now</span>
-            </button>
-          </div>
-        )}
       </div>
     );
   }

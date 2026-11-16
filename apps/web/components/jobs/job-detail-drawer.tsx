@@ -22,7 +22,6 @@ import {
   ExternalLink,
   Loader2,
   Sparkles,
-  RefreshCw,
 } from "lucide-react";
 import { statusBadgeClasses } from "@/hooks/use-jobs";
 
@@ -36,10 +35,6 @@ interface JobDetailDrawerProps {
   activeTab?: ReportTab;
   onTabChange?: (tab: ReportTab) => void;
   evalId?: string | null;
-  evaluating?: boolean;
-  onAnalyzeClick?: () => void;
-  // When false, hide the "Saved in My Jobs" + "Open Evaluation Workspace" strip
-  // so only "Apply Externally" remains (used for user-jobs detail context).
   showOwnedActions?: boolean;
 }
 
@@ -58,8 +53,6 @@ export function JobDetailDrawer({
   activeTab,
   onTabChange,
   evalId: evalIdProp,
-  evaluating = false,
-  onAnalyzeClick,
   showOwnedActions = true,
 }: JobDetailDrawerProps) {
   const { getToken } = useAuth();
@@ -169,26 +162,9 @@ export function JobDetailDrawer({
             </button>
           </div>
 
-          {/* Workspace controls: Analyze + segmented tabs */}
+          {/* Workspace controls: segmented tabs */}
           {workspaceMode && (
             <div className="pt-2">
-              <div className="flex items-center justify-between gap-3 mb-3">
-                <div className="flex items-center gap-3">
-                  {onAnalyzeClick && (
-                    <button
-                      type="button"
-                      onClick={onAnalyzeClick}
-                      disabled={evaluating}
-                      className="inline-flex items-center gap-2 rounded-lg bg-primary px-3.5 py-2 text-xs font-semibold text-primary-foreground shadow transition-colors hover:bg-primary/90 disabled:opacity-50"
-                    >
-                      <RefreshCw
-                        className={`h-3.5 w-3.5 ${evaluating ? "animate-spin" : ""}`}
-                      />
-                      <span>Analyze Compatibility</span>
-                    </button>
-                  )}
-                </div>
-              </div>
               <div
                 role="tablist"
                 className="flex gap-2 border-b border-border/40 overflow-x-auto"
@@ -268,8 +244,6 @@ export function JobDetailDrawer({
                   report={resolvedReport}
                   evalId={resolvedEvalId || undefined}
                   loading={fetchingEvaluation}
-                  onAnalyzeClick={onAnalyzeClick}
-                  evaluating={evaluating}
                 />
               )}
               {tab === "resume" && (
@@ -277,8 +251,6 @@ export function JobDetailDrawer({
                   evalId={resolvedEvalId || undefined}
                   resumeStatus={fetchedEvaluation?.resume_status ?? undefined}
                   cvImprovements={fetchedEvaluation?.report_data?.cv_improvements ?? []}
-                  onAnalyzeClick={onAnalyzeClick}
-                  evaluating={evaluating}
                 />
               )}
             </>

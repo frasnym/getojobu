@@ -2,14 +2,12 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { useAuth } from "@clerk/nextjs";
 import { useUserJobs } from "@/hooks/use-user-jobs";
 import { JobCard } from "@/components/jobs/job-card";
 import { JobFilters } from "@/components/jobs/job-filters";
 import { PaginationControls } from "@/components/jobs/pagination-controls";
 import { JobDetailDrawer } from "@/components/jobs/job-detail-drawer";
 import { ReportTab } from "@/components/jobs/job-report-header";
-import { triggerJobCompatibility } from "@/lib/api/endpoints";
 import { EvaluationSummary } from "@/lib/api/types";
 import { Sparkles, Briefcase, Compass, RefreshCw } from "lucide-react";
 
@@ -35,34 +33,15 @@ export default function UserJobsPage() {
     refetch,
   } = useUserJobs();
 
-  const { getToken } = useAuth();
-
   const [selectedJob, setSelectedJob] = useState<import("@/lib/api/types").Job | null>(null);
   const [activeTab, setActiveTab] = useState<ReportTab>("details");
   const [evalId, setEvalId] = useState<string | null>(null);
-  const [evaluating, setEvaluating] = useState(false);
 
   // Reset eval id when a different job is selected so the drawer fetches
   // that job's own evaluation rather than leaking a previous job's id.
   useEffect(() => {
     setEvalId(null);
   }, [selectedJob?.slug]);
-
-  const handleAnalyze = async (force: boolean) => {
-    if (!selectedJob) return;
-    setEvaluating(true);
-    try {
-      const token = await getToken();
-      const summary = await triggerJobCompatibility(selectedJob.slug, force, token);
-      if (summary?.id) {
-        setEvalId(String(summary.id));
-      }
-    } catch (err) {
-      console.error("Evaluation trigger failed:", err);
-    } finally {
-      setEvaluating(false);
-    }
-  };
 
   const handleTabChange = (tab: ReportTab) => {
     setActiveTab(tab);
@@ -217,8 +196,6 @@ export default function UserJobsPage() {
         activeTab={activeTab}
         onTabChange={handleTabChange}
         evalId={evalId}
-        evaluating={evaluating}
-        onAnalyzeClick={() => handleAnalyze(false)}
         showOwnedActions={false}
       />
     </div>

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import React from "react";
 import { MatchReportTab } from "@/components/matching/match-report-tab";
 import { MatchReport } from "@/lib/api/types";
@@ -110,22 +110,17 @@ describe("MatchReportTab component", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders empty state with analyze button when no evaluation exists", () => {
-    const handleAnalyze = vi.fn();
+  it("renders empty state when no evaluation exists", () => {
     render(
       <MatchReportTab
         evalId={undefined}
         report={null}
         loading={false}
-        onAnalyzeClick={handleAnalyze}
       />
     );
 
     expect(
       screen.getByText(/This job has not been evaluated against your career profile yet/i)
     ).toBeInTheDocument();
-    const btn = screen.getByRole("button", { name: /Analyze Compatibility/i });
-    fireEvent.click(btn);
-    expect(handleAnalyze).toHaveBeenCalled();
   });
 });

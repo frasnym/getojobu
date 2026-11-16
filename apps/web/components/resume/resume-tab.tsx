@@ -7,8 +7,6 @@ interface ResumeTabProps {
   resumeStatus?: string;
   cvImprovements?: string[];
   token?: string | null;
-  onAnalyzeClick?: () => void;
-  evaluating?: boolean;
 }
 
 export function ResumeTab({
@@ -16,8 +14,6 @@ export function ResumeTab({
   resumeStatus,
   cvImprovements = [],
   token,
-  onAnalyzeClick,
-  evaluating = false,
 }: ResumeTabProps) {
   if (!evalId || !resumeStatus) {
     return (
@@ -29,19 +25,6 @@ export function ResumeTab({
         <p className="mt-2 text-sm text-muted-foreground max-w-md mx-auto">
           Tailored resumes are generated in tandem with your compatibility evaluation. Run an analysis on this job to generate a custom PDF.
         </p>
-        {onAnalyzeClick && (
-          <div className="mt-6">
-            <button
-              type="button"
-              onClick={onAnalyzeClick}
-              disabled={evaluating}
-              className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-xs font-bold text-primary-foreground shadow hover:bg-primary/90 transition-colors disabled:opacity-50"
-            >
-              <Sparkles className="h-3.5 w-3.5" />
-              <span>Generate Tailored Resume</span>
-            </button>
-          </div>
-        )}
       </div>
     );
   }

@@ -6,7 +6,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Sparkles,
-  RefreshCw,
   Globe,
   MapPin,
   FileText,
@@ -20,8 +19,6 @@ interface JobReportHeaderProps {
   onTabChange: (tab: ReportTab) => void;
   prevSlug?: string;
   nextSlug?: string;
-  onAnalyzeClick?: () => void;
-  evaluating?: boolean;
   basePath?: string;
 }
 
@@ -31,8 +28,6 @@ export function JobReportHeader({
   onTabChange,
   prevSlug,
   nextSlug,
-  onAnalyzeClick,
-  evaluating = false,
   basePath = "/user-jobs",
 }: JobReportHeaderProps) {
   const tabs: { id: ReportTab; label: string; badge?: string }[] = [
@@ -114,22 +109,7 @@ export function JobReportHeader({
             </h1>
           </div>
 
-          {/* Primary Action */}
-          <div className="flex flex-wrap items-center gap-3">
-            {onAnalyzeClick && (
-              <button
-                type="button"
-                onClick={onAnalyzeClick}
-                disabled={evaluating}
-                className="inline-flex items-center gap-2 rounded-lg bg-primary px-3.5 py-2 text-xs font-semibold text-primary-foreground shadow transition-colors hover:bg-primary/90 disabled:opacity-50"
-              >
-                <RefreshCw
-                  className={`h-3.5 w-3.5 ${evaluating ? "animate-spin" : ""}`}
-                />
-                <span>Analyze Compatibility</span>
-              </button>
-            )}
-          </div>
+
         </div>
 
         {/* Segmented Workspace Tabs */}
