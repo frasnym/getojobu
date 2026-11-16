@@ -57,7 +57,7 @@ export function MatchScoreGauge({
               ) : (
                 <AlertTriangle className="h-3.5 w-3.5" />
               )}
-              <span className="capitalize">{eligibilityStatus || "Eligible"}</span>
+              <span className="capitalize">{eligibilityStatus?.replace("_", " ") || "N/A"}</span>
             </span>
 
             {recommendation && (
