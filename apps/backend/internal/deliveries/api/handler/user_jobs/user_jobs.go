@@ -271,15 +271,17 @@ func (h *handler) GetEvaluation(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	// Strip service metadata (model, prompt_version) from evaluation_data
-	// before exposing it to clients. Internal Go usecases still read the raw
-	// field from the DB.
-	if len(eval.EvaluationData) > 0 {
-		var data map[string]any
-		if err := json.Unmarshal(eval.EvaluationData, &data); err == nil {
-			delete(data, "metadata")
-			stripped, err := json.Marshal(data)
-			if err == nil {
-				eval.EvaluationData = stripped
+	// and report_data before exposing them to clients. Internal Go usecases
+	// still read the raw fields from the DB.
+	for _, field := range []*json.RawMessage{&eval.EvaluationData, &eval.ReportData} {
+		if len(*field) > 0 {
+			var data map[string]any
+			if err := json.Unmarshal(*field, &data); err == nil {
+				delete(data, "metadata")
+				stripped, err := json.Marshal(data)
+				if err == nil {
+					*field = stripped
+				}
 			}
 		}
 	}

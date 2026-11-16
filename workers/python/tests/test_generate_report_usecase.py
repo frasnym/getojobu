@@ -51,6 +51,8 @@ async def test_generate_report_success() -> None:
     assert result.gaps[0].status == "not_found_in_cv"
     assert result.report_prompt_version == "generate-report-v1"
     assert result.recommendation_policy_version == "deterministic-v1"
+    assert result.metadata["model"] is None
+    assert result.metadata["prompt_version"] == "generate-report-v1"
     assert not hasattr(result, "provider")
     assert not hasattr(result, "model")
 

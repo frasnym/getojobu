@@ -359,6 +359,20 @@ func (h *handler) GetReport(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
+	// Strip service metadata (model, prompt_version) from report_data
+	// before exposing it to clients. Internal Go usecases still read the
+	// raw field from the DB.
+	if len(report.ReportData) > 0 {
+		var data map[string]any
+		if err := json.Unmarshal(report.ReportData, &data); err == nil {
+			delete(data, "metadata")
+			stripped, err := json.Marshal(data)
+			if err == nil {
+				report.ReportData = stripped
+			}
+		}
+	}
+
 	return httpx.RespondJSON(w, r, http.StatusOK, report)
 }
 

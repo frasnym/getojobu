@@ -75,9 +75,7 @@ def new(
         evaluate_match=EvaluateMatch(
             llm=match_llm,
         ),
-        generate_report=GenerateReport(
-            llm=report_llm,
-        ),
+        generate_report=GenerateReport(llm=report_llm, model=omni_model),
         generate_resume=GenerateResume(llm=resume_llm),
         scraper=scraper_service,
     )

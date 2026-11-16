@@ -6,7 +6,7 @@ Uses pydantic for JSON Schema structured output with OpenAI/OmniRoute.
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -37,3 +37,6 @@ class MatchReportOutput(MatchReportExtraction):
 
     report_prompt_version: str = Field(default="generate-report-v1")
     recommendation_policy_version: str = Field(default="deterministic-v1")
+    metadata: dict[str, Any] = Field(
+        default_factory=lambda: {"model": None, "prompt_version": "generate-report-v1"}
+    )
