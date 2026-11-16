@@ -1826,6 +1826,122 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/user-jobs/{user_job_id}/evaluation": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Returns the latest matching evaluation for the given user_job_id, owned by the authenticated user.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "user-jobs"
+                ],
+                "summary": "Get matching evaluation for a user job",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User job link ID (UUID)",
+                        "name": "user_job_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.MatchingEvaluation"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpx.Error"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/httpx.Error"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httpx.Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/user-jobs/{user_job_id}/hide": {
+            "patch": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Hide or unhide a user↔job link owned by the authenticated user. Idempotent.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "user-jobs"
+                ],
+                "summary": "Toggle hide status on a user job",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User job link ID",
+                        "name": "user_job_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Hide status",
+                        "name": "hide",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/user_jobs.setHideStatusRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/user_jobs.setHideStatusResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpx.Error"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/httpx.Error"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httpx.Error"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/webhooks/clerk": {
             "post": {
                 "description": "Receives Clerk user lifecycle events (created, updated, deleted)",
@@ -2376,6 +2492,10 @@ const docTemplate = `{
                 "id": {
                     "type": "integer"
                 },
+                "is_hidden": {
+                    "description": "IsHidden reports whether the requesting user has hidden this job.\nOnly populated on the user-jobs list endpoint; false elsewhere.",
+                    "type": "boolean"
+                },
                 "is_owned": {
                     "description": "IsOwned reports whether the requesting user owns this job (has a row in\nuser_jobs). Only populated on list endpoints; false elsewhere.",
                     "type": "boolean"
@@ -2392,9 +2512,6 @@ const docTemplate = `{
                 "slug": {
                     "type": "string"
                 },
-                "source": {
-                    "type": "string"
-                },
                 "source_url": {
                     "type": "string"
                 },
@@ -2407,10 +2524,8 @@ const docTemplate = `{
                 "updated_at": {
                     "type": "string"
                 },
-                "updated_by_id": {
-                    "type": "string"
-                },
-                "updated_by_type": {
+                "user_job_id": {
+                    "description": "UserJobID is the user_jobs row id for this user↔job link. Populated only\non the user-jobs list endpoint; nil elsewhere.",
                     "type": "string"
                 },
                 "visa_relocation": {
@@ -2468,9 +2583,6 @@ const docTemplate = `{
         "models.MatchingEvaluation": {
             "type": "object",
             "properties": {
-                "candidate_profile_data": {
-                    "type": "object"
-                },
                 "created_at": {
                     "type": "string"
                 },
@@ -2489,9 +2601,6 @@ const docTemplate = `{
                 },
                 "id": {
                     "type": "string"
-                },
-                "job_profile_data": {
-                    "type": "object"
                 },
                 "overall_score": {
                     "type": "number"
@@ -2518,9 +2627,6 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "resume_status": {
-                    "type": "string"
-                },
-                "scoring_config_id": {
                     "type": "string"
                 },
                 "updated_at": {
@@ -2809,6 +2915,25 @@ const docTemplate = `{
                 },
                 "job_id": {
                     "type": "integer"
+                }
+            }
+        },
+        "user_jobs.setHideStatusRequest": {
+            "type": "object",
+            "properties": {
+                "is_hidden": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "user_jobs.setHideStatusResponse": {
+            "type": "object",
+            "properties": {
+                "is_hidden": {
+                    "type": "boolean"
+                },
+                "user_job_id": {
+                    "type": "string"
                 }
             }
         },

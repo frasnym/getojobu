@@ -51,9 +51,9 @@ type MatchingEvaluation struct {
 	ID                   uuid.UUID       `json:"id"`
 	UserJobID            uuid.UUID       `json:"user_job_id"`
 	EvaluationStatus     string          `json:"evaluation_status"` // new | pending | success | failed
-	CandidateProfileData json.RawMessage `json:"candidate_profile_data,omitempty" swaggertype:"object"`
-	JobProfileData       json.RawMessage `json:"job_profile_data,omitempty" swaggertype:"object"`
-	ScoringConfigID      uuid.UUID       `json:"scoring_config_id"`
+	CandidateProfileData json.RawMessage `json:"-" swaggertype:"object"`
+	JobProfileData       json.RawMessage `json:"-" swaggertype:"object"`
+	ScoringConfigID      uuid.UUID       `json:"-" swaggertype:"object"`
 	EvaluationData       json.RawMessage `json:"evaluation_data,omitempty" swaggertype:"object"`
 	OverallScore         *float64        `json:"overall_score,omitempty"`
 	EligibilityStatus    *string         `json:"eligibility_status,omitempty"`
