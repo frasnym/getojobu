@@ -189,6 +189,49 @@ func TestLogging_omits_request_body_for_bodyless_methods(t *testing.T) {
 	assert.Equal(t, `{"ok":true}`, entry["res_body"])
 }
 
+func TestLogging_compacts_pretty_printed_bodies(t *testing.T) {
+	// Arrange.
+	const prettyReq = "{\n\t\"user_ids\": [\n\t\t\"7b2e03a2-c019-4dd5-9a00-89cdb8d317de\"\n\t]\n}"
+	const prettyRes = "{\n  \"success\": true\n}"
+
+	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.ReadAll(r.Body)
+		_, _ = w.Write([]byte(prettyRes))
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/v1/scrape", strings.NewReader(prettyReq))
+
+	// Act.
+	out := captureStdout(t, func() {
+		Logging(next).ServeHTTP(httptest.NewRecorder(), req)
+	})
+
+	// Assert: bodies are one-line JSON, without tabs or newlines.
+	entry := parseLogEntry(t, out)
+	assert.Equal(t, `{"user_ids":["7b2e03a2-c019-4dd5-9a00-89cdb8d317de"]}`, entry["req_body"])
+	assert.Equal(t, `{"success":true}`, entry["res_body"])
+	assert.NotContains(t, out, `\t`)
+	assert.NotContains(t, out, `\n  `)
+}
+
+func TestLogging_flattens_non_json_body_to_one_line(t *testing.T) {
+	// Arrange.
+	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.ReadAll(r.Body)
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/v1/scrape", strings.NewReader("line one\n\tline two\r\n  line three"))
+
+	// Act.
+	out := captureStdout(t, func() {
+		Logging(next).ServeHTTP(httptest.NewRecorder(), req)
+	})
+
+	// Assert.
+	entry := parseLogEntry(t, out)
+	assert.Equal(t, "line one line two line three", entry["req_body"])
+}
+
 func TestRecovery_captures_panic_and_returns_500(t *testing.T) {
 	// Arrange.
 	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

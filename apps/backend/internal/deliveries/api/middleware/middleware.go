@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -68,17 +69,19 @@ func Logging(next http.Handler) http.Handler {
 			"latency_ms", latency.Milliseconds(),
 		}
 		if reqBodyAllowed && reqBytes > 0 {
+			body, cut := clampLogBody(logBodyField(reqBody))
 			args = append(args,
-				"req_body", string(reqBody),
+				"req_body", body,
 				"req_body_bytes", reqBytes,
-				"req_body_truncated", reqTruncated,
+				"req_body_truncated", reqTruncated || cut,
 			)
 		}
 		if resBodyAllowed && rec.size > 0 {
+			body, cut := clampLogBody(logBodyField(rec.body))
 			args = append(args,
-				"res_body", string(rec.body),
+				"res_body", body,
 				"res_body_bytes", rec.size,
-				"res_body_truncated", rec.truncated,
+				"res_body_truncated", rec.truncated || cut,
 			)
 		}
 
@@ -137,6 +140,24 @@ func captureRequestBody(r *http.Request) (body []byte, size int, truncated bool)
 		size = int(r.ContentLength)
 	}
 	return captured, size, truncated
+}
+
+// logBodyField renders a captured body as one log-friendly line: valid JSON is
+// compacted, and anything else has its whitespace runs flattened to single spaces.
+func logBodyField(body []byte) string {
+	var buf bytes.Buffer
+	if err := json.Compact(&buf, body); err == nil {
+		return buf.String()
+	}
+	return strings.Join(strings.Fields(string(body)), " ")
+}
+
+// clampLogBody cuts s down to maxLogBody bytes, reporting whether it was cut.
+func clampLogBody(s string) (string, bool) {
+	if len(s) <= maxLogBody {
+		return s, false
+	}
+	return s[:maxLogBody], true
 }
 
 // readCloser joins a replay reader with the original body's Close.
