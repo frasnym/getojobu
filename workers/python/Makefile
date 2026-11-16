@@ -7,11 +7,11 @@
 #   make lint        run ruff
 #   make fmt         run ruff format
 
-PY   ?= python
+PY   ?= $(shell [ -x .venv/bin/python ] && echo .venv/bin/python || echo python)
 PIP  ?= pip
 RUFF ?= ruff
 
-.PHONY: all install run test test-integration lint fmt clean
+.PHONY: all install run test test-integration lint fmt clean dry-run dry-run-test
 
 all: install
 
@@ -32,6 +32,12 @@ test-integration:
       OMNIROUTE_MODEL=use-combo \
       $(PY) -m pytest tests/ -v --timeout=120
 	docker compose -f ../../docker-compose.integration.yml down
+
+dry-run:
+	PYTHONPATH=$(CURDIR) $(PY) scripts/dry_run_scrape.py
+
+dry-run-test:
+	$(PY) -m pytest tests/test_job_scrape.py -v
 
 lint:
 	$(RUFF) check .
