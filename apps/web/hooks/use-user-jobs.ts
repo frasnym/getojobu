@@ -15,7 +15,11 @@ export function filterUserJobs(
   query: string,
   status: StatusFilter,
   remoteOnly: boolean = false,
-  hideFilter: HideFilter = "all"
+  hideFilter: HideFilter = "all",
+  evaluationStatus: string = "all",
+  reportStatus: string = "all",
+  eligibilityStatus: string = "all",
+  recommendationLabel: string = "all"
 ): UserJob[] {
   if (!Array.isArray(rows)) {
     return [];
@@ -44,6 +48,38 @@ export function filterUserJobs(
       return false;
     }
 
+    // Evaluation status filter
+    if (
+      evaluationStatus !== "all" &&
+      row.evaluation?.evaluation_status?.toLowerCase() !== evaluationStatus.toLowerCase()
+    ) {
+      return false;
+    }
+
+    // Report status filter
+    if (
+      reportStatus !== "all" &&
+      row.evaluation?.report_status?.toLowerCase() !== reportStatus.toLowerCase()
+    ) {
+      return false;
+    }
+
+    // Eligibility status filter
+    if (
+      eligibilityStatus !== "all" &&
+      row.evaluation?.eligibility_status?.toLowerCase() !== eligibilityStatus.toLowerCase()
+    ) {
+      return false;
+    }
+
+    // Recommendation label filter
+    if (
+      recommendationLabel !== "all" &&
+      row.evaluation?.recommendation_label?.toLowerCase() !== recommendationLabel.toLowerCase()
+    ) {
+      return false;
+    }
+
     // Query filter
     if (!normalizedQuery) {
       return true;
@@ -69,6 +105,10 @@ export function useUserJobs(explicitToken?: string | null) {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [remoteOnly, setRemoteOnly] = useState(false);
   const [hideFilter, setHideFilter] = useState<HideFilter>("all");
+  const [evaluationStatusFilter, setEvaluationStatusFilter] = useState("all");
+  const [reportStatusFilter, setReportStatusFilter] = useState("all");
+  const [eligibilityStatusFilter, setEligibilityStatusFilter] = useState("all");
+  const [recommendationLabelFilter, setRecommendationLabelFilter] = useState("all");
 
   // Snapshot of the initial filter state (the defaults) captured on first
   // render. Used to detect when the user has changed any filter away from its
@@ -78,6 +118,10 @@ export function useUserJobs(explicitToken?: string | null) {
     statusFilter,
     remoteOnly,
     hideFilter,
+    evaluationStatusFilter,
+    reportStatusFilter,
+    eligibilityStatusFilter,
+    recommendationLabelFilter,
   });
 
   const setPage = useCallback((newPage: number) => {
@@ -94,7 +138,15 @@ export function useUserJobs(explicitToken?: string | null) {
       try {
         setLoading(true);
         const token = explicitToken !== undefined ? explicitToken : await getToken();
-        const res = await getUserJobs(token, page, limit);
+        const res = await getUserJobs(token, page, limit, {
+          status: statusFilter,
+          remote: remoteOnly,
+          hide: hideFilter,
+          evaluation_status: evaluationStatusFilter,
+          report_status: reportStatusFilter,
+          eligibility_status: eligibilityStatusFilter,
+          recommendation_label: recommendationLabelFilter,
+        });
         if (!mountedRef || mountedRef.current) {
           setUserJobs(Array.isArray(res.data) ? res.data : []);
           setPagination(res.pagination);
@@ -124,6 +176,10 @@ export function useUserJobs(explicitToken?: string | null) {
         status: statusFilter,
         remote: remoteOnly,
         hide: hideFilter,
+        evaluation_status: evaluationStatusFilter,
+        report_status: reportStatusFilter,
+        eligibility_status: eligibilityStatusFilter,
+        recommendation_label: recommendationLabelFilter,
       });
       setUserJobs(Array.isArray(res.data) ? res.data : []);
       setPagination(res.pagination);
@@ -133,7 +189,7 @@ export function useUserJobs(explicitToken?: string | null) {
     } finally {
       setLoading(false);
     }
-  }, [explicitToken, getToken, limit, statusFilter, remoteOnly, hideFilter]);
+  }, [explicitToken, getToken, limit, statusFilter, remoteOnly, hideFilter, evaluationStatusFilter, reportStatusFilter, eligibilityStatusFilter, recommendationLabelFilter]);
 
   useEffect(() => {
     const mountedRef = { current: true };
@@ -150,8 +206,29 @@ export function useUserJobs(explicitToken?: string | null) {
   }, [explicitToken, isLoaded, load]);
 
   const filteredUserJobs = useMemo(
-    () => filterUserJobs(userJobs, searchQuery, statusFilter, remoteOnly, hideFilter),
-    [userJobs, searchQuery, statusFilter, remoteOnly, hideFilter]
+    () =>
+      filterUserJobs(
+        userJobs,
+        searchQuery,
+        statusFilter,
+        remoteOnly,
+        hideFilter,
+        evaluationStatusFilter,
+        reportStatusFilter,
+        eligibilityStatusFilter,
+        recommendationLabelFilter
+      ),
+    [
+      userJobs,
+      searchQuery,
+      statusFilter,
+      remoteOnly,
+      hideFilter,
+      evaluationStatusFilter,
+      reportStatusFilter,
+      eligibilityStatusFilter,
+      recommendationLabelFilter,
+    ]
   );
 
   const isFiltersChanged = useMemo(
@@ -159,8 +236,21 @@ export function useUserJobs(explicitToken?: string | null) {
       searchQuery !== initialFiltersRef.current.searchQuery ||
       statusFilter !== initialFiltersRef.current.statusFilter ||
       remoteOnly !== initialFiltersRef.current.remoteOnly ||
-      hideFilter !== initialFiltersRef.current.hideFilter,
-    [searchQuery, statusFilter, remoteOnly, hideFilter]
+      hideFilter !== initialFiltersRef.current.hideFilter ||
+      evaluationStatusFilter !== initialFiltersRef.current.evaluationStatusFilter ||
+      reportStatusFilter !== initialFiltersRef.current.reportStatusFilter ||
+      eligibilityStatusFilter !== initialFiltersRef.current.eligibilityStatusFilter ||
+      recommendationLabelFilter !== initialFiltersRef.current.recommendationLabelFilter,
+    [
+      searchQuery,
+      statusFilter,
+      remoteOnly,
+      hideFilter,
+      evaluationStatusFilter,
+      reportStatusFilter,
+      eligibilityStatusFilter,
+      recommendationLabelFilter,
+    ]
   );
 
   const handleSearchChange = (query: string) => {
@@ -180,6 +270,26 @@ export function useUserJobs(explicitToken?: string | null) {
 
   const handleHideFilterChange = (filter: HideFilter) => {
     setHideFilter(filter);
+    setPageState(1);
+  };
+
+  const handleEvaluationStatusChange = (value: string) => {
+    setEvaluationStatusFilter(value);
+    setPageState(1);
+  };
+
+  const handleReportStatusChange = (value: string) => {
+    setReportStatusFilter(value);
+    setPageState(1);
+  };
+
+  const handleEligibilityStatusChange = (value: string) => {
+    setEligibilityStatusFilter(value);
+    setPageState(1);
+  };
+
+  const handleRecommendationLabelChange = (value: string) => {
+    setRecommendationLabelFilter(value);
     setPageState(1);
   };
 
@@ -233,6 +343,14 @@ export function useUserJobs(explicitToken?: string | null) {
     setRemoteOnly: handleRemoteChange,
     hideFilter,
     setHideFilter: handleHideFilterChange,
+    evaluationStatusFilter,
+    setEvaluationStatusFilter: handleEvaluationStatusChange,
+    reportStatusFilter,
+    setReportStatusFilter: handleReportStatusChange,
+    eligibilityStatusFilter,
+    setEligibilityStatusFilter: handleEligibilityStatusChange,
+    recommendationLabelFilter,
+    setRecommendationLabelFilter: handleRecommendationLabelChange,
     hideJob,
     bulkHideJob,
     refetch: () => load(),

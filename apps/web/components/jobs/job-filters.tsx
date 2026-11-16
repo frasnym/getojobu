@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { Search, Globe, ChevronDown, Check, X, Bookmark, Eye, EyeOff, RefreshCw } from "lucide-react";
+import { Search, Globe, ChevronDown, Check, X, Bookmark, Eye, EyeOff, RefreshCw, CheckCircle2, FileText, AlertTriangle, Sparkles } from "lucide-react";
 import {
   StatusFilter,
   OwnedFilter,
@@ -20,6 +20,18 @@ interface JobFiltersProps {
   onOwnedFilterChange?: (owned: OwnedFilter) => void;
   hideFilter?: HideFilter;
   onHideFilterChange?: (filter: HideFilter) => void;
+  /** Evaluation status filter value ("all" | "success" | "pending" | "failed") */
+  evaluationStatusFilter?: string;
+  onEvaluationStatusChange?: (value: string) => void;
+  /** Report status filter value ("all" | "success" | "pending" | "failed") */
+  reportStatusFilter?: string;
+  onReportStatusChange?: (value: string) => void;
+  /** Eligibility status filter value ("all" | "eligible" | "not_eligible" | ...) */
+  eligibilityStatusFilter?: string;
+  onEligibilityStatusChange?: (value: string) => void;
+  /** Recommendation label filter value ("all" | "strong_match" | ...) */
+  recommendationLabelFilter?: string;
+  onRecommendationLabelChange?: (value: string) => void;
   /** When true, at least one filter differs from its initial state. */
   isFiltersChanged?: boolean;
   /** Query the backend with the current filters (server-side). */
@@ -185,6 +197,34 @@ const HIDE_OPTIONS: FilterOption<HideFilter>[] = [
   { label: "Hidden", value: "hidden" },
 ];
 
+const EVALUATION_STATUS_OPTIONS: FilterOption<string>[] = [
+  { label: "All", value: "all" },
+  { label: "Success", value: "success" },
+  { label: "Pending", value: "pending" },
+  { label: "Failed", value: "failed" },
+];
+
+const REPORT_STATUS_OPTIONS: FilterOption<string>[] = [
+  { label: "All", value: "all" },
+  { label: "Success", value: "success" },
+  { label: "Pending", value: "pending" },
+  { label: "Failed", value: "failed" },
+];
+
+const ELIGIBILITY_STATUS_OPTIONS: FilterOption<string>[] = [
+  { label: "All", value: "all" },
+  { label: "Eligible", value: "eligible" },
+  { label: "Not Eligible", value: "not_eligible" },
+];
+
+const RECOMMENDATION_LABEL_OPTIONS: FilterOption<string>[] = [
+  { label: "All", value: "all" },
+  { label: "Strong Match", value: "strong_match" },
+  { label: "Worth Applying", value: "worth_applying" },
+  { label: "Possible Match", value: "possible_match" },
+  { label: "Low Match", value: "low_match" },
+];
+
 export function JobFilters({
   searchQuery,
   onSearchChange,
@@ -197,6 +237,14 @@ export function JobFilters({
   onOwnedFilterChange,
   hideFilter = "all",
   onHideFilterChange,
+  evaluationStatusFilter = "all",
+  onEvaluationStatusChange,
+  reportStatusFilter = "all",
+  onReportStatusChange,
+  eligibilityStatusFilter = "all",
+  onEligibilityStatusChange,
+  recommendationLabelFilter = "all",
+  onRecommendationLabelChange,
   isFiltersChanged = false,
   onQueryAll,
   loading = false,
@@ -296,6 +344,86 @@ export function JobFilters({
           onChange={onStatusChange}
           activeColorClass={statusColorClass}
         />
+
+        {/* Evaluation Status Dropdown */}
+        {onEvaluationStatusChange !== undefined && (
+          <FilterDropdown
+            prefix="Evaluation"
+            value={evaluationStatusFilter}
+            options={EVALUATION_STATUS_OPTIONS}
+            onChange={onEvaluationStatusChange}
+            activeColorClass="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
+            icon={
+              <CheckCircle2
+                className={`h-3 w-3 ${
+                  evaluationStatusFilter !== "all"
+                    ? "text-emerald-500 fill-emerald-500/20"
+                    : "text-muted-foreground"
+                }`}
+              />
+            }
+          />
+        )}
+
+        {/* Report Status Dropdown */}
+        {onReportStatusChange !== undefined && (
+          <FilterDropdown
+            prefix="Report"
+            value={reportStatusFilter}
+            options={REPORT_STATUS_OPTIONS}
+            onChange={onReportStatusChange}
+            activeColorClass="bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30"
+            icon={
+              <FileText
+                className={`h-3 w-3 ${
+                  reportStatusFilter !== "all"
+                    ? "text-blue-500 fill-blue-500/20"
+                    : "text-muted-foreground"
+                }`}
+              />
+            }
+          />
+        )}
+
+        {/* Eligibility Status Dropdown */}
+        {onEligibilityStatusChange !== undefined && (
+          <FilterDropdown
+            prefix="Eligibility"
+            value={eligibilityStatusFilter}
+            options={ELIGIBILITY_STATUS_OPTIONS}
+            onChange={onEligibilityStatusChange}
+            activeColorClass="bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30"
+            icon={
+              <AlertTriangle
+                className={`h-3 w-3 ${
+                  eligibilityStatusFilter !== "all"
+                    ? "text-amber-500 fill-amber-500/20"
+                    : "text-muted-foreground"
+                }`}
+              />
+            }
+          />
+        )}
+
+        {/* Recommendation Label Dropdown */}
+        {onRecommendationLabelChange !== undefined && (
+          <FilterDropdown
+            prefix="Recommendation"
+            value={recommendationLabelFilter}
+            options={RECOMMENDATION_LABEL_OPTIONS}
+            onChange={onRecommendationLabelChange}
+            activeColorClass="bg-destructive/15 text-destructive border-destructive/30"
+            icon={
+              <Sparkles
+                className={`h-3 w-3 ${
+                  recommendationLabelFilter !== "all"
+                    ? "text-destructive fill-destructive/20"
+                    : "text-muted-foreground"
+                }`}
+              />
+            }
+          />
+        )}
 
         {/* Query all / Search all — only shown when filters differ from initial state and no drawer is open */}
         {isFiltersChanged && onQueryAll && !isDrawerOpen && (

@@ -34,6 +34,14 @@ export default function UserJobsPage() {
 		refetch,
 		isFiltersChanged,
 		queryAll,
+		evaluationStatusFilter,
+		setEvaluationStatusFilter,
+		reportStatusFilter,
+		setReportStatusFilter,
+		eligibilityStatusFilter,
+		setEligibilityStatusFilter,
+		recommendationLabelFilter,
+		setRecommendationLabelFilter,
 	} = useUserJobs();
 
 	const [selectedRow, setSelectedRow] = useState<UserJob | null>(null);
@@ -181,6 +189,14 @@ export default function UserJobsPage() {
 				onRemoteChange={setRemoteOnly}
 				hideFilter={hideFilter}
 				onHideFilterChange={setHideFilter}
+				evaluationStatusFilter={evaluationStatusFilter}
+				onEvaluationStatusChange={setEvaluationStatusFilter}
+				reportStatusFilter={reportStatusFilter}
+				onReportStatusChange={setReportStatusFilter}
+				eligibilityStatusFilter={eligibilityStatusFilter}
+				onEligibilityStatusChange={setEligibilityStatusFilter}
+				recommendationLabelFilter={recommendationLabelFilter}
+				onRecommendationLabelChange={setRecommendationLabelFilter}
 				totalCount={pagination?.totalItems ?? filteredJobs.length}
 				isFiltersChanged={isFiltersChanged}
 				onQueryAll={queryAll}

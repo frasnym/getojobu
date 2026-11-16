@@ -18,7 +18,15 @@ export async function getUserJobs(
   token?: string | null,
   page: number = 1,
   limit: number = 10,
-  filters?: { status?: string; remote?: boolean; hide?: string }
+  filters?: {
+    status?: string;
+    remote?: boolean;
+    hide?: string;
+    evaluation_status?: string;
+    report_status?: string;
+    eligibility_status?: string;
+    recommendation_label?: string;
+  }
 ): Promise<PaginatedResult<UserJob[]>> {
   const params = new URLSearchParams();
   params.set("page", String(page));
@@ -31,6 +39,18 @@ export async function getUserJobs(
   }
   if (filters?.hide && filters.hide !== "all") {
     params.set("hide", filters.hide);
+  }
+  if (filters?.evaluation_status && filters.evaluation_status !== "all") {
+    params.set("evaluation_status", filters.evaluation_status);
+  }
+  if (filters?.report_status && filters.report_status !== "all") {
+    params.set("report_status", filters.report_status);
+  }
+  if (filters?.eligibility_status && filters.eligibility_status !== "all") {
+    params.set("eligibility_status", filters.eligibility_status);
+  }
+  if (filters?.recommendation_label && filters.recommendation_label !== "all") {
+    params.set("recommendation_label", filters.recommendation_label);
   }
   return apiClientWithPagination<UserJob[]>(`/v1/user-jobs?${params.toString()}`, {
     token,

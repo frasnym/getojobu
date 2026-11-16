@@ -46,27 +46,13 @@ export function JobCard({
           ? "border-primary bg-primary/5 shadow-md shadow-primary/5 ring-1 ring-primary/30"
           : isHidden
             ? "border-border/30 bg-muted/40 opacity-60 grayscale hover:border-border/40"
-            : "border-border/60 bg-card hover:border-border hover:shadow-md hover:shadow-primary/5"
+            : isChecked
+              ? "border-accent bg-accent/5 hover:border-accent"
+              : "border-border/60 bg-card hover:border-border hover:shadow-md hover:shadow-primary/5"
       } ${isClickable ? "cursor-pointer" : ""}`}
     >
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-1.5 flex-1">
-          {selectable && (
-            <div className="flex items-start gap-2 border-b border-border/40 pb-2 mb-2">
-              <label
-                className="inline-flex items-center shrink-0 mt-0.5 cursor-pointer"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <input
-                  type="checkbox"
-                  checked={isChecked}
-                  onChange={(e) => onCheckChange?.(e.target.checked)}
-                  className="h-4 w-4 rounded border-border text-primary focus:ring-primary cursor-pointer"
-                  aria-label={`Select ${job.title}`}
-                />
-              </label>
-            </div>
-          )}
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               {job.company}
@@ -130,34 +116,50 @@ export function JobCard({
         </div>
 
         {/* Actions */}
-        <div className="flex shrink-0 items-center sm:flex-col sm:items-end gap-2 pt-2 sm:pt-0">
-          {onHideToggle && userJob.id && (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onHideToggle(userJob.id, !userJob.is_hidden);
-              }}
-              className="inline-flex items-center gap-1 rounded-lg border border-border/60 bg-card px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-secondary transition-colors focus:outline-none focus:ring-2 focus:ring-ring"
-              aria-label={userJob.is_hidden ? "Unhide job" : "Hide job"}
-            >
-              {userJob.is_hidden ? (
-                <>
-                  <EyeOff className="h-3.5 w-3.5" />
-                  <span>Unhide</span>
-                </>
-              ) : (
-                <>
-                  <Eye className="h-3.5 w-3.5" />
-                  <span>Hide</span>
-                </>
-              )}
-            </button>
-          )}
-          <div className="flex items-center gap-1 text-xs font-medium text-muted-foreground group-hover:text-foreground group-hover:translate-x-0.5 transition-all">
-            <span>Details</span>
-            <ArrowRight className="h-3.5 w-3.5" />
+        <div className="flex shrink-0 items-center sm:flex-col sm:items-end justify-between pt-2 sm:pt-0">
+          <div className="flex items-center gap-2">
+            {onHideToggle && userJob.id && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onHideToggle(userJob.id, !userJob.is_hidden);
+                }}
+                className="inline-flex items-center gap-1 rounded-lg border border-border/60 bg-card px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-secondary transition-colors focus:outline-none focus:ring-2 focus:ring-ring"
+                aria-label={userJob.is_hidden ? "Unhide job" : "Hide job"}
+              >
+                {userJob.is_hidden ? (
+                  <>
+                    <EyeOff className="h-3.5 w-3.5" />
+                    <span>Unhide</span>
+                  </>
+                ) : (
+                  <>
+                    <Eye className="h-3.5 w-3.5" />
+                    <span>Hide</span>
+                  </>
+                )}
+              </button>
+            )}
+            <div className="flex items-center gap-1 text-xs font-medium text-muted-foreground group-hover:text-foreground group-hover:translate-x-0.5 transition-all">
+              <span>Details</span>
+              <ArrowRight className="h-3.5 w-3.5" />
+            </div>
           </div>
+          {selectable && (
+            <label
+              className="inline-flex items-center cursor-pointer shrink-0"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <input
+                type="checkbox"
+                checked={isChecked}
+                onChange={(e) => onCheckChange?.(e.target.checked)}
+                className="h-4 w-4 rounded border-border text-primary focus:ring-primary cursor-pointer"
+                aria-label={`Select ${job.title}`}
+              />
+            </label>
+          )}
         </div>
       </div>
     </div>
