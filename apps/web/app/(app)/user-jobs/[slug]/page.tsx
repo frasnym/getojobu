@@ -9,6 +9,8 @@ import { JobDetailTab } from "@/components/jobs/job-detail-tab";
 import { MatchReportTab } from "@/components/matching/match-report-tab";
 import { ResumeTab } from "@/components/resume/resume-tab";
 import { JobDetailDrawer } from "@/components/jobs/job-detail-drawer";
+import { getUserJobEvaluation } from "@/lib/api/endpoints";
+import { EvaluationSummary } from "@/lib/api/types";
 import { AlertCircle } from "lucide-react";
 
 interface UserJobDetailPageProps {
@@ -28,6 +30,7 @@ export default function UserJobDetailPage({ params }: UserJobDetailPageProps) {
   const [activeTab, setActiveTab] = useState<ReportTab>("details");
   const { getToken } = useAuth();
   const [evalId, setEvalId] = useState<string | null>(null);
+  const [fetchedEvaluation, setFetchedEvaluation] = useState<EvaluationSummary | null>(null);
 
   useEffect(() => {
     if (tabParam && ["details", "report", "resume"].includes(tabParam)) {
@@ -49,6 +52,33 @@ export default function UserJobDetailPage({ params }: UserJobDetailPageProps) {
       router.replace(`/user-jobs/${slug}?tab=${tab}`);
     }
   };
+
+  // Fetch the latest evaluation for this user job so the resume tab can show
+  // the generation status and the presigned download button when ready.
+  useEffect(() => {
+    if (!job || !job.user_job_id) return;
+    const userJobId = job.user_job_id;
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const token = await getToken();
+        const evalRec = await getUserJobEvaluation(userJobId, token);
+        if (!cancelled && evalRec.id) {
+          setFetchedEvaluation(evalRec);
+          if (!evalId) setEvalId(String(evalRec.id));
+        }
+      } catch (err) {
+        // Evaluation may not exist yet — that's fine, the Analyze button
+        // creates one. Silently ignore so the page still renders.
+        console.debug("No existing evaluation for user job", job.user_job_id, err);
+      }
+    };
+
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [job, job?.user_job_id, getToken]);
 
   const handleDrawerClose = () => {
     router.push("/user-jobs");
@@ -125,6 +155,9 @@ export default function UserJobDetailPage({ params }: UserJobDetailPageProps) {
         {activeTab === "resume" && (
           <ResumeTab
             evalId={evalId || undefined}
+            resumeStatus={fetchedEvaluation?.resume_status ?? undefined}
+            cvImprovements={fetchedEvaluation?.report_data?.cv_improvements ?? []}
+            token={null}
             onAnalyzeClick={() => handleAnalyze(false)}
             evaluating={evaluating}
           />

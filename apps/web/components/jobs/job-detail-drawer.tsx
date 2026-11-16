@@ -92,13 +92,12 @@ export function JobDetailDrawer({
     };
   }, [isOpen, onClose]);
 
-  // Fetch the latest evaluation for this user_job when the drawer opens,
-  // unless an evalId was already supplied (e.g. after a fresh analyze).
+  // Fetch the latest evaluation for this user_job when the drawer opens.
   // The /evaluation response already includes evaluation_data and
-  // report_data, so one fetch is enough to render the match report.
+  // report_data, so one fetch is enough to render the match report and to
+  // expose the resume generation status (for the presigned download button).
   useEffect(() => {
     if (!isOpen || !job || !job.user_job_id) return;
-    if (evalIdProp) return; // already have one from the analyze flow
 
     const userJobId = job.user_job_id;
     let cancelled = false;
@@ -276,6 +275,8 @@ export function JobDetailDrawer({
               {tab === "resume" && (
                 <ResumeTab
                   evalId={resolvedEvalId || undefined}
+                  resumeStatus={fetchedEvaluation?.resume_status ?? undefined}
+                  cvImprovements={fetchedEvaluation?.report_data?.cv_improvements ?? []}
                   onAnalyzeClick={onAnalyzeClick}
                   evaluating={evaluating}
                 />
