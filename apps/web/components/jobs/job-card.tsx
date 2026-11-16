@@ -44,7 +44,7 @@ export function JobCard({
   return (
     <div
       onClick={isClickable ? () => onSelect(userJob) : undefined}
-      className={`group relative rounded-xl border p-6 transition-all duration-300 ${
+      className={`group relative rounded-xl border p-6 pb-12 transition-all duration-300 ${
         isSelected
           ? "border-primary bg-primary/5 shadow-md shadow-primary/5 ring-1 ring-primary/30"
           : isHidden
@@ -163,21 +163,22 @@ export function JobCard({
               </button>
             )}
           </div>
-          {selectable && (
-            <label
-              className="inline-flex items-center cursor-pointer shrink-0"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <input
-                type="checkbox"
-                checked={isChecked}
-                onChange={(e) => onCheckChange?.(e.target.checked)}
-                className="h-4 w-4 rounded border-border text-primary focus:ring-primary cursor-pointer"
-                aria-label={`Select ${job.title}`}
-              />
-            </label>
-          )}
         </div>
+
+        {selectable && (
+          <label
+            className="absolute bottom-4 right-4 inline-flex items-center cursor-pointer shrink-0"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <input
+              type="checkbox"
+              checked={isChecked}
+              onChange={(e) => onCheckChange?.(e.target.checked)}
+              className="h-4 w-4 rounded border-border text-primary focus:ring-primary cursor-pointer"
+              aria-label={`Select ${job.title}`}
+            />
+          </label>
+        )}
       </div>
     </div>
   );
