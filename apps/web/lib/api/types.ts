@@ -25,6 +25,7 @@ export interface Job {
   created_at: string;
   updated_at?: string;
   is_owned?: boolean;
+  is_hidden?: boolean;
 }
 
 export interface CategoryEvidence {

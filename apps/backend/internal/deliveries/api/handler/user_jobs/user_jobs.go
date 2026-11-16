@@ -1,6 +1,7 @@
 package user_jobs
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 
@@ -10,6 +11,7 @@ import (
 	"github.com/frasnym/getojobu/apps/backend/internal/models"
 	ucUserJobs "github.com/frasnym/getojobu/apps/backend/internal/usecase/user_jobs"
 	ucUsers "github.com/frasnym/getojobu/apps/backend/internal/usecase/users"
+	"github.com/frasnym/getojobu/apps/backend/internal/utils/constants"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/ctxval"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/httpx"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/logging"
@@ -33,6 +35,17 @@ type addUserJobResponse struct {
 	Created bool  `json:"created"`
 }
 
+// setHideStatusRequest is the PATCH /v1/user-jobs/{job_id}/hide body.
+type setHideStatusRequest struct {
+	IsHidden bool `json:"is_hidden"`
+}
+
+// setHideStatusResponse is the outcome of toggling hide on a user job.
+type setHideStatusResponse struct {
+	JobID    int64 `json:"job_id"`
+	IsHidden bool  `json:"is_hidden"`
+}
+
 // NewHandler constructs a user-jobs handler from the full contract.
 func NewHandler(c *contract.Contract) *handler {
 	return &handler{
@@ -48,6 +61,7 @@ func (h *handler) Route(g *httpx.Router) {
 
 	g.GET("", h.ListUserJobs, auth.ValidClerkSession)
 	g.POST("", h.AddUserJob, auth.ValidClerkSession)
+	g.PATCH("/{job_id}/hide", h.SetHideStatus, auth.ValidClerkSession)
 }
 
 // ListUserJobs returns the authenticated user's jobs (jobs linked to the user
@@ -154,4 +168,51 @@ func (h *handler) AddUserJob(w http.ResponseWriter, r *http.Request) error {
 		return httpx.RespondJSON(w, r, http.StatusCreated, resp)
 	}
 	return httpx.RespondJSON(w, r, http.StatusOK, resp)
+}
+
+// SetHideStatus toggles the is_hidden flag on a user↔job link.
+// The job must already be saved by the authenticated user (404 otherwise).
+// @Summary Toggle hide status on a user job
+// @Description Hide or unhide a job the authenticated user has saved. Idempotent.
+// @Tags user-jobs
+// @Accept json
+// @Produce json
+// @Param job_id path int true "Job ID"
+// @Param hide body setHideStatusRequest true "Hide status"
+// @Success 200 {object} setHideStatusResponse
+// @Failure 400 {object} httpx.Error
+// @Failure 401 {object} httpx.Error
+// @Failure 404 {object} httpx.Error
+// @security ApiKeyAuth
+// @Router /v1/user-jobs/{job_id}/hide [patch]
+func (h *handler) SetHideStatus(w http.ResponseWriter, r *http.Request) error {
+	p := ctxval.PrincipalFromContext(r.Context())
+	if p == nil {
+		return httpx.Envelope(httpx.CodeUnauthorized, "unauthenticated", "")
+	}
+
+	jobIDStr := httpx.ExtractPathParam(r, "job_id")
+	jobID, err := strconv.ParseInt(jobIDStr, 10, 64)
+	if err != nil || jobID <= 0 {
+		return httpx.Envelope(httpx.CodeInvalidRequest, "job_id must be a positive integer", "")
+	}
+
+	var req setHideStatusRequest
+	if err := httpx.ParseJSON(r, &req); err != nil {
+		return err
+	}
+
+	if err := h.ucJobs.SetHideStatus(r.Context(), p.ID, jobID, req.IsHidden); err != nil {
+		logging.Error(r.Context(), "set user job hide status failed", err,
+			"user_id", p.ID, "job_id", jobID, "is_hidden", req.IsHidden)
+		if errors.Is(err, constants.ErrNotFound) {
+			return httpx.Envelope(httpx.CodeNotFound, "user job not found", "")
+		}
+		return err
+	}
+
+	return httpx.RespondJSON(w, r, http.StatusOK, setHideStatusResponse{
+		JobID:    jobID,
+		IsHidden: req.IsHidden,
+	})
 }

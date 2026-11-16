@@ -10,6 +10,7 @@ import (
 	"github.com/frasnym/getojobu/apps/backend/internal/config"
 	"github.com/frasnym/getojobu/apps/backend/internal/models"
 	ucUserJobsMock "github.com/frasnym/getojobu/apps/backend/internal/usecase/user_jobs/mocks"
+	"github.com/frasnym/getojobu/apps/backend/internal/utils/constants"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/ctxval"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/httpx"
 	"github.com/stretchr/testify/assert"
@@ -41,6 +42,14 @@ func bodyAsJobs(t *testing.T, w *httptest.ResponseRecorder) []map[string]interfa
 func bodyAsAddUserJob(t *testing.T, w *httptest.ResponseRecorder) addUserJobResponse {
 	t.Helper()
 	var resp httpx.Response[addUserJobResponse]
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+	require.True(t, resp.Success)
+	return resp.Data
+}
+
+func bodyAsSetHideStatus(t *testing.T, w *httptest.ResponseRecorder) setHideStatusResponse {
+	t.Helper()
+	var resp httpx.Response[setHideStatusResponse]
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
 	require.True(t, resp.Success)
 	return resp.Data
@@ -256,6 +265,133 @@ func TestAddUserJob_non_positive_job_id(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
 
+func TestSetHideStatus_hide(t *testing.T) {
+	// Arrange.
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	h, mockJobs := newHandlerWithMock(ctrl)
+
+	mockJobs.EXPECT().
+		SetHideStatus(gomock.Any(), "user_1", int64(42), true).
+		Return(nil)
+
+	mux := http.NewServeMux()
+	mux.Handle("PATCH /user-jobs/{job_id}/hide", httpx.HandlerFunc(h.SetHideStatus))
+
+	body := strings.NewReader(`{"is_hidden":true}`)
+	req := httptest.NewRequest(http.MethodPatch, "/user-jobs/42/hide", body)
+	req.Header.Set("Content-Type", "application/json")
+	req = req.WithContext(ctxval.ContextWithPrincipal(req.Context(), principalCtx("user_1")))
+	w := httptest.NewRecorder()
+
+	// Act.
+	mux.ServeHTTP(w, req)
+
+	// Assert.
+	assert.Equal(t, http.StatusOK, w.Code)
+	resp := bodyAsSetHideStatus(t, w)
+	assert.Equal(t, int64(42), resp.JobID)
+	assert.True(t, resp.IsHidden)
+}
+
+func TestSetHideStatus_unhide(t *testing.T) {
+	// Arrange.
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	h, mockJobs := newHandlerWithMock(ctrl)
+
+	mockJobs.EXPECT().
+		SetHideStatus(gomock.Any(), "user_1", int64(42), false).
+		Return(nil)
+
+	mux := http.NewServeMux()
+	mux.Handle("PATCH /user-jobs/{job_id}/hide", httpx.HandlerFunc(h.SetHideStatus))
+
+	body := strings.NewReader(`{"is_hidden":false}`)
+	req := httptest.NewRequest(http.MethodPatch, "/user-jobs/42/hide", body)
+	req.Header.Set("Content-Type", "application/json")
+	req = req.WithContext(ctxval.ContextWithPrincipal(req.Context(), principalCtx("user_1")))
+	w := httptest.NewRecorder()
+
+	// Act.
+	mux.ServeHTTP(w, req)
+
+	// Assert.
+	assert.Equal(t, http.StatusOK, w.Code)
+	resp := bodyAsSetHideStatus(t, w)
+	assert.Equal(t, int64(42), resp.JobID)
+	assert.False(t, resp.IsHidden)
+}
+
+func TestSetHideStatus_unauthenticated(t *testing.T) {
+	// Arrange.
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	h, _ := newHandlerWithMock(ctrl)
+
+	mux := http.NewServeMux()
+	mux.Handle("PATCH /user-jobs/{job_id}/hide", httpx.HandlerFunc(h.SetHideStatus))
+
+	body := strings.NewReader(`{"is_hidden":true}`)
+	req := httptest.NewRequest(http.MethodPatch, "/user-jobs/42/hide", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	// Act.
+	mux.ServeHTTP(w, req)
+
+	// Assert.
+	assert.Equal(t, http.StatusUnauthorized, w.Code)
+}
+
+func TestSetHideStatus_invalid_job_id(t *testing.T) {
+	// Arrange.
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	h, _ := newHandlerWithMock(ctrl)
+
+	mux := http.NewServeMux()
+	mux.Handle("PATCH /user-jobs/{job_id}/hide", httpx.HandlerFunc(h.SetHideStatus))
+
+	body := strings.NewReader(`{"is_hidden":true}`)
+	req := httptest.NewRequest(http.MethodPatch, "/user-jobs/abc/hide", body)
+	req.Header.Set("Content-Type", "application/json")
+	req = req.WithContext(ctxval.ContextWithPrincipal(req.Context(), principalCtx("user_1")))
+	w := httptest.NewRecorder()
+
+	// Act.
+	mux.ServeHTTP(w, req)
+
+	// Assert.
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestSetHideStatus_not_found(t *testing.T) {
+	// Arrange.
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	h, mockJobs := newHandlerWithMock(ctrl)
+
+	mockJobs.EXPECT().
+		SetHideStatus(gomock.Any(), "user_1", int64(42), true).
+		Return(constants.ErrNotFound)
+
+	mux := http.NewServeMux()
+	mux.Handle("PATCH /user-jobs/{job_id}/hide", httpx.HandlerFunc(h.SetHideStatus))
+
+	body := strings.NewReader(`{"is_hidden":true}`)
+	req := httptest.NewRequest(http.MethodPatch, "/user-jobs/42/hide", body)
+	req.Header.Set("Content-Type", "application/json")
+	req = req.WithContext(ctxval.ContextWithPrincipal(req.Context(), principalCtx("user_1")))
+	w := httptest.NewRecorder()
+
+	// Act.
+	mux.ServeHTTP(w, req)
+
+	// Assert.
+	assert.Equal(t, http.StatusNotFound, w.Code)
+}
+
 func TestRoute_registers_userjobs_under_group(t *testing.T) {
 	// Arrange.
 	ctrl := gomock.NewController(t)
@@ -269,9 +405,11 @@ func TestRoute_registers_userjobs_under_group(t *testing.T) {
 
 	// Assert via introspection. Patterns are compounded with the group prefix.
 	routes := rt.Routes()
-	require.Len(t, routes, 2, "expected 2 user-jobs routes under /v1/user-jobs")
+	require.Len(t, routes, 3, "expected 3 user-jobs routes under /v1/user-jobs")
 	assert.Equal(t, http.MethodGet, routes[0].Method)
 	assert.Equal(t, "/v1/user-jobs", routes[0].Pattern)
 	assert.Equal(t, http.MethodPost, routes[1].Method)
 	assert.Equal(t, "/v1/user-jobs", routes[1].Pattern)
+	assert.Equal(t, http.MethodPatch, routes[2].Method)
+	assert.Equal(t, "/v1/user-jobs/{job_id}/hide", routes[2].Pattern)
 }

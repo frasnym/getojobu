@@ -29,6 +29,7 @@ export default function UserJobsPage() {
     setStatusFilter,
     remoteOnly,
     setRemoteOnly,
+    hideJob,
   } = useUserJobs();
 
   const { getToken } = useAuth();
@@ -164,6 +165,7 @@ export default function UserJobsPage() {
               job={job}
               onSelect={setSelectedJob}
               isSelected={selectedJob?.slug === job.slug}
+              onHideToggle={hideJob}
             />
           ))}
         </div>

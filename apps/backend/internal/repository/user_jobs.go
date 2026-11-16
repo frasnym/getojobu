@@ -24,6 +24,7 @@ type UserJobs interface {
 	GetByID(ctx context.Context, id uuid.UUID) (*models.UserJob, error)
 	GetUsersByJobID(ctx context.Context, jobID int64) ([]string, error)
 	GetByUser(ctx context.Context, userID string, limit, offset int) ([]*models.Job, int, error)
+	SetHideStatus(ctx context.Context, userID string, jobID int64, isHidden bool) error
 }
 
 type userJobsRepository struct {
@@ -243,7 +244,8 @@ func (r *userJobsRepository) GetByUser(ctx context.Context, userID string, limit
 			j.title, j.company, j.location, j.description, j.posted_date,
 			j.is_remote, j.visa_relocation,
 			j.created_at, j.updated_at, j.updated_by_type, j.updated_by_id,
-			true AS is_owned
+			true AS is_owned,
+			uj.is_hidden AS is_hidden
 		FROM jobs j
 		JOIN user_jobs uj ON j.id = uj.job_id AND uj.user_id = $1
 		ORDER BY j.created_at DESC
@@ -259,4 +261,27 @@ func (r *userJobsRepository) GetByUser(ctx context.Context, userID string, limit
 		return nil, 0, err
 	}
 	return jobs, total, nil
+}
+
+// SetHideStatus toggles the is_hidden flag for a given user↔job link.
+// Returns ErrNotFound when the user does not own the job.
+func (r *userJobsRepository) SetHideStatus(ctx context.Context, userID string, jobID int64, isHidden bool) error {
+	tx, err := r.StartTrx(ctx)
+	if err != nil {
+		return fmt.Errorf("set hide status start trx: %w", err)
+	}
+	defer r.Committer(ctx, tx, &err)
+
+	res, err := tx.Exec(ctx, `
+		UPDATE user_jobs
+		SET is_hidden = $3
+		WHERE user_id = $1 AND job_id = $2
+	`, userID, jobID, isHidden)
+	if err != nil {
+		return fmt.Errorf("set user_jobs hide status: %w", err)
+	}
+	if res.RowsAffected() == 0 {
+		return constants.ErrNotFound
+	}
+	return nil
 }

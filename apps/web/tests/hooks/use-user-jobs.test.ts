@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { renderHook, waitFor } from "@testing-library/react";
+import { renderHook, waitFor, act } from "@testing-library/react";
 import { useUserJobs } from "@/hooks/use-user-jobs";
 import * as endpoints from "@/lib/api/endpoints";
 import { Job } from "@/lib/api/types";
@@ -72,5 +72,37 @@ describe("useUserJobs hook", () => {
     expect(result.current.jobs).toEqual([]);
     expect(result.current.filteredJobs).toEqual([]);
     expect(result.current.error).toBeNull();
+  });
+
+  it("hideJob calls the endpoint and refetches the list", async () => {
+    const hideSpy = vi.spyOn(endpoints, "setUserJobHideStatus").mockResolvedValue({
+      job_id: 1,
+      is_hidden: true,
+    });
+    const listSpy = vi.spyOn(endpoints, "getUserJobs").mockResolvedValue({
+      data: [{ ...mockUserJobs[0], is_hidden: true }],
+      pagination: {
+        page: 1,
+        limit: 10,
+        totalItems: 1,
+        totalPages: 1,
+        hasNext: false,
+        hasPrev: false,
+      },
+    });
+
+    const { result } = renderHook(() => useUserJobs());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    await act(async () => {
+      await result.current.hideJob(1, true);
+    });
+
+    expect(hideSpy).toHaveBeenCalledWith(1, true, "test-token");
+    expect(listSpy).toHaveBeenLastCalledWith("test-token", 1, 10);
+    expect(result.current.jobs[0].is_hidden).toBe(true);
   });
 });

@@ -147,3 +147,17 @@ func (mr *MockUserJobsMockRecorder) IsOwned(ctx, userID, jobID any) *gomock.Call
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsOwned", reflect.TypeOf((*MockUserJobs)(nil).IsOwned), ctx, userID, jobID)
 }
+
+// SetHideStatus mocks base method.
+func (m *MockUserJobs) SetHideStatus(ctx context.Context, userID string, jobID int64, isHidden bool) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SetHideStatus", ctx, userID, jobID, isHidden)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SetHideStatus indicates an expected call of SetHideStatus.
+func (mr *MockUserJobsMockRecorder) SetHideStatus(ctx, userID, jobID, isHidden any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetHideStatus", reflect.TypeOf((*MockUserJobs)(nil).SetHideStatus), ctx, userID, jobID, isHidden)
+}

@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { describe, it, expect, vi } from "vitest";
+import { render, screen, fireEvent } from "@testing-library/react";
 import React from "react";
 import { JobCard } from "@/components/jobs/job-card";
 import { Job } from "@/lib/api/types";
@@ -28,5 +28,25 @@ describe("JobCard component", () => {
   it("renders the details trigger", () => {
     render(<JobCard job={mockJob} />);
     expect(screen.getByText(/Details/i)).toBeInTheDocument();
+  });
+
+  it("renders a Hide button when job is not hidden", () => {
+    render(<JobCard job={{ ...mockJob, is_hidden: false }} onHideToggle={vi.fn()} />);
+    expect(screen.getByRole("button", { name: /Hide job/i })).toBeInTheDocument();
+    expect(screen.getByText("Hide")).toBeInTheDocument();
+  });
+
+  it("renders an Unhide button when job is hidden", () => {
+    render(<JobCard job={{ ...mockJob, is_hidden: true }} onHideToggle={vi.fn()} />);
+    expect(screen.getByRole("button", { name: /Unhide job/i })).toBeInTheDocument();
+    expect(screen.getByText("Unhide")).toBeInTheDocument();
+  });
+
+  it("calls onHideToggle with job id and toggled state when clicked", () => {
+    const onHideToggle = vi.fn();
+    render(<JobCard job={{ ...mockJob, is_hidden: false }} onHideToggle={onHideToggle} />);
+    const button = screen.getByRole("button", { name: /Hide job/i });
+    fireEvent.click(button);
+    expect(onHideToggle).toHaveBeenCalledWith(1, true);
   });
 });

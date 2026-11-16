@@ -21,6 +21,9 @@ type UserJobs interface {
 	// when a new ownership row was inserted, created=false when the pair already
 	// exists (idempotent via ON CONFLICT DO NOTHING).
 	Add(ctx context.Context, userID string, jobID int64) (created bool, err error)
+
+	// SetHideStatus toggles the is_hidden flag for a given user↔job link.
+	SetHideStatus(ctx context.Context, userID string, jobID int64, isHidden bool) error
 }
 
 // userJobsService implements UserJobs backed by the user_jobs repository.
@@ -53,4 +56,12 @@ func (s *userJobsService) Add(ctx context.Context, userID string, jobID int64) (
 		return false, fmt.Errorf("add user job: %w", err)
 	}
 	return created, nil
+}
+
+// SetHideStatus toggles the is_hidden flag for a given user↔job link.
+func (s *userJobsService) SetHideStatus(ctx context.Context, userID string, jobID int64, isHidden bool) error {
+	if err := s.repo.SetHideStatus(ctx, userID, jobID, isHidden); err != nil {
+		return fmt.Errorf("set hide status: %w", err)
+	}
+	return nil
 }

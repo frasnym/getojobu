@@ -32,6 +32,10 @@ type Job struct {
 	// IsOwned reports whether the requesting user owns this job (has a row in
 	// user_jobs). Only populated on list endpoints; false elsewhere.
 	IsOwned bool `json:"is_owned"`
+
+	// IsHidden reports whether the requesting user has hidden this job.
+	// Only populated on the user-jobs list endpoint; false elsewhere.
+	IsHidden bool `json:"is_hidden"`
 }
 
 // CreateJobParams holds parameters for creating a single job listing.

@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { Job, ApiPagination } from "@/lib/api/types";
-import { getUserJobs } from "@/lib/api/endpoints";
+import { getUserJobs, setUserJobHideStatus } from "@/lib/api/endpoints";
 import { StatusFilter, filterJobs } from "./use-jobs";
 
 export function useUserJobs(explicitToken?: string | null) {
@@ -83,6 +83,16 @@ export function useUserJobs(explicitToken?: string | null) {
     setPageState(1);
   };
 
+  const hideJob = useCallback(
+    async (jobId: number | string, isHidden: boolean) => {
+      const token = explicitToken !== undefined ? explicitToken : await getToken();
+      await setUserJobHideStatus(jobId, isHidden, token);
+      // Optimistically refresh the list so the UI reflects the new state.
+      await load();
+    },
+    [explicitToken, getToken, load]
+  );
+
   return {
     jobs,
     filteredJobs,
@@ -99,6 +109,7 @@ export function useUserJobs(explicitToken?: string | null) {
     setStatusFilter: handleStatusChange,
     remoteOnly,
     setRemoteOnly: handleRemoteChange,
+    hideJob,
     refetch: () => load(),
   };
 }

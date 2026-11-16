@@ -1,7 +1,7 @@
 import React from "react";
 import Link from "next/link";
 import { Job } from "@/lib/api/types";
-import { MapPin, Globe, Clock, ArrowRight } from "lucide-react";
+import { MapPin, Globe, Clock, ArrowRight, Eye, EyeOff } from "lucide-react";
 import { statusBadgeClasses } from "@/hooks/use-jobs";
 
 interface JobCardProps {
@@ -9,9 +9,10 @@ interface JobCardProps {
   href?: string;
   onSelect?: (job: Job) => void;
   isSelected?: boolean;
+  onHideToggle?: (jobId: number | string, isHidden: boolean) => void | Promise<void>;
 }
 
-export function JobCard({ job, href, onSelect, isSelected }: JobCardProps) {
+export function JobCard({ job, href, onSelect, isSelected, onHideToggle }: JobCardProps) {
   const targetHref = href || `/user-jobs/${job.slug}`;
   const isClickable = !!onSelect;
 
@@ -69,8 +70,31 @@ export function JobCard({ job, href, onSelect, isSelected }: JobCardProps) {
           </div>
         </div>
 
-        {/* Detail trigger */}
+        {/* Actions */}
         <div className="flex shrink-0 items-center sm:flex-col sm:items-end gap-2 pt-2 sm:pt-0">
+          {onHideToggle && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onHideToggle(job.id, !job.is_hidden);
+              }}
+              className="inline-flex items-center gap-1 rounded-lg border border-border/60 bg-card px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-secondary transition-colors focus:outline-none focus:ring-2 focus:ring-ring"
+              aria-label={job.is_hidden ? "Unhide job" : "Hide job"}
+            >
+              {job.is_hidden ? (
+                <>
+                  <EyeOff className="h-3.5 w-3.5" />
+                  <span>Unhide</span>
+                </>
+              ) : (
+                <>
+                  <Eye className="h-3.5 w-3.5" />
+                  <span>Hide</span>
+                </>
+              )}
+            </button>
+          )}
           <div className="flex items-center gap-1 text-xs font-medium text-muted-foreground group-hover:text-foreground group-hover:translate-x-0.5 transition-all">
             <span>Details</span>
             <ArrowRight className="h-3.5 w-3.5" />

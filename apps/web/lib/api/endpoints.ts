@@ -50,6 +50,24 @@ export async function saveUserJob(
   });
 }
 
+export async function setUserJobHideStatus(
+  jobId: number | string,
+  isHidden: boolean,
+  token?: string | null
+): Promise<{ job_id: number; is_hidden: boolean }> {
+  if (isMockEnabled()) {
+    return Promise.resolve({ job_id: Number(jobId), is_hidden: isHidden });
+  }
+  return apiClient<{ job_id: number; is_hidden: boolean }>(
+    `/v1/user-jobs/${jobId}/hide`,
+    {
+      method: "PATCH",
+      token,
+      body: JSON.stringify({ is_hidden: isHidden }),
+    }
+  );
+}
+
 export async function getJobBySlug(slug: string, token?: string | null): Promise<Job> {
   if (isMockEnabled()) {
     const job = MOCK_JOBS.find((j) => j.slug === slug);
