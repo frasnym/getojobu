@@ -1,7 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import React from "react";
 import { JobDetailDrawer } from "@/components/jobs/job-detail-drawer";
+import * as endpoints from "@/lib/api/endpoints";
 import { Job } from "@/lib/api/types";
 
 const mockJob: Job = {
@@ -100,5 +101,41 @@ describe("JobDetailDrawer component", () => {
     expect(screen.getByText("Saved in My Jobs")).toBeInTheDocument();
     expect(screen.getByText(/Open Evaluation Workspace/i)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Save to My Job/i })).not.toBeInTheDocument();
+  });
+
+  it("triggers evaluation fetch when userJobId is passed", async () => {
+    const evalSpy = vi.spyOn(endpoints, "getUserJobEvaluation").mockResolvedValue({
+      id: "eval-123",
+      user_job_id: "uj-456",
+      evaluation_status: "success",
+    });
+
+    render(
+      <JobDetailDrawer
+        job={mockJob}
+        userJobId="uj-456"
+        isOpen={true}
+        onClose={() => {}}
+      />
+    );
+
+    await waitFor(() => {
+      expect(evalSpy).toHaveBeenCalledWith("uj-456", "mock-clerk-test-token");
+    });
+  });
+
+  it("does not trigger evaluation fetch when userJobId is omitted", () => {
+    const evalSpy = vi.spyOn(endpoints, "getUserJobEvaluation");
+    evalSpy.mockClear();
+
+    render(
+      <JobDetailDrawer
+        job={mockJob}
+        isOpen={true}
+        onClose={() => {}}
+      />
+    );
+
+    expect(evalSpy).not.toHaveBeenCalled();
   });
 });

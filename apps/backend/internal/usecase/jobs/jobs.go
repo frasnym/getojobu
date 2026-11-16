@@ -17,8 +17,8 @@ import (
 type Job interface {
 	Create(ctx context.Context, params models.CreateJobParams) (*models.CreateJobResult, error)
 	CreateBulk(ctx context.Context, params models.BulkCreateJobParams) ([]models.BulkCreateJobResult, error)
-	GetBySlug(ctx context.Context, slug string) (*models.Job, error)
-	List(ctx context.Context, limit, offset int, userID string, isCheckOwnership bool) ([]*models.Job, int, error)
+	GetBySlug(ctx context.Context, slug string, userID string) (*models.JobWithOwnership, error)
+	List(ctx context.Context, limit, offset int, userID string) ([]*models.JobWithOwnership, int, error)
 	// UpdateStatus validates the status transition and persists the new status.
 	// analyzeResult and failureMessage are optional (nil = keep existing value).
 	// Returns ErrNotFound when slug is unknown, ErrInvalidTransition when the
@@ -155,9 +155,9 @@ func (s *jobService) CreateBulk(ctx context.Context, params models.BulkCreateJob
 }
 
 // GetBySlug returns the job with the given slug, or ErrNotFound when it does
-// not exist.
-func (s *jobService) GetBySlug(ctx context.Context, slug string) (*models.Job, error) {
-	job, err := s.repo.GetBySlug(ctx, slug)
+// not exist. When userID is non-empty, ownership is resolved for that user.
+func (s *jobService) GetBySlug(ctx context.Context, slug string, userID string) (*models.JobWithOwnership, error) {
+	job, err := s.repo.GetBySlug(ctx, slug, userID)
 	if err != nil {
 		if errors.Is(err, constants.ErrNotFound) {
 			return nil, constants.ErrNotFound
@@ -167,10 +167,10 @@ func (s *jobService) GetBySlug(ctx context.Context, slug string) (*models.Job, e
 	return job, nil
 }
 
-// List returns paginated jobs ordered by created_at descending. When isCheckOwnership is true, each
-// job is marked with isOwned based on whether userID owns it in user_jobs.
-func (s *jobService) List(ctx context.Context, limit, offset int, userID string, isCheckOwnership bool) ([]*models.Job, int, error) {
-	jobs, total, err := s.repo.List(ctx, limit, offset, userID, isCheckOwnership)
+// List returns paginated jobs ordered by created_at descending. When userID is
+// non-empty, ownership is resolved via user_jobs for that user.
+func (s *jobService) List(ctx context.Context, limit, offset int, userID string) ([]*models.JobWithOwnership, int, error) {
+	jobs, total, err := s.repo.List(ctx, limit, offset, userID)
 	if err != nil {
 		return nil, 0, fmt.Errorf("list jobs: %w", err)
 	}
@@ -184,13 +184,14 @@ func (s *jobService) List(ctx context.Context, limit, offset int, userID string,
 // and ErrInvalidTransition (wrapping the validator's error) when the transition
 // is not permitted.
 func (s *jobService) UpdateStatus(ctx context.Context, slug, status string, analyzeResult, failureMessage *string, updatedByType, updatedByID string) (*models.Job, error) {
-	existing, err := s.repo.GetBySlug(ctx, slug)
+	existingRes, err := s.repo.GetBySlug(ctx, slug, "")
 	if err != nil {
 		if errors.Is(err, constants.ErrNotFound) {
 			return nil, constants.ErrNotFound
 		}
 		return nil, fmt.Errorf("get job before status update: %w", err)
 	}
+	existing := existingRes.Job
 
 	if err := constants.ValidateJobStatusTransition(
 		constants.JobStatus(existing.Status),

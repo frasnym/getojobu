@@ -443,3 +443,73 @@ func TestReportHandlers(t *testing.T) {
 		assert.Contains(t, rec.Body.String(), "Alex_Resume.pdf")
 	})
 }
+
+func TestUpdateEvaluation_responseKeysUnchanged(t *testing.T) {
+	apiKey := "test-api-key"
+	evalID := uuid.New()
+	userJobID := uuid.New()
+	score := 85.0
+	eligibility := "eligible"
+	recommendation := "strong_match"
+	failMsg := "some failure"
+	reportStatus := "success"
+	reportFailMsg := "report failure"
+	resumeStatus := "success"
+	resumeFailMsg := "resume failure"
+	pdfKey := "resumes/pdf.pdf"
+	jsonKey := "resumes/json.json"
+	now := time.Now()
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockMatching := usecaseMocks.NewMockMatching(ctrl)
+	mockUsers := userMocks.NewMockUser(ctrl)
+	rt := setupTestRouter(ctrl, mockMatching, mockUsers, apiKey)
+
+	returnedEval := &models.MatchingEvaluation{
+		ID:                   evalID,
+		UserJobID:            userJobID,
+		EvaluationStatus:     "success",
+		EvaluationData:       []byte(`{"scores":{"technical":85}}`),
+		OverallScore:         &score,
+		EligibilityStatus:    &eligibility,
+		RecommendationLabel:  &recommendation,
+		FailureMessage:       &failMsg,
+		ReportData:           []byte(`{"summary":"good"}`),
+		ReportStatus:         &reportStatus,
+		ReportFailureMessage: &reportFailMsg,
+		ResumeStatus:         &resumeStatus,
+		ResumeFailureMessage: &resumeFailMsg,
+		ResumePDFKey:         &pdfKey,
+		ResumeJSONKey:        &jsonKey,
+		CreatedAt:            now,
+		UpdatedAt:            now,
+	}
+
+	mockMatching.EXPECT().UpdateEvaluation(gomock.Any(), evalID, gomock.Any()).Return(returnedEval, nil)
+
+	body, _ := json.Marshal(map[string]interface{}{
+		"evaluation_status": "success",
+	})
+	req := httptest.NewRequest(http.MethodPatch, "/v1/matching-evaluations/"+evalID.String(), bytes.NewReader(body))
+	req.Header.Set("Authorization", "Bearer "+apiKey)
+	rec := httptest.NewRecorder()
+
+	rt.Mux().ServeHTTP(rec, req)
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	var resp httpx.Response[map[string]interface{}]
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	keys := resp.Data
+	expectedKeys := []string{
+		"id", "user_job_id", "evaluation_status", "evaluation_data", "overall_score",
+		"eligibility_status", "recommendation_label", "failure_message", "report_data",
+		"report_status", "report_failure_message", "resume_status", "resume_failure_message",
+		"resume_pdf_key", "resume_json_key", "created_at", "updated_at",
+	}
+	for _, k := range expectedKeys {
+		assert.Contains(t, keys, k)
+	}
+	assert.Nil(t, keys["job"])
+}

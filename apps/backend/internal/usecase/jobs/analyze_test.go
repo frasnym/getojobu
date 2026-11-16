@@ -60,7 +60,7 @@ func TestQueueAnalysisBulk(t *testing.T) {
 			Description: ptrString("Software Engineer at Acme"),
 		}
 
-		mockRepo.EXPECT().GetBySlug(gomock.Any(), slug).Return(job, nil)
+		mockRepo.EXPECT().GetBySlug(gomock.Any(), slug, "").Return(&models.JobWithOwnership{Job: job}, nil)
 
 		expectedInput := models.JobAnalyzeWorkflowInput{
 			JobDescription: "Software Engineer at Acme",
@@ -94,7 +94,7 @@ func TestQueueAnalysisBulk(t *testing.T) {
 			Description: ptrString("Software Engineer at Acme"),
 		}
 
-		mockRepo.EXPECT().GetBySlug(gomock.Any(), slug).Return(job, nil)
+		mockRepo.EXPECT().GetBySlug(gomock.Any(), slug, "").Return(&models.JobWithOwnership{Job: job}, nil)
 
 		expectedInput := models.JobAnalyzeWorkflowInput{
 			JobDescription: "Software Engineer at Acme",
@@ -126,7 +126,7 @@ func TestQueueAnalysisBulk(t *testing.T) {
 			Description: ptrString("Software Engineer"),
 		}
 
-		mockRepo.EXPECT().GetBySlug(gomock.Any(), slug).Return(job, nil)
+		mockRepo.EXPECT().GetBySlug(gomock.Any(), slug, "").Return(&models.JobWithOwnership{Job: job}, nil)
 		mockRepo.EXPECT().UpdateStatus(gomock.Any(), slug, "new-retry", (*string)(nil), (*string)(nil), "worker", "getojobu-worker").Return(job, nil)
 
 		expectedInput := models.JobAnalyzeWorkflowInput{
@@ -160,7 +160,7 @@ func TestQueueAnalysisBulk(t *testing.T) {
 			Description: ptrString("Software Engineer"),
 		}
 
-		mockRepo.EXPECT().GetBySlug(gomock.Any(), slug).Return(job, nil)
+		mockRepo.EXPECT().GetBySlug(gomock.Any(), slug, "").Return(&models.JobWithOwnership{Job: job}, nil)
 
 		svc := &jobService{
 			repo:      mockRepo,
@@ -185,7 +185,7 @@ func TestQueueAnalysisBulk(t *testing.T) {
 			UpdatedAt:   time.Now().Add(-45 * time.Minute),
 		}
 
-		mockRepo.EXPECT().GetBySlug(gomock.Any(), slug).Return(job, nil)
+		mockRepo.EXPECT().GetBySlug(gomock.Any(), slug, "").Return(&models.JobWithOwnership{Job: job}, nil)
 
 		svc := &jobService{
 			repo:      mockRepo,
@@ -210,7 +210,7 @@ func TestQueueAnalysisBulk(t *testing.T) {
 			UpdatedAt:   time.Now().Add(-10 * time.Minute),
 		}
 
-		mockRepo.EXPECT().GetBySlug(gomock.Any(), slug).Return(job, nil)
+		mockRepo.EXPECT().GetBySlug(gomock.Any(), slug, "").Return(&models.JobWithOwnership{Job: job}, nil)
 
 		svc := &jobService{
 			repo:      mockRepo,
@@ -235,7 +235,7 @@ func TestQueueAnalysisBulk(t *testing.T) {
 			UpdatedAt:   time.Now().Add(-45 * time.Minute),
 		}
 
-		mockRepo.EXPECT().GetBySlug(gomock.Any(), slug).Return(job, nil)
+		mockRepo.EXPECT().GetBySlug(gomock.Any(), slug, "").Return(&models.JobWithOwnership{Job: job}, nil)
 		mockWorkflows.EXPECT().IsWorkflowRunning(gomock.Any(), "job-analyze-1033").Return(true, nil)
 
 		svc := &jobService{
@@ -261,7 +261,7 @@ func TestQueueAnalysisBulk(t *testing.T) {
 			UpdatedAt:   time.Now().Add(-45 * time.Minute),
 		}
 
-		mockRepo.EXPECT().GetBySlug(gomock.Any(), slug).Return(job, nil)
+		mockRepo.EXPECT().GetBySlug(gomock.Any(), slug, "").Return(&models.JobWithOwnership{Job: job}, nil)
 		mockWorkflows.EXPECT().IsWorkflowRunning(gomock.Any(), "job-analyze-1034").Return(false, nil)
 		mockRepo.EXPECT().UpdateStatus(gomock.Any(), slug, "new-retry", (*string)(nil), (*string)(nil), "", "").Return(job, nil)
 		expectedInput := models.JobAnalyzeWorkflowInput{
@@ -293,7 +293,7 @@ func TestQueueAnalysisBulk(t *testing.T) {
 			Description: ptrString("Software Engineer"),
 		}
 
-		mockRepo.EXPECT().GetBySlug(gomock.Any(), slug).Return(job, nil)
+		mockRepo.EXPECT().GetBySlug(gomock.Any(), slug, "").Return(&models.JobWithOwnership{Job: job}, nil)
 
 		svc := &jobService{
 			repo:      mockRepo,
@@ -317,7 +317,7 @@ func TestQueueAnalysisBulk(t *testing.T) {
 			Description: nil,
 		}
 
-		mockRepo.EXPECT().GetBySlug(gomock.Any(), slug).Return(job, nil)
+		mockRepo.EXPECT().GetBySlug(gomock.Any(), slug, "").Return(&models.JobWithOwnership{Job: job}, nil)
 
 		svc := &jobService{
 			repo:      mockRepo,
@@ -341,7 +341,7 @@ func TestQueueAnalysisBulk(t *testing.T) {
 			Description: ptrString("Job"),
 		}
 
-		mockRepo.EXPECT().GetBySlug(gomock.Any(), slug).Return(job, nil)
+		mockRepo.EXPECT().GetBySlug(gomock.Any(), slug, "").Return(&models.JobWithOwnership{Job: job}, nil)
 		mockUserJobs.EXPECT().IsOwned(gomock.Any(), "user-alice", int64(106)).Return(false, nil)
 
 		svc := &jobService{
@@ -367,7 +367,7 @@ func TestQueueAnalysisBulk(t *testing.T) {
 			Description: ptrString("Software Engineer"),
 		}
 
-		mockRepo.EXPECT().GetBySlug(gomock.Any(), slug).Return(job, nil)
+		mockRepo.EXPECT().GetBySlug(gomock.Any(), slug, "").Return(&models.JobWithOwnership{Job: job}, nil)
 
 		expectedInput := models.JobAnalyzeWorkflowInput{
 			JobDescription: "Software Engineer",
@@ -397,7 +397,7 @@ func TestQueueAnalysisBulk(t *testing.T) {
 			Description: ptrString("Software Engineer"),
 		}
 
-		mockRepo.EXPECT().GetBySlug(gomock.Any(), slug).Return(job, nil)
+		mockRepo.EXPECT().GetBySlug(gomock.Any(), slug, "").Return(&models.JobWithOwnership{Job: job}, nil)
 
 		svc := &jobService{
 			repo:      mockRepo,

@@ -132,11 +132,11 @@ func TestGetBySlug_found_and_not_found(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	got, err := repo.GetBySlug(context.Background(), slug)
+	got, err := repo.GetBySlug(context.Background(), slug, "")
 	require.NoError(t, err)
-	assert.Equal(t, slug, got.Slug)
+	assert.Equal(t, slug, got.Job.Slug)
 
-	_, err = repo.GetBySlug(context.Background(), "does-not-exist")
+	_, err = repo.GetBySlug(context.Background(), "does-not-exist", "")
 	require.Error(t, err)
 	assert.True(t, errors.Is(err, constants.ErrNotFound), "expected ErrNotFound for missing slug, got %v", err)
 }
@@ -158,11 +158,11 @@ func TestList_ordering_and_limit(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	got, total, err := repo.List(context.Background(), 3, 0, "", false)
+	got, total, err := repo.List(context.Background(), 3, 0, "")
 	require.NoError(t, err)
 	assert.GreaterOrEqual(t, total, 3)
 	require.Len(t, got, 3)
-	assert.LessOrEqual(t, got[0].CreatedAt.Unix(), got[0].CreatedAt.Unix())
+	assert.LessOrEqual(t, got[0].Job.CreatedAt.Unix(), got[0].Job.CreatedAt.Unix())
 }
 
 func TestList_isOwned_flag(t *testing.T) {
@@ -200,24 +200,24 @@ func TestList_isOwned_flag(t *testing.T) {
 	_, err = userJobsRepo.Create(ctx, userID, ownedJobID)
 	require.NoError(t, err)
 
-	got, total, err := jobsRepo.List(ctx, 10, 0, userID, true)
+	got, total, err := jobsRepo.List(ctx, 10, 0, userID)
 	require.NoError(t, err)
 	assert.GreaterOrEqual(t, total, 3)
 	require.Len(t, got, 3)
 
-	byID := make(map[int64]*models.Job, len(got))
+	byID := make(map[int64]*models.JobWithOwnership, len(got))
 	for _, j := range got {
-		byID[j.ID] = j
+		byID[j.Job.ID] = j
 	}
 	assert.True(t, byID[ownedJobID].IsOwned, "linked job should be owned")
 	for _, j := range got {
-		if j.ID != ownedJobID {
+		if j.Job.ID != ownedJobID {
 			assert.False(t, j.IsOwned, "unlinked job should not be owned")
 		}
 	}
 
 	// Empty userID -> no job is owned.
-	gotAll, _, err := jobsRepo.List(ctx, 10, 0, "", false)
+	gotAll, _, err := jobsRepo.List(ctx, 10, 0, "")
 	require.NoError(t, err)
 	for _, j := range gotAll {
 		assert.False(t, j.IsOwned, "empty userID should yield isOwned=false")

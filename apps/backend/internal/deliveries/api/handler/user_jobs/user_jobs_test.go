@@ -6,16 +6,20 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
 
 	"github.com/frasnym/getojobu/apps/backend/internal/config"
 	"github.com/frasnym/getojobu/apps/backend/internal/models"
+	ucMatchingMock "github.com/frasnym/getojobu/apps/backend/internal/usecase/matching/mocks"
 	ucUserJobsMock "github.com/frasnym/getojobu/apps/backend/internal/usecase/user_jobs/mocks"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/constants"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/ctxval"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/httpx"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"go.uber.org/mock/gomock"
 )
 
 func newHandlerWithMock(ctrl *gomock.Controller) (*handler, *ucUserJobsMock.MockUserJobs) {
@@ -61,9 +65,25 @@ func TestListUserJobs_success(t *testing.T) {
 	defer ctrl.Finish()
 	h, mockJobs := newHandlerWithMock(ctrl)
 
+	ujID := uuid.MustParse("ee46d5ea-893d-4951-a3d3-8c32d7459737")
+	uID := uuid.MustParse("11111111-1111-1111-1111-111111111111")
+	rows := []*models.UserJobWithJob{
+		{
+			UserJob: &models.UserJob{
+				ID:        ujID,
+				UserID:    uID,
+				JobID:     1,
+				IsHidden:  false,
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+			},
+			Job: &models.Job{ID: 1, Slug: "job-1", Title: "Engineer"},
+		},
+	}
+
 	mockJobs.EXPECT().
 		ListByUser(gomock.Any(), "user_1", models.UserJobFilter{}, 10, 0).
-		Return([]*models.Job{{ID: 1, Slug: "job-1", Title: "Engineer"}}, 1, nil)
+		Return(rows, 1, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/user-jobs", nil)
 	req = req.WithContext(ctxval.ContextWithPrincipal(req.Context(), principalCtx("user_1")))
@@ -76,9 +96,96 @@ func TestListUserJobs_success(t *testing.T) {
 	assert.Equal(t, http.StatusOK, w.Code)
 	jobs := bodyAsJobs(t, w)
 	require.Len(t, jobs, 1)
-	assert.Equal(t, float64(1), jobs[0]["id"])
-	assert.Equal(t, "job-1", jobs[0]["slug"])
-	assert.Equal(t, "Engineer", jobs[0]["title"])
+	assert.Equal(t, ujID.String(), jobs[0]["id"])
+	assert.Equal(t, false, jobs[0]["is_hidden"])
+	jobMap := jobs[0]["job"].(map[string]interface{})
+	assert.Equal(t, float64(1), jobMap["id"])
+	assert.Equal(t, "job-1", jobMap["slug"])
+	assert.Equal(t, "Engineer", jobMap["title"])
+}
+
+func TestListUserJobs_rootIsUserJob(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	h, mockJobs := newHandlerWithMock(ctrl)
+
+	ujID := uuid.MustParse("ee46d5ea-893d-4951-a3d3-8c32d7459737")
+	uID := uuid.MustParse("11111111-1111-1111-1111-111111111111")
+	ujCreatedAt := time.Date(2026, 11, 16, 10, 0, 0, 0, time.UTC)
+	jobCreatedAt := time.Date(2026, 11, 15, 8, 0, 0, 0, time.UTC)
+
+	rows := []*models.UserJobWithJob{
+		{
+			UserJob: &models.UserJob{
+				ID:        ujID,
+				UserID:    uID,
+				JobID:     648,
+				IsHidden:  false,
+				CreatedAt: ujCreatedAt,
+				UpdatedAt: ujCreatedAt,
+			},
+			Job: &models.Job{
+				ID:        648,
+				Slug:      "job-648",
+				Title:     "DevOps",
+				CreatedAt: jobCreatedAt,
+				UpdatedAt: jobCreatedAt,
+			},
+		},
+	}
+	mockJobs.EXPECT().
+		ListByUser(gomock.Any(), "user_1", models.UserJobFilter{}, 10, 0).
+		Return(rows, 1, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/user-jobs", nil)
+	req = req.WithContext(ctxval.ContextWithPrincipal(req.Context(), principalCtx("user_1")))
+	w := httptest.NewRecorder()
+
+	httpx.HandlerFunc(h.ListUserJobs).ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	jobs := bodyAsJobs(t, w)
+	require.Len(t, jobs, 1)
+	row := jobs[0]
+	assert.Equal(t, ujID.String(), row["id"])
+	assert.Equal(t, false, row["is_hidden"])
+	assert.Equal(t, ujCreatedAt.Format(time.RFC3339), row["created_at"])
+	assert.Nil(t, row["title"])
+	assert.Nil(t, row["slug"])
+	assert.Nil(t, row["is_owned"])
+	assert.Nil(t, row["user_job_id"])
+
+	job := row["job"].(map[string]interface{})
+	assert.EqualValues(t, 648, job["id"])
+	assert.Equal(t, "DevOps", job["title"])
+}
+
+func TestListUserJobs_preservesRowOrder(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	h, mockJobs := newHandlerWithMock(ctrl)
+
+	id1 := uuid.New()
+	id2 := uuid.New()
+	rows := []*models.UserJobWithJob{
+		{UserJob: &models.UserJob{ID: id1, JobID: 1}, Job: &models.Job{ID: 1, Title: "Job 1"}},
+		{UserJob: &models.UserJob{ID: id2, JobID: 2}, Job: &models.Job{ID: 2, Title: "Job 2"}},
+	}
+	mockJobs.EXPECT().
+		ListByUser(gomock.Any(), "user_1", models.UserJobFilter{}, 10, 0).
+		Return(rows, 2, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/user-jobs", nil)
+	req = req.WithContext(ctxval.ContextWithPrincipal(req.Context(), principalCtx("user_1")))
+	w := httptest.NewRecorder()
+
+	httpx.HandlerFunc(h.ListUserJobs).ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	jobs := bodyAsJobs(t, w)
+	require.Len(t, jobs, 2)
+	assert.Equal(t, id1.String(), jobs[0]["id"])
+	assert.Equal(t, id2.String(), jobs[1]["id"])
 }
 
 func TestListUserJobs_empty(t *testing.T) {
@@ -89,7 +196,7 @@ func TestListUserJobs_empty(t *testing.T) {
 
 	mockJobs.EXPECT().
 		ListByUser(gomock.Any(), "user_1", models.UserJobFilter{}, 10, 0).
-		Return([]*models.Job{}, 0, nil)
+		Return([]*models.UserJobWithJob{}, 0, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/user-jobs", nil)
 	req = req.WithContext(ctxval.ContextWithPrincipal(req.Context(), principalCtx("user_1")))
@@ -128,7 +235,7 @@ func TestListUserJobs_limit_clamped(t *testing.T) {
 
 	mockJobs.EXPECT().
 		ListByUser(gomock.Any(), "user_1", models.UserJobFilter{}, 50, 0).
-		Return([]*models.Job{}, 0, nil)
+		Return([]*models.UserJobWithJob{}, 0, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/user-jobs?limit=999", nil)
 	req = req.WithContext(ctxval.ContextWithPrincipal(req.Context(), principalCtx("user_1")))
@@ -420,4 +527,98 @@ func TestRoute_registers_userjobs_under_group(t *testing.T) {
 	assert.Equal(t, "/v1/user-jobs/{user_job_id}/hide", routes[2].Pattern)
 	assert.Equal(t, http.MethodGet, routes[3].Method)
 	assert.Equal(t, "/v1/user-jobs/{user_job_id}/evaluation", routes[3].Pattern)
+}
+
+func TestGetEvaluation_includesJob(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	mockJobs := ucUserJobsMock.NewMockUserJobs(ctrl)
+	mockMatching := ucMatchingMock.NewMockMatching(ctrl)
+	h := &handler{
+		cfg:        &config.Config{},
+		ucJobs:     mockJobs,
+		matchingUC: mockMatching,
+	}
+
+	uID := uuid.MustParse("11111111-1111-1111-1111-111111111111")
+	ujID := uuid.MustParse("22222222-2222-2222-2222-222222222222")
+	evalID := uuid.MustParse("33333333-3333-3333-3333-333333333333")
+
+	evalWithJob := &models.EvaluationWithJob{
+		Evaluation: &models.MatchingEvaluation{
+			ID:               evalID,
+			UserJobID:        ujID,
+			EvaluationStatus: "success",
+			EvaluationData:   []byte(`{"score":85,"metadata":{"model":"test"}}`),
+			ReportData:       []byte(`{"summary":"good","metadata":{"prompt":"v1"}}`),
+		},
+		Job: &models.Job{
+			ID:    648,
+			Slug:  "job-slug",
+			Title: "Platform Engineer",
+		},
+	}
+
+	mockMatching.EXPECT().
+		GetEvaluationByUserJobID(gomock.Any(), uID, ujID).
+		Return(evalWithJob, nil)
+
+	mux := http.NewServeMux()
+	mux.Handle("GET /user-jobs/{user_job_id}/evaluation", httpx.HandlerFunc(h.GetEvaluation))
+
+	req := httptest.NewRequest(http.MethodGet, "/user-jobs/"+ujID.String()+"/evaluation", nil)
+	req = req.WithContext(ctxval.ContextWithPrincipal(req.Context(), principalCtx(uID.String())))
+	w := httptest.NewRecorder()
+
+	mux.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	var resp httpx.Response[map[string]interface{}]
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+	require.True(t, resp.Success)
+	data := resp.Data
+	assert.Equal(t, evalID.String(), data["id"])
+	assert.Equal(t, ujID.String(), data["user_job_id"])
+
+	job := data["job"].(map[string]interface{})
+	assert.EqualValues(t, 648, job["id"])
+	assert.Equal(t, "job-slug", job["slug"])
+
+	evalData := data["evaluation_data"].(map[string]interface{})
+	assert.Nil(t, evalData["metadata"])
+	reportData := data["report_data"].(map[string]interface{})
+	assert.Nil(t, reportData["metadata"])
+}
+
+func TestGetEvaluation_notFoundForForeignLink(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	mockJobs := ucUserJobsMock.NewMockUserJobs(ctrl)
+	mockMatching := ucMatchingMock.NewMockMatching(ctrl)
+	h := &handler{
+		cfg:        &config.Config{},
+		ucJobs:     mockJobs,
+		matchingUC: mockMatching,
+	}
+
+	uID := uuid.MustParse("11111111-1111-1111-1111-111111111111")
+	ujID := uuid.MustParse("22222222-2222-2222-2222-222222222222")
+
+	mockMatching.EXPECT().
+		GetEvaluationByUserJobID(gomock.Any(), uID, ujID).
+		Return(nil, constants.ErrNotFound)
+
+	mux := http.NewServeMux()
+	mux.Handle("GET /user-jobs/{user_job_id}/evaluation", httpx.HandlerFunc(h.GetEvaluation))
+
+	req := httptest.NewRequest(http.MethodGet, "/user-jobs/"+ujID.String()+"/evaluation", nil)
+	req = req.WithContext(ctxval.ContextWithPrincipal(req.Context(), principalCtx(uID.String())))
+	w := httptest.NewRecorder()
+
+	mux.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusNotFound, w.Code)
+	var resp map[string]interface{}
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+	assert.Nil(t, resp["job"])
 }

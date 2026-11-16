@@ -1,6 +1,7 @@
 import { apiClient, apiClientWithPagination, PaginatedResult } from "./client";
 import {
   Job,
+  UserJob,
   DownloadResumeResponse,
   EvaluationSummary,
 } from "./types";
@@ -18,7 +19,7 @@ export async function getUserJobs(
   page: number = 1,
   limit: number = 10,
   filters?: { status?: string; remote?: boolean; hide?: string }
-): Promise<PaginatedResult<Job[]>> {
+): Promise<PaginatedResult<UserJob[]>> {
   const params = new URLSearchParams();
   params.set("page", String(page));
   params.set("limit", String(limit));
@@ -31,7 +32,7 @@ export async function getUserJobs(
   if (filters?.hide && filters.hide !== "all") {
     params.set("hide", filters.hide);
   }
-  return apiClientWithPagination<Job[]>(`/v1/user-jobs?${params.toString()}`, {
+  return apiClientWithPagination<UserJob[]>(`/v1/user-jobs?${params.toString()}`, {
     token,
   });
 }

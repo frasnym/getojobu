@@ -22,7 +22,6 @@ import (
 type MockMatchingEvaluations struct {
 	ctrl     *gomock.Controller
 	recorder *MockMatchingEvaluationsMockRecorder
-	isgomock struct{}
 }
 
 // MockMatchingEvaluationsMockRecorder is the mock recorder for MockMatchingEvaluations.
@@ -88,10 +87,10 @@ func (mr *MockMatchingEvaluationsMockRecorder) GetLatestByUserAndJob(ctx, userID
 }
 
 // GetLatestByUserJobID mocks base method.
-func (m *MockMatchingEvaluations) GetLatestByUserJobID(ctx context.Context, userID uuid.UUID, userJobID uuid.UUID) (*models.MatchingEvaluation, error) {
+func (m *MockMatchingEvaluations) GetLatestByUserJobID(ctx context.Context, userID, userJobID uuid.UUID) (*models.EvaluationWithJob, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetLatestByUserJobID", ctx, userID, userJobID)
-	ret0, _ := ret[0].(*models.MatchingEvaluation)
+	ret0, _ := ret[0].(*models.EvaluationWithJob)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

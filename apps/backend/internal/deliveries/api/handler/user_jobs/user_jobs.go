@@ -11,6 +11,7 @@ import (
 
 	"github.com/frasnym/getojobu/apps/backend/internal/config"
 	"github.com/frasnym/getojobu/apps/backend/internal/contract"
+	"github.com/frasnym/getojobu/apps/backend/internal/deliveries/api/dto"
 	"github.com/frasnym/getojobu/apps/backend/internal/deliveries/api/middleware"
 	"github.com/frasnym/getojobu/apps/backend/internal/models"
 	ucMatching "github.com/frasnym/getojobu/apps/backend/internal/usecase/matching"
@@ -80,7 +81,7 @@ func (h *handler) Route(g *httpx.Router) {
 // @Produce json
 // @Param page query integer false "Page number (default 1)"
 // @Param limit query integer false "Items per page (default 10, max 50)"
-// @Success 200 {array} models.Job
+// @Success 200 {array} dto.UserJobResponse
 // @Failure 400 {object} httpx.Error
 // @Failure 401 {object} httpx.Error
 // @security ApiKeyAuth
@@ -133,11 +134,12 @@ func (h *handler) ListUserJobs(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	if jobs == nil {
-		jobs = []*models.Job{}
+	dtoRows := make([]dto.UserJobResponse, len(jobs))
+	for i, row := range jobs {
+		dtoRows[i] = dto.NewUserJobResponse(row.UserJob, row.Job)
 	}
 
-	return httpx.RespondJSON(w, r, http.StatusOK, jobs, httpx.WithPaginationParams(page, limit, totalItems))
+	return httpx.RespondJSON(w, r, http.StatusOK, dtoRows, httpx.WithPaginationParams(page, limit, totalItems))
 }
 
 // AddUserJob links a job listing to the authenticated user's saved jobs
@@ -240,7 +242,7 @@ func (h *handler) SetHideStatus(w http.ResponseWriter, r *http.Request) error {
 // @Tags user-jobs
 // @Produce json
 // @Param user_job_id path string true "User job link ID (UUID)"
-// @Success 200 {object} models.MatchingEvaluation
+// @Success 200 {object} dto.EvaluationResponse
 // @Failure 400 {object} httpx.Error
 // @Failure 401 {object} httpx.Error
 // @Failure 404 {object} httpx.Error
@@ -266,7 +268,7 @@ func (h *handler) GetEvaluation(w http.ResponseWriter, r *http.Request) error {
 		return httpx.Envelope(httpx.CodeInvalidRequest, "user_job_id must be a valid UUID", "")
 	}
 
-	eval, err := h.matchingUC.GetEvaluationByUserJobID(r.Context(), uid, ujid)
+	evalWithJob, err := h.matchingUC.GetEvaluationByUserJobID(r.Context(), uid, ujid)
 	if err != nil {
 		logging.Error(r.Context(), "get user job evaluation failed", err,
 			"user_id", p.ID, "user_job_id", userJobID)
@@ -279,7 +281,7 @@ func (h *handler) GetEvaluation(w http.ResponseWriter, r *http.Request) error {
 	// Strip service metadata (model, prompt_version) from evaluation_data
 	// and report_data before exposing them to clients. Internal Go usecases
 	// still read the raw fields from the DB.
-	for _, field := range []*json.RawMessage{&eval.EvaluationData, &eval.ReportData} {
+	for _, field := range []*json.RawMessage{&evalWithJob.Evaluation.EvaluationData, &evalWithJob.Evaluation.ReportData} {
 		if len(*field) > 0 {
 			var data map[string]any
 			if err := json.Unmarshal(*field, &data); err == nil {
@@ -292,5 +294,5 @@ func (h *handler) GetEvaluation(w http.ResponseWriter, r *http.Request) error {
 		}
 	}
 
-	return httpx.RespondJSON(w, r, http.StatusOK, eval)
+	return httpx.RespondJSON(w, r, http.StatusOK, dto.NewEvaluationResponse(evalWithJob.Evaluation, evalWithJob.Job))
 }

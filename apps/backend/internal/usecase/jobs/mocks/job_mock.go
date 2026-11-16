@@ -21,7 +21,6 @@ import (
 type MockJob struct {
 	ctrl     *gomock.Controller
 	recorder *MockJobMockRecorder
-	isgomock struct{}
 }
 
 // MockJobMockRecorder is the mock recorder for MockJob.
@@ -72,34 +71,34 @@ func (mr *MockJobMockRecorder) CreateBulk(ctx, params any) *gomock.Call {
 }
 
 // GetBySlug mocks base method.
-func (m *MockJob) GetBySlug(ctx context.Context, slug string) (*models.Job, error) {
+func (m *MockJob) GetBySlug(ctx context.Context, slug, userID string) (*models.JobWithOwnership, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetBySlug", ctx, slug)
-	ret0, _ := ret[0].(*models.Job)
+	ret := m.ctrl.Call(m, "GetBySlug", ctx, slug, userID)
+	ret0, _ := ret[0].(*models.JobWithOwnership)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetBySlug indicates an expected call of GetBySlug.
-func (mr *MockJobMockRecorder) GetBySlug(ctx, slug any) *gomock.Call {
+func (mr *MockJobMockRecorder) GetBySlug(ctx, slug, userID any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBySlug", reflect.TypeOf((*MockJob)(nil).GetBySlug), ctx, slug)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBySlug", reflect.TypeOf((*MockJob)(nil).GetBySlug), ctx, slug, userID)
 }
 
 // List mocks base method.
-func (m *MockJob) List(ctx context.Context, limit, offset int, userID string, isCheckOwnership bool) ([]*models.Job, int, error) {
+func (m *MockJob) List(ctx context.Context, limit, offset int, userID string) ([]*models.JobWithOwnership, int, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "List", ctx, limit, offset, userID, isCheckOwnership)
-	ret0, _ := ret[0].([]*models.Job)
+	ret := m.ctrl.Call(m, "List", ctx, limit, offset, userID)
+	ret0, _ := ret[0].([]*models.JobWithOwnership)
 	ret1, _ := ret[1].(int)
 	ret2, _ := ret[2].(error)
 	return ret0, ret1, ret2
 }
 
 // List indicates an expected call of List.
-func (mr *MockJobMockRecorder) List(ctx, limit, offset, userID, isCheckOwnership any) *gomock.Call {
+func (mr *MockJobMockRecorder) List(ctx, limit, offset, userID any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "List", reflect.TypeOf((*MockJob)(nil).List), ctx, limit, offset, userID, isCheckOwnership)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "List", reflect.TypeOf((*MockJob)(nil).List), ctx, limit, offset, userID)
 }
 
 // QueueAnalysisBulk mocks base method.

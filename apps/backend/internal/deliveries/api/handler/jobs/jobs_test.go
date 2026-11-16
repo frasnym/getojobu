@@ -9,7 +9,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/frasnym/getojobu/apps/backend/internal/config"
+	"github.com/frasnym/getojobu/apps/backend/internal/deliveries/api/dto"
 	"github.com/frasnym/getojobu/apps/backend/internal/models"
 	ucJobsMocks "github.com/frasnym/getojobu/apps/backend/internal/usecase/jobs/mocks"
 	ucUsersMocks "github.com/frasnym/getojobu/apps/backend/internal/usecase/users/mocks"
@@ -67,9 +70,9 @@ func TestCreateJob_success(t *testing.T) {
 
 	assert.Equal(t, http.StatusCreated, w.Code)
 	m := bodyAsMap(t, w)
-	job := m["Job"].(map[string]interface{})
+	job := m["job"].(map[string]interface{})
 	assert.Equal(t, slug, job["slug"])
-	assert.Equal(t, true, m["Created"])
+	assert.Equal(t, true, m["created"])
 }
 
 func TestCreateJob_conflict_returns_created_false(t *testing.T) {
@@ -95,9 +98,9 @@ func TestCreateJob_conflict_returns_created_false(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 	m := bodyAsMap(t, w)
-	job := m["Job"].(map[string]interface{})
+	job := m["job"].(map[string]interface{})
 	assert.Equal(t, slug, job["slug"])
-	assert.Equal(t, false, m["Created"])
+	assert.Equal(t, false, m["created"])
 }
 
 func TestCreateJob_clerk_rejects_body_user_ids(t *testing.T) {
@@ -281,9 +284,12 @@ func TestListJobs_default(t *testing.T) {
 	defer ctrl.Finish()
 	h, mockJob, _ := newHandlerWithMock(ctrl)
 
-	expected := []*models.Job{{Slug: "job-1"}, {Slug: "job-2"}}
+	expected := []*models.JobWithOwnership{
+		{Job: &models.Job{Slug: "job-1"}},
+		{Job: &models.Job{Slug: "job-2"}},
+	}
 	mockJob.EXPECT().
-		List(gomock.Any(), 10, 0, "", false).
+		List(gomock.Any(), 10, 0, "").
 		Return(expected, 2, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/jobs", nil)
@@ -293,7 +299,7 @@ func TestListJobs_default(t *testing.T) {
 	httpx.HandlerFunc(h.ListJobs).ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusOK, w.Code)
-	var resp httpx.Response[[]*models.Job]
+	var resp httpx.Response[[]dto.JobResponse]
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
 	require.True(t, resp.Success)
 	got := resp.Data
@@ -306,7 +312,7 @@ func TestListJobs_empty_returns_empty_array(t *testing.T) {
 	h, mockJob, _ := newHandlerWithMock(ctrl)
 
 	mockJob.EXPECT().
-		List(gomock.Any(), 10, 0, "", false).
+		List(gomock.Any(), 10, 0, "").
 		Return(nil, 0, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/jobs", nil)
@@ -316,7 +322,7 @@ func TestListJobs_empty_returns_empty_array(t *testing.T) {
 	httpx.HandlerFunc(h.ListJobs).ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusOK, w.Code)
-	var resp httpx.Response[[]*models.Job]
+	var resp httpx.Response[[]dto.JobResponse]
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
 	assert.True(t, resp.Success)
 	assert.Empty(t, resp.Data)
@@ -327,9 +333,12 @@ func TestListJobs_returns_all_jobs(t *testing.T) {
 	defer ctrl.Finish()
 	h, mockJob, _ := newHandlerWithMock(ctrl)
 
-	expected := []*models.Job{{Slug: "job-1"}, {Slug: "job-2"}}
+	expected := []*models.JobWithOwnership{
+		{Job: &models.Job{Slug: "job-1"}, IsOwned: true},
+		{Job: &models.Job{Slug: "job-2"}, IsOwned: false},
+	}
 	mockJob.EXPECT().
-		List(gomock.Any(), 10, 0, "user_1", true).
+		List(gomock.Any(), 10, 0, "user_1").
 		Return(expected, 2, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/jobs", nil)
@@ -339,12 +348,14 @@ func TestListJobs_returns_all_jobs(t *testing.T) {
 	httpx.HandlerFunc(h.ListJobs).ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusOK, w.Code)
-	var resp httpx.Response[[]*models.Job]
+	var resp httpx.Response[[]dto.JobResponse]
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
 	require.True(t, resp.Success)
 	got := resp.Data
 	require.Len(t, got, 2)
 	assert.Equal(t, "job-1", got[0].Slug)
+	assert.True(t, *got[0].IsOwned)
+	assert.False(t, *got[1].IsOwned)
 }
 
 func TestListJobs_api_key_returns_all(t *testing.T) {
@@ -352,9 +363,12 @@ func TestListJobs_api_key_returns_all(t *testing.T) {
 	defer ctrl.Finish()
 	h, mockJob, _ := newHandlerWithMock(ctrl)
 
-	expected := []*models.Job{{Slug: "job-1"}, {Slug: "job-2"}}
+	expected := []*models.JobWithOwnership{
+		{Job: &models.Job{Slug: "job-1"}},
+		{Job: &models.Job{Slug: "job-2"}},
+	}
 	mockJob.EXPECT().
-		List(gomock.Any(), 10, 0, "", false).
+		List(gomock.Any(), 10, 0, "").
 		Return(expected, 2, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/jobs", nil)
@@ -364,11 +378,12 @@ func TestListJobs_api_key_returns_all(t *testing.T) {
 	httpx.HandlerFunc(h.ListJobs).ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusOK, w.Code)
-	var resp httpx.Response[[]*models.Job]
+	var resp httpx.Response[[]dto.JobResponse]
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
 	require.True(t, resp.Success)
 	got := resp.Data
 	require.Len(t, got, 2)
+	assert.Nil(t, got[0].IsOwned)
 }
 
 func TestListJobs_invalid_limit(t *testing.T) {
@@ -383,7 +398,7 @@ func TestListJobs_invalid_limit(t *testing.T) {
 	httpx.HandlerFunc(h.ListJobs).ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
-	mockJob.EXPECT().List(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
+	mockJob.EXPECT().List(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
 }
 
 func TestListJobs_clamped_limit(t *testing.T) {
@@ -392,8 +407,8 @@ func TestListJobs_clamped_limit(t *testing.T) {
 	h, mockJob, _ := newHandlerWithMock(ctrl)
 
 	mockJob.EXPECT().
-		List(gomock.Any(), 50, 0, "user_1", true).
-		Return([]*models.Job{}, 0, nil)
+		List(gomock.Any(), 50, 0, "user_1").
+		Return([]*models.JobWithOwnership{}, 0, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/jobs?limit=500", nil)
 	req = req.WithContext(ctxval.ContextWithPrincipal(req.Context(), principalCtx("", "user_1")))
@@ -412,8 +427,8 @@ func TestGetJob_found(t *testing.T) {
 	slug := "golang-developer-google-singapore"
 	expected := &models.Job{Slug: slug, Status: "new"}
 	mockJob.EXPECT().
-		GetBySlug(gomock.Any(), slug).
-		Return(expected, nil)
+		GetBySlug(gomock.Any(), slug, "").
+		Return(&models.JobWithOwnership{Job: expected}, nil)
 
 	mux := http.NewServeMux()
 	mux.Handle("GET /jobs/{slug}", httpx.HandlerFunc(h.GetJob))
@@ -427,6 +442,7 @@ func TestGetJob_found(t *testing.T) {
 	assert.Equal(t, http.StatusOK, w.Code)
 	m := bodyAsMap(t, w)
 	assert.Equal(t, slug, m["slug"])
+	assert.Nil(t, m["is_owned"])
 }
 
 func TestGetJob_not_found(t *testing.T) {
@@ -435,7 +451,7 @@ func TestGetJob_not_found(t *testing.T) {
 	h, mockJob, _ := newHandlerWithMock(ctrl)
 
 	mockJob.EXPECT().
-		GetBySlug(gomock.Any(), "missing").
+		GetBySlug(gomock.Any(), "missing", "").
 		Return(nil, constants.ErrNotFound)
 
 	mux := http.NewServeMux()
@@ -458,13 +474,12 @@ func TestGetJob_clerk_sees_any_job(t *testing.T) {
 	slug := "golang-developer-google-singapore"
 	expected := &models.Job{Slug: slug, Status: "new"}
 	mockJob.EXPECT().
-		GetBySlug(gomock.Any(), slug).
-		Return(expected, nil)
+		GetBySlug(gomock.Any(), slug, "user_1").
+		Return(&models.JobWithOwnership{Job: expected, IsOwned: false}, nil)
 
 	mux := http.NewServeMux()
 	mux.Handle("GET /jobs/{slug}", httpx.HandlerFunc(h.GetJob))
 
-	// Clerk principal (ActorType == "") can read any job; no ownership check.
 	req := httptest.NewRequest(http.MethodGet, "/jobs/"+slug, nil)
 	req = req.WithContext(ctxval.ContextWithPrincipal(req.Context(), principalCtx("", "user_1")))
 	w := httptest.NewRecorder()
@@ -474,6 +489,39 @@ func TestGetJob_clerk_sees_any_job(t *testing.T) {
 	assert.Equal(t, http.StatusOK, w.Code)
 	m := bodyAsMap(t, w)
 	assert.Equal(t, slug, m["slug"])
+	assert.Equal(t, false, m["is_owned"])
+	assert.Nil(t, m["user_job"])
+}
+
+func TestGetJob_includesUserJobForOwner(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	h, mockJob, _ := newHandlerWithMock(ctrl)
+
+	slug := "golang-developer-google-singapore"
+	ujID := uuid.MustParse("ee46d5ea-893d-4951-a3d3-8c32d7459737")
+	expected := &models.Job{Slug: slug, Status: "new"}
+	mockJob.EXPECT().
+		GetBySlug(gomock.Any(), slug, "user_1").
+		Return(&models.JobWithOwnership{Job: expected, IsOwned: true, UserJobID: &ujID}, nil)
+
+	mux := http.NewServeMux()
+	mux.Handle("GET /jobs/{slug}", httpx.HandlerFunc(h.GetJob))
+
+	req := httptest.NewRequest(http.MethodGet, "/jobs/"+slug, nil)
+	req = req.WithContext(ctxval.ContextWithPrincipal(req.Context(), principalCtx("", "user_1")))
+	w := httptest.NewRecorder()
+
+	mux.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	m := bodyAsMap(t, w)
+	assert.Equal(t, true, m["is_owned"])
+	ujMap, ok := m["user_job"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, ujID.String(), ujMap["id"])
+	assert.Nil(t, m["is_hidden"])
+	assert.Nil(t, m["user_job_id"])
 }
 
 func strPtr(s string) *string {

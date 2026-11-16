@@ -27,6 +27,7 @@ import { statusBadgeClasses } from "@/hooks/use-jobs";
 
 interface JobDetailDrawerProps {
   job: Job | null;
+  userJobId?: string;
   isOpen: boolean;
   onClose: () => void;
   onSave?: (job: Job) => void;
@@ -46,6 +47,7 @@ const TABS: { id: ReportTab; label: string }[] = [
 
 export function JobDetailDrawer({
   job,
+  userJobId: userJobIdProp,
   isOpen,
   onClose,
   onSave,
@@ -58,6 +60,7 @@ export function JobDetailDrawer({
   const { getToken } = useAuth();
   const [fetchedEvaluation, setFetchedEvaluation] = useState<EvaluationSummary | null>(null);
   const [fetchingEvaluation, setFetchingEvaluation] = useState(false);
+  const userJobId = userJobIdProp ?? job?.user_job?.id;
 
   // Resolve evaluation id: prop (from analyze flow) takes precedence,
   // otherwise fall back to the id from the fetched evaluation record.
@@ -90,9 +93,8 @@ export function JobDetailDrawer({
   // report_data, so one fetch is enough to render the match report and to
   // expose the resume generation status (for the presigned download button).
   useEffect(() => {
-    if (!isOpen || !job || !job.user_job_id) return;
+    if (!isOpen || !job || !userJobId) return;
 
-    const userJobId = job.user_job_id;
     let cancelled = false;
     const load = async () => {
       setFetchingEvaluation(true);
@@ -115,7 +117,7 @@ export function JobDetailDrawer({
     return () => {
       cancelled = true;
     };
-  }, [isOpen, job, job?.user_job_id, evalIdProp, getToken]);
+  }, [isOpen, job, userJobId, evalIdProp, getToken]);
 
   if (!isOpen || !job) {
     return null;

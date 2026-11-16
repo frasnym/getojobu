@@ -22,7 +22,7 @@ export default function UserJobDetailPage({ params }: UserJobDetailPageProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const { job, loading, error, prevSlug, nextSlug } = useJobDetail(slug);
+  const { job, userJobId, loading, error, prevSlug, nextSlug } = useJobDetail(slug);
 
   const tabParam = searchParams.get("tab") as ReportTab | null;
   const openDrawer = searchParams.get("openDrawer") === "1";
@@ -30,6 +30,7 @@ export default function UserJobDetailPage({ params }: UserJobDetailPageProps) {
   const { getToken } = useAuth();
   const [evalId, setEvalId] = useState<string | null>(null);
   const [fetchedEvaluation, setFetchedEvaluation] = useState<EvaluationSummary | null>(null);
+  const resolvedUserJobId = userJobId ?? job?.user_job?.id;
 
   useEffect(() => {
     if (tabParam && ["details", "report", "resume"].includes(tabParam)) {
@@ -48,13 +49,12 @@ export default function UserJobDetailPage({ params }: UserJobDetailPageProps) {
   // Fetch the latest evaluation for this user job so the resume tab can show
   // the generation status and the presigned download button when ready.
   useEffect(() => {
-    if (!job || !job.user_job_id) return;
-    const userJobId = job.user_job_id;
+    if (!job || !resolvedUserJobId) return;
     let cancelled = false;
     const load = async () => {
       try {
         const token = await getToken();
-        const evalRec = await getUserJobEvaluation(userJobId, token);
+        const evalRec = await getUserJobEvaluation(resolvedUserJobId, token);
         if (!cancelled && evalRec.id) {
           setFetchedEvaluation(evalRec);
           if (!evalId) setEvalId(String(evalRec.id));
@@ -62,7 +62,7 @@ export default function UserJobDetailPage({ params }: UserJobDetailPageProps) {
       } catch (err) {
         // Evaluation may not exist yet — that's fine, the Analyze button
         // creates one. Silently ignore so the page still renders.
-        console.debug("No existing evaluation for user job", job.user_job_id, err);
+        console.debug("No existing evaluation for user job", resolvedUserJobId, err);
       }
     };
 
@@ -70,7 +70,7 @@ export default function UserJobDetailPage({ params }: UserJobDetailPageProps) {
     return () => {
       cancelled = true;
     };
-  }, [job, job?.user_job_id, getToken]);
+  }, [job, resolvedUserJobId, getToken]);
 
   const handleDrawerClose = () => {
     router.push("/user-jobs");
@@ -105,6 +105,7 @@ export default function UserJobDetailPage({ params }: UserJobDetailPageProps) {
       <div className="min-h-screen bg-background">
         <JobDetailDrawer
           job={job}
+          userJobId={resolvedUserJobId}
           isOpen={true}
           onClose={handleDrawerClose}
           activeTab={activeTab}

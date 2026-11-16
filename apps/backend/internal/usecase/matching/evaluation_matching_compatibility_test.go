@@ -357,7 +357,7 @@ func TestTriggerCompatibilityBulk(t *testing.T) {
 	}
 
 	t.Run("rejects in-flight evaluation even with force=true", func(t *testing.T) {
-		jobsRepo.EXPECT().GetBySlug(ctx, slug).Return(job, nil)
+		jobsRepo.EXPECT().GetBySlug(ctx, slug, "").Return(&models.JobWithOwnership{Job: job}, nil)
 		userJobsRepo.EXPECT().IsOwned(ctx, userID.String(), job.ID).Return(true, nil)
 		scoringConfigsRepo.EXPECT().GetActiveByFamily(ctx, "technology").Return(scoringConfig, nil)
 		userJobsRepo.EXPECT().GetByUserAndJob(ctx, userID.String(), job.ID).Return(userJob, nil)
@@ -379,7 +379,7 @@ func TestTriggerCompatibilityBulk(t *testing.T) {
 	})
 
 	t.Run("rejects success without force", func(t *testing.T) {
-		jobsRepo.EXPECT().GetBySlug(ctx, slug).Return(job, nil)
+		jobsRepo.EXPECT().GetBySlug(ctx, slug, "").Return(&models.JobWithOwnership{Job: job}, nil)
 		userJobsRepo.EXPECT().IsOwned(ctx, userID.String(), job.ID).Return(true, nil)
 		scoringConfigsRepo.EXPECT().GetActiveByFamily(ctx, "technology").Return(scoringConfig, nil)
 		userJobsRepo.EXPECT().GetByUserAndJob(ctx, userID.String(), job.ID).Return(userJob, nil)
@@ -401,7 +401,7 @@ func TestTriggerCompatibilityBulk(t *testing.T) {
 	})
 
 	t.Run("re-evaluates success with force=true creates new record", func(t *testing.T) {
-		jobsRepo.EXPECT().GetBySlug(ctx, slug).Return(job, nil)
+		jobsRepo.EXPECT().GetBySlug(ctx, slug, "").Return(&models.JobWithOwnership{Job: job}, nil)
 		userJobsRepo.EXPECT().IsOwned(ctx, userID.String(), job.ID).Return(true, nil)
 		scoringConfigsRepo.EXPECT().GetActiveByFamily(ctx, "technology").Return(scoringConfig, nil)
 		userJobsRepo.EXPECT().GetByUserAndJob(ctx, userID.String(), job.ID).Return(userJob, nil)
@@ -437,7 +437,7 @@ func TestTriggerCompatibilityBulk(t *testing.T) {
 	})
 
 	t.Run("rejects failed without force", func(t *testing.T) {
-		jobsRepo.EXPECT().GetBySlug(ctx, slug).Return(job, nil)
+		jobsRepo.EXPECT().GetBySlug(ctx, slug, "").Return(&models.JobWithOwnership{Job: job}, nil)
 		userJobsRepo.EXPECT().IsOwned(ctx, userID.String(), job.ID).Return(true, nil)
 		scoringConfigsRepo.EXPECT().GetActiveByFamily(ctx, "technology").Return(scoringConfig, nil)
 		userJobsRepo.EXPECT().GetByUserAndJob(ctx, userID.String(), job.ID).Return(userJob, nil)
@@ -459,7 +459,7 @@ func TestTriggerCompatibilityBulk(t *testing.T) {
 	})
 
 	t.Run("re-evaluates failed with force=true updates existing record to new-retry", func(t *testing.T) {
-		jobsRepo.EXPECT().GetBySlug(ctx, slug).Return(job, nil)
+		jobsRepo.EXPECT().GetBySlug(ctx, slug, "").Return(&models.JobWithOwnership{Job: job}, nil)
 		userJobsRepo.EXPECT().IsOwned(ctx, userID.String(), job.ID).Return(true, nil)
 		scoringConfigsRepo.EXPECT().GetActiveByFamily(ctx, "technology").Return(scoringConfig, nil)
 		userJobsRepo.EXPECT().GetByUserAndJob(ctx, userID.String(), job.ID).Return(userJob, nil)
@@ -505,7 +505,7 @@ func TestTriggerCompatibilityBulk(t *testing.T) {
 		userJob2 := &models.UserJob{ID: uuid.New(), UserID: userID, JobID: job2.ID}
 
 		// Job 1: First time success
-		jobsRepo.EXPECT().GetBySlug(ctx, slug1).Return(job1, nil)
+		jobsRepo.EXPECT().GetBySlug(ctx, slug1, "").Return(&models.JobWithOwnership{Job: job1}, nil)
 		userJobsRepo.EXPECT().IsOwned(ctx, userID.String(), job1.ID).Return(true, nil)
 		scoringConfigsRepo.EXPECT().GetActiveByFamily(ctx, "technology").Return(scoringConfig, nil)
 		userJobsRepo.EXPECT().GetByUserAndJob(ctx, userID.String(), job1.ID).Return(userJob1, nil)
@@ -518,7 +518,7 @@ func TestTriggerCompatibilityBulk(t *testing.T) {
 		workflowsRepo.EXPECT().StartLimiterWorkItem(ctx, gomock.Any(), models.LimiterJobTypeMatch, gomock.Any()).Return("wf-1", nil)
 
 		// Job 2: Success without force -> Error
-		jobsRepo.EXPECT().GetBySlug(ctx, slug2).Return(job2, nil)
+		jobsRepo.EXPECT().GetBySlug(ctx, slug2, "").Return(&models.JobWithOwnership{Job: job2}, nil)
 		userJobsRepo.EXPECT().IsOwned(ctx, userID.String(), job2.ID).Return(true, nil)
 		scoringConfigsRepo.EXPECT().GetActiveByFamily(ctx, "technology").Return(scoringConfig, nil)
 		userJobsRepo.EXPECT().GetByUserAndJob(ctx, userID.String(), job2.ID).Return(userJob2, nil)
@@ -526,7 +526,7 @@ func TestTriggerCompatibilityBulk(t *testing.T) {
 		evalRepo.EXPECT().GetLatestByUserAndJob(ctx, userID, job2.ID).Return(existingSuccess, nil)
 
 		// Job 3: Unknown job -> Error
-		jobsRepo.EXPECT().GetBySlug(ctx, "unknown-job").Return(nil, constants.ErrNotFound)
+		jobsRepo.EXPECT().GetBySlug(ctx, "unknown-job", "").Return(nil, constants.ErrNotFound)
 
 		res, err := service.TriggerCompatibilityBulk(ctx, []models.BulkAnalyzeCompatibilityItem{
 			{Slug: slug1, Force: false},

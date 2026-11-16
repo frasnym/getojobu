@@ -267,7 +267,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/models.Job"
+                                "$ref": "#/definitions/dto.JobResponse"
                             }
                         }
                     },
@@ -317,13 +317,13 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/models.CreateJobResult"
+                            "$ref": "#/definitions/dto.CreateJobResponse"
                         }
                     },
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/models.CreateJobResult"
+                            "$ref": "#/definitions/dto.CreateJobResponse"
                         }
                     },
                     "400": {
@@ -599,7 +599,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/models.Job"
+                            "$ref": "#/definitions/dto.JobResponse"
                         }
                     },
                     "400": {
@@ -661,7 +661,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/models.Job"
+                            "$ref": "#/definitions/dto.JobResponse"
                         }
                     },
                     "400": {
@@ -845,7 +845,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/models.MatchingEvaluation"
+                            "$ref": "#/definitions/dto.MatchingEvaluationResponse"
                         }
                     },
                     "400": {
@@ -909,7 +909,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/models.MatchingEvaluation"
+                            "$ref": "#/definitions/dto.MatchingEvaluationResponse"
                         }
                     },
                     "400": {
@@ -961,7 +961,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/models.MatchingEvaluation"
+                            "$ref": "#/definitions/dto.MatchingEvaluationResponse"
                         }
                     },
                     "401": {
@@ -1023,7 +1023,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/models.MatchingEvaluation"
+                            "$ref": "#/definitions/dto.MatchingEvaluationResponse"
                         }
                     },
                     "400": {
@@ -1702,7 +1702,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/models.Job"
+                                "$ref": "#/definitions/dto.UserJobResponse"
                             }
                         }
                     },
@@ -1804,7 +1804,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/models.MatchingEvaluation"
+                            "$ref": "#/definitions/dto.EvaluationResponse"
                         }
                     },
                     "400": {
@@ -1940,6 +1940,231 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "dto.CreateJobResponse": {
+            "type": "object",
+            "properties": {
+                "added_to_user_list": {
+                    "type": "boolean"
+                },
+                "created": {
+                    "type": "boolean"
+                },
+                "job": {
+                    "$ref": "#/definitions/dto.JobResponse"
+                }
+            }
+        },
+        "dto.EvaluationResponse": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "eligibility_status": {
+                    "type": "string"
+                },
+                "evaluation_data": {
+                    "type": "object"
+                },
+                "evaluation_status": {
+                    "type": "string"
+                },
+                "failure_message": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "job": {
+                    "$ref": "#/definitions/dto.JobResponse"
+                },
+                "overall_score": {
+                    "type": "number"
+                },
+                "recommendation_label": {
+                    "type": "string"
+                },
+                "report_data": {
+                    "type": "object"
+                },
+                "report_failure_message": {
+                    "type": "string"
+                },
+                "report_status": {
+                    "type": "string"
+                },
+                "resume_failure_message": {
+                    "type": "string"
+                },
+                "resume_json_key": {
+                    "type": "string"
+                },
+                "resume_pdf_key": {
+                    "type": "string"
+                },
+                "resume_status": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "user_job_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.JobResponse": {
+            "type": "object",
+            "properties": {
+                "analyze_result": {
+                    "type": "object"
+                },
+                "apply_url": {
+                    "type": "string"
+                },
+                "company": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "external_id": {
+                    "type": "string"
+                },
+                "failure_message": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "is_owned": {
+                    "description": "IsOwned reports whether the requesting user already has this listing in\ntheir list. Omitted for callers with no user context (API keys).",
+                    "type": "boolean"
+                },
+                "is_remote": {
+                    "type": "boolean"
+                },
+                "location": {
+                    "type": "string"
+                },
+                "posted_date": {
+                    "type": "string"
+                },
+                "slug": {
+                    "type": "string"
+                },
+                "source_url": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "user_job": {
+                    "description": "UserJob is the caller's link to this listing. Populated only by the\nsingle-job fetch, and only when the caller owns the listing.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dto.UserJobRef"
+                        }
+                    ]
+                },
+                "visa_relocation": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "dto.MatchingEvaluationResponse": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "eligibility_status": {
+                    "type": "string"
+                },
+                "evaluation_data": {
+                    "type": "object"
+                },
+                "evaluation_status": {
+                    "type": "string"
+                },
+                "failure_message": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "overall_score": {
+                    "type": "number"
+                },
+                "recommendation_label": {
+                    "type": "string"
+                },
+                "report_data": {
+                    "type": "object"
+                },
+                "report_failure_message": {
+                    "type": "string"
+                },
+                "report_status": {
+                    "type": "string"
+                },
+                "resume_failure_message": {
+                    "type": "string"
+                },
+                "resume_json_key": {
+                    "type": "string"
+                },
+                "resume_pdf_key": {
+                    "type": "string"
+                },
+                "resume_status": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "user_job_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.UserJobRef": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.UserJobResponse": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "is_hidden": {
+                    "type": "boolean"
+                },
+                "job": {
+                    "$ref": "#/definitions/dto.JobResponse"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
         "experiences.createExperienceRequest": {
             "type": "object",
             "properties": {
@@ -2309,20 +2534,6 @@ const docTemplate = `{
                 }
             }
         },
-        "models.CreateJobResult": {
-            "type": "object",
-            "properties": {
-                "addedToUserList": {
-                    "type": "boolean"
-                },
-                "created": {
-                    "type": "boolean"
-                },
-                "job": {
-                    "$ref": "#/definitions/models.Job"
-                }
-            }
-        },
         "models.CreateScoringConfigParams": {
             "type": "object",
             "properties": {
@@ -2415,74 +2626,6 @@ const docTemplate = `{
                 "ExperienceTypeOther"
             ]
         },
-        "models.Job": {
-            "type": "object",
-            "properties": {
-                "analyze_result": {
-                    "type": "object"
-                },
-                "apply_url": {
-                    "type": "string"
-                },
-                "company": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "description": {
-                    "type": "string"
-                },
-                "external_id": {
-                    "type": "string"
-                },
-                "failure_message": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "is_hidden": {
-                    "description": "IsHidden reports whether the requesting user has hidden this job.\nOnly populated on the user-jobs list endpoint; false elsewhere.",
-                    "type": "boolean"
-                },
-                "is_owned": {
-                    "description": "IsOwned reports whether the requesting user owns this job (has a row in\nuser_jobs). Only populated on list endpoints; false elsewhere.",
-                    "type": "boolean"
-                },
-                "is_remote": {
-                    "type": "boolean"
-                },
-                "location": {
-                    "type": "string"
-                },
-                "posted_date": {
-                    "type": "string"
-                },
-                "slug": {
-                    "type": "string"
-                },
-                "source_url": {
-                    "type": "string"
-                },
-                "status": {
-                    "type": "string"
-                },
-                "title": {
-                    "type": "string"
-                },
-                "updated_at": {
-                    "type": "string"
-                },
-                "user_job_id": {
-                    "description": "UserJobID is the user_jobs row id for this user↔job link. Populated only\non the user-jobs list endpoint; nil elsewhere.",
-                    "type": "string"
-                },
-                "visa_relocation": {
-                    "type": "boolean"
-                }
-            }
-        },
         "models.MandatoryRequirementAssessment": {
             "type": "object",
             "properties": {
@@ -2526,101 +2669,6 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "provider": {
-                    "type": "string"
-                }
-            }
-        },
-        "models.MatchingEvaluation": {
-            "type": "object",
-            "properties": {
-                "created_at": {
-                    "type": "string"
-                },
-                "eligibility_status": {
-                    "type": "string"
-                },
-                "evaluation_data": {
-                    "type": "object"
-                },
-                "evaluation_status": {
-                    "description": "new | pending | success | failed",
-                    "type": "string"
-                },
-                "failure_message": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "overall_score": {
-                    "type": "number"
-                },
-                "recommendation_label": {
-                    "type": "string"
-                },
-                "report_data": {
-                    "type": "object"
-                },
-                "report_failure_message": {
-                    "type": "string"
-                },
-                "report_status": {
-                    "type": "string"
-                },
-                "resume_failure_message": {
-                    "type": "string"
-                },
-                "resume_json_key": {
-                    "type": "string"
-                },
-                "resume_pdf_key": {
-                    "type": "string"
-                },
-                "resume_status": {
-                    "type": "string"
-                },
-                "updated_at": {
-                    "type": "string"
-                },
-                "user_job_id": {
-                    "type": "string"
-                }
-            }
-        },
-        "models.MatchingEvaluationReportResponse": {
-            "type": "object",
-            "properties": {
-                "created_at": {
-                    "type": "string"
-                },
-                "eligibility_status": {
-                    "type": "string"
-                },
-                "evaluation_status": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "overall_score": {
-                    "type": "number"
-                },
-                "recommendation_label": {
-                    "type": "string"
-                },
-                "report_data": {
-                    "type": "object"
-                },
-                "report_failure_message": {
-                    "type": "string"
-                },
-                "report_status": {
-                    "type": "string"
-                },
-                "updated_at": {
-                    "type": "string"
-                },
-                "user_job_id": {
                     "type": "string"
                 }
             }

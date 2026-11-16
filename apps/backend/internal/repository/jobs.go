@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
 	"github.com/frasnym/getojobu/apps/backend/internal/models"
@@ -26,8 +27,8 @@ const (
 type Jobs interface {
 	Create(ctx context.Context, params models.CreateJobParams) (*models.CreateJobResult, error)
 	BulkCreate(ctx context.Context, params models.BulkCreateJobParams) ([]*models.CreateJobResult, error)
-	GetBySlug(ctx context.Context, slug string) (*models.Job, error)
-	List(ctx context.Context, limit, offset int, userID string, isCheckOwnership bool) ([]*models.Job, int, error)
+	GetBySlug(ctx context.Context, slug string, userID string) (*models.JobWithOwnership, error)
+	List(ctx context.Context, limit, offset int, userID string) ([]*models.JobWithOwnership, int, error)
 	// UpdateStatus transitions the job to a new status and optionally persists
 	// analyzeResult (JSONB) and/or failureMessage. Returns constants.ErrNotFound
 	// when no row with the given slug exists.
@@ -96,27 +97,50 @@ func (r *jobsRepository) Create(ctx context.Context, params models.CreateJobPara
 }
 
 // GetBySlug returns the job with the given slug, or constants.ErrNotFound when it
-// does not exist.
-func (r *jobsRepository) GetBySlug(ctx context.Context, slug string) (*models.Job, error) {
-	query := `
-		SELECT id, slug, status, analyze_result, failure_message,
-			source, external_id, source_url, apply_url,
-			title, company, location, description, posted_date,
-			is_remote, visa_relocation,
-			created_at, updated_at, updated_by_type, updated_by_id
-		FROM jobs
-		WHERE slug = $1
-	`
-	row := r.QueryRow(ctx, query, slug)
+// does not exist. When userID is non-empty, the caller's user_jobs link is
+// resolved in the same query.
+func (r *jobsRepository) GetBySlug(ctx context.Context, slug string, userID string) (*models.JobWithOwnership, error) {
+	if userID == "" {
+		query := `
+			SELECT id, slug, status, analyze_result, failure_message,
+				source, external_id, source_url, apply_url,
+				title, company, location, description, posted_date,
+				is_remote, visa_relocation,
+				created_at, updated_at, updated_by_type, updated_by_id
+			FROM jobs
+			WHERE slug = $1
+		`
+		job, err := scanJob(r.QueryRow(ctx, query, slug))
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return nil, constants.ErrNotFound
+			}
+			return nil, fmt.Errorf("get job by slug: %w", err)
+		}
+		return &models.JobWithOwnership{Job: job}, nil
+	}
 
-	job, err := scanJob(row)
+	query := `
+		SELECT j.id, j.slug, j.status, j.analyze_result, j.failure_message,
+			j.source, j.external_id, j.source_url, j.apply_url,
+			j.title, j.company, j.location, j.description, j.posted_date,
+			j.is_remote, j.visa_relocation,
+			j.created_at, j.updated_at, j.updated_by_type, j.updated_by_id,
+			uj.id AS user_job_id
+		FROM jobs j
+		LEFT JOIN user_jobs uj ON j.id = uj.job_id AND uj.user_id = $2
+		WHERE j.slug = $1
+	`
+	row := r.QueryRow(ctx, query, slug, userID)
+
+	res, err := scanJobWithOwnership(row)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, constants.ErrNotFound
 		}
-		return nil, fmt.Errorf("get job by slug: %w", err)
+		return nil, fmt.Errorf("get job by slug with ownership: %w", err)
 	}
-	return job, nil
+	return res, nil
 }
 
 func (r *jobsRepository) getBySlug(ctx context.Context, tx pgx.Tx, slug string) (*models.Job, error) {
@@ -274,26 +298,24 @@ func (r *jobsRepository) BulkCreate(ctx context.Context, params models.BulkCreat
 
 // List returns paginated jobs ordered by created_at descending.
 //
-// When isCheckOwnership is true, a single LEFT JOIN against user_jobs marks
-// isOwned on each job for the given userID. When false, no join is performed
-// and every job is returned with isOwned=false.
-func (r *jobsRepository) List(ctx context.Context, limit, offset int, userID string, isCheckOwnership bool) (jobs []*models.Job, total int, err error) {
+// When userID is non-empty, a single LEFT JOIN against user_jobs resolves the
+// caller's link for each job. When it is empty (machine callers with no user
+// context), no join is performed and every row is returned with IsOwned=false.
+func (r *jobsRepository) List(ctx context.Context, limit, offset int, userID string) (jobs []*models.JobWithOwnership, total int, err error) {
 	if err := r.QueryRow(ctx, `SELECT COUNT(*) FROM jobs`).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count jobs: %w", err)
 	}
 
 	var query string
 	var args []any
-	if isCheckOwnership {
+	if userID != "" {
 		query = `
 			SELECT j.id, j.slug, j.status, j.analyze_result, j.failure_message,
 				j.source, j.external_id, j.source_url, j.apply_url,
 				j.title, j.company, j.location, j.description, j.posted_date,
 				j.is_remote, j.visa_relocation,
 				j.created_at, j.updated_at, j.updated_by_type, j.updated_by_id,
-				CASE WHEN uj.user_id IS NOT NULL THEN true ELSE false END AS is_owned,
-				uj.id AS user_job_id,
-				COALESCE(uj.is_hidden, false) AS is_hidden
+				uj.id AS user_job_id
 			FROM jobs j
 			LEFT JOIN user_jobs uj ON j.id = uj.job_id AND uj.user_id = $1
 			ORDER BY j.created_at DESC
@@ -307,9 +329,7 @@ func (r *jobsRepository) List(ctx context.Context, limit, offset int, userID str
 				title, company, location, description, posted_date,
 				is_remote, visa_relocation,
 				created_at, updated_at, updated_by_type, updated_by_id,
-				false AS is_owned,
-				NULL AS user_job_id,
-				false AS is_hidden
+				NULL::uuid AS user_job_id
 			FROM jobs
 			ORDER BY created_at DESC
 			LIMIT $1 OFFSET $2
@@ -322,53 +342,65 @@ func (r *jobsRepository) List(ctx context.Context, limit, offset int, userID str
 		return nil, 0, fmt.Errorf("list jobs: %w", err)
 	}
 	defer rows.Close()
-	jobs, err = scanJobWithOwnership(rows)
+	jobs, err = scanJobsWithOwnership(rows)
 	if err != nil {
 		return nil, 0, err
 	}
 	return jobs, total, nil
 }
 
-// scanJobWithOwnership scans rows that include an is_owned column at the end.
-func scanJobWithOwnership(rows pgx.Rows) ([]*models.Job, error) {
-	var jobs []*models.Job
-	for rows.Next() {
-		var j models.Job
-		var externalID, sourceURL, applyURL, description, failureMessage sql.NullString
-		var postedDate sql.NullTime
-		var isRemote, visaRelocation sql.NullBool
-		var isOwned bool
-		var isHidden bool
-		var userJobID sql.NullString
+// scanJobWithOwnership scans one job row plus its user_jobs link column.
+func scanJobWithOwnership(row pgx.Row) (*models.JobWithOwnership, error) {
+	var (
+		j              models.Job
+		externalID     sql.NullString
+		sourceURL      sql.NullString
+		applyURL       sql.NullString
+		description    sql.NullString
+		failureMessage sql.NullString
+		postedDate     sql.NullTime
+		isRemote       sql.NullBool
+		visaRelocation sql.NullBool
+		userJobID      *uuid.UUID
+	)
 
-		err := rows.Scan(
-			&j.ID, &j.Slug, &j.Status, &j.AnalyzeResult, &failureMessage,
-			&j.Source, &externalID, &sourceURL, &applyURL,
-			&j.Title, &j.Company, &j.Location, &description,
-			&postedDate, &isRemote, &visaRelocation,
-			&j.CreatedAt, &j.UpdatedAt, &j.UpdatedByType, &j.UpdatedByID,
-			&isOwned,
-			&userJobID,
-			&isHidden,
-		)
+	err := row.Scan(
+		&j.ID, &j.Slug, &j.Status, &j.AnalyzeResult, &failureMessage,
+		&j.Source, &externalID, &sourceURL, &applyURL,
+		&j.Title, &j.Company, &j.Location, &description,
+		&postedDate, &isRemote, &visaRelocation,
+		&j.CreatedAt, &j.UpdatedAt, &j.UpdatedByType, &j.UpdatedByID,
+		&userJobID,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	j.ExternalID = utils.NullStringPtr(externalID)
+	j.SourceURL = utils.NullStringPtr(sourceURL)
+	j.ApplyURL = utils.NullStringPtr(applyURL)
+	j.Description = utils.NullStringPtr(description)
+	j.FailureMessage = utils.NullStringPtr(failureMessage)
+	j.PostedDate = utils.NullTime(postedDate)
+	j.IsRemote = utils.NullBoolPtr(isRemote)
+	j.VisaRelocation = utils.NullBoolPtr(visaRelocation)
+
+	return &models.JobWithOwnership{
+		Job:       &j,
+		IsOwned:   userJobID != nil,
+		UserJobID: userJobID,
+	}, nil
+}
+
+// scanJobsWithOwnership scans every row into the ownership composite.
+func scanJobsWithOwnership(rows pgx.Rows) ([]*models.JobWithOwnership, error) {
+	var jobs []*models.JobWithOwnership
+	for rows.Next() {
+		job, err := scanJobWithOwnership(rows)
 		if err != nil {
-			return nil, fmt.Errorf("scan job: %w", err)
+			return nil, fmt.Errorf("scan job with ownership: %w", err)
 		}
-		j.ExternalID = utils.NullStringPtr(externalID)
-		j.SourceURL = utils.NullStringPtr(sourceURL)
-		j.ApplyURL = utils.NullStringPtr(applyURL)
-		j.Description = utils.NullStringPtr(description)
-		j.FailureMessage = utils.NullStringPtr(failureMessage)
-		j.PostedDate = utils.NullTime(postedDate)
-		j.IsRemote = utils.NullBoolPtr(isRemote)
-		j.VisaRelocation = utils.NullBoolPtr(visaRelocation)
-		j.IsOwned = isOwned
-		j.IsHidden = isHidden
-		if userJobID.Valid {
-			ujID := userJobID.String
-			j.UserJobID = &ujID
-		}
-		jobs = append(jobs, &j)
+		jobs = append(jobs, job)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("iterate jobs: %w", err)

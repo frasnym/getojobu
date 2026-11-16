@@ -139,14 +139,15 @@ func TestGetBySlug_found(t *testing.T) {
 	s := newServiceWithMock(repo, userJobs)
 
 	expected := &models.Job{Slug: "golang-developer-google-singapore"}
+	expectedWithOwnership := &models.JobWithOwnership{Job: expected}
 	repo.EXPECT().
-		GetBySlug(gomock.Any(), expected.Slug).
-		Return(expected, nil)
+		GetBySlug(gomock.Any(), expected.Slug, "user-1").
+		Return(expectedWithOwnership, nil)
 
-	got, err := s.GetBySlug(context.Background(), expected.Slug)
+	got, err := s.GetBySlug(context.Background(), expected.Slug, "user-1")
 
 	require.NoError(t, err)
-	assert.Equal(t, expected, got)
+	assert.Equal(t, expectedWithOwnership, got)
 }
 
 func TestGetBySlug_not_found(t *testing.T) {
@@ -157,10 +158,10 @@ func TestGetBySlug_not_found(t *testing.T) {
 	s := newServiceWithMock(repo, userJobs)
 
 	repo.EXPECT().
-		GetBySlug(gomock.Any(), "does-not-exist").
+		GetBySlug(gomock.Any(), "does-not-exist", "").
 		Return(nil, constants.ErrNotFound)
 
-	_, err := s.GetBySlug(context.Background(), "does-not-exist")
+	_, err := s.GetBySlug(context.Background(), "does-not-exist", "")
 
 	require.Error(t, err)
 	assert.True(t, errors.Is(err, constants.ErrNotFound), "expected ErrNotFound, got %v", err)
@@ -174,10 +175,10 @@ func TestGetBySlug_other_error(t *testing.T) {
 	s := newServiceWithMock(repo, userJobs)
 
 	repo.EXPECT().
-		GetBySlug(gomock.Any(), "slug").
+		GetBySlug(gomock.Any(), "slug", "").
 		Return(nil, errors.New("db connection lost"))
 
-	_, err := s.GetBySlug(context.Background(), "slug")
+	_, err := s.GetBySlug(context.Background(), "slug", "")
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "get job by slug")
@@ -191,32 +192,35 @@ func TestList_passes_through(t *testing.T) {
 	userJobs := mocks.NewMockUserJobs(ctrl)
 	s := newServiceWithMock(repo, userJobs)
 
-	expected := []*models.Job{{Slug: "job-1"}, {Slug: "job-2"}}
+	expected := []*models.JobWithOwnership{
+		{Job: &models.Job{Slug: "job-1"}},
+		{Job: &models.Job{Slug: "job-2"}},
+	}
 
 	t.Run("owned_by_user", func(t *testing.T) {
 		repo.EXPECT().
-			List(gomock.Any(), 20, 0, "user_1", true).
+			List(gomock.Any(), 20, 0, "user_1").
 			Return(expected, 2, nil)
 
-		got, total, err := s.List(context.Background(), 20, 0, "user_1", true)
+		got, total, err := s.List(context.Background(), 20, 0, "user_1")
 
 		require.NoError(t, err)
 		assert.Equal(t, 2, total)
 		require.Len(t, got, 2)
-		assert.Equal(t, "job-1", got[0].Slug)
+		assert.Equal(t, "job-1", got[0].Job.Slug)
 	})
 
 	t.Run("all_jobs", func(t *testing.T) {
 		repo.EXPECT().
-			List(gomock.Any(), 5, 0, "", false).
+			List(gomock.Any(), 5, 0, "").
 			Return(expected, 2, nil)
 
-		got, total, err := s.List(context.Background(), 5, 0, "", false)
+		got, total, err := s.List(context.Background(), 5, 0, "")
 
 		require.NoError(t, err)
 		assert.Equal(t, 2, total)
 		require.Len(t, got, 2)
-		assert.Equal(t, "job-1", got[0].Slug)
+		assert.Equal(t, "job-1", got[0].Job.Slug)
 	})
 }
 
@@ -232,8 +236,8 @@ func TestUpdateStatus_allowed(t *testing.T) {
 	updated := &models.Job{Slug: slug, Status: "analyze_pending"}
 
 	repo.EXPECT().
-		GetBySlug(gomock.Any(), slug).
-		Return(existing, nil)
+		GetBySlug(gomock.Any(), slug, "").
+		Return(&models.JobWithOwnership{Job: existing}, nil)
 	repo.EXPECT().
 		UpdateStatus(gomock.Any(), slug, "analyze_pending", (*string)(nil), (*string)(nil), "worker", "worker_1").
 		Return(updated, nil)
@@ -255,8 +259,8 @@ func TestUpdateStatus_invalid_transition(t *testing.T) {
 	existing := &models.Job{Slug: slug, Status: "analyzed"}
 
 	repo.EXPECT().
-		GetBySlug(gomock.Any(), slug).
-		Return(existing, nil)
+		GetBySlug(gomock.Any(), slug, "").
+		Return(&models.JobWithOwnership{Job: existing}, nil)
 
 	_, err := s.UpdateStatus(context.Background(), slug, "analyze_pending", nil, nil, "worker", "worker_1")
 
@@ -279,8 +283,8 @@ func TestUpdateStatus_appends_failure_message_when_failing_again(t *testing.T) {
 	updated := &models.Job{Slug: slug, Status: "failed", FailureMessage: &combinedMsg}
 
 	repo.EXPECT().
-		GetBySlug(gomock.Any(), slug).
-		Return(existing, nil)
+		GetBySlug(gomock.Any(), slug, "").
+		Return(&models.JobWithOwnership{Job: existing}, nil)
 	repo.EXPECT().
 		UpdateStatus(gomock.Any(), slug, "failed", (*string)(nil), gomock.Eq(&combinedMsg), "worker", "worker_1").
 		Return(updated, nil)

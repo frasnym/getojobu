@@ -9,6 +9,7 @@ import (
 
 	"github.com/frasnym/getojobu/apps/backend/internal/config"
 	"github.com/frasnym/getojobu/apps/backend/internal/contract"
+	"github.com/frasnym/getojobu/apps/backend/internal/deliveries/api/dto"
 	"github.com/frasnym/getojobu/apps/backend/internal/deliveries/api/middleware"
 	"github.com/frasnym/getojobu/apps/backend/internal/models"
 	ucJobs "github.com/frasnym/getojobu/apps/backend/internal/usecase/jobs"
@@ -61,8 +62,8 @@ func (h *handler) Route(g *httpx.Router) {
 // @Accept json
 // @Produce json
 // @Param job body createJobRequest true "Job data"
-// @Success 201 {object} models.CreateJobResult
-// @Success 200 {object} models.CreateJobResult
+// @Success 201 {object} dto.CreateJobResponse
+// @Success 200 {object} dto.CreateJobResponse
 // @Failure 400 {object} httpx.Error
 // @Failure 401 {object} httpx.Error
 // @security ApiKeyAuth
@@ -120,10 +121,11 @@ func (h *handler) CreateJob(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
+	resp := dto.NewCreateJobResponse(result)
 	if result.Created {
-		return httpx.RespondJSON(w, r, http.StatusCreated, result)
+		return httpx.RespondJSON(w, r, http.StatusCreated, resp)
 	}
-	return httpx.RespondJSON(w, r, http.StatusOK, result)
+	return httpx.RespondJSON(w, r, http.StatusOK, resp)
 }
 
 // @Tags jobs
@@ -268,7 +270,7 @@ func (h *handler) BulkQueueAnalyzeJob(w http.ResponseWriter, r *http.Request) er
 // @Produce json
 // @Param page query integer false "Page number (default 1)"
 // @Param limit query integer false "Items per page (default 10, max 50)"
-// @Success 200 {array} models.Job
+// @Success 200 {array} dto.JobResponse
 // @Failure 400 {object} httpx.Error
 // @Failure 401 {object} httpx.Error
 // @security ApiKeyAuth
@@ -312,29 +314,28 @@ func (h *handler) ListJobs(w http.ResponseWriter, r *http.Request) error {
 	}
 	offset := (page - 1) * limit
 
-	var jobs []*models.Job
-	var totalItems int
-	var err error
-	// Clerk callers: compute isOwned per job (single LEFT JOIN query).
-	// API key callers: all jobs, isOwned=false, no join.
 	userID := ""
-	isCheckOwnership := false
 	if p.ActorType == "" {
 		userID = p.ID
-		isCheckOwnership = true
 	}
-	jobs, totalItems, err = h.ucJobs.List(ctx, limit, offset, userID, isCheckOwnership)
+	jobsWithOwnership, totalItems, err := h.ucJobs.List(ctx, limit, offset, userID)
 	if err != nil {
 		logging.Error(ctx, "list jobs failed", err,
 			"page", page, "limit", limit, "offset", offset, "actor_type", p.ActorType, "actor_id", p.ActorID)
 		return err
 	}
 
-	if jobs == nil {
-		jobs = []*models.Job{}
+	items := make([]dto.JobResponse, len(jobsWithOwnership))
+	for i, j := range jobsWithOwnership {
+		var isOwned *bool
+		if p.ActorType == "" {
+			owned := j.IsOwned
+			isOwned = &owned
+		}
+		items[i] = dto.NewJobResponse(j.Job, isOwned)
 	}
 
-	return httpx.RespondJSON(w, r, http.StatusOK, jobs, httpx.WithPaginationParams(page, limit, totalItems))
+	return httpx.RespondJSON(w, r, http.StatusOK, items, httpx.WithPaginationParams(page, limit, totalItems))
 }
 
 // @Tags jobs
@@ -343,7 +344,7 @@ func (h *handler) ListJobs(w http.ResponseWriter, r *http.Request) error {
 // @Accept json
 // @Produce json
 // @Param slug path string true "Job slug"
-// @Success 200 {object} models.Job
+// @Success 200 {object} dto.JobResponse
 // @Failure 400 {object} httpx.Error
 // @Failure 401 {object} httpx.Error
 // @Failure 404 {object} httpx.Error
@@ -363,7 +364,11 @@ func (h *handler) GetJob(w http.ResponseWriter, r *http.Request) error {
 		return httpx.Envelope(httpx.CodeInvalidRequest, "job slug is required", "")
 	}
 
-	job, err := h.ucJobs.GetBySlug(ctx, slug)
+	userID := ""
+	if p.ActorType == "" {
+		userID = p.ID
+	}
+	jobWithOwnership, err := h.ucJobs.GetBySlug(ctx, slug, userID)
 	if err != nil {
 		logging.Error(ctx, "get job failed", err,
 			"slug", slug, "actor_type", p.ActorType, "actor_id", p.ActorID)
@@ -373,7 +378,14 @@ func (h *handler) GetJob(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	return httpx.RespondJSON(w, r, http.StatusOK, job)
+	var isOwned *bool
+	if p.ActorType == "" {
+		owned := jobWithOwnership.IsOwned
+		isOwned = &owned
+	}
+
+	resp := dto.NewJobDetailResponse(jobWithOwnership.Job, isOwned, jobWithOwnership.UserJobID)
+	return httpx.RespondJSON(w, r, http.StatusOK, resp)
 }
 
 // @Tags jobs
@@ -383,7 +395,7 @@ func (h *handler) GetJob(w http.ResponseWriter, r *http.Request) error {
 // @Produce json
 // @Param slug path string true "Job slug"
 // @Param job body updateJobRequest true "Status update payload"
-// @Success 200 {object} models.Job
+// @Success 200 {object} dto.JobResponse
 // @Failure 400 {object} httpx.Error
 // @Failure 401 {object} httpx.Error
 // @Failure 404 {object} httpx.Error
@@ -428,7 +440,7 @@ func (h *handler) UpdateJob(w http.ResponseWriter, r *http.Request) error {
 		}
 		return err
 	}
-	return httpx.RespondJSON(w, r, http.StatusOK, job)
+	return httpx.RespondJSON(w, r, http.StatusOK, dto.NewJobResponse(job, nil))
 }
 
 // resolveOwnerUserIDs returns the internal user ids that own the job being created.

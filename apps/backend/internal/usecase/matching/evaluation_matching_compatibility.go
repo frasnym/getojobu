@@ -110,7 +110,7 @@ func (s *matchingService) TriggerCompatibilityBulk(
 			continue
 		}
 
-		job, err := s.jobsRepo.GetBySlug(ctx, item.Slug)
+		jobWithOwnership, err := s.jobsRepo.GetBySlug(ctx, item.Slug, "")
 		if err != nil {
 			errStr := "job not found"
 			summaries = append(summaries, &models.MatchingEvaluationSummary{
@@ -119,6 +119,7 @@ func (s *matchingService) TriggerCompatibilityBulk(
 			})
 			continue
 		}
+		job := jobWithOwnership.Job
 
 		if len(job.AnalyzeResult) == 0 {
 			errStr := fmt.Sprintf("job %q is not analyzed", item.Slug)

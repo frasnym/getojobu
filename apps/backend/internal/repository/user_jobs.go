@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/frasnym/getojobu/apps/backend/internal/models"
+	"github.com/frasnym/getojobu/apps/backend/internal/utils"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/constants"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/database"
 )
@@ -23,7 +24,7 @@ type UserJobs interface {
 	GetByUserAndJob(ctx context.Context, userID string, jobID int64) (*models.UserJob, error)
 	GetByID(ctx context.Context, id uuid.UUID) (*models.UserJob, error)
 	GetUsersByJobID(ctx context.Context, jobID int64) ([]string, error)
-	GetByUser(ctx context.Context, userID string, filter models.UserJobFilter, limit, offset int) ([]*models.Job, int, error)
+	GetByUser(ctx context.Context, userID string, filter models.UserJobFilter, limit, offset int) ([]*models.UserJobWithJob, int, error)
 	SetHideStatus(ctx context.Context, userID, userJobID string, isHidden bool) error
 }
 
@@ -231,11 +232,10 @@ func (r *userJobsRepository) GetUsersByJobID(ctx context.Context, jobID int64) (
 	return userIDs, rows.Err()
 }
 
-// GetByUser returns jobs owned by the given user (joined with the jobs table),
-// ordered by created_at descending, paginated by limit and offset. Each job carries
-// isOwned=true. When filter fields are set, they are applied as parameterized
-// SQL constraints.
-func (r *userJobsRepository) GetByUser(ctx context.Context, userID string, filter models.UserJobFilter, limit, offset int) (jobs []*models.Job, total int, err error) {
+// GetByUser returns user_jobs rows owned by the given user (joined with the jobs table),
+// ordered by user_jobs.created_at descending, paginated by limit and offset.
+// When filter fields are set, they are applied as parameterized SQL constraints.
+func (r *userJobsRepository) GetByUser(ctx context.Context, userID string, filter models.UserJobFilter, limit, offset int) (rows []*models.UserJobWithJob, total int, err error) {
 	// Optional count filters applied via join on jobs.
 	countWhere, countArgs := whereClauses(filter)
 	countQuery := `SELECT COUNT(*) FROM user_jobs uj WHERE uj.user_id = $1`
@@ -251,14 +251,12 @@ func (r *userJobsRepository) GetByUser(ctx context.Context, userID string, filte
 	}
 
 	selectCols := `
+		uj.id, uj.user_id, uj.job_id, uj.is_hidden, uj.created_at, uj.updated_at,
 		j.id, j.slug, j.status, j.analyze_result, j.failure_message,
-			j.source, j.external_id, j.source_url, j.apply_url,
-			j.title, j.company, j.location, j.description, j.posted_date,
-			j.is_remote, j.visa_relocation,
-			j.created_at, j.updated_at, j.updated_by_type, j.updated_by_id,
-			true AS is_owned,
-			uj.id AS user_job_id,
-			uj.is_hidden AS is_hidden
+		j.source, j.external_id, j.source_url, j.apply_url,
+		j.title, j.company, j.location, j.description, j.posted_date,
+		j.is_remote, j.visa_relocation,
+		j.created_at, j.updated_at, j.updated_by_type, j.updated_by_id
 	`
 	whereClause, whereArgs := whereClauses(filter)
 	// Build final args: user_id ($1), then where filters, then limit & offset.
@@ -267,23 +265,73 @@ func (r *userJobsRepository) GetByUser(ctx context.Context, userID string, filte
 	args = append(args, whereArgs...)
 	args = append(args, limit, offset)
 
-	query := `
-		SELECT ` + selectCols + `
-		FROM jobs j
-		JOIN user_jobs uj ON j.id = uj.job_id AND uj.user_id = $1` + whereClause + `
-		ORDER BY j.created_at DESC
-		LIMIT $2 OFFSET $3
-	`
-	rows, err := r.Query(ctx, query, args...)
+	limitIdx := len(whereArgs) + 2
+	offsetIdx := len(whereArgs) + 3
+	query := fmt.Sprintf(`
+		SELECT %s
+		FROM user_jobs uj
+		JOIN jobs j ON j.id = uj.job_id
+		WHERE uj.user_id = $1%s
+		ORDER BY uj.created_at DESC
+		LIMIT $%d OFFSET $%d
+	`, selectCols, whereClause, limitIdx, offsetIdx)
+
+	pgxRows, err := r.Query(ctx, query, args...)
 	if err != nil {
-		return nil, 0, fmt.Errorf("get jobs by user: %w", err)
+		return nil, 0, fmt.Errorf("get user jobs: %w", err)
 	}
-	defer rows.Close()
-	jobs, err = scanJobWithOwnership(rows)
+	defer pgxRows.Close()
+	rows, err = scanUserJobsWithJob(pgxRows)
 	if err != nil {
 		return nil, 0, err
 	}
-	return jobs, total, nil
+	return rows, total, nil
+}
+
+func scanUserJobsWithJob(rows pgx.Rows) ([]*models.UserJobWithJob, error) {
+	var result []*models.UserJobWithJob
+	for rows.Next() {
+		var (
+			uj             models.UserJob
+			j              models.Job
+			externalID     sql.NullString
+			sourceURL      sql.NullString
+			applyURL       sql.NullString
+			description    sql.NullString
+			failureMessage sql.NullString
+			postedDate     sql.NullTime
+			isRemote       sql.NullBool
+			visaRelocation sql.NullBool
+		)
+		err := rows.Scan(
+			&uj.ID, &uj.UserID, &uj.JobID, &uj.IsHidden, &uj.CreatedAt, &uj.UpdatedAt,
+			&j.ID, &j.Slug, &j.Status, &j.AnalyzeResult, &failureMessage,
+			&j.Source, &externalID, &sourceURL, &applyURL,
+			&j.Title, &j.Company, &j.Location, &description,
+			&postedDate, &isRemote, &visaRelocation,
+			&j.CreatedAt, &j.UpdatedAt, &j.UpdatedByType, &j.UpdatedByID,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("scan user job with job: %w", err)
+		}
+		j.ExternalID = utils.NullStringPtr(externalID)
+		j.SourceURL = utils.NullStringPtr(sourceURL)
+		j.ApplyURL = utils.NullStringPtr(applyURL)
+		j.Description = utils.NullStringPtr(description)
+		j.FailureMessage = utils.NullStringPtr(failureMessage)
+		j.PostedDate = utils.NullTime(postedDate)
+		j.IsRemote = utils.NullBoolPtr(isRemote)
+		j.VisaRelocation = utils.NullBoolPtr(visaRelocation)
+
+		result = append(result, &models.UserJobWithJob{
+			UserJob: &uj,
+			Job:     &j,
+		})
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate user jobs: %w", err)
+	}
+	return result, nil
 }
 
 // whereClauses builds parameterized WHERE filter fragments for GetByUser.

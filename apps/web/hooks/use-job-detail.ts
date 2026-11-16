@@ -73,8 +73,11 @@ export function useJobDetail(slug: string, explicitToken?: string | null) {
     }
   };
 
+  const userJobId = job?.user_job?.id;
+
   return {
     job,
+    userJobId,
     loading,
     error,
     prevSlug,

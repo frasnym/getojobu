@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"time"
@@ -10,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/frasnym/getojobu/apps/backend/internal/models"
+	"github.com/frasnym/getojobu/apps/backend/internal/utils"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/constants"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/database"
 )
@@ -19,7 +21,7 @@ type MatchingEvaluations interface {
 	Create(ctx context.Context, eval *models.MatchingEvaluation) (*models.MatchingEvaluation, error)
 	GetByID(ctx context.Context, id uuid.UUID) (*models.MatchingEvaluation, error)
 	GetLatestByUserAndJob(ctx context.Context, userID uuid.UUID, jobID int64) (*models.MatchingEvaluation, error)
-	GetLatestByUserJobID(ctx context.Context, userID uuid.UUID, userJobID uuid.UUID) (*models.MatchingEvaluation, error)
+	GetLatestByUserJobID(ctx context.Context, userID uuid.UUID, userJobID uuid.UUID) (*models.EvaluationWithJob, error)
 	Update(ctx context.Context, id uuid.UUID, params models.UpdateMatchingEvaluationParams) (*models.MatchingEvaluation, error)
 	UpdateReport(ctx context.Context, id uuid.UUID, params models.UpdateMatchingEvaluationReportParams) (*models.MatchingEvaluation, error)
 	UpdateResume(ctx context.Context, id uuid.UUID, params models.UpdateMatchingEvaluationResumeParams) (*models.MatchingEvaluation, error)
@@ -194,8 +196,8 @@ func (r *matchingEvaluationsRepository) GetLatestByUserAndJob(ctx context.Contex
 }
 
 // GetLatestByUserJobID returns the latest matching evaluation for the given
-// user_job link, verifying ownership via user_id.
-func (r *matchingEvaluationsRepository) GetLatestByUserJobID(ctx context.Context, userID uuid.UUID, userJobID uuid.UUID) (*models.MatchingEvaluation, error) {
+// user_job link with its job listing, verifying ownership via user_id.
+func (r *matchingEvaluationsRepository) GetLatestByUserJobID(ctx context.Context, userID uuid.UUID, userJobID uuid.UUID) (*models.EvaluationWithJob, error) {
 	query := `
 		SELECT
 			me.id, me.user_job_id, me.evaluation_status,
@@ -204,15 +206,33 @@ func (r *matchingEvaluationsRepository) GetLatestByUserJobID(ctx context.Context
 			me.recommendation_label, me.failure_message,
 			me.report_data, me.report_status, me.report_failure_message,
 			me.resume_status, me.resume_failure_message, me.resume_pdf_key, me.resume_json_key,
-			me.created_at, me.updated_at
+			me.created_at, me.updated_at,
+			j.id, j.slug, j.status, j.analyze_result, j.failure_message,
+			j.source, j.external_id, j.source_url, j.apply_url,
+			j.title, j.company, j.location, j.description, j.posted_date,
+			j.is_remote, j.visa_relocation,
+			j.created_at, j.updated_at, j.updated_by_type, j.updated_by_id
 		FROM matching_evaluations me
 		JOIN user_jobs uj ON me.user_job_id = uj.id
+		JOIN jobs j ON j.id = uj.job_id
 		WHERE uj.id = $2 AND uj.user_id = $1
 		ORDER BY me.created_at DESC
 		LIMIT 1
 	`
 
-	eval := &models.MatchingEvaluation{}
+	var (
+		eval           models.MatchingEvaluation
+		j              models.Job
+		jobFailMsg     sql.NullString
+		externalID     sql.NullString
+		sourceURL      sql.NullString
+		applyURL       sql.NullString
+		description    sql.NullString
+		postedDate     sql.NullTime
+		isRemote       sql.NullBool
+		visaRelocation sql.NullBool
+	)
+
 	err := r.DB().QueryRow(ctx, query, userID, userJobID).Scan(
 		&eval.ID,
 		&eval.UserJobID,
@@ -234,6 +254,11 @@ func (r *matchingEvaluationsRepository) GetLatestByUserJobID(ctx context.Context
 		&eval.ResumeJSONKey,
 		&eval.CreatedAt,
 		&eval.UpdatedAt,
+		&j.ID, &j.Slug, &j.Status, &j.AnalyzeResult, &jobFailMsg,
+		&j.Source, &externalID, &sourceURL, &applyURL,
+		&j.Title, &j.Company, &j.Location, &description,
+		&postedDate, &isRemote, &visaRelocation,
+		&j.CreatedAt, &j.UpdatedAt, &j.UpdatedByType, &j.UpdatedByID,
 	)
 
 	if err != nil {
@@ -243,7 +268,19 @@ func (r *matchingEvaluationsRepository) GetLatestByUserJobID(ctx context.Context
 		return nil, fmt.Errorf("get latest matching evaluation by user job id: %w", err)
 	}
 
-	return eval, nil
+	j.FailureMessage = utils.NullStringPtr(jobFailMsg)
+	j.ExternalID = utils.NullStringPtr(externalID)
+	j.SourceURL = utils.NullStringPtr(sourceURL)
+	j.ApplyURL = utils.NullStringPtr(applyURL)
+	j.Description = utils.NullStringPtr(description)
+	j.PostedDate = utils.NullTime(postedDate)
+	j.IsRemote = utils.NullBoolPtr(isRemote)
+	j.VisaRelocation = utils.NullBoolPtr(visaRelocation)
+
+	return &models.EvaluationWithJob{
+		Evaluation: &eval,
+		Job:        &j,
+	}, nil
 }
 
 func (r *matchingEvaluationsRepository) Update(

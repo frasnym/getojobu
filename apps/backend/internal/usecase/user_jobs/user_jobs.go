@@ -14,8 +14,8 @@ import (
 // shared job listing.
 type UserJobs interface {
 	// ListByUser returns jobs owned by the given user (via user_jobs), ordered
-	// by created_at descending, paginated by limit and offset. Each job carries isOwned=true.
-	ListByUser(ctx context.Context, userID string, filter models.UserJobFilter, limit, offset int) ([]*models.Job, int, error)
+	// by created_at descending, paginated by limit and offset.
+	ListByUser(ctx context.Context, userID string, filter models.UserJobFilter, limit, offset int) ([]*models.UserJobWithJob, int, error)
 
 	// Add links the given job to the given user in user_jobs. Returns created=true
 	// when a new ownership row was inserted, created=false when the pair already
@@ -40,7 +40,7 @@ func NewUserJobsService(r *repository.Contract) UserJobs {
 }
 
 // ListByUser returns jobs owned by the given user.
-func (s *userJobsService) ListByUser(ctx context.Context, userID string, filter models.UserJobFilter, limit, offset int) ([]*models.Job, int, error) {
+func (s *userJobsService) ListByUser(ctx context.Context, userID string, filter models.UserJobFilter, limit, offset int) ([]*models.UserJobWithJob, int, error) {
 	jobs, total, err := s.repo.GetByUser(ctx, userID, filter, limit, offset)
 	if err != nil {
 		return nil, 0, fmt.Errorf("list jobs by user: %w", err)

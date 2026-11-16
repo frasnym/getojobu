@@ -36,10 +36,11 @@ func (s *jobService) QueueAnalysisBulk(ctx context.Context, items []models.Queue
 }
 
 func (s *jobService) queueAnalysis(ctx context.Context, slug string, force bool, caller *models.Principal) (string, error) {
-	job, err := s.repo.GetBySlug(ctx, slug)
+	jobWithOwnership, err := s.repo.GetBySlug(ctx, slug, "")
 	if err != nil {
 		return "", err
 	}
+	job := jobWithOwnership.Job
 
 	// Owner-only enforcement for Clerk callers. API key callers can queue any job.
 	if caller != nil && caller.ActorType == "" {

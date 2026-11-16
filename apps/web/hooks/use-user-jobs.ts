@@ -1,17 +1,64 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useAuth } from "@clerk/nextjs";
-import { Job, ApiPagination } from "@/lib/api/types";
+import { UserJob, ApiPagination } from "@/lib/api/types";
 import {
   getUserJobs,
   setUserJobHideStatus,
 } from "@/lib/api/endpoints";
-import { StatusFilter, filterJobs } from "./use-jobs";
+import { StatusFilter } from "./use-jobs";
 
 export type HideFilter = "all" | "visible" | "hidden";
 
+export function filterUserJobs(
+  rows: UserJob[],
+  query: string,
+  status: StatusFilter,
+  remoteOnly: boolean = false,
+  hideFilter: HideFilter = "all"
+): UserJob[] {
+  if (!Array.isArray(rows)) {
+    return [];
+  }
+  const normalizedQuery = query.trim().toLowerCase();
+
+  return rows.filter((row) => {
+    const job = row.job;
+    if (!job) return false;
+
+    // Remote filter
+    if (remoteOnly && job.is_remote !== true) {
+      return false;
+    }
+
+    // Hide filter
+    if (hideFilter === "hidden" && row.is_hidden !== true) {
+      return false;
+    }
+    if (hideFilter === "visible" && row.is_hidden === true) {
+      return false;
+    }
+
+    // Status filter
+    if (status !== "all" && job.status.toLowerCase() !== status.toLowerCase()) {
+      return false;
+    }
+
+    // Query filter
+    if (!normalizedQuery) {
+      return true;
+    }
+
+    const titleMatch = job.title?.toLowerCase().includes(normalizedQuery);
+    const companyMatch = job.company?.toLowerCase().includes(normalizedQuery);
+    const locationMatch = job.location?.toLowerCase().includes(normalizedQuery);
+
+    return titleMatch || companyMatch || locationMatch;
+  });
+}
+
 export function useUserJobs(explicitToken?: string | null) {
   const { getToken, isLoaded } = useAuth();
-  const [jobs, setJobs] = useState<Job[]>([]);
+  const [userJobs, setUserJobs] = useState<UserJob[]>([]);
   const [pagination, setPagination] = useState<ApiPagination | null>(null);
   const [page, setPageState] = useState<number>(1);
   const [limit, setLimitState] = useState<number>(10);
@@ -48,7 +95,7 @@ export function useUserJobs(explicitToken?: string | null) {
 
   const setLimit = useCallback((newLimit: number) => {
     setLimitState(newLimit);
-    setPageState(1);
+    setPageState(1); // Reset to page 1 on limit change
   }, []);
 
   const load = useCallback(
@@ -58,7 +105,7 @@ export function useUserJobs(explicitToken?: string | null) {
         const token = explicitToken !== undefined ? explicitToken : await getToken();
         const res = await getUserJobs(token, page, limit);
         if (!mountedRef || mountedRef.current) {
-          setJobs(Array.isArray(res.data) ? res.data : []);
+          setUserJobs(Array.isArray(res.data) ? res.data : []);
           setPagination(res.pagination);
           setError(null);
         }
@@ -87,7 +134,7 @@ export function useUserJobs(explicitToken?: string | null) {
         remote: remoteOnly,
         hide: hideFilter,
       });
-      setJobs(Array.isArray(res.data) ? res.data : []);
+      setUserJobs(Array.isArray(res.data) ? res.data : []);
       setPagination(res.pagination);
       setPageState(1);
     } catch (err: any) {
@@ -111,9 +158,9 @@ export function useUserJobs(explicitToken?: string | null) {
     };
   }, [explicitToken, isLoaded, load]);
 
-  const filteredJobs = useMemo(
-    () => filterJobs(jobs, searchQuery, statusFilter, remoteOnly, "all", hideFilter),
-    [jobs, searchQuery, statusFilter, remoteOnly, hideFilter]
+  const filteredUserJobs = useMemo(
+    () => filterUserJobs(userJobs, searchQuery, statusFilter, remoteOnly, hideFilter),
+    [userJobs, searchQuery, statusFilter, remoteOnly, hideFilter]
   );
 
   const isFiltersChanged = useMemo(
@@ -151,9 +198,9 @@ export function useUserJobs(explicitToken?: string | null) {
       const token = explicitToken !== undefined ? explicitToken : await getToken();
       await setUserJobHideStatus(userJobId, isHidden, token);
       // Update local state directly; no refetch needed.
-      setJobs((prev) =>
-        prev.map((j) =>
-          j.user_job_id === userJobId ? { ...j, is_hidden: isHidden } : j
+      setUserJobs((prev) =>
+        prev.map((uj) =>
+          uj.id === userJobId ? { ...uj, is_hidden: isHidden } : uj
         )
       );
     },
@@ -161,8 +208,10 @@ export function useUserJobs(explicitToken?: string | null) {
   );
 
   return {
-    jobs,
-    filteredJobs,
+    jobs: userJobs,
+    userJobs,
+    filteredJobs: filteredUserJobs,
+    filteredUserJobs,
     pagination,
     page,
     setPage,

@@ -7,6 +7,7 @@ export interface ReportGap {
 export interface EvaluationSummary {
   id: string;
   user_job_id: string;
+  job?: Job;
   evaluation_status: "new" | "pending" | "success" | "failed";
   overall_score?: number;
   eligibility_status?: string;
@@ -44,8 +45,15 @@ export interface Job {
   created_at: string;
   updated_at?: string;
   is_owned?: boolean;
-  user_job_id?: string;
-  is_hidden?: boolean;
+  user_job?: { id: string };
+}
+
+export interface UserJob {
+  id: string;
+  is_hidden: boolean;
+  created_at: string;
+  updated_at: string;
+  job: Job;
 }
 
 export interface CategoryEvidence {
@@ -73,6 +81,7 @@ export interface MandatoryRequirementAssessment {
 export interface MatchReport {
   id: string;
   user_job_id: string;
+  job?: Job;
   evaluation_status: string;
   report_status?: string;
   overall_score?: number;

@@ -4,42 +4,33 @@ import (
 	"encoding/json"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/frasnym/getojobu/apps/backend/internal/utils"
 )
 
-// Job is a shared job listing row, returned as an API response.
+// Job is a shared job listing row.
 type Job struct {
-	ID             int64           `json:"id"`
-	Slug           string          `json:"slug"`
-	Status         string          `json:"status"`
-	AnalyzeResult  json.RawMessage `json:"analyze_result,omitempty" swaggertype:"object"`
-	FailureMessage *string         `json:"failure_message,omitempty"`
-	Source         string          `json:"-"` // internal audit/shared fact; not exposed in API responses
-	ExternalID     *string         `json:"external_id,omitempty"`
-	SourceURL      *string         `json:"source_url,omitempty"`
-	ApplyURL       *string         `json:"apply_url,omitempty"`
-	Title          string          `json:"title"`
-	Company        string          `json:"company"`
-	Location       string          `json:"location"`
-	Description    *string         `json:"description,omitempty"`
-	PostedDate     time.Time       `json:"posted_date,omitempty"`
-	IsRemote       *bool           `json:"is_remote,omitempty"`
-	VisaRelocation *bool           `json:"visa_relocation,omitempty"`
-	CreatedAt      time.Time       `json:"created_at"`
-	UpdatedAt      time.Time       `json:"updated_at"`
-	UpdatedByType  string          `json:"-"` // internal audit attribution; not exposed in API responses
-	UpdatedByID    string          `json:"-"` // internal audit attribution; not exposed in API responses
-	// IsOwned reports whether the requesting user owns this job (has a row in
-	// user_jobs). Only populated on list endpoints; false elsewhere.
-	IsOwned bool `json:"is_owned"`
-
-	// UserJobID is the user_jobs row id for this user↔job link. Populated only
-	// on the user-jobs list endpoint; nil elsewhere.
-	UserJobID *string `json:"user_job_id,omitempty"`
-
-	// IsHidden reports whether the requesting user has hidden this job.
-	// Only populated on the user-jobs list endpoint; false elsewhere.
-	IsHidden bool `json:"is_hidden"`
+	ID             int64
+	Slug           string
+	Status         string
+	AnalyzeResult  json.RawMessage
+	FailureMessage *string
+	Source         string
+	ExternalID     *string
+	SourceURL      *string
+	ApplyURL       *string
+	Title          string
+	Company        string
+	Location       string
+	Description    *string
+	PostedDate     time.Time
+	IsRemote       *bool
+	VisaRelocation *bool
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+	UpdatedByType  string
+	UpdatedByID    string
 }
 
 // UserJobFilter holds optional server-side filters when listing a user's jobs.
@@ -53,6 +44,17 @@ type UserJobFilter struct {
 	// HideFilter restricts by the user's hidden flag: "" or "all" (no filter),
 	// "visible" (is_hidden=false) or "hidden" (is_hidden=true).
 	HideFilter string `json:"hide,omitempty"`
+}
+
+// JobWithOwnership is a shared job listing plus the requesting user's link to
+// it. It is an internal read model: repositories fill it, use cases pass it
+// through, and handlers map it to an API response.
+type JobWithOwnership struct {
+	Job *Job
+	// IsOwned reports whether the requesting user has a user_jobs row for Job.
+	IsOwned bool
+	// UserJobID is the user_jobs row id, set only when IsOwned is true.
+	UserJobID *uuid.UUID
 }
 
 // CreateJobParams holds parameters for creating a single job listing.

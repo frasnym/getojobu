@@ -11,6 +11,7 @@ import (
 
 	"github.com/frasnym/getojobu/apps/backend/internal/config"
 	"github.com/frasnym/getojobu/apps/backend/internal/contract"
+	"github.com/frasnym/getojobu/apps/backend/internal/deliveries/api/dto"
 	"github.com/frasnym/getojobu/apps/backend/internal/deliveries/api/middleware"
 	"github.com/frasnym/getojobu/apps/backend/internal/models"
 	ucMatching "github.com/frasnym/getojobu/apps/backend/internal/usecase/matching"
@@ -73,7 +74,7 @@ type updateEvaluationPayload struct {
 // @Produce json
 // @Param id path string true "Matching evaluation ID (UUID)"
 // @Param payload body updateEvaluationPayload true "Evaluation update payload"
-// @Success 200 {object} models.MatchingEvaluation
+// @Success 200 {object} dto.MatchingEvaluationResponse
 // @Failure 400 {object} httpx.Error
 // @Failure 401 {object} httpx.Error
 // @Failure 404 {object} httpx.Error
@@ -118,7 +119,7 @@ func (h *handler) UpdateEvaluation(w http.ResponseWriter, r *http.Request) error
 		return err
 	}
 
-	return httpx.RespondJSON(w, r, http.StatusOK, eval)
+	return httpx.RespondJSON(w, r, http.StatusOK, dto.NewMatchingEvaluationResponse(eval))
 }
 
 type updateReportPayload struct {
@@ -135,7 +136,7 @@ type updateReportPayload struct {
 // @Produce json
 // @Param id path string true "Matching evaluation ID (UUID)"
 // @Param payload body updateReportPayload true "Report update payload"
-// @Success 200 {object} models.MatchingEvaluation
+// @Success 200 {object} dto.MatchingEvaluationResponse
 // @Failure 400 {object} httpx.Error
 // @Failure 401 {object} httpx.Error
 // @Failure 404 {object} httpx.Error
@@ -182,7 +183,7 @@ func (h *handler) UpdateReport(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	return httpx.RespondJSON(w, r, http.StatusOK, eval)
+	return httpx.RespondJSON(w, r, http.StatusOK, dto.NewMatchingEvaluationResponse(eval))
 }
 
 type updateResumePayload struct {
@@ -201,7 +202,7 @@ type updateResumePayload struct {
 // @Produce json
 // @Param id path string true "Matching evaluation ID (UUID)"
 // @Param payload body updateResumePayload true "Resume status update payload"
-// @Success 200 {object} models.MatchingEvaluation
+// @Success 200 {object} dto.MatchingEvaluationResponse
 // @Failure 400 {object} httpx.Error
 // @Failure 401 {object} httpx.Error
 // @Failure 404 {object} httpx.Error
@@ -250,7 +251,7 @@ func (h *handler) UpdateResume(w http.ResponseWriter, r *http.Request) error {
 		}
 		return err
 	}
-	return httpx.RespondJSON(w, r, http.StatusOK, eval)
+	return httpx.RespondJSON(w, r, http.StatusOK, dto.NewMatchingEvaluationResponse(eval))
 }
 
 // GetResume returns resume status and persisted artifact metadata.
@@ -259,7 +260,7 @@ func (h *handler) UpdateResume(w http.ResponseWriter, r *http.Request) error {
 // @Tags matching
 // @Produce json
 // @Param id path string true "Matching evaluation ID (UUID)"
-// @Success 200 {object} models.MatchingEvaluation
+// @Success 200 {object} dto.MatchingEvaluationResponse
 // @Failure 401 {object} httpx.Error
 // @Failure 403 {object} httpx.Error
 // @Failure 404 {object} httpx.Error
@@ -280,7 +281,7 @@ func (h *handler) GetResume(w http.ResponseWriter, r *http.Request) error {
 		}
 		return err
 	}
-	return httpx.RespondJSON(w, r, http.StatusOK, eval)
+	return httpx.RespondJSON(w, r, http.StatusOK, dto.NewMatchingEvaluationResponse(eval))
 }
 
 // DownloadResume returns a presigned URL to download the generated resume PDF.

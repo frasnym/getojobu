@@ -32,8 +32,7 @@ export function filterJobs(
   query: string,
   status: StatusFilter,
   remoteOnly: boolean = false,
-  isOwned: OwnedFilter = "all",
-  hideFilter: HideFilter = "all"
+  isOwned: OwnedFilter = "all"
 ): Job[] {
   if (!Array.isArray(jobs)) {
     return [];
@@ -51,14 +50,6 @@ export function filterJobs(
       return false;
     }
     if (isOwned === "not_owned" && job.is_owned === true) {
-      return false;
-    }
-
-    // Hide filter
-    if (hideFilter === "hidden" && job.is_hidden !== true) {
-      return false;
-    }
-    if (hideFilter === "visible" && job.is_hidden === true) {
       return false;
     }
 
