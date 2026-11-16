@@ -12,6 +12,7 @@ import (
 	"github.com/frasnym/getojobu/apps/backend/internal/contract"
 	"github.com/frasnym/getojobu/apps/backend/internal/deliveries/api/middleware"
 	"github.com/frasnym/getojobu/apps/backend/internal/models"
+	ucMatching "github.com/frasnym/getojobu/apps/backend/internal/usecase/matching"
 	ucUserJobs "github.com/frasnym/getojobu/apps/backend/internal/usecase/user_jobs"
 	ucUsers "github.com/frasnym/getojobu/apps/backend/internal/usecase/users"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/constants"
@@ -22,9 +23,10 @@ import (
 
 // handler handles user-jobs list operations.
 type handler struct {
-	cfg    *config.Config
-	userUC ucUsers.User
-	ucJobs ucUserJobs.UserJobs
+	cfg        *config.Config
+	userUC     ucUsers.User
+	ucJobs     ucUserJobs.UserJobs
+	matchingUC ucMatching.Matching
 }
 
 // addUserJobRequest is the POST /v1/user-jobs body.
@@ -52,9 +54,10 @@ type setHideStatusResponse struct {
 // NewHandler constructs a user-jobs handler from the full contract.
 func NewHandler(c *contract.Contract) *handler {
 	return &handler{
-		cfg:    c.Cfg,
-		userUC: c.Usecase.Users,
-		ucJobs: c.Usecase.UserJobs,
+		cfg:        c.Cfg,
+		userUC:     c.Usecase.Users,
+		ucJobs:     c.Usecase.UserJobs,
+		matchingUC: c.Usecase.Matching,
 	}
 }
 
@@ -65,6 +68,7 @@ func (h *handler) Route(g *httpx.Router) {
 	g.GET("", h.ListUserJobs, auth.ValidClerkSession)
 	g.POST("", h.AddUserJob, auth.ValidClerkSession)
 	g.PATCH("/{user_job_id}/hide", h.SetHideStatus, auth.ValidClerkSession)
+	g.GET("/{user_job_id}/evaluation", h.GetEvaluation, auth.ValidClerkSession)
 }
 
 // ListUserJobs returns the authenticated user's jobs (jobs linked to the user
@@ -220,4 +224,50 @@ func (h *handler) SetHideStatus(w http.ResponseWriter, r *http.Request) error {
 		UserJobID: userJobID,
 		IsHidden:  req.IsHidden,
 	})
+}
+
+// GetEvaluation returns the latest matching evaluation for a user-job link.
+// The link must belong to the authenticated user (404 otherwise).
+// @Summary Get matching evaluation for a user job
+// @Description Returns the latest matching evaluation for the given user_job_id, owned by the authenticated user.
+// @Tags user-jobs
+// @Produce json
+// @Param user_job_id path string true "User job link ID (UUID)"
+// @Success 200 {object} models.MatchingEvaluation
+// @Failure 400 {object} httpx.Error
+// @Failure 401 {object} httpx.Error
+// @Failure 404 {object} httpx.Error
+// @security ApiKeyAuth
+// @Router /v1/user-jobs/{user_job_id}/evaluation [get]
+func (h *handler) GetEvaluation(w http.ResponseWriter, r *http.Request) error {
+	p := ctxval.PrincipalFromContext(r.Context())
+	if p == nil {
+		return httpx.Envelope(httpx.CodeUnauthorized, "unauthenticated", "")
+	}
+
+	uid, err := uuid.Parse(p.ID)
+	if err != nil {
+		return httpx.Envelope(httpx.CodeInvalidRequest, "invalid user id", "")
+	}
+
+	userJobID := httpx.ExtractPathParam(r, "user_job_id")
+	if strings.TrimSpace(userJobID) == "" {
+		return httpx.Envelope(httpx.CodeInvalidRequest, "user_job_id is required", "")
+	}
+	ujid, err := uuid.Parse(userJobID)
+	if err != nil {
+		return httpx.Envelope(httpx.CodeInvalidRequest, "user_job_id must be a valid UUID", "")
+	}
+
+	eval, err := h.matchingUC.GetEvaluationByUserJobID(r.Context(), uid, ujid)
+	if err != nil {
+		logging.Error(r.Context(), "get user job evaluation failed", err,
+			"user_id", p.ID, "user_job_id", userJobID)
+		if errors.Is(err, constants.ErrNotFound) {
+			return httpx.Envelope(httpx.CodeNotFound, "evaluation not found", "")
+		}
+		return err
+	}
+
+	return httpx.RespondJSON(w, r, http.StatusOK, eval)
 }

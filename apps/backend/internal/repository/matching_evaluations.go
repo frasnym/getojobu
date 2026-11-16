@@ -19,6 +19,7 @@ type MatchingEvaluations interface {
 	Create(ctx context.Context, eval *models.MatchingEvaluation) (*models.MatchingEvaluation, error)
 	GetByID(ctx context.Context, id uuid.UUID) (*models.MatchingEvaluation, error)
 	GetLatestByUserAndJob(ctx context.Context, userID uuid.UUID, jobID int64) (*models.MatchingEvaluation, error)
+	GetLatestByUserJobID(ctx context.Context, userID uuid.UUID, userJobID uuid.UUID) (*models.MatchingEvaluation, error)
 	Update(ctx context.Context, id uuid.UUID, params models.UpdateMatchingEvaluationParams) (*models.MatchingEvaluation, error)
 	UpdateReport(ctx context.Context, id uuid.UUID, params models.UpdateMatchingEvaluationReportParams) (*models.MatchingEvaluation, error)
 	UpdateResume(ctx context.Context, id uuid.UUID, params models.UpdateMatchingEvaluationResumeParams) (*models.MatchingEvaluation, error)
@@ -191,6 +192,59 @@ func (r *matchingEvaluationsRepository) GetLatestByUserAndJob(ctx context.Contex
 			return nil, constants.ErrNotFound
 		}
 		return nil, fmt.Errorf("get latest matching evaluation: %w", err)
+	}
+
+	return eval, nil
+}
+
+// GetLatestByUserJobID returns the latest matching evaluation for the given
+// user_job link, verifying ownership via user_id.
+func (r *matchingEvaluationsRepository) GetLatestByUserJobID(ctx context.Context, userID uuid.UUID, userJobID uuid.UUID) (*models.MatchingEvaluation, error) {
+	query := `
+		SELECT
+			me.id, me.user_job_id, me.evaluation_status,
+			me.candidate_profile_data, me.job_profile_data, me.scoring_config_id,
+			me.evaluation_data, me.overall_score, me.eligibility_status,
+			me.recommendation_label, me.failure_message,
+			me.report_data, me.report_status, me.report_failure_message,
+			me.resume_status, me.resume_failure_message, me.resume_pdf_key, me.resume_json_key,
+			me.created_at, me.updated_at
+		FROM matching_evaluations me
+		JOIN user_jobs uj ON me.user_job_id = uj.id
+		WHERE uj.id = $2 AND uj.user_id = $1
+		ORDER BY me.created_at DESC
+		LIMIT 1
+	`
+
+	eval := &models.MatchingEvaluation{}
+	err := r.DB().QueryRow(ctx, query, userID, userJobID).Scan(
+		&eval.ID,
+		&eval.UserJobID,
+		&eval.EvaluationStatus,
+		&eval.CandidateProfileData,
+		&eval.JobProfileData,
+		&eval.ScoringConfigID,
+		&eval.EvaluationData,
+		&eval.OverallScore,
+		&eval.EligibilityStatus,
+		&eval.RecommendationLabel,
+		&eval.FailureMessage,
+		&eval.ReportData,
+		&eval.ReportStatus,
+		&eval.ReportFailureMessage,
+		&eval.ResumeStatus,
+		&eval.ResumeFailureMessage,
+		&eval.ResumePDFKey,
+		&eval.ResumeJSONKey,
+		&eval.CreatedAt,
+		&eval.UpdatedAt,
+	)
+
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, constants.ErrNotFound
+		}
+		return nil, fmt.Errorf("get latest matching evaluation by user job id: %w", err)
 	}
 
 	return eval, nil

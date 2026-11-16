@@ -19,6 +19,7 @@ type Matching interface {
 	GetResume(ctx context.Context, id uuid.UUID, caller *models.Principal) (*models.MatchingEvaluation, error)
 	DownloadResume(ctx context.Context, id uuid.UUID, caller *models.Principal) (*models.DownloadResumeResponse, error)
 	GetReport(ctx context.Context, id uuid.UUID, caller *models.Principal) (*models.MatchingEvaluationReportResponse, error)
+	GetEvaluationByUserJobID(ctx context.Context, userID uuid.UUID, userJobID uuid.UUID) (*models.MatchingEvaluation, error)
 	BulkQueueGenerateReport(ctx context.Context, items []models.BulkGenerateReportItem, caller *models.Principal) ([]*models.MatchingEvaluationSummary, error)
 	BulkQueueGenerateResume(ctx context.Context, items []models.BulkGenerateResumeItem, caller *models.Principal) ([]*models.MatchingEvaluationSummary, error)
 }
@@ -52,4 +53,10 @@ func NewService(r *repository.Contract) Matching {
 		eduRepo:            r.EducationsRepository,
 		storageRepo:        r.StorageRepository,
 	}
+}
+
+// GetEvaluationByUserJobID returns the latest matching evaluation for a
+// user-job link, verifying ownership via user_id.
+func (s *matchingService) GetEvaluationByUserJobID(ctx context.Context, userID uuid.UUID, userJobID uuid.UUID) (*models.MatchingEvaluation, error) {
+	return s.evalRepo.GetLatestByUserJobID(ctx, userID, userJobID)
 }

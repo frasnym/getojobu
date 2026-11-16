@@ -103,6 +103,21 @@ func (mr *MockMatchingMockRecorder) GetReport(ctx, id, caller any) *gomock.Call 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetReport", reflect.TypeOf((*MockMatching)(nil).GetReport), ctx, id, caller)
 }
 
+// GetEvaluationByUserJobID mocks base method.
+func (m *MockMatching) GetEvaluationByUserJobID(ctx context.Context, userID uuid.UUID, userJobID uuid.UUID) (*models.MatchingEvaluation, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetEvaluationByUserJobID", ctx, userID, userJobID)
+	ret0, _ := ret[0].(*models.MatchingEvaluation)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetEvaluationByUserJobID indicates an expected call of GetEvaluationByUserJobID.
+func (mr *MockMatchingMockRecorder) GetEvaluationByUserJobID(ctx, userID, userJobID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetEvaluationByUserJobID", reflect.TypeOf((*MockMatching)(nil).GetEvaluationByUserJobID), ctx, userID, userJobID)
+}
+
 // GetResume mocks base method.
 func (m *MockMatching) GetResume(ctx context.Context, id uuid.UUID, caller *models.Principal) (*models.MatchingEvaluation, error) {
 	m.ctrl.T.Helper()

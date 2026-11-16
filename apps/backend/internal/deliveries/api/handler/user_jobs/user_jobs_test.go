@@ -411,11 +411,13 @@ func TestRoute_registers_userjobs_under_group(t *testing.T) {
 
 	// Assert via introspection. Patterns are compounded with the group prefix.
 	routes := rt.Routes()
-	require.Len(t, routes, 3, "expected 3 user-jobs routes under /v1/user-jobs")
+	require.Len(t, routes, 4, "expected 4 user-jobs routes under /v1/user-jobs")
 	assert.Equal(t, http.MethodGet, routes[0].Method)
 	assert.Equal(t, "/v1/user-jobs", routes[0].Pattern)
 	assert.Equal(t, http.MethodPost, routes[1].Method)
 	assert.Equal(t, "/v1/user-jobs", routes[1].Pattern)
 	assert.Equal(t, http.MethodPatch, routes[2].Method)
 	assert.Equal(t, "/v1/user-jobs/{user_job_id}/hide", routes[2].Pattern)
+	assert.Equal(t, http.MethodGet, routes[3].Method)
+	assert.Equal(t, "/v1/user-jobs/{user_job_id}/evaluation", routes[3].Pattern)
 }

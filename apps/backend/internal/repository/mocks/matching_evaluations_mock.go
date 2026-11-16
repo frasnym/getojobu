@@ -87,6 +87,21 @@ func (mr *MockMatchingEvaluationsMockRecorder) GetLatestByUserAndJob(ctx, userID
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLatestByUserAndJob", reflect.TypeOf((*MockMatchingEvaluations)(nil).GetLatestByUserAndJob), ctx, userID, jobID)
 }
 
+// GetLatestByUserJobID mocks base method.
+func (m *MockMatchingEvaluations) GetLatestByUserJobID(ctx context.Context, userID uuid.UUID, userJobID uuid.UUID) (*models.MatchingEvaluation, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetLatestByUserJobID", ctx, userID, userJobID)
+	ret0, _ := ret[0].(*models.MatchingEvaluation)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetLatestByUserJobID indicates an expected call of GetLatestByUserJobID.
+func (mr *MockMatchingEvaluationsMockRecorder) GetLatestByUserJobID(ctx, userID, userJobID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLatestByUserJobID", reflect.TypeOf((*MockMatchingEvaluations)(nil).GetLatestByUserJobID), ctx, userID, userJobID)
+}
+
 // Update mocks base method.
 func (m *MockMatchingEvaluations) Update(ctx context.Context, id uuid.UUID, params models.UpdateMatchingEvaluationParams) (*models.MatchingEvaluation, error) {
 	m.ctrl.T.Helper()
