@@ -25,7 +25,10 @@ type UserJobs interface {
 	GetByID(ctx context.Context, id uuid.UUID) (*models.UserJob, error)
 	GetUsersByJobID(ctx context.Context, jobID int64) ([]string, error)
 	GetByUser(ctx context.Context, userID string, filter models.UserJobFilter, limit, offset int) ([]*models.UserJobWithJob, int, error)
-	SetHideStatus(ctx context.Context, userID, userJobID string, isHidden bool) error
+	// SetBulkHideStatus sets is_hidden on multiple user↔job links owned by the
+	// user in one transaction. Returns the number of rows actually updated.
+	// Links that don't exist or aren't owned by the user are simply skipped.
+	SetBulkHideStatus(ctx context.Context, userID string, userJobIDs []string, isHidden bool) (int, error)
 }
 
 type userJobsRepository struct {
@@ -166,7 +169,7 @@ func (r *userJobsRepository) IsOwned(ctx context.Context, userID string, jobID i
 // GetByUserAndJob fetches the user_job row for a given user and job.
 func (r *userJobsRepository) GetByUserAndJob(ctx context.Context, userID string, jobID int64) (*models.UserJob, error) {
 	query := `
-		SELECT id, user_id, job_id, created_at, updated_at
+		SELECT id, user_id, job_id, is_hidden, latest_evaluation_id, created_at, updated_at
 		FROM user_jobs
 		WHERE user_id = $1 AND job_id = $2
 	`
@@ -175,6 +178,8 @@ func (r *userJobsRepository) GetByUserAndJob(ctx context.Context, userID string,
 		&uj.ID,
 		&uj.UserID,
 		&uj.JobID,
+		&uj.IsHidden,
+		&uj.LatestEvaluationID,
 		&uj.CreatedAt,
 		&uj.UpdatedAt,
 	)
@@ -187,7 +192,7 @@ func (r *userJobsRepository) GetByUserAndJob(ctx context.Context, userID string,
 // GetByID fetches the user_job row by id.
 func (r *userJobsRepository) GetByID(ctx context.Context, id uuid.UUID) (*models.UserJob, error) {
 	query := `
-		SELECT id, user_id, job_id, created_at, updated_at
+		SELECT id, user_id, job_id, is_hidden, latest_evaluation_id, created_at, updated_at
 		FROM user_jobs
 		WHERE id = $1
 	`
@@ -196,6 +201,8 @@ func (r *userJobsRepository) GetByID(ctx context.Context, id uuid.UUID) (*models
 		&uj.ID,
 		&uj.UserID,
 		&uj.JobID,
+		&uj.IsHidden,
+		&uj.LatestEvaluationID,
 		&uj.CreatedAt,
 		&uj.UpdatedAt,
 	)
@@ -236,7 +243,7 @@ func (r *userJobsRepository) GetUsersByJobID(ctx context.Context, jobID int64) (
 // ordered by user_jobs.created_at descending, paginated by limit and offset.
 // When filter fields are set, they are applied as parameterized SQL constraints.
 func (r *userJobsRepository) GetByUser(ctx context.Context, userID string, filter models.UserJobFilter, limit, offset int) (rows []*models.UserJobWithJob, total int, err error) {
-	// Optional count filters applied via join on jobs.
+	// Optional count filters applied via join on jobs and latest matching evaluation.
 	countWhere, countArgs := whereClauses(filter)
 	countQuery := `SELECT COUNT(*) FROM user_jobs uj WHERE uj.user_id = $1`
 	if countWhere != "" {
@@ -244,6 +251,7 @@ func (r *userJobsRepository) GetByUser(ctx context.Context, userID string, filte
 			SELECT COUNT(*)
 			FROM user_jobs uj
 			JOIN jobs j ON j.id = uj.job_id
+			LEFT JOIN matching_evaluations me ON me.id = uj.latest_evaluation_id
 			WHERE uj.user_id = $1` + countWhere
 	}
 	if err := r.QueryRow(ctx, countQuery, append([]any{userID}, countArgs...)...).Scan(&total); err != nil {
@@ -251,12 +259,14 @@ func (r *userJobsRepository) GetByUser(ctx context.Context, userID string, filte
 	}
 
 	selectCols := `
-		uj.id, uj.user_id, uj.job_id, uj.is_hidden, uj.created_at, uj.updated_at,
+		uj.id, uj.user_id, uj.job_id, uj.is_hidden, uj.latest_evaluation_id, uj.created_at, uj.updated_at,
 		j.id, j.slug, j.status, j.analyze_result, j.failure_message,
 		j.source, j.external_id, j.source_url, j.apply_url,
 		j.title, j.company, j.location, j.description, j.posted_date,
 		j.is_remote, j.visa_relocation,
-		j.created_at, j.updated_at, j.updated_by_type, j.updated_by_id
+		j.created_at, j.updated_at, j.updated_by_type, j.updated_by_id,
+		me.evaluation_status, me.eligibility_status, me.recommendation_label,
+		me.report_status, me.resume_status
 	`
 	whereClause, whereArgs := whereClauses(filter)
 	// Build final args: user_id ($1), then where filters, then limit & offset.
@@ -271,6 +281,7 @@ func (r *userJobsRepository) GetByUser(ctx context.Context, userID string, filte
 		SELECT %s
 		FROM user_jobs uj
 		JOIN jobs j ON j.id = uj.job_id
+		LEFT JOIN matching_evaluations me ON me.id = uj.latest_evaluation_id
 		WHERE uj.user_id = $1%s
 		ORDER BY uj.created_at DESC
 		LIMIT $%d OFFSET $%d
@@ -292,28 +303,37 @@ func scanUserJobsWithJob(rows pgx.Rows) ([]*models.UserJobWithJob, error) {
 	var result []*models.UserJobWithJob
 	for rows.Next() {
 		var (
-			uj             models.UserJob
-			j              models.Job
-			externalID     sql.NullString
-			sourceURL      sql.NullString
-			applyURL       sql.NullString
-			description    sql.NullString
-			failureMessage sql.NullString
-			postedDate     sql.NullTime
-			isRemote       sql.NullBool
-			visaRelocation sql.NullBool
+			uj                  models.UserJob
+			j                   models.Job
+			latestEvalID        *uuid.UUID
+			evalStatus          sql.NullString
+			eligibilityStatus   sql.NullString
+			recommendationLabel sql.NullString
+			reportStatus        sql.NullString
+			resumeStatus        sql.NullString
+			externalID          sql.NullString
+			sourceURL           sql.NullString
+			applyURL            sql.NullString
+			description         sql.NullString
+			failureMessage      sql.NullString
+			postedDate          sql.NullTime
+			isRemote            sql.NullBool
+			visaRelocation      sql.NullBool
 		)
 		err := rows.Scan(
-			&uj.ID, &uj.UserID, &uj.JobID, &uj.IsHidden, &uj.CreatedAt, &uj.UpdatedAt,
+			&uj.ID, &uj.UserID, &uj.JobID, &uj.IsHidden, &latestEvalID, &uj.CreatedAt, &uj.UpdatedAt,
 			&j.ID, &j.Slug, &j.Status, &j.AnalyzeResult, &failureMessage,
 			&j.Source, &externalID, &sourceURL, &applyURL,
 			&j.Title, &j.Company, &j.Location, &description,
 			&postedDate, &isRemote, &visaRelocation,
 			&j.CreatedAt, &j.UpdatedAt, &j.UpdatedByType, &j.UpdatedByID,
+			&evalStatus, &eligibilityStatus, &recommendationLabel,
+			&reportStatus, &resumeStatus,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("scan user job with job: %w", err)
 		}
+		uj.LatestEvaluationID = latestEvalID
 		j.ExternalID = utils.NullStringPtr(externalID)
 		j.SourceURL = utils.NullStringPtr(sourceURL)
 		j.ApplyURL = utils.NullStringPtr(applyURL)
@@ -323,9 +343,23 @@ func scanUserJobsWithJob(rows pgx.Rows) ([]*models.UserJobWithJob, error) {
 		j.IsRemote = utils.NullBoolPtr(isRemote)
 		j.VisaRelocation = utils.NullBoolPtr(visaRelocation)
 
+		var eval *models.MatchingEvaluation
+		if latestEvalID != nil && evalStatus.Valid {
+			eval = &models.MatchingEvaluation{
+				ID:                  *latestEvalID,
+				UserJobID:           uj.ID,
+				EvaluationStatus:    evalStatus.String,
+				EligibilityStatus:   utils.NullStringPtr(eligibilityStatus),
+				RecommendationLabel: utils.NullStringPtr(recommendationLabel),
+				ReportStatus:        utils.NullStringPtr(reportStatus),
+				ResumeStatus:        utils.NullStringPtr(resumeStatus),
+			}
+		}
+
 		result = append(result, &models.UserJobWithJob{
-			UserJob: &uj,
-			Job:     &j,
+			UserJob:    &uj,
+			Job:        &j,
+			Evaluation: eval,
 		})
 	}
 	if err := rows.Err(); err != nil {
@@ -358,6 +392,31 @@ func whereClauses(filter models.UserJobFilter) (string, []any) {
 		clauses = append(clauses, fmt.Sprintf("uj.is_hidden = $%d", next))
 		next++
 	}
+	if filter.EvaluationStatus != "" && filter.EvaluationStatus != "all" {
+		args = append(args, filter.EvaluationStatus)
+		clauses = append(clauses, fmt.Sprintf("LOWER(me.evaluation_status) = LOWER($%d)", next))
+		next++
+	}
+	if filter.EligibilityStatus != "" && filter.EligibilityStatus != "all" {
+		args = append(args, filter.EligibilityStatus)
+		clauses = append(clauses, fmt.Sprintf("LOWER(me.eligibility_status) = LOWER($%d)", next))
+		next++
+	}
+	if filter.RecommendationLabel != "" && filter.RecommendationLabel != "all" {
+		args = append(args, filter.RecommendationLabel)
+		clauses = append(clauses, fmt.Sprintf("LOWER(me.recommendation_label) = LOWER($%d)", next))
+		next++
+	}
+	if filter.ReportStatus != "" && filter.ReportStatus != "all" {
+		args = append(args, filter.ReportStatus)
+		clauses = append(clauses, fmt.Sprintf("LOWER(me.report_status) = LOWER($%d)", next))
+		next++
+	}
+	if filter.ResumeStatus != "" && filter.ResumeStatus != "all" {
+		args = append(args, filter.ResumeStatus)
+		clauses = append(clauses, fmt.Sprintf("LOWER(me.resume_status) = LOWER($%d)", next))
+		next++
+	}
 
 	if len(clauses) == 0 {
 		return "", nil
@@ -365,25 +424,27 @@ func whereClauses(filter models.UserJobFilter) (string, []any) {
 	return " AND " + strings.Join(clauses, " AND "), args
 }
 
-// SetHideStatus toggles the is_hidden flag on the user↔job link identified by
-// userJobID. Returns ErrNotFound when the user does not own that link.
-func (r *userJobsRepository) SetHideStatus(ctx context.Context, userID, userJobID string, isHidden bool) error {
+// SetBulkHideStatus sets is_hidden on multiple user↔job links owned by the
+// user in one transaction. Returns the number of rows actually updated.
+// Links that don't exist or aren't owned by the user are simply skipped.
+func (r *userJobsRepository) SetBulkHideStatus(ctx context.Context, userID string, userJobIDs []string, isHidden bool) (int, error) {
+	if len(userJobIDs) == 0 {
+		return 0, nil
+	}
+
 	tx, err := r.StartTrx(ctx)
 	if err != nil {
-		return fmt.Errorf("set hide status start trx: %w", err)
+		return 0, fmt.Errorf("set bulk hide status start trx: %w", err)
 	}
 	defer r.Committer(ctx, tx, &err)
 
 	res, err := tx.Exec(ctx, `
 		UPDATE user_jobs
 		SET is_hidden = $3
-		WHERE id = $1 AND user_id = $2
-	`, userJobID, userID, isHidden)
+		WHERE id = ANY($1::text[]) AND user_id = $2
+	`, userJobIDs, userID, isHidden)
 	if err != nil {
-		return fmt.Errorf("set user_jobs hide status: %w", err)
+		return 0, fmt.Errorf("set bulk user_jobs hide status: %w", err)
 	}
-	if res.RowsAffected() == 0 {
-		return constants.ErrNotFound
-	}
-	return nil
+	return int(res.RowsAffected()), nil
 }

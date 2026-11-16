@@ -22,9 +22,9 @@ type UserJobs interface {
 	// exists (idempotent via ON CONFLICT DO NOTHING).
 	Add(ctx context.Context, userID string, jobID int64) (created bool, err error)
 
-	// SetHideStatus toggles the is_hidden flag on the user↔job link identified
-	// by userJobID.
-	SetHideStatus(ctx context.Context, userID, userJobID string, isHidden bool) error
+	// SetBulkHideStatus sets is_hidden on multiple user↔job links owned by the
+	// user in one transaction. Returns the number of rows actually updated.
+	SetBulkHideStatus(ctx context.Context, userID string, userJobIDs []string, isHidden bool) (int, error)
 }
 
 // userJobsService implements UserJobs backed by the user_jobs repository.
@@ -59,11 +59,12 @@ func (s *userJobsService) Add(ctx context.Context, userID string, jobID int64) (
 	return created, nil
 }
 
-// SetHideStatus toggles the is_hidden flag on the user↔job link identified by
-// userJobID.
-func (s *userJobsService) SetHideStatus(ctx context.Context, userID, userJobID string, isHidden bool) error {
-	if err := s.repo.SetHideStatus(ctx, userID, userJobID, isHidden); err != nil {
-		return fmt.Errorf("set hide status: %w", err)
+// SetBulkHideStatus sets is_hidden on multiple user↔job links owned by the
+// user in one transaction. Returns the number of rows actually updated.
+func (s *userJobsService) SetBulkHideStatus(ctx context.Context, userID string, userJobIDs []string, isHidden bool) (int, error) {
+	updated, err := s.repo.SetBulkHideStatus(ctx, userID, userJobIDs, isHidden)
+	if err != nil {
+		return 0, fmt.Errorf("set bulk hide status: %w", err)
 	}
-	return nil
+	return updated, nil
 }

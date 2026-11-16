@@ -1694,6 +1694,54 @@ const docTemplate = `{
                         "description": "Items per page (default 10, max 50)",
                         "name": "limit",
                         "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by job status",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Filter by remote jobs",
+                        "name": "remote",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by hide status (visible, hidden, or all)",
+                        "name": "hide",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by matching evaluation status",
+                        "name": "evaluation_status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by eligibility status",
+                        "name": "eligibility_status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by recommendation label",
+                        "name": "recommendation_label",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by match report status",
+                        "name": "report_status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by resume status",
+                        "name": "resume_status",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -1776,6 +1824,57 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/user-jobs/bulk": {
+            "patch": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Hide or unhide multiple user↔job links owned by the authenticated user. Idempotent.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "user-jobs"
+                ],
+                "summary": "Bulk toggle hide status on user jobs",
+                "parameters": [
+                    {
+                        "description": "Hide status",
+                        "name": "hide",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/user_jobs.setHideStatusRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/user_jobs.setHideStatusResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpx.Error"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/httpx.Error"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/user-jobs/{user_job_id}/evaluation": {
             "get": {
                 "security": [
@@ -1805,70 +1904,6 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/dto.EvaluationResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/httpx.Error"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/httpx.Error"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/httpx.Error"
-                        }
-                    }
-                }
-            }
-        },
-        "/v1/user-jobs/{user_job_id}/hide": {
-            "patch": {
-                "security": [
-                    {
-                        "ApiKeyAuth": []
-                    }
-                ],
-                "description": "Hide or unhide a user↔job link owned by the authenticated user. Idempotent.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "user-jobs"
-                ],
-                "summary": "Toggle hide status on a user job",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "User job link ID",
-                        "name": "user_job_id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Hide status",
-                        "name": "hide",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/user_jobs.setHideStatusRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/user_jobs.setHideStatusResponse"
                         }
                     },
                     "400": {
@@ -2137,6 +2172,29 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.UserJobEvaluationResponse": {
+            "type": "object",
+            "properties": {
+                "eligibility_status": {
+                    "type": "string"
+                },
+                "evaluation_status": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "recommendation_label": {
+                    "type": "string"
+                },
+                "report_status": {
+                    "type": "string"
+                },
+                "resume_status": {
+                    "type": "string"
+                }
+            }
+        },
         "dto.UserJobRef": {
             "type": "object",
             "properties": {
@@ -2150,6 +2208,9 @@ const docTemplate = `{
             "properties": {
                 "created_at": {
                     "type": "string"
+                },
+                "evaluation": {
+                    "$ref": "#/definitions/dto.UserJobEvaluationResponse"
                 },
                 "id": {
                     "type": "string"
@@ -2921,17 +2982,20 @@ const docTemplate = `{
             "properties": {
                 "is_hidden": {
                     "type": "boolean"
+                },
+                "user_job_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 }
             }
         },
         "user_jobs.setHideStatusResponse": {
             "type": "object",
             "properties": {
-                "is_hidden": {
-                    "type": "boolean"
-                },
-                "user_job_id": {
-                    "type": "string"
+                "updated": {
+                    "type": "integer"
                 }
             }
         },

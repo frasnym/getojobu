@@ -93,6 +93,15 @@ func (r *matchingEvaluationsRepository) Create(ctx context.Context, eval *models
 		return nil, fmt.Errorf("insert matching evaluation: %w", err)
 	}
 
+	updateUserJobQuery := `
+		UPDATE user_jobs
+		SET latest_evaluation_id = $1, updated_at = NOW()
+		WHERE id = $2
+	`
+	if _, err = tx.Exec(ctx, updateUserJobQuery, eval.ID, eval.UserJobID); err != nil {
+		return nil, fmt.Errorf("update user_job latest_evaluation_id: %w", err)
+	}
+
 	return eval, nil
 }
 

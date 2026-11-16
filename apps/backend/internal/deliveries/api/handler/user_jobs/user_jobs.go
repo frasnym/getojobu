@@ -42,15 +42,15 @@ type addUserJobResponse struct {
 	Created bool  `json:"created"`
 }
 
-// setHideStatusRequest is the PATCH /v1/user-jobs/{job_id}/hide body.
+// setHideStatusRequest is the PATCH /v1/user-jobs/bulk body.
 type setHideStatusRequest struct {
-	IsHidden bool `json:"is_hidden"`
+	UserJobIDs []string `json:"user_job_ids"`
+	IsHidden   bool     `json:"is_hidden"`
 }
 
-// setHideStatusResponse is the outcome of toggling hide on a user job.
+// setHideStatusResponse is the outcome of toggling hide on user jobs.
 type setHideStatusResponse struct {
-	UserJobID string `json:"user_job_id"`
-	IsHidden  bool   `json:"is_hidden"`
+	Updated int `json:"updated"`
 }
 
 // NewHandler constructs a user-jobs handler from the full contract.
@@ -69,7 +69,7 @@ func (h *handler) Route(g *httpx.Router) {
 
 	g.GET("", h.ListUserJobs, auth.ValidClerkSession)
 	g.POST("", h.AddUserJob, auth.ValidClerkSession)
-	g.PATCH("/{user_job_id}/hide", h.SetHideStatus, auth.ValidClerkSession)
+	g.PATCH("/bulk", h.SetBulkHideStatus, auth.ValidClerkSession)
 	g.GET("/{user_job_id}/evaluation", h.GetEvaluation, auth.ValidClerkSession)
 }
 
@@ -81,6 +81,14 @@ func (h *handler) Route(g *httpx.Router) {
 // @Produce json
 // @Param page query integer false "Page number (default 1)"
 // @Param limit query integer false "Items per page (default 10, max 50)"
+// @Param status query string false "Filter by job status"
+// @Param remote query boolean false "Filter by remote jobs"
+// @Param hide query string false "Filter by hide status (visible, hidden, or all)"
+// @Param evaluation_status query string false "Filter by matching evaluation status"
+// @Param eligibility_status query string false "Filter by eligibility status"
+// @Param recommendation_label query string false "Filter by recommendation label"
+// @Param report_status query string false "Filter by match report status"
+// @Param resume_status query string false "Filter by resume status"
 // @Success 200 {array} dto.UserJobResponse
 // @Failure 400 {object} httpx.Error
 // @Failure 401 {object} httpx.Error
@@ -122,9 +130,14 @@ func (h *handler) ListUserJobs(w http.ResponseWriter, r *http.Request) error {
 	offset := (page - 1) * limit
 
 	filter := models.UserJobFilter{
-		Status:     r.URL.Query().Get("status"),
-		RemoteOnly: r.URL.Query().Get("remote") == "true",
-		HideFilter: r.URL.Query().Get("hide"),
+		Status:              r.URL.Query().Get("status"),
+		RemoteOnly:          r.URL.Query().Get("remote") == "true",
+		HideFilter:          r.URL.Query().Get("hide"),
+		EvaluationStatus:    r.URL.Query().Get("evaluation_status"),
+		EligibilityStatus:   r.URL.Query().Get("eligibility_status"),
+		RecommendationLabel: r.URL.Query().Get("recommendation_label"),
+		ReportStatus:        r.URL.Query().Get("report_status"),
+		ResumeStatus:        r.URL.Query().Get("resume_status"),
 	}
 
 	jobs, totalItems, err := h.ucJobs.ListByUser(r.Context(), p.ID, filter, limit, offset)
@@ -136,7 +149,7 @@ func (h *handler) ListUserJobs(w http.ResponseWriter, r *http.Request) error {
 
 	dtoRows := make([]dto.UserJobResponse, len(jobs))
 	for i, row := range jobs {
-		dtoRows[i] = dto.NewUserJobResponse(row.UserJob, row.Job)
+		dtoRows[i] = dto.NewUserJobResponse(row)
 	}
 
 	return httpx.RespondJSON(w, r, http.StatusOK, dtoRows, httpx.WithPaginationParams(page, limit, totalItems))
@@ -186,33 +199,24 @@ func (h *handler) AddUserJob(w http.ResponseWriter, r *http.Request) error {
 	return httpx.RespondJSON(w, r, http.StatusOK, resp)
 }
 
-// SetHideStatus toggles the is_hidden flag on a user↔job link.
-// The link must belong to the authenticated user (404 otherwise).
-// @Summary Toggle hide status on a user job
-// @Description Hide or unhide a user↔job link owned by the authenticated user. Idempotent.
+// SetBulkHideStatus sets is_hidden on multiple user↔job links owned by the
+// authenticated user in one request. Links that don't exist or aren't owned by
+// the user are skipped. Idempotent.
+// @Summary Bulk toggle hide status on user jobs
+// @Description Hide or unhide multiple user↔job links owned by the authenticated user. Idempotent.
 // @Tags user-jobs
 // @Accept json
 // @Produce json
-// @Param user_job_id path string true "User job link ID"
 // @Param hide body setHideStatusRequest true "Hide status"
 // @Success 200 {object} setHideStatusResponse
 // @Failure 400 {object} httpx.Error
 // @Failure 401 {object} httpx.Error
-// @Failure 404 {object} httpx.Error
 // @security ApiKeyAuth
-// @Router /v1/user-jobs/{user_job_id}/hide [patch]
-func (h *handler) SetHideStatus(w http.ResponseWriter, r *http.Request) error {
+// @Router /v1/user-jobs/bulk [patch]
+func (h *handler) SetBulkHideStatus(w http.ResponseWriter, r *http.Request) error {
 	p := ctxval.PrincipalFromContext(r.Context())
 	if p == nil {
 		return httpx.Envelope(httpx.CodeUnauthorized, "unauthenticated", "")
-	}
-
-	userJobID := httpx.ExtractPathParam(r, "user_job_id")
-	if strings.TrimSpace(userJobID) == "" {
-		return httpx.Envelope(httpx.CodeInvalidRequest, "user_job_id is required", "")
-	}
-	if _, err := uuid.Parse(userJobID); err != nil {
-		return httpx.Envelope(httpx.CodeInvalidRequest, "user_job_id must be a valid UUID", "")
 	}
 
 	var req setHideStatusRequest
@@ -220,18 +224,27 @@ func (h *handler) SetHideStatus(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	if err := h.ucJobs.SetHideStatus(r.Context(), p.ID, userJobID, req.IsHidden); err != nil {
-		logging.Error(r.Context(), "set user job hide status failed", err,
-			"user_id", p.ID, "user_job_id", userJobID, "is_hidden", req.IsHidden)
-		if errors.Is(err, constants.ErrNotFound) {
-			return httpx.Envelope(httpx.CodeNotFound, "user job not found", "")
+	if len(req.UserJobIDs) == 0 {
+		return httpx.Envelope(httpx.CodeInvalidRequest, "user_job_ids must not be empty", "")
+	}
+	for _, id := range req.UserJobIDs {
+		if strings.TrimSpace(id) == "" {
+			return httpx.Envelope(httpx.CodeInvalidRequest, "user_job_ids must not contain empty values", "")
 		}
+		if _, err := uuid.Parse(id); err != nil {
+			return httpx.Envelope(httpx.CodeInvalidRequest, "user_job_ids must be valid UUIDs", "")
+		}
+	}
+
+	updated, err := h.ucJobs.SetBulkHideStatus(r.Context(), p.ID, req.UserJobIDs, req.IsHidden)
+	if err != nil {
+		logging.Error(r.Context(), "set bulk user job hide status failed", err,
+			"user_id", p.ID, "user_job_ids", req.UserJobIDs, "is_hidden", req.IsHidden)
 		return err
 	}
 
 	return httpx.RespondJSON(w, r, http.StatusOK, setHideStatusResponse{
-		UserJobID: userJobID,
-		IsHidden:  req.IsHidden,
+		Updated: updated,
 	})
 }
 

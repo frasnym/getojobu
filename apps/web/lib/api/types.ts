@@ -48,12 +48,22 @@ export interface Job {
   user_job?: { id: string };
 }
 
+export interface UserJobEvaluation {
+  id: string;
+  evaluation_status: string;
+  eligibility_status?: string;
+  recommendation_label?: string;
+  report_status?: string;
+  resume_status?: string;
+}
+
 export interface UserJob {
   id: string;
   is_hidden: boolean;
   created_at: string;
   updated_at: string;
   job: Job;
+  evaluation?: UserJobEvaluation | null;
 }
 
 export interface CategoryEvidence {

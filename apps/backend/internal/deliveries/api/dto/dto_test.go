@@ -91,17 +91,39 @@ func TestJobDetailResponse_omitsOwnershipForAnonymous(t *testing.T) {
 }
 
 func TestUserJobResponse_rootKeys(t *testing.T) {
+	evalID := uuid.MustParse("33333333-3333-3333-3333-333333333333")
 	userJob := &models.UserJob{
-		ID:        uuid.MustParse("ee46d5ea-893d-4951-a3d3-8c32d7459737"),
-		JobID:     648,
-		IsHidden:  true,
-		CreatedAt: time.Date(2026, 11, 16, 7, 20, 11, 0, time.UTC),
-		UpdatedAt: time.Date(2026, 11, 16, 7, 21, 0, 0, time.UTC),
+		ID:                 uuid.MustParse("ee46d5ea-893d-4951-a3d3-8c32d7459737"),
+		JobID:              648,
+		IsHidden:           true,
+		LatestEvaluationID: &evalID,
+		CreatedAt:          time.Date(2026, 11, 16, 7, 20, 11, 0, time.UTC),
+		UpdatedAt:          time.Date(2026, 11, 16, 7, 21, 0, 0, time.UTC),
 	}
 
-	keys := marshalKeys(t, NewUserJobResponse(userJob, sampleJob()))
+	evalStatus := "completed"
+	eligibilityStatus := "eligible"
+	recommendationLabel := "strong_match"
+	reportStatus := "ready"
+	resumeStatus := "generated"
 
-	for _, want := range []string{"id", "is_hidden", "created_at", "updated_at", "job"} {
+	row := &models.UserJobWithJob{
+		UserJob: userJob,
+		Job:     sampleJob(),
+		Evaluation: &models.MatchingEvaluation{
+			ID:                  evalID,
+			UserJobID:           userJob.ID,
+			EvaluationStatus:    evalStatus,
+			EligibilityStatus:   &eligibilityStatus,
+			RecommendationLabel: &recommendationLabel,
+			ReportStatus:        &reportStatus,
+			ResumeStatus:        &resumeStatus,
+		},
+	}
+
+	keys := marshalKeys(t, NewUserJobResponse(row))
+
+	for _, want := range []string{"id", "is_hidden", "created_at", "updated_at", "job", "evaluation"} {
 		assert.Contains(t, keys, want)
 	}
 	for _, unwanted := range []string{"title", "slug", "is_owned", "user_job_id"} {
@@ -116,6 +138,30 @@ func TestUserJobResponse_rootKeys(t *testing.T) {
 	require.True(t, ok, "job must be an object")
 	assert.EqualValues(t, 648, job["id"])
 	assert.NotContains(t, job, "is_owned")
+
+	eval, ok := keys["evaluation"].(map[string]any)
+	require.True(t, ok, "evaluation must be an object")
+	assert.Equal(t, evalID.String(), eval["id"])
+	assert.Equal(t, "completed", eval["evaluation_status"])
+	assert.Equal(t, "eligible", eval["eligibility_status"])
+	assert.Equal(t, "strong_match", eval["recommendation_label"])
+	assert.Equal(t, "ready", eval["report_status"])
+	assert.Equal(t, "generated", eval["resume_status"])
+
+	// Verify omitempty when evaluation is nil
+	emptyUserJob := &models.UserJob{
+		ID:        userJob.ID,
+		JobID:     userJob.JobID,
+		IsHidden:  userJob.IsHidden,
+		CreatedAt: userJob.CreatedAt,
+		UpdatedAt: userJob.UpdatedAt,
+	}
+	emptyRow := &models.UserJobWithJob{
+		UserJob: emptyUserJob,
+		Job:     sampleJob(),
+	}
+	emptyKeys := marshalKeys(t, NewUserJobResponse(emptyRow))
+	assert.NotContains(t, emptyKeys, "evaluation")
 }
 
 func TestMatchingEvaluationResponse_hasNoJobKey(t *testing.T) {

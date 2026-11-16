@@ -39,6 +39,8 @@ interface JobDetailDrawerProps {
   showOwnedActions?: boolean;
   /** When true (job is hidden by the user), grey out the job title in the drawer header. */
   isHidden?: boolean;
+  /** Toggle hide on the user↔job link (bulk endpoint). Receives (userJobId, isHidden). */
+  onHideToggle?: (userJobId: string, isHidden: boolean) => void | Promise<void>;
 }
 
 const TABS: { id: ReportTab; label: string }[] = [
@@ -59,6 +61,7 @@ export function JobDetailDrawer({
   evalId: evalIdProp,
   showOwnedActions = true,
   isHidden = false,
+  onHideToggle,
 }: JobDetailDrawerProps) {
   const { getToken } = useAuth();
   const [fetchedEvaluation, setFetchedEvaluation] = useState<EvaluationSummary | null>(null);
@@ -204,6 +207,22 @@ export function JobDetailDrawer({
 
           {/* Action strip */}
           <div className="flex flex-wrap items-center gap-3 pt-2">
+            {/* Hide/Unhide toggle — available whenever we have a link id and a handler */}
+            {onHideToggle && userJobId && (
+              <button
+                type="button"
+                onClick={() => onHideToggle(userJobId, !isHidden)}
+                disabled={isSaving}
+                className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-semibold transition-colors ${
+                  isHidden
+                    ? "border-destructive/40 text-destructive hover:bg-destructive/5"
+                    : "border-border/60 text-muted-foreground hover:bg-secondary hover:text-foreground"
+                }`}
+                aria-label={isHidden ? "Unhide job" : "Hide job"}
+              >
+                {isHidden ? "Unhide" : "Hide"}
+              </button>
+            )}
             {showOwnedActions ? (
               <>
                 {!isOwned && onSave ? (

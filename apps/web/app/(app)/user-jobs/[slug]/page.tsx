@@ -1,6 +1,6 @@
 "use client";
 
-import React, { use, useState, useEffect } from "react";
+import React, { use, useState, useEffect, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 import { useJobDetail } from "@/hooks/use-job-detail";
@@ -10,6 +10,7 @@ import { MatchReportTab } from "@/components/matching/match-report-tab";
 import { ResumeTab } from "@/components/resume/resume-tab";
 import { JobDetailDrawer } from "@/components/jobs/job-detail-drawer";
 import { getUserJobEvaluation } from "@/lib/api/endpoints";
+import { setUserJobsHideStatus } from "@/lib/api/endpoints";
 import { EvaluationSummary } from "@/lib/api/types";
 import { AlertCircle } from "lucide-react";
 
@@ -31,6 +32,16 @@ export default function UserJobDetailPage({ params }: UserJobDetailPageProps) {
   const [evalId, setEvalId] = useState<string | null>(null);
   const [fetchedEvaluation, setFetchedEvaluation] = useState<EvaluationSummary | null>(null);
   const resolvedUserJobId = userJobId ?? job?.user_job?.id;
+  const [isHidden, setIsHidden] = useState(false);
+
+  const handleHideToggle = useCallback(
+    async (userJobIdParam: string, nextHidden: boolean) => {
+      const token = await getToken();
+      await setUserJobsHideStatus([userJobIdParam], nextHidden, token);
+      setIsHidden(nextHidden);
+    },
+    [getToken]
+  );
 
   useEffect(() => {
     if (tabParam && ["details", "report", "resume"].includes(tabParam)) {
@@ -111,6 +122,9 @@ export default function UserJobDetailPage({ params }: UserJobDetailPageProps) {
           activeTab={activeTab}
           onTabChange={handleTabChange}
           evalId={evalId || undefined}
+          showOwnedActions={false}
+          isHidden={isHidden}
+          onHideToggle={handleHideToggle}
         />
       </div>
     );
@@ -125,6 +139,8 @@ export default function UserJobDetailPage({ params }: UserJobDetailPageProps) {
         prevSlug={prevSlug}
         nextSlug={nextSlug}
         basePath="/user-jobs"
+        isHidden={isHidden}
+        onHideToggle={handleHideToggle}
       />
 
       <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">

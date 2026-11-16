@@ -67,17 +67,34 @@ func TestListUserJobs_success(t *testing.T) {
 
 	ujID := uuid.MustParse("ee46d5ea-893d-4951-a3d3-8c32d7459737")
 	uID := uuid.MustParse("11111111-1111-1111-1111-111111111111")
+	evalID := uuid.MustParse("33333333-3333-3333-3333-333333333333")
+	evalStatus := "completed"
+	eligibilityStatus := "eligible"
+	recommendationLabel := "strong_match"
+	reportStatus := "ready"
+	resumeStatus := "generated"
+
 	rows := []*models.UserJobWithJob{
 		{
 			UserJob: &models.UserJob{
-				ID:        ujID,
-				UserID:    uID,
-				JobID:     1,
-				IsHidden:  false,
-				CreatedAt: time.Now(),
-				UpdatedAt: time.Now(),
+				ID:                 ujID,
+				UserID:             uID,
+				JobID:              1,
+				IsHidden:           false,
+				LatestEvaluationID: &evalID,
+				CreatedAt:          time.Now(),
+				UpdatedAt:          time.Now(),
 			},
 			Job: &models.Job{ID: 1, Slug: "job-1", Title: "Engineer"},
+			Evaluation: &models.MatchingEvaluation{
+				ID:                  evalID,
+				UserJobID:           ujID,
+				EvaluationStatus:    evalStatus,
+				EligibilityStatus:   &eligibilityStatus,
+				RecommendationLabel: &recommendationLabel,
+				ReportStatus:        &reportStatus,
+				ResumeStatus:        &resumeStatus,
+			},
 		},
 	}
 
@@ -98,10 +115,50 @@ func TestListUserJobs_success(t *testing.T) {
 	require.Len(t, jobs, 1)
 	assert.Equal(t, ujID.String(), jobs[0]["id"])
 	assert.Equal(t, false, jobs[0]["is_hidden"])
+
+	evalMap := jobs[0]["evaluation"].(map[string]interface{})
+	assert.Equal(t, evalID.String(), evalMap["id"])
+	assert.Equal(t, "completed", evalMap["evaluation_status"])
+	assert.Equal(t, "eligible", evalMap["eligibility_status"])
+	assert.Equal(t, "strong_match", evalMap["recommendation_label"])
+	assert.Equal(t, "ready", evalMap["report_status"])
+	assert.Equal(t, "generated", evalMap["resume_status"])
+
 	jobMap := jobs[0]["job"].(map[string]interface{})
 	assert.Equal(t, float64(1), jobMap["id"])
 	assert.Equal(t, "job-1", jobMap["slug"])
 	assert.Equal(t, "Engineer", jobMap["title"])
+}
+
+func TestListUserJobs_withEvaluationFilters(t *testing.T) {
+	// Arrange.
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	h, mockJobs := newHandlerWithMock(ctrl)
+
+	expectedFilter := models.UserJobFilter{
+		EvaluationStatus:    "completed",
+		EligibilityStatus:   "eligible",
+		RecommendationLabel: "strong_match",
+		ReportStatus:        "ready",
+		ResumeStatus:        "generated",
+	}
+
+	mockJobs.EXPECT().
+		ListByUser(gomock.Any(), "user_1", expectedFilter, 10, 0).
+		Return([]*models.UserJobWithJob{}, 0, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/user-jobs?evaluation_status=completed&eligibility_status=eligible&recommendation_label=strong_match&report_status=ready&resume_status=generated", nil)
+	req = req.WithContext(ctxval.ContextWithPrincipal(req.Context(), principalCtx("user_1")))
+	w := httptest.NewRecorder()
+
+	// Act.
+	httpx.HandlerFunc(h.ListUserJobs).ServeHTTP(w, req)
+
+	// Assert.
+	assert.Equal(t, http.StatusOK, w.Code)
+	jobs := bodyAsJobs(t, w)
+	require.Len(t, jobs, 0)
 }
 
 func TestListUserJobs_rootIsUserJob(t *testing.T) {
@@ -372,23 +429,23 @@ func TestAddUserJob_non_positive_job_id(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
 
-func TestSetHideStatus_hide(t *testing.T) {
+func TestSetBulkHideStatus_hide(t *testing.T) {
 	// Arrange.
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	h, mockJobs := newHandlerWithMock(ctrl)
 
-	const ujID = "11111111-1111-1111-1111-111111111111"
+	ujID := "11111111-1111-1111-1111-111111111111"
 
 	mockJobs.EXPECT().
-		SetHideStatus(gomock.Any(), "user_1", ujID, true).
-		Return(nil)
+		SetBulkHideStatus(gomock.Any(), "user_1", []string{ujID}, true).
+		Return(1, nil)
 
 	mux := http.NewServeMux()
-	mux.Handle("PATCH /user-jobs/{user_job_id}/hide", httpx.HandlerFunc(h.SetHideStatus))
+	mux.Handle("PATCH /user-jobs/bulk", httpx.HandlerFunc(h.SetBulkHideStatus))
 
-	body := strings.NewReader(`{"is_hidden":true}`)
-	req := httptest.NewRequest(http.MethodPatch, "/user-jobs/"+ujID+"/hide", body)
+	body := strings.NewReader(`{"user_job_ids":["` + ujID + `"],"is_hidden":true}`)
+	req := httptest.NewRequest(http.MethodPatch, "/user-jobs/bulk", body)
 	req.Header.Set("Content-Type", "application/json")
 	req = req.WithContext(ctxval.ContextWithPrincipal(req.Context(), principalCtx("user_1")))
 	w := httptest.NewRecorder()
@@ -399,27 +456,26 @@ func TestSetHideStatus_hide(t *testing.T) {
 	// Assert.
 	assert.Equal(t, http.StatusOK, w.Code)
 	resp := bodyAsSetHideStatus(t, w)
-	assert.Equal(t, ujID, resp.UserJobID)
-	assert.True(t, resp.IsHidden)
+	assert.Equal(t, 1, resp.Updated)
 }
 
-func TestSetHideStatus_unhide(t *testing.T) {
+func TestSetBulkHideStatus_unhide(t *testing.T) {
 	// Arrange.
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	h, mockJobs := newHandlerWithMock(ctrl)
 
-	const ujID = "11111111-1111-1111-1111-111111111111"
+	ujID := "11111111-1111-1111-1111-111111111111"
 
 	mockJobs.EXPECT().
-		SetHideStatus(gomock.Any(), "user_1", ujID, false).
-		Return(nil)
+		SetBulkHideStatus(gomock.Any(), "user_1", []string{ujID}, false).
+		Return(1, nil)
 
 	mux := http.NewServeMux()
-	mux.Handle("PATCH /user-jobs/{user_job_id}/hide", httpx.HandlerFunc(h.SetHideStatus))
+	mux.Handle("PATCH /user-jobs/bulk", httpx.HandlerFunc(h.SetBulkHideStatus))
 
-	body := strings.NewReader(`{"is_hidden":false}`)
-	req := httptest.NewRequest(http.MethodPatch, "/user-jobs/"+ujID+"/hide", body)
+	body := strings.NewReader(`{"user_job_ids":["` + ujID + `"],"is_hidden":false}`)
+	req := httptest.NewRequest(http.MethodPatch, "/user-jobs/bulk", body)
 	req.Header.Set("Content-Type", "application/json")
 	req = req.WithContext(ctxval.ContextWithPrincipal(req.Context(), principalCtx("user_1")))
 	w := httptest.NewRecorder()
@@ -430,42 +486,52 @@ func TestSetHideStatus_unhide(t *testing.T) {
 	// Assert.
 	assert.Equal(t, http.StatusOK, w.Code)
 	resp := bodyAsSetHideStatus(t, w)
-	assert.Equal(t, ujID, resp.UserJobID)
-	assert.False(t, resp.IsHidden)
+	assert.Equal(t, 1, resp.Updated)
+	assert.False(t, resp.Updated == 0)
 }
 
-func TestSetHideStatus_unauthenticated(t *testing.T) {
+func TestSetBulkHideStatus_multiple(t *testing.T) {
 	// Arrange.
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
-	h, _ := newHandlerWithMock(ctrl)
+	h, mockJobs := newHandlerWithMock(ctrl)
+
+	id1 := "11111111-1111-1111-1111-111111111111"
+	id2 := "22222222-2222-2222-2222-222222222222"
+
+	mockJobs.EXPECT().
+		SetBulkHideStatus(gomock.Any(), "user_1", []string{id1, id2}, true).
+		Return(2, nil)
 
 	mux := http.NewServeMux()
-	mux.Handle("PATCH /user-jobs/{user_job_id}/hide", httpx.HandlerFunc(h.SetHideStatus))
+	mux.Handle("PATCH /user-jobs/bulk", httpx.HandlerFunc(h.SetBulkHideStatus))
 
-	body := strings.NewReader(`{"is_hidden":true}`)
-	req := httptest.NewRequest(http.MethodPatch, "/user-jobs/11111111-1111-1111-1111-111111111111/hide", body)
+	body := strings.NewReader(`{"user_job_ids":["` + id1 + `","` + id2 + `"],"is_hidden":true}`)
+	req := httptest.NewRequest(http.MethodPatch, "/user-jobs/bulk", body)
 	req.Header.Set("Content-Type", "application/json")
+	req = req.WithContext(ctxval.ContextWithPrincipal(req.Context(), principalCtx("user_1")))
 	w := httptest.NewRecorder()
 
 	// Act.
 	mux.ServeHTTP(w, req)
 
 	// Assert.
-	assert.Equal(t, http.StatusUnauthorized, w.Code)
+	assert.Equal(t, http.StatusOK, w.Code)
+	resp := bodyAsSetHideStatus(t, w)
+	assert.Equal(t, 2, resp.Updated)
 }
 
-func TestSetHideStatus_invalid_job_id(t *testing.T) {
+func TestSetBulkHideStatus_empty_ids(t *testing.T) {
 	// Arrange.
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	h, _ := newHandlerWithMock(ctrl)
 
 	mux := http.NewServeMux()
-	mux.Handle("PATCH /user-jobs/{user_job_id}/hide", httpx.HandlerFunc(h.SetHideStatus))
+	mux.Handle("PATCH /user-jobs/bulk", httpx.HandlerFunc(h.SetBulkHideStatus))
 
-	body := strings.NewReader(`{"is_hidden":true}`)
-	req := httptest.NewRequest(http.MethodPatch, "/user-jobs/not-a-uuid/hide", body)
+	body := strings.NewReader(`{"user_job_ids":[],"is_hidden":true}`)
+	req := httptest.NewRequest(http.MethodPatch, "/user-jobs/bulk", body)
 	req.Header.Set("Content-Type", "application/json")
 	req = req.WithContext(ctxval.ContextWithPrincipal(req.Context(), principalCtx("user_1")))
 	w := httptest.NewRecorder()
@@ -477,23 +543,17 @@ func TestSetHideStatus_invalid_job_id(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
 
-func TestSetHideStatus_not_found(t *testing.T) {
+func TestSetBulkHideStatus_invalid_uuid(t *testing.T) {
 	// Arrange.
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
-	h, mockJobs := newHandlerWithMock(ctrl)
-
-	const ujID = "11111111-1111-1111-1111-111111111111"
-
-	mockJobs.EXPECT().
-		SetHideStatus(gomock.Any(), "user_1", ujID, true).
-		Return(constants.ErrNotFound)
+	h, _ := newHandlerWithMock(ctrl)
 
 	mux := http.NewServeMux()
-	mux.Handle("PATCH /user-jobs/{user_job_id}/hide", httpx.HandlerFunc(h.SetHideStatus))
+	mux.Handle("PATCH /user-jobs/bulk", httpx.HandlerFunc(h.SetBulkHideStatus))
 
-	body := strings.NewReader(`{"is_hidden":true}`)
-	req := httptest.NewRequest(http.MethodPatch, "/user-jobs/"+ujID+"/hide", body)
+	body := strings.NewReader(`{"user_job_ids":["not-a-uuid"],"is_hidden":true}`)
+	req := httptest.NewRequest(http.MethodPatch, "/user-jobs/bulk", body)
 	req.Header.Set("Content-Type", "application/json")
 	req = req.WithContext(ctxval.ContextWithPrincipal(req.Context(), principalCtx("user_1")))
 	w := httptest.NewRecorder()
@@ -502,7 +562,28 @@ func TestSetHideStatus_not_found(t *testing.T) {
 	mux.ServeHTTP(w, req)
 
 	// Assert.
-	assert.Equal(t, http.StatusNotFound, w.Code)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestSetBulkHideStatus_unauthenticated(t *testing.T) {
+	// Arrange.
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	h, _ := newHandlerWithMock(ctrl)
+
+	mux := http.NewServeMux()
+	mux.Handle("PATCH /user-jobs/bulk", httpx.HandlerFunc(h.SetBulkHideStatus))
+
+	body := strings.NewReader(`{"user_job_ids":["11111111-1111-1111-1111-111111111111"],"is_hidden":true}`)
+	req := httptest.NewRequest(http.MethodPatch, "/user-jobs/bulk", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	// Act.
+	mux.ServeHTTP(w, req)
+
+	// Assert.
+	assert.Equal(t, http.StatusUnauthorized, w.Code)
 }
 
 func TestRoute_registers_userjobs_under_group(t *testing.T) {
@@ -524,7 +605,7 @@ func TestRoute_registers_userjobs_under_group(t *testing.T) {
 	assert.Equal(t, http.MethodPost, routes[1].Method)
 	assert.Equal(t, "/v1/user-jobs", routes[1].Pattern)
 	assert.Equal(t, http.MethodPatch, routes[2].Method)
-	assert.Equal(t, "/v1/user-jobs/{user_job_id}/hide", routes[2].Pattern)
+	assert.Equal(t, "/v1/user-jobs/bulk", routes[2].Pattern)
 	assert.Equal(t, http.MethodGet, routes[3].Method)
 	assert.Equal(t, "/v1/user-jobs/{user_job_id}/evaluation", routes[3].Pattern)
 }

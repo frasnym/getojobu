@@ -48,19 +48,25 @@ export async function saveUserJob(
   });
 }
 
+export async function setUserJobsHideStatus(
+  userJobIds: string[],
+  isHidden: boolean,
+  token?: string | null
+): Promise<{ updated: number }> {
+  return apiClient<{ updated: number }>(`/v1/user-jobs/bulk`, {
+    method: "PATCH",
+    token,
+    body: JSON.stringify({ user_job_ids: userJobIds, is_hidden: isHidden }),
+  });
+}
+
+/** Convenience wrapper for a single user job. */
 export async function setUserJobHideStatus(
   userJobId: string,
   isHidden: boolean,
   token?: string | null
-): Promise<{ user_job_id: string; is_hidden: boolean }> {
-  return apiClient<{ user_job_id: string; is_hidden: boolean }>(
-    `/v1/user-jobs/${userJobId}/hide`,
-    {
-      method: "PATCH",
-      token,
-      body: JSON.stringify({ is_hidden: isHidden }),
-    }
-  );
+): Promise<{ updated: number }> {
+  return setUserJobsHideStatus([userJobId], isHidden, token);
 }
 
 export async function getUserJobEvaluation(

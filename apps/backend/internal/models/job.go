@@ -44,6 +44,16 @@ type UserJobFilter struct {
 	// HideFilter restricts by the user's hidden flag: "" or "all" (no filter),
 	// "visible" (is_hidden=false) or "hidden" (is_hidden=true).
 	HideFilter string `json:"hide,omitempty"`
+	// EvaluationStatus restricts by matching_evaluations.evaluation_status.
+	EvaluationStatus string `json:"evaluation_status,omitempty"`
+	// EligibilityStatus restricts by matching_evaluations.eligibility_status.
+	EligibilityStatus string `json:"eligibility_status,omitempty"`
+	// RecommendationLabel restricts by matching_evaluations.recommendation_label.
+	RecommendationLabel string `json:"recommendation_label,omitempty"`
+	// ReportStatus restricts by matching_evaluations.report_status.
+	ReportStatus string `json:"report_status,omitempty"`
+	// ResumeStatus restricts by matching_evaluations.resume_status.
+	ResumeStatus string `json:"resume_status,omitempty"`
 }
 
 // JobWithOwnership is a shared job listing plus the requesting user's link to

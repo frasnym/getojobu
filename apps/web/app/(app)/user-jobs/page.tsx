@@ -198,6 +198,7 @@ export default function UserJobsPage() {
 				evalId={evalId}
 				showOwnedActions={false}
 				isHidden={selectedRow?.is_hidden ?? false}
+				onHideToggle={hideJob}
 			/>
 		</div>
 	);

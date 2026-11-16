@@ -20,6 +20,10 @@ interface JobReportHeaderProps {
   prevSlug?: string;
   nextSlug?: string;
   basePath?: string;
+  /** When true, the job title greys out (user hidden the job). */
+  isHidden?: boolean;
+  /** Toggle hide on the user↔job link (bulk endpoint). Receives (userJobId, isHidden). */
+  onHideToggle?: (userJobId: string, isHidden: boolean) => void | Promise<void>;
 }
 
 export function JobReportHeader({
@@ -29,6 +33,8 @@ export function JobReportHeader({
   prevSlug,
   nextSlug,
   basePath = "/user-jobs",
+  isHidden = false,
+  onHideToggle,
 }: JobReportHeaderProps) {
   const tabs: { id: ReportTab; label: string; badge?: string }[] = [
     { id: "details", label: "Job Details" },
@@ -104,11 +110,25 @@ export function JobReportHeader({
               </span>
             </div>
 
-            <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-foreground">
+            <h1 className={`text-2xl sm:text-3xl font-black tracking-tight ${isHidden ? "text-muted-foreground" : "text-foreground"}`}>
               {job.title}
             </h1>
           </div>
 
+          {onHideToggle && job.user_job?.id && (
+            <button
+              type="button"
+              onClick={() => onHideToggle(job.user_job!.id!, !isHidden)}
+              className={`inline-flex shrink-0 items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${
+                isHidden
+                  ? "border-destructive/40 text-destructive hover:bg-destructive/5"
+                  : "border-border/60 text-muted-foreground hover:bg-secondary hover:text-foreground"
+              }`}
+              aria-label={isHidden ? "Unhide job" : "Hide job"}
+            >
+              {isHidden ? "Unhide" : "Hide"}
+            </button>
+          )}
 
         </div>
 

@@ -117,8 +117,7 @@ describe("useUserJobs hook and filterUserJobs", () => {
 
   it("hideJob calls the endpoint and updates local state without refetching", async () => {
     const hideSpy = vi.spyOn(endpoints, "setUserJobHideStatus").mockResolvedValue({
-      user_job_id: "11111111-1111-1111-1111-111111111111",
-      is_hidden: true,
+      updated: 1,
     });
     const listSpy = vi.spyOn(endpoints, "getUserJobs").mockResolvedValue({
       data: [mockUserJobs[0]],

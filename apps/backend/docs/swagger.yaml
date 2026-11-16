@@ -133,6 +133,21 @@ definitions:
       user_job_id:
         type: string
     type: object
+  dto.UserJobEvaluationResponse:
+    properties:
+      eligibility_status:
+        type: string
+      evaluation_status:
+        type: string
+      id:
+        type: string
+      recommendation_label:
+        type: string
+      report_status:
+        type: string
+      resume_status:
+        type: string
+    type: object
   dto.UserJobRef:
     properties:
       id:
@@ -142,6 +157,8 @@ definitions:
     properties:
       created_at:
         type: string
+      evaluation:
+        $ref: '#/definitions/dto.UserJobEvaluationResponse'
       id:
         type: string
       is_hidden:
@@ -655,13 +672,15 @@ definitions:
     properties:
       is_hidden:
         type: boolean
+      user_job_ids:
+        items:
+          type: string
+        type: array
     type: object
   user_jobs.setHideStatusResponse:
     properties:
-      is_hidden:
-        type: boolean
-      user_job_id:
-        type: string
+      updated:
+        type: integer
     type: object
   webhook.StatusResponse:
     properties:
@@ -1758,6 +1777,38 @@ paths:
         in: query
         name: limit
         type: integer
+      - description: Filter by job status
+        in: query
+        name: status
+        type: string
+      - description: Filter by remote jobs
+        in: query
+        name: remote
+        type: boolean
+      - description: Filter by hide status (visible, hidden, or all)
+        in: query
+        name: hide
+        type: string
+      - description: Filter by matching evaluation status
+        in: query
+        name: evaluation_status
+        type: string
+      - description: Filter by eligibility status
+        in: query
+        name: eligibility_status
+        type: string
+      - description: Filter by recommendation label
+        in: query
+        name: recommendation_label
+        type: string
+      - description: Filter by match report status
+        in: query
+        name: report_status
+        type: string
+      - description: Filter by resume status
+        in: query
+        name: resume_status
+        type: string
       produces:
       - application/json
       responses:
@@ -1851,18 +1902,13 @@ paths:
       summary: Get matching evaluation for a user job
       tags:
       - user-jobs
-  /v1/user-jobs/{user_job_id}/hide:
+  /v1/user-jobs/bulk:
     patch:
       consumes:
       - application/json
-      description: Hide or unhide a user↔job link owned by the authenticated user.
-        Idempotent.
+      description: Hide or unhide multiple user↔job links owned by the authenticated
+        user. Idempotent.
       parameters:
-      - description: User job link ID
-        in: path
-        name: user_job_id
-        required: true
-        type: string
       - description: Hide status
         in: body
         name: hide
@@ -1884,13 +1930,9 @@ paths:
           description: Unauthorized
           schema:
             $ref: '#/definitions/httpx.Error'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/httpx.Error'
       security:
       - ApiKeyAuth: []
-      summary: Toggle hide status on a user job
+      summary: Bulk toggle hide status on user jobs
       tags:
       - user-jobs
   /v1/webhooks/clerk:
