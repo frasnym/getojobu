@@ -140,6 +140,7 @@ export default function UserJobDetailPage({ params }: UserJobDetailPageProps) {
         nextSlug={nextSlug}
         basePath="/user-jobs"
         isHidden={isHidden}
+        userJobId={resolvedUserJobId}
         onHideToggle={handleHideToggle}
       />
 

@@ -22,6 +22,8 @@ import {
   ExternalLink,
   Loader2,
   Sparkles,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { statusBadgeClasses } from "@/hooks/use-jobs";
 
@@ -176,6 +178,30 @@ export function JobDetailDrawer({
             </button>
           </div>
 
+          {/* Hide/Unhide — placed right under the job title, above the tabs */}
+          {onHideToggle && userJobId && (
+            <div className="flex items-center">
+              <button
+                type="button"
+                onClick={() => onHideToggle(userJobId, !isHidden)}
+                disabled={isSaving}
+                className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${
+                  isHidden
+                    ? "border-destructive/40 text-destructive hover:bg-destructive/5"
+                    : "border-border/60 text-muted-foreground hover:bg-secondary hover:text-foreground"
+                }`}
+                aria-label={isHidden ? "Unhide job" : "Hide job"}
+              >
+                {isHidden ? (
+                  <Eye className="h-3.5 w-3.5" />
+                ) : (
+                  <EyeOff className="h-3.5 w-3.5" />
+                )}
+                {isHidden ? "Unhide" : "Hide"}
+              </button>
+            </div>
+          )}
+
           {/* Workspace controls: segmented tabs */}
           {workspaceMode && (
             <div className="pt-2">
@@ -207,22 +233,6 @@ export function JobDetailDrawer({
 
           {/* Action strip */}
           <div className="flex flex-wrap items-center gap-3 pt-2">
-            {/* Hide/Unhide toggle — available whenever we have a link id and a handler */}
-            {onHideToggle && userJobId && (
-              <button
-                type="button"
-                onClick={() => onHideToggle(userJobId, !isHidden)}
-                disabled={isSaving}
-                className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-semibold transition-colors ${
-                  isHidden
-                    ? "border-destructive/40 text-destructive hover:bg-destructive/5"
-                    : "border-border/60 text-muted-foreground hover:bg-secondary hover:text-foreground"
-                }`}
-                aria-label={isHidden ? "Unhide job" : "Hide job"}
-              >
-                {isHidden ? "Unhide" : "Hide"}
-              </button>
-            )}
             {showOwnedActions ? (
               <>
                 {!isOwned && onSave ? (
