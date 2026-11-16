@@ -49,7 +49,7 @@ export function JobCard({
           : isHidden
             ? "border-border/30 bg-muted/40 opacity-60 grayscale hover:border-border/40"
             : isChecked
-              ? "border-accent bg-accent/5 hover:border-accent"
+              ? "border-primary bg-primary/5 hover:border-primary"
               : "border-border/60 bg-card hover:border-border hover:shadow-md hover:shadow-primary/5"
       } ${isClickable ? "cursor-pointer" : ""}`}
     >
