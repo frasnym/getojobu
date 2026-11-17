@@ -185,9 +185,9 @@ export function JobDetailDrawer({
 							<EvaluationStatusTag status={job.status} label="Analyzed" />
 							<EvaluationStatusTag status={fetchedEvaluation.evaluation.evaluation_status} label="Evaluation" />
 							<EvaluationStatusTag status={fetchedEvaluation.evaluation.report_status} label="Report" />
-							<EvaluationStatusTag status={fetchedEvaluation.evaluation.resume_status} label="Resume" />
 							<EligibilityTag status={fetchedEvaluation.evaluation.eligibility_status} />
 							<RecommendationTag label={fetchedEvaluation.evaluation.recommendation_label} />
+							<EvaluationStatusTag status={fetchedEvaluation.evaluation.resume_status} label="Resume" />
 						</div>
 					)}
 

@@ -121,9 +121,9 @@ export function JobCard({
 								<>
 									<EvaluationStatusTag status={userJob.evaluation.evaluation_status} label="Evaluation" />
 									<EvaluationStatusTag status={userJob.evaluation.report_status} label="Report" />
-									<EvaluationStatusTag status={userJob.evaluation.resume_status} label="Resume" />
 									<EligibilityTag status={userJob.evaluation.eligibility_status} />
 									<RecommendationTag label={userJob.evaluation.recommendation_label} />
+									<EvaluationStatusTag status={userJob.evaluation.resume_status} label="Resume" />
 								</>
 							)}
 						</div>
