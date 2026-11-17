@@ -17,6 +17,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"strings"
 	"time"
@@ -28,6 +29,7 @@ import (
 	"github.com/frasnym/getojobu/apps/backend/internal/deliveries/api"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/graceful"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/logging"
+	"github.com/frasnym/getojobu/apps/backend/internal/utils/telemetry"
 
 	// Imported (not blank) so main can override SwaggerInfo.Host at runtime.
 	docs "github.com/frasnym/getojobu/apps/backend/docs"
@@ -94,6 +96,16 @@ func run() error {
 	starterApi, stopperApi := a.StartApi()
 	starters = append(starters, starterApi)
 	stoppers = append(stoppers, stopperApi)
+
+	// Telemetry stopper flushes pending spans/metrics after serving stopped,
+	// before the contract stopper closes the DB pool. Nil when disabled.
+	telemetryStop, err := telemetry.Init(ctx, cfg.Telemetry.OTLPEndpoint)
+	if err != nil {
+		return fmt.Errorf("init telemetry: %w", err)
+	}
+	if telemetryStop != nil {
+		stoppers = append(stoppers, graceful.ProcessStopper(telemetryStop))
+	}
 
 	// Shutdown contract dependency last to prevent panic (pools stay open
 	// until nothing is still using them).
