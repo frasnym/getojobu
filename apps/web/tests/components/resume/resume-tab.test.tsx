@@ -98,6 +98,56 @@ describe("ResumeTab component", () => {
     });
   });
 
+  it("offers a generate button when the report is successful but no resume exists yet", () => {
+    render(
+      <ResumeTab
+        evalId="eval-001"
+        resumeStatus={undefined}
+        reportStatus="success"
+      />
+    );
+
+    expect(screen.getByText(/Generate Your Tailored Resume/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Generate Tailored Resume/i })
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Retry Generation/i })).not.toBeInTheDocument();
+  });
+
+  it("does not offer generation when the report is not yet successful", () => {
+    render(
+      <ResumeTab
+        evalId="eval-001"
+        resumeStatus={undefined}
+        reportStatus="pending"
+      />
+    );
+
+    expect(
+      screen.getByText(/Tailored resumes are generated once the match report/i)
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Generate Tailored Resume/i })).not.toBeInTheDocument();
+  });
+
+  it("queues resume generation when the generate button is clicked", async () => {
+    const onRetried = vi.fn();
+    render(
+      <ResumeTab
+        evalId="eval-001"
+        resumeStatus={undefined}
+        reportStatus="success"
+        onRetried={onRetried}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Generate Tailored Resume/i }));
+
+    await waitFor(() => {
+      expect(api.retryResumeGeneration).toHaveBeenCalledWith("eval-001", undefined);
+      expect(onRetried).toHaveBeenCalledTimes(1);
+    });
+  });
+
   it("shows error message when retry fails", async () => {
     vi.mocked(api.retryResumeGeneration).mockRejectedValueOnce(new Error("not authorized to generate resume for this evaluation"));
     render(

@@ -163,6 +163,7 @@ export default function UserJobDetailPage({ params }: UserJobDetailPageProps) {
           <ResumeTab
             evalId={evalId || undefined}
             resumeStatus={fetchedEvaluation?.evaluation.resume_status ?? undefined}
+            reportStatus={fetchedEvaluation?.evaluation.report_status ?? undefined}
             cvImprovements={fetchedEvaluation?.evaluation.report_data?.cv_improvements ?? []}
             token={null}
             onRetried={refreshEvaluation}

@@ -6,15 +6,18 @@ import { FileText, CheckCircle2, AlertCircle, Clock, Sparkles, Loader2, RotateCw
 interface ResumeTabProps {
   evalId?: string;
   resumeStatus?: string;
+  /** Match report status. Resume generation is only offered once the report is successful. */
+  reportStatus?: string;
   cvImprovements?: string[];
   token?: string | null;
-  /** Called after a retry request is queued successfully, so the parent can refetch the latest status. */
+  /** Called after a generate/retry request is queued successfully, so the parent can refetch the latest status. */
   onRetried?: () => void;
 }
 
 export function ResumeTab({
   evalId,
   resumeStatus,
+  reportStatus,
   cvImprovements = [],
   token,
   onRetried,
@@ -35,7 +38,17 @@ export function ResumeTab({
       setRetrying(false);
     }
   };
-  if (!evalId || !resumeStatus) {
+
+  const hasEval = Boolean(evalId);
+  const resumeNotStarted = !resumeStatus;
+  const canGenerateResume = hasEval && resumeNotStarted && reportStatus === "success";
+
+  const isReady = resumeStatus === "ready" || resumeStatus === "success";
+  const isGenerating = resumeStatus === "generating" || resumeStatus === "pending";
+  const isFailed = resumeStatus === "failed";
+
+  // No evaluation exists yet — nothing to build a resume from.
+  if (!hasEval) {
     return (
       <div className="rounded-2xl border border-dashed border-border/80 bg-card/40 p-12 text-center">
         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary mb-4">
@@ -49,9 +62,59 @@ export function ResumeTab({
     );
   }
 
-  const isReady = resumeStatus === "ready" || resumeStatus === "success";
-  const isGenerating = resumeStatus === "generating" || resumeStatus === "pending";
-  const isFailed = resumeStatus === "failed";
+  // Evaluation exists but no resume has been generated yet. When the match
+  // report is successful, offer the user a one-tap way to generate one.
+  if (resumeNotStarted) {
+    if (canGenerateResume) {
+      return (
+        <div className="rounded-2xl border border-dashed border-border/80 bg-card/40 p-12 text-center">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary mb-4">
+            <Sparkles className="h-6 w-6 text-muted-foreground" />
+          </div>
+          <h3 className="text-lg font-bold text-foreground">Generate Your Tailored Resume</h3>
+          <p className="mt-2 text-sm text-muted-foreground max-w-md mx-auto">
+            Your match report is ready. Generate a customized PDF resume tailored to this listing.
+          </p>
+          <button
+            type="button"
+            onClick={handleRetry}
+            disabled={retrying}
+            className="mt-6 inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-bold text-primary-foreground shadow-sm hover:bg-primary/90 transition-colors disabled:opacity-50"
+          >
+            {retrying ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>Generating...</span>
+              </>
+            ) : (
+              <>
+                <Sparkles className="h-4 w-4" />
+                <span>Generate Tailored Resume</span>
+              </>
+            )}
+          </button>
+          {retryError && (
+            <p className="mt-3 flex items-center gap-1.5 text-xs text-destructive font-medium">
+              <AlertCircle className="h-3.5 w-3.5" />
+              <span>{retryError}</span>
+            </p>
+          )}
+        </div>
+      );
+    }
+
+    return (
+      <div className="rounded-2xl border border-dashed border-border/80 bg-card/40 p-12 text-center">
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary mb-4">
+          <FileText className="h-6 w-6 text-muted-foreground" />
+        </div>
+        <h3 className="text-lg font-bold text-foreground">No Tailored Resume Generated</h3>
+        <p className="mt-2 text-sm text-muted-foreground max-w-md mx-auto">
+          Tailored resumes are generated once the match report for this job is complete.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -88,7 +151,7 @@ export function ResumeTab({
         {/* Action Button */}
         {isReady && (
           <div className="shrink-0">
-            <DownloadResumeButton evalId={evalId} token={token} />
+            <DownloadResumeButton evalId={evalId!} token={token} />
           </div>
         )}
         {isFailed && (
