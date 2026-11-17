@@ -1,15 +1,9 @@
 """JobAnalyzeWorkflow — Temporal workflow definition.
 
 Orchestrates the job-matching pipeline. Step 1B (Analyze Job Description)
-is wired to a real Temporal activity; Steps 1A, 2, 3, 4 are stubbed for
-the skeleton so the workflow skeleton compiles and runs.
+is wired to a real Temporal activity: analyze_job_activity.
 
-Mirrors the pipeline in docs/workflows/getojobu-job-matching-implementation-reference.md:
-  1A. Analyze CV (stub)
-  1B. Analyze job description (activity: analyze_job_activity)
-  2. Evaluate compatibility (stub)
-  3. Calculate score and eligibility (stub)
-  4. Generate report (stub)
+Mirrors the pipeline in docs/workflows/getojobu-job-matching-implementation-reference.md.
 """
 
 from __future__ import annotations
@@ -45,13 +39,12 @@ class JobAnalyzeWorkflow:
                 "slug": str | None,      # optional slug of the job listing
             }
 
-        Returns a dict with step results and overall status.
+        Returns a dict with the analysis result and overall status.
         """
         job_description = input.get("job_description")
         slug = input.get("slug")
 
         results: dict[str, Any] = {}
-        status = "partial"
 
         # Step 1B: Analyze job description (real activity).
         step_1b = await workflow.execute_activity(
@@ -63,16 +56,9 @@ class JobAnalyzeWorkflow:
         )
         results["step_1b_analyze_job"] = step_1b
 
-        # Steps 1A, 2, 3, 4 are stubbed for the skeleton.
-        results["step_1a_analyze_cv"] = {"status": "stubbed"}
-        results["step_2_evaluate_match"] = {"status": "stubbed"}
-        results["step_3_calculate_score"] = {"status": "stubbed"}
-        results["step_4_generate_report"] = {"status": "stubbed"}
-
-        status = "completed"
         return {
             "workflow": "JobAnalyzeWorkflow",
-            "status": status,
+            "status": "completed",
             "slug": slug,
             "results": results,
         }
