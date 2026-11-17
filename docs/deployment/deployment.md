@@ -50,6 +50,7 @@ The VPS Compose stack should include at least:
 - `worker-browser`
 - `temporal`
 - `temporal-ui` (private)
+- `jaeger` (private): all-in-one OTLP trace backend; UI bound `127.0.0.1` only, OTLP ports unpublished to the host
 - Temporal persistence database
 - `caddy`
 - monitoring services as required
