@@ -25,6 +25,11 @@ from deliveries.consumer.activities.analyze_job import (
     analyze_job_activity,
     init_analyze_job_container,
 )
+from deliveries.consumer.activities.cover_letter_generation import (
+    generate_cover_letter_activity,
+    init_cover_letter_generation_container,
+    update_cover_letter_status_activity,
+)
 from deliveries.consumer.activities.evaluate_match import (
     evaluate_match_activity,
     init_evaluate_match_container,
@@ -52,6 +57,7 @@ from utils.logging import BUILD_VERSION, configure, get_logger
 from utils.telemetry import setup_otel
 from utils.temporal import connect as temporal_connect
 from workflows.concurrency_limiter import ConcurrencyLimiter
+from workflows.generate_cover_letter import GenerateCoverLetterWorkflow
 from workflows.generate_report import GenerateReportWorkflow
 from workflows.generate_resume import GenerateResumeWorkflow
 from workflows.job_analyze import JobAnalyzeWorkflow
@@ -102,6 +108,7 @@ async def run() -> int:
     # Initialize the activity containers (reuse the contract already built).
     init_analyze_job_container(contract)
     init_evaluate_match_container(contract)
+    init_cover_letter_generation_container(contract)
     init_report_generation_container(contract)
     init_resume_generation_container(contract)
     init_job_scrape_container(contract)
@@ -127,12 +134,15 @@ async def run() -> int:
                 generate_resume_activity,
                 upload_resume_activity,
                 update_resume_status_activity,
+                generate_cover_letter_activity,
+                update_cover_letter_status_activity,
             ],
             workflows=[
                 JobAnalyzeWorkflow,
                 MatchJobWorkflow,
                 GenerateReportWorkflow,
                 GenerateResumeWorkflow,
+                GenerateCoverLetterWorkflow,
             ],
             activity_executor=activity_executor,
             graceful_shutdown_timeout=graceful_timeout,

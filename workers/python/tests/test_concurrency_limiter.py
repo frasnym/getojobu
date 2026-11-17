@@ -91,6 +91,7 @@ def test_queue_status_query(limiter):
         "match": 2,
         "report": 2,
         "resume": 2,
+        "cover_letter": 2,
     }
 
 

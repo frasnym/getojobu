@@ -93,6 +93,15 @@ class GetojobuAPI(Protocol):
         resume_artifacts: dict[str, Any] | None = None,
     ) -> dict[str, Any]: ...
 
+    async def patch_matching_evaluation_cover_letter(
+        self,
+        evaluation_id: str,
+        *,
+        cover_letter_status: str,
+        cover_letter_content: dict[str, Any] | None = None,
+        cover_letter_failure_message: str | None = None,
+    ) -> dict[str, Any]: ...
+
     async def bulk_generate_resume(
         self, items: list[dict[str, Any]]
     ) -> list[dict[str, Any]]: ...
@@ -179,6 +188,36 @@ class _getojobuAPI:
         if not isinstance(unwrapped, dict):
             raise TypeError(
                 f"patch matching evaluation resume {evaluation_id!r}: expected dict"
+            )
+        return unwrapped
+
+    async def patch_matching_evaluation_cover_letter(
+        self,
+        evaluation_id: str,
+        *,
+        cover_letter_status: str,
+        cover_letter_content: dict[str, Any] | None = None,
+        cover_letter_failure_message: str | None = None,
+    ) -> dict[str, Any]:
+        payload: dict[str, Any] = {"cover_letter_status": cover_letter_status}
+        if cover_letter_content is not None:
+            payload["cover_letter_content"] = cover_letter_content
+        if cover_letter_failure_message is not None:
+            payload["cover_letter_failure_message"] = cover_letter_failure_message
+        response = await self._client.patch(
+            f"/v1/matching-evaluations/{evaluation_id}/cover-letter", json=payload
+        )
+        self._check_response(
+            response,
+            operation=f"patch matching evaluation cover letter {evaluation_id!r}",
+        )
+        raw = response.json()
+        unwrapped = self._unwrap_response(
+            raw, operation=f"patch matching evaluation cover letter {evaluation_id!r}"
+        )
+        if not isinstance(unwrapped, dict):
+            raise TypeError(
+                f"patch matching evaluation cover letter {evaluation_id!r}: expected dict"
             )
         return unwrapped
 
