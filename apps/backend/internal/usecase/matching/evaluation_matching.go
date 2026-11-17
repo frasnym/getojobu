@@ -8,7 +8,6 @@ import (
 	"github.com/frasnym/getojobu/apps/backend/internal/contract/repository"
 	"github.com/frasnym/getojobu/apps/backend/internal/models"
 	repo "github.com/frasnym/getojobu/apps/backend/internal/repository"
-	"github.com/frasnym/getojobu/apps/backend/internal/utils"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/constants"
 )
 
@@ -71,26 +70,8 @@ func (s *matchingService) GetEvaluationByUserJobID(ctx context.Context, userID u
 		return nil, constants.ErrNotFound
 	}
 
-	// The user record is only used to compute the download filename. A cosmetic
-	// lookup failure must not fail the whole user-jobs detail page, so this read
-	// is best-effort: leave the filename empty and still return the evaluation.
-	// (Usecases in this package do not currently carry a logger, so there is no
-	// established warning channel to report the failed lookup through.)
-	var user *models.User
-	if fetched, fetchErr := s.usersRepo.FindByID(ctx, userID.String()); fetchErr == nil {
-		user = fetched
-	}
-
-	if user == nil {
-		result.Evaluation.CoverLetterFileName = ""
-		return result, nil
-	}
-
-	name := utils.PtrStringOrEmpty(user.FullName)
-	jobTitle := ""
-	if result.Job != nil {
-		jobTitle = result.Job.Title
-	}
-	result.Evaluation.CoverLetterFileName = CoverLetterFileName(name, jobTitle)
+	// The download filename is computed by the handler from the request
+	// principal, which already carries the user's full name. No user lookup is
+	// needed here.
 	return result, nil
 }

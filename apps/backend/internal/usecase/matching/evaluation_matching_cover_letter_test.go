@@ -102,18 +102,17 @@ func TestGetEvaluationByUserJobID_IsUserScoped(t *testing.T) {
 	userJobID := uuid.New()
 	evalID := uuid.New()
 
-	t.Run("owner receives computed cover letter file name", func(t *testing.T) {
+	t.Run("owner receives the evaluation without a user lookup", func(t *testing.T) {
 		eval := successfulEvaluation(evalID, userJobID)
 		d.evalRepo.EXPECT().GetLatestByUserJobID(ctx, userID, userJobID).Return(&models.EvaluationWithJob{
 			Evaluation: eval,
 			Job:        &models.Job{Title: "Software Engineer"},
 		}, nil)
-		d.usersRepo.EXPECT().FindByID(ctx, userID.String()).Return(onboardedUser(userID), nil)
 
 		res, err := d.service.GetEvaluationByUserJobID(ctx, userID, userJobID)
 		require.NoError(t, err)
 		require.NotNil(t, res)
-		assert.Equal(t, "Cover Letter_Jane Doe_Software Engineer.pdf", res.Evaluation.CoverLetterFileName)
+		assert.Equal(t, evalID, res.Evaluation.ID)
 	})
 
 	t.Run("another user cannot read the evaluation", func(t *testing.T) {
@@ -124,26 +123,6 @@ func TestGetEvaluationByUserJobID_IsUserScoped(t *testing.T) {
 		assert.True(t, errors.Is(err, constants.ErrNotFound))
 		assert.Nil(t, res)
 	})
-}
-
-func TestGetEvaluationByUserJobID_UserLookupErrorIsBestEffort(t *testing.T) {
-	ctx := context.Background()
-	d := newCoverLetterDeps(t)
-
-	userID := uuid.New()
-	userJobID := uuid.New()
-	evalID := uuid.New()
-	d.evalRepo.EXPECT().GetLatestByUserJobID(ctx, userID, userJobID).Return(&models.EvaluationWithJob{
-		Evaluation: successfulEvaluation(evalID, userJobID),
-		Job:        &models.Job{Title: "Software Engineer"},
-	}, nil)
-	d.usersRepo.EXPECT().FindByID(ctx, userID.String()).Return(nil, errors.New("users store unavailable"))
-
-	res, err := d.service.GetEvaluationByUserJobID(ctx, userID, userJobID)
-	require.NoError(t, err)
-	require.NotNil(t, res)
-	require.NotNil(t, res.Evaluation)
-	assert.Empty(t, res.Evaluation.CoverLetterFileName, "a failed filename lookup must not fail the whole detail page")
 }
 
 func TestQueueCoverLetter_RequiresSuccessEvaluationAndOnboarding(t *testing.T) {
