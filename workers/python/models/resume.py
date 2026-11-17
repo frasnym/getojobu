@@ -33,8 +33,8 @@ def validate_resume_draft(
     draft: ResumeDraft, *, facts: dict[str, Any], match_evidence: dict[str, Any]
 ) -> None:
     """Reject unsafe or non-ATS content before it reaches a renderer."""
-    if not 6 <= len(draft.skills) <= 12:
-        raise ValueError("skills must contain between 6 and 12 items")
+    if not 1 <= len(draft.skills) <= 12:
+        raise ValueError("skills must contain between 1 and 12 items")
     raw_roles = facts.get("roles")
     roles: list[object] = (
         cast(list[object], raw_roles) if isinstance(raw_roles, list) else []

@@ -35,6 +35,38 @@ def test_resume_validation_requires_factual_roles_and_strength() -> None:
         )
 
 
+def test_resume_validation_allows_fewer_than_six_skills() -> None:
+    """Candidates with fewer than 6 genuine skills can still get a resume."""
+    draft = ResumeDraft.model_validate({**_draft(), "skills": ["python", "sql"]})
+    validate_resume_draft(
+        draft,
+        facts={"roles": [{"id": "exp-1"}]},
+        match_evidence={"strengths": ["python"]},
+    )
+
+
+def test_resume_validation_rejects_zero_skills() -> None:
+    draft = ResumeDraft.model_validate({**_draft(), "skills": []})
+    with pytest.raises(ValueError, match="skills must contain between 1 and 12 items"):
+        validate_resume_draft(
+            draft,
+            facts={"roles": [{"id": "exp-1"}]},
+            match_evidence={"strengths": ["python"]},
+        )
+
+
+def test_resume_validation_rejects_more_than_twelve_skills() -> None:
+    draft = ResumeDraft.model_validate(
+        {**_draft(), "skills": [f"skill-{i}" for i in range(13)]}
+    )
+    with pytest.raises(ValueError, match="skills must contain between 1 and 12 items"):
+        validate_resume_draft(
+            draft,
+            facts={"roles": [{"id": "exp-1"}]},
+            match_evidence={"strengths": ["python"]},
+        )
+
+
 def test_resume_content_is_structured_data() -> None:
     content = build_resume_content(
         candidate_profile={"skills": ["go"]},
@@ -223,5 +255,3 @@ async def test_upload_resume_activity_builds_correct_keys() -> None:
         body=pdf_bytes,
         content_type="application/pdf",
     )
-
-

@@ -80,8 +80,8 @@ standard English punctuation.
 
 ## Rule 7 — Required fields present
 
-Reject if the draft is missing: `headline`, `skills` (6-12 items), `education`,
-`contact`, or any role key supplied in `facts.roles`.
+Reject if the draft is missing: `headline`, `skills` (1-12 items, min 1),
+`education`, `contact`, or any role key supplied in `facts.roles`.
 
 ## Rule 8 — One-page fit
 
