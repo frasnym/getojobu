@@ -153,6 +153,27 @@ describe("JobCard evaluation tags", () => {
     );
   });
 
+  it("shows eligibility and recommendation beside the remote badge, not in the status row", () => {
+    render(
+      <JobCard
+        userJob={evaluatedJob({
+          eligibility_status: "eligible",
+          recommendation_label: "strong_match",
+        })}
+      />
+    );
+
+    const header = screen.getByText("Remote").parentElement;
+    const eligibility = screen.getByTestId("eligibility-tag");
+    const recommendation = screen.getByTestId("recommendation-tag");
+    const statusRow = screen.getAllByTestId("evaluation-status-tag")[0].parentElement;
+
+    expect(header).toContainElement(eligibility);
+    expect(header).toContainElement(recommendation);
+    expect(statusRow).not.toContainElement(eligibility);
+    expect(statusRow).not.toContainElement(recommendation);
+  });
+
   it("colors each recommendation label", () => {
     const labels: Array<[string, string]> = [
       ["strong_match", "bg-emerald-500/10 text-emerald-600"],

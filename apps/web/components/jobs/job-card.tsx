@@ -74,6 +74,12 @@ export function JobCard({
 								Remote
 							</span>
 						)}
+						{userJob.evaluation && (
+							<>
+								<EligibilityTag status={userJob.evaluation.eligibility_status} />
+								<RecommendationTag label={userJob.evaluation.recommendation_label} />
+							</>
+						)}
 						{isHidden && (
 							<span className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium border-muted-foreground/40 bg-muted/30 text-muted-foreground">
 								<EyeOff className="h-2.5 w-2.5" />
@@ -121,8 +127,6 @@ export function JobCard({
 								<>
 									<EvaluationStatusTag status={userJob.evaluation.evaluation_status} label="Evaluation" />
 									<EvaluationStatusTag status={userJob.evaluation.report_status} label="Report" />
-									<EligibilityTag status={userJob.evaluation.eligibility_status} />
-									<RecommendationTag label={userJob.evaluation.recommendation_label} />
 									<EvaluationStatusTag status={userJob.evaluation.resume_status} label="Resume" />
 								</>
 							)}
