@@ -145,6 +145,23 @@ export async function getResumeDownloadUrl(
   );
 }
 
+/** Queue cover-letter generation for an evaluation. Returns immediately with a queued status. */
+export async function generateCoverLetter(
+  evalId: string,
+  variant: "short" | "full",
+  force: boolean,
+  token?: string | null
+): Promise<EvaluationSummary> {
+  return apiClient<EvaluationSummary>(
+    `/v1/matching-evaluations/${evalId}/cover-letter/generate`,
+    {
+      method: "POST",
+      token,
+      body: JSON.stringify({ variant, force }),
+    }
+  );
+}
+
 /** Queue resume generation for an evaluation (retry path). Clerk users must own the evaluation. */
 export async function retryResumeGeneration(
   evalId: string,

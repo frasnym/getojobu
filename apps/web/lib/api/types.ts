@@ -99,6 +99,16 @@ export interface MandatoryRequirementAssessment {
   evidence?: string[];
 }
 
+export interface CoverLetterMetadata {
+  model: string;
+  prompt_version: string;
+}
+
+export interface CoverLetterContent {
+  text: string;
+  metadata: CoverLetterMetadata;
+}
+
 export interface MatchReport {
   id: string;
   user_job_id: string;
@@ -110,6 +120,10 @@ export interface MatchReport {
   recommendation_label?: string;
   resume_status?: string;
   resume_failure_message?: string;
+  cover_letter_status?: string;
+  cover_letter_content?: CoverLetterContent;
+  cover_letter_failure_message?: string;
+  cover_letter_file_name?: string;
   report_data?: {
     summary?: string;
     strengths?: string[];

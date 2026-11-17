@@ -49,5 +49,48 @@ describe("JobReportHeader component", () => {
     const resumeTab = screen.getByRole("tab", { name: /Tailored Resume/i });
     fireEvent.click(resumeTab);
     expect(handleTabChange).toHaveBeenCalledWith("resume");
+
+    const coverLetterTab = screen.getByRole("tab", { name: /Cover Letter/i });
+    fireEvent.click(coverLetterTab);
+    expect(handleTabChange).toHaveBeenCalledWith("cover-letter");
+  });
+
+  it("calls onRefresh from the Refresh button and disables it while refreshing", () => {
+    const handleRefresh = vi.fn();
+    const { rerender } = render(
+      <JobReportHeader
+        job={mockJob}
+        activeTab="cover-letter"
+        onTabChange={() => {}}
+        onRefresh={handleRefresh}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Refresh/i }));
+    expect(handleRefresh).toHaveBeenCalledTimes(1);
+
+    rerender(
+      <JobReportHeader
+        job={mockJob}
+        activeTab="cover-letter"
+        onTabChange={() => {}}
+        onRefresh={handleRefresh}
+        refreshing
+      />
+    );
+
+    expect(screen.getByRole("button", { name: /Refresh/i })).toBeDisabled();
+  });
+
+  it("does not render a Refresh button without an onRefresh handler", () => {
+    render(
+      <JobReportHeader
+        job={mockJob}
+        activeTab="details"
+        onTabChange={() => {}}
+      />
+    );
+
+    expect(screen.queryByRole("button", { name: /Refresh/i })).not.toBeInTheDocument();
   });
 });

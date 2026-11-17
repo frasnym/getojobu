@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { Job, EvaluationSummary } from "@/lib/api/types";
 import { getJobBySlug, getJobs, triggerJobCompatibility } from "@/lib/api/endpoints";
@@ -10,6 +10,9 @@ export function useJobDetail(slug: string, explicitToken?: string | null) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const [evaluating, setEvaluating] = useState(false);
+  // Bumping this tick re-runs the load effect. Used by the manual Refresh button.
+  const [refreshTick, setRefreshTick] = useState(0);
+  const refresh = useCallback(() => setRefreshTick((tick) => tick + 1), []);
 
   useEffect(() => {
     let mounted = true;
@@ -48,7 +51,7 @@ export function useJobDetail(slug: string, explicitToken?: string | null) {
     return () => {
       mounted = false;
     };
-  }, [slug, explicitToken, isLoaded, getToken]);
+  }, [slug, explicitToken, isLoaded, getToken, refreshTick]);
 
   // Compute prev/next slugs for sequential navigation
   const currentIndex = allJobs.findIndex((j) => j.slug === slug);
@@ -84,5 +87,6 @@ export function useJobDetail(slug: string, explicitToken?: string | null) {
     nextSlug,
     evaluating,
     runEvaluation,
+    refresh,
   };
 }

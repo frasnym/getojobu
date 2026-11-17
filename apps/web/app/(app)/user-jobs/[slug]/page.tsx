@@ -8,6 +8,7 @@ import { JobReportHeader, ReportTab } from "@/components/jobs/job-report-header"
 import { JobDetailTab } from "@/components/jobs/job-detail-tab";
 import { MatchReportTab } from "@/components/matching/match-report-tab";
 import { ResumeTab } from "@/components/resume/resume-tab";
+import { CoverLetterTab } from "@/components/cover-letter/cover-letter-tab";
 import { JobDetailDrawer } from "@/components/jobs/job-detail-drawer";
 import { getUserJobEvaluation } from "@/lib/api/endpoints";
 import { setUserJobsHideStatus } from "@/lib/api/endpoints";
@@ -23,7 +24,7 @@ export default function UserJobDetailPage({ params }: UserJobDetailPageProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const { job, userJobId, loading, error, prevSlug, nextSlug } = useJobDetail(slug);
+  const { job, userJobId, loading, error, prevSlug, nextSlug, refresh } = useJobDetail(slug);
 
   const tabParam = searchParams.get("tab") as ReportTab | null;
   const openDrawer = searchParams.get("openDrawer") === "1";
@@ -36,6 +37,13 @@ export default function UserJobDetailPage({ params }: UserJobDetailPageProps) {
   const [evalRefreshTick, setEvalRefreshTick] = useState(0);
   const refreshEvaluation = useCallback(() => setEvalRefreshTick((t) => t + 1), []);
 
+  // Manual refresh refetches both the job detail and the latest evaluation.
+  // router.refresh() is not used here because this page fetches client-side.
+  const handleRefresh = useCallback(() => {
+    refresh();
+    refreshEvaluation();
+  }, [refresh, refreshEvaluation]);
+
   const handleHideToggle = useCallback(
     async (userJobIdParam: string, nextHidden: boolean) => {
       const token = await getToken();
@@ -46,7 +54,7 @@ export default function UserJobDetailPage({ params }: UserJobDetailPageProps) {
   );
 
   useEffect(() => {
-    if (tabParam && ["details", "report", "resume"].includes(tabParam)) {
+    if (tabParam && ["details", "report", "resume", "cover-letter"].includes(tabParam)) {
       setActiveTab(tabParam);
     }
   }, [tabParam]);
@@ -144,6 +152,7 @@ export default function UserJobDetailPage({ params }: UserJobDetailPageProps) {
         isHidden={isHidden}
         userJobId={resolvedUserJobId}
         onHideToggle={handleHideToggle}
+        onRefresh={handleRefresh}
       />
 
       <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
@@ -167,6 +176,19 @@ export default function UserJobDetailPage({ params }: UserJobDetailPageProps) {
             cvImprovements={fetchedEvaluation?.evaluation.report_data?.cv_improvements ?? []}
             token={null}
             onRetried={refreshEvaluation}
+          />
+        )}
+
+        {/* Tab 4: Cover Letter */}
+        {activeTab === "cover-letter" && (
+          <CoverLetterTab
+            evalId={evalId || undefined}
+            status={fetchedEvaluation?.evaluation.cover_letter_status ?? undefined}
+            content={fetchedEvaluation?.evaluation.cover_letter_content ?? undefined}
+            failureMessage={fetchedEvaluation?.evaluation.cover_letter_failure_message ?? undefined}
+            fileName={fetchedEvaluation?.evaluation.cover_letter_file_name ?? undefined}
+            reportStatus={fetchedEvaluation?.evaluation.report_status ?? undefined}
+            onQueued={refreshEvaluation}
           />
         )}
       </main>
