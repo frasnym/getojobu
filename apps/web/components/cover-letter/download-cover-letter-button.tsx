@@ -10,6 +10,8 @@ interface DownloadCoverLetterButtonProps {
 }
 
 const PRINT_ROOT_ID = "cover-letter-print-root";
+// Fallback for browsers that do not emit afterprint (e.g. a cancelled dialog).
+const PRINT_CLEANUP_FALLBACK_MS = 5000;
 
 /**
  * Creates the PDF on demand through the browser's print dialog. A print-only
@@ -62,12 +64,30 @@ export function DownloadCoverLetterButton({
     document.body.appendChild(root);
     document.title = fileName || "Cover Letter.pdf";
 
-    try {
-      window.print();
-    } finally {
+    let cleanedUp = false;
+    let fallbackTimer: number | undefined;
+    const cleanup = () => {
+      if (cleanedUp) return;
+      cleanedUp = true;
+      document.removeEventListener("afterprint", cleanup);
+      if (fallbackTimer !== undefined) window.clearTimeout(fallbackTimer);
       document.title = previousTitle;
       root.remove();
       style.remove();
+    };
+
+    // window.print() resolves before the print preview has rendered. Removing
+    // the injected DOM here would produce a blank PDF, so defer cleanup until
+    // the dialog closes. The timeout covers browsers that never emit the event.
+    document.addEventListener("afterprint", cleanup, { once: true });
+    fallbackTimer = window.setTimeout(cleanup, PRINT_CLEANUP_FALLBACK_MS);
+
+    try {
+      window.print();
+    } catch {
+      // Exception safety only: when print() throws, afterprint will not fire,
+      // so clean up now instead of leaving injected DOM/styles behind.
+      cleanup();
     }
   };
 

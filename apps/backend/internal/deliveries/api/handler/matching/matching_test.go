@@ -604,6 +604,16 @@ func TestUpdateCoverLetter(t *testing.T) {
 		assert.Equal(t, http.StatusUnauthorized, rec.Code)
 	})
 
+	t.Run("success without content is rejected with 400", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodPatch, path, bytes.NewBufferString(`{"cover_letter_status":"success"}`))
+		req.Header.Set("Authorization", "Bearer "+apiKey)
+		rec := httptest.NewRecorder()
+		rt.Mux().ServeHTTP(rec, req)
+
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+		assert.Contains(t, rec.Body.String(), "cover_letter_content is required")
+	})
+
 	t.Run("failed status stores only the fixed message", func(t *testing.T) {
 		rawException := "ValueError: leaked CV contents for Jane Doe"
 		var captured usecaseMatching.UpdateEvaluationCoverLetterRequest

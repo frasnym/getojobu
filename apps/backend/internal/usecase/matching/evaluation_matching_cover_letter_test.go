@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -125,6 +126,26 @@ func TestGetEvaluationByUserJobID_IsUserScoped(t *testing.T) {
 	})
 }
 
+func TestGetEvaluationByUserJobID_UserLookupErrorIsBestEffort(t *testing.T) {
+	ctx := context.Background()
+	d := newCoverLetterDeps(t)
+
+	userID := uuid.New()
+	userJobID := uuid.New()
+	evalID := uuid.New()
+	d.evalRepo.EXPECT().GetLatestByUserJobID(ctx, userID, userJobID).Return(&models.EvaluationWithJob{
+		Evaluation: successfulEvaluation(evalID, userJobID),
+		Job:        &models.Job{Title: "Software Engineer"},
+	}, nil)
+	d.usersRepo.EXPECT().FindByID(ctx, userID.String()).Return(nil, errors.New("users store unavailable"))
+
+	res, err := d.service.GetEvaluationByUserJobID(ctx, userID, userJobID)
+	require.NoError(t, err)
+	require.NotNil(t, res)
+	require.NotNil(t, res.Evaluation)
+	assert.Empty(t, res.Evaluation.CoverLetterFileName, "a failed filename lookup must not fail the whole detail page")
+}
+
 func TestQueueCoverLetter_RequiresSuccessEvaluationAndOnboarding(t *testing.T) {
 	ctx := context.Background()
 
@@ -177,6 +198,7 @@ func TestQueueCoverLetter_ForceRegeneratesAfterSuccess(t *testing.T) {
 	eval.CoverLetterStatus = &statusSuccess
 	eval.CoverLetterContent = previousContent
 	eval.CoverLetterFailureMessage = &previousFailure
+	eval.UpdatedAt = time.Date(2026, 11, 17, 10, 0, 0, 0, time.UTC)
 	caller := &models.Principal{ActorType: "worker", ID: "worker-1"}
 
 	d.evalRepo.EXPECT().GetByID(ctx, evalID).Return(eval, nil)
@@ -199,7 +221,8 @@ func TestQueueCoverLetter_ForceRegeneratesAfterSuccess(t *testing.T) {
 			return queued, nil
 		},
 	)
-	d.workflowsRepo.EXPECT().StartLimiterWorkItem(ctx, "cover-letter-gen-"+evalID.String(), models.LimiterJobTypeCoverLetter, gomock.Any()).
+	expectedWorkflowID := fmt.Sprintf("cover-letter-gen-%s-%d", evalID.String(), eval.UpdatedAt.UnixNano())
+	d.workflowsRepo.EXPECT().StartLimiterWorkItem(ctx, expectedWorkflowID, models.LimiterJobTypeCoverLetter, gomock.Any()).
 		Return("wf-cover-letter-1", nil)
 
 	res, err = d.service.QueueCoverLetter(ctx, evalID, matching.QueueCoverLetterRequest{Variant: "short", Force: true}, caller)
@@ -207,6 +230,86 @@ func TestQueueCoverLetter_ForceRegeneratesAfterSuccess(t *testing.T) {
 	require.NotNil(t, res)
 	assert.Equal(t, evalID, *res.ID)
 	assert.Equal(t, "queued_retry", *res.CoverLetterStatus)
+}
+
+// queueCoverLetterAndCaptureID performs one successful enqueue with the given
+// loaded-row status/UpdatedAt and returns the workflow item ID it used.
+func queueCoverLetterAndCaptureID(
+	t *testing.T,
+	d *coverLetterDeps,
+	evalID, userJobID, userID uuid.UUID,
+	currentStatus *string,
+	updatedAt time.Time,
+	force bool,
+) string {
+	t.Helper()
+	ctx := context.Background()
+	eval := successfulEvaluation(evalID, userJobID)
+	eval.CoverLetterStatus = currentStatus
+	eval.UpdatedAt = updatedAt
+
+	d.evalRepo.EXPECT().GetByID(ctx, evalID).Return(eval, nil)
+	d.userJobsRepo.EXPECT().GetByID(ctx, userJobID).Return(&models.UserJob{ID: userJobID, UserID: userID}, nil)
+	d.usersRepo.EXPECT().FindByID(ctx, userID.String()).Return(onboardedUser(userID), nil)
+	d.evalRepo.EXPECT().UpdateCoverLetter(ctx, evalID, gomock.Any()).DoAndReturn(
+		func(_ context.Context, _ uuid.UUID, params models.UpdateMatchingEvaluationCoverLetterParams) (*models.MatchingEvaluation, error) {
+			queued := successfulEvaluation(evalID, userJobID)
+			queued.CoverLetterStatus = utils.PtrString(params.CoverLetterStatus)
+			queued.UpdatedAt = updatedAt
+			return queued, nil
+		},
+	)
+
+	var capturedID string
+	d.workflowsRepo.EXPECT().StartLimiterWorkItem(ctx, gomock.Any(), models.LimiterJobTypeCoverLetter, gomock.Any()).DoAndReturn(
+		func(_ context.Context, itemID string, _ models.LimiterJobType, _ interface{}) (string, error) {
+			capturedID = itemID
+			return itemID, nil
+		},
+	)
+
+	caller := &models.Principal{ActorType: "worker", ID: "worker-1"}
+	res, err := d.service.QueueCoverLetter(ctx, evalID, matching.QueueCoverLetterRequest{Variant: "short", Force: force}, caller)
+	require.NoError(t, err)
+	require.NotNil(t, res)
+	return capturedID
+}
+
+func TestQueueCoverLetter_WorkflowIDDeterminism(t *testing.T) {
+	evalID := uuid.New()
+	userJobID := uuid.New()
+	userID := uuid.New()
+	updatedAt := time.Date(2026, 11, 17, 10, 0, 0, 0, time.UTC)
+	deterministicID := fmt.Sprintf("cover-letter-gen-%s", evalID.String())
+
+	t.Run("non-force requests keep the deterministic ID", func(t *testing.T) {
+		d := newCoverLetterDeps(t)
+		got := queueCoverLetterAndCaptureID(t, d, evalID, userJobID, userID, nil, updatedAt, false)
+		assert.Equal(t, deterministicID, got)
+	})
+
+	t.Run("force while an item is active uses a different ID", func(t *testing.T) {
+		d := newCoverLetterDeps(t)
+		got := queueCoverLetterAndCaptureID(t, d, evalID, userJobID, userID, utils.PtrString("queued"), updatedAt, true)
+		assert.NotEqual(t, deterministicID, got)
+		assert.Equal(t, fmt.Sprintf("cover-letter-gen-%s-%d", evalID.String(), updatedAt.UnixNano()), got)
+	})
+}
+
+func TestQueueCoverLetter_ForceNonceStability(t *testing.T) {
+	evalID := uuid.New()
+	userJobID := uuid.New()
+	userID := uuid.New()
+	t1 := time.Date(2026, 11, 17, 10, 0, 0, 0, time.UTC)
+	t2 := t1.Add(time.Second)
+
+	d := newCoverLetterDeps(t)
+	first := queueCoverLetterAndCaptureID(t, d, evalID, userJobID, userID, utils.PtrString("queued"), t1, true)
+	second := queueCoverLetterAndCaptureID(t, d, evalID, userJobID, userID, utils.PtrString("queued_retry"), t1, true)
+	assert.Equal(t, first, second, "two rapid force clicks on the same loaded row must share an ID")
+
+	later := queueCoverLetterAndCaptureID(t, d, evalID, userJobID, userID, utils.PtrString("queued_retry"), t2, true)
+	assert.NotEqual(t, first, later, "a force after a status change must get a new ID")
 }
 
 func TestQueueCoverLetter_RejectsUnknownVariant(t *testing.T) {

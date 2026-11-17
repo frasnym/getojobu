@@ -122,6 +122,12 @@ func (h *handler) UpdateCoverLetter(w http.ResponseWriter, r *http.Request) erro
 		return httpx.Envelope(httpx.CodeInvalidRequest, "invalid cover_letter_status", "")
 	}
 
+	// A success without content would otherwise keep stale content from a
+	// previous attempt while flipping the status to success.
+	if status == "success" && len(payload.CoverLetterContent) == 0 {
+		return httpx.Envelope(httpx.CodeInvalidRequest, "cover_letter_content is required for success", "")
+	}
+
 	var content *models.CoverLetterContent
 	if len(payload.CoverLetterContent) > 0 {
 		var parsed models.CoverLetterContent

@@ -2,7 +2,6 @@ package matching
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/google/uuid"
 
@@ -72,14 +71,22 @@ func (s *matchingService) GetEvaluationByUserJobID(ctx context.Context, userID u
 		return nil, constants.ErrNotFound
 	}
 
-	user, err := s.usersRepo.FindByID(ctx, userID.String())
-	if err != nil {
-		return nil, fmt.Errorf("get cover letter user: %w", err)
+	// The user record is only used to compute the download filename. A cosmetic
+	// lookup failure must not fail the whole user-jobs detail page, so this read
+	// is best-effort: leave the filename empty and still return the evaluation.
+	// (Usecases in this package do not currently carry a logger, so there is no
+	// established warning channel to report the failed lookup through.)
+	var user *models.User
+	if fetched, fetchErr := s.usersRepo.FindByID(ctx, userID.String()); fetchErr == nil {
+		user = fetched
 	}
-	name := ""
-	if user != nil {
-		name = utils.PtrStringOrEmpty(user.FullName)
+
+	if user == nil {
+		result.Evaluation.CoverLetterFileName = ""
+		return result, nil
 	}
+
+	name := utils.PtrStringOrEmpty(user.FullName)
 	jobTitle := ""
 	if result.Job != nil {
 		jobTitle = result.Job.Title

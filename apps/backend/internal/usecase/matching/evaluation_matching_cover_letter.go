@@ -132,7 +132,13 @@ func (s *matchingService) UpdateEvaluationCoverLetter(
 }
 
 // QueueCoverLetter validates preconditions, reserves the queued state and
-// starts the deterministic cover-letter generation workflow item.
+// starts the cover-letter generation workflow item.
+//
+// The status is written before the workflow is enqueued. If enqueueing fails,
+// the evaluation can be left in queued/queued_retry with no live work item;
+// that stuck state is recoverable with a forced request, which uses a fresh
+// workflow ID (see below) and therefore bypasses the limiter's per-item
+// deduplication.
 func (s *matchingService) QueueCoverLetter(
 	ctx context.Context,
 	id uuid.UUID,
@@ -153,6 +159,13 @@ func (s *matchingService) QueueCoverLetter(
 	if eval.EvaluationStatus != string(constants.MatchingStatusSuccess) {
 		return nil, fmt.Errorf("%w: evaluation must be successful", constants.ErrInvalidRequest)
 	}
+
+	// Capture a stable nonce from the row loaded before the status write. Forced
+	// runs use it so a retry can start a fresh limiter item when the previous
+	// item is still active or queued (the limiter deduplicates by item_id).
+	// Two rapid force clicks on this same loaded row share an ID, while a later
+	// force after a status change (and thus a new UpdatedAt) gets a new one.
+	forceNonce := eval.UpdatedAt.UnixNano()
 
 	currentStatus := ""
 	if eval.CoverLetterStatus != nil {
@@ -204,7 +217,13 @@ func (s *matchingService) QueueCoverLetter(
 	}
 	eval = updated
 
+	// Non-force requests keep the deterministic ID so double-clicks collapse
+	// into a single limiter item. Forced requests add the nonce so a stuck or
+	// still-active item does not absorb the retry.
 	workflowID := fmt.Sprintf("cover-letter-gen-%s", id.String())
+	if req.Force {
+		workflowID = fmt.Sprintf("cover-letter-gen-%s-%d", id.String(), forceNonce)
+	}
 	if _, err := s.workflowsRepo.StartLimiterWorkItem(ctx, workflowID, models.LimiterJobTypeCoverLetter, input); err != nil {
 		return nil, fmt.Errorf("start cover letter workflow: %w", err)
 	}

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import React from "react";
 import { CoverLetterTab } from "@/components/cover-letter/cover-letter-tab";
 import * as api from "@/lib/api/endpoints";
@@ -106,9 +106,49 @@ describe("CoverLetterTab component", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("prints the letter on demand with the provided file name as the document title", () => {
+  it("shows the produced variant badge and selects the variant that generated the letter", () => {
+    render(
+      <CoverLetterTab
+        evalId="eval-001"
+        status="success"
+        content={{
+          text: readyContent.text,
+          metadata: { model: "gpt-4o", prompt_version: "generate-cover-letter-full-v1" },
+        }}
+        fileName={fileName}
+      />
+    );
+
+    expect(screen.getByText(/Generated with full/i)).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: /Full/i })).toBeChecked();
+    expect(screen.getByRole("radio", { name: /Short/i })).not.toBeChecked();
+  });
+
+  it("syncs the selector when refreshed content was generated with a different variant", () => {
+    const renderWithVariant = (variant: "short" | "full") => (
+      <CoverLetterTab
+        evalId="eval-001"
+        status="success"
+        content={{
+          text: readyContent.text,
+          metadata: { model: "gpt-4o", prompt_version: `generate-cover-letter-${variant}-v1` },
+        }}
+        fileName={fileName}
+      />
+    );
+
+    const { rerender } = render(renderWithVariant("full"));
+    expect(screen.getByRole("radio", { name: /Full/i })).toBeChecked();
+
+    rerender(renderWithVariant("short"));
+    expect(screen.getByRole("radio", { name: /Short/i })).toBeChecked();
+    expect(screen.getByText(/Generated with short/i)).toBeInTheDocument();
+  });
+
+  it("keeps the print DOM until afterprint, then cleans up the letter and style", () => {
     const printSpy = vi.spyOn(window, "print").mockImplementation(() => {
       expect(document.title).toBe(fileName);
+      expect(document.getElementById("cover-letter-print-root")).not.toBeNull();
     });
 
     render(
@@ -123,7 +163,43 @@ describe("CoverLetterTab component", () => {
     fireEvent.click(screen.getByRole("button", { name: /Download/i }));
 
     expect(printSpy).toHaveBeenCalledTimes(1);
+    // window.print() returns before the preview renders: cleanup must be
+    // deferred, otherwise the PDF is blank.
+    expect(document.title).toBe(fileName);
+    expect(document.getElementById("cover-letter-print-root")).not.toBeNull();
+    expect(document.querySelector("style[data-cover-letter-print]")).not.toBeNull();
+
+    document.dispatchEvent(new Event("afterprint"));
+
+    expect(document.title).not.toBe(fileName);
+    expect(document.getElementById("cover-letter-print-root")).toBeNull();
+    expect(document.querySelector("style[data-cover-letter-print]")).toBeNull();
+    printSpy.mockRestore();
+  });
+
+  it("falls back to a timeout when afterprint never fires", () => {
+    vi.useFakeTimers();
+    const printSpy = vi.spyOn(window, "print").mockImplementation(() => {});
+
+    render(
+      <CoverLetterTab
+        evalId="eval-001"
+        status="success"
+        content={readyContent}
+        fileName={fileName}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Download/i }));
+    expect(document.getElementById("cover-letter-print-root")).not.toBeNull();
+
+    act(() => {
+      vi.advanceTimersByTime(5000);
+    });
+
+    expect(document.getElementById("cover-letter-print-root")).toBeNull();
     expect(document.title).not.toBe(fileName);
     printSpy.mockRestore();
+    vi.useRealTimers();
   });
 });

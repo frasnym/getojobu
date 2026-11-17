@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { DownloadCoverLetterButton } from "./download-cover-letter-button";
 import { generateCoverLetter } from "@/lib/api/endpoints";
 import { CoverLetterContent } from "@/lib/api/types";
@@ -20,7 +20,12 @@ interface CoverLetterTabProps {
   evalId?: string;
   status?: string;
   content?: CoverLetterContent;
-  /** Backend failure history. The UI shows a fixed message instead of this raw value. */
+  /**
+   * Backend failure history. Intentionally unused by the UI: raw worker
+   * exceptions can contain prompt text or CV contents, so only the fixed
+   * COVER_LETTER_FAILURE_TEXT is ever rendered. Kept on the contract so the
+   * detail page can pass it through without leaking it to the DOM.
+   */
   failureMessage?: string;
   fileName?: string;
   /** Cover-letter generation is only offered once the report is successful. */
@@ -32,6 +37,17 @@ interface CoverLetterTabProps {
 // The backend stores an append-only, timestamped history. Only this fixed text
 // is ever shown to the user, so raw exceptions can never leak into the UI.
 const COVER_LETTER_FAILURE_TEXT = "Cover letter generation failed";
+
+// Worker prompt versions look like "generate-cover-letter-short-v1" /
+// "generate-cover-letter-full-v1". Derive the variant that produced the current
+// letter from that provenance so the badge and selector stay in sync with it.
+function variantFromPromptVersion(promptVersion?: string): Variant | undefined {
+  if (!promptVersion) return undefined;
+  const normalized = promptVersion.toLowerCase();
+  if (normalized.includes("full")) return "full";
+  if (normalized.includes("short")) return "short";
+  return undefined;
+}
 
 function VariantSelector({
   value,
@@ -83,9 +99,16 @@ export function CoverLetterTab({
   reportStatus,
   onQueued,
 }: CoverLetterTabProps) {
-  const [variant, setVariant] = useState<Variant>("short");
+  const producedVariant = variantFromPromptVersion(content?.metadata?.prompt_version);
+  const [variant, setVariant] = useState<Variant>(producedVariant ?? "short");
   const [submitting, setSubmitting] = useState(false);
   const [requestError, setRequestError] = useState<string | null>(null);
+
+  // Keep the selector pointed at the variant that actually produced the
+  // displayed letter, including after a refresh replaces the content.
+  useEffect(() => {
+    if (producedVariant) setVariant(producedVariant);
+  }, [producedVariant]);
 
   const handleGenerate = async (force: boolean) => {
     if (!evalId || submitting) return;
@@ -190,6 +213,11 @@ export function CoverLetterTab({
               <span className="inline-flex items-center gap-1.5 rounded-full bg-red-500/10 px-2.5 py-0.5 text-xs font-bold text-red-400 dark:text-red-300">
                 <AlertCircle className="h-3.5 w-3.5" />
                 Generation Failed
+              </span>
+            )}
+            {producedVariant && (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-secondary px-2.5 py-0.5 text-xs font-semibold text-muted-foreground">
+                Generated with {producedVariant}
               </span>
             )}
           </div>
