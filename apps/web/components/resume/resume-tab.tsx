@@ -62,8 +62,8 @@ export function ResumeTab({
     );
   }
 
-  // Evaluation exists but no resume has been generated yet. When the match
-  // report is successful, offer the user a one-tap way to generate one.
+  // Evaluation exists but no resume has been generated yet. Any evaluation
+  // with a successful report can trigger resume generation via the button.
   if (resumeNotStarted) {
     if (canGenerateResume) {
       return (
