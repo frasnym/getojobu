@@ -234,7 +234,6 @@ func (s *matchingService) TriggerCompatibilityBulk(
 			}
 
 			var evalRecord *models.MatchingEvaluation
-			var isRetry bool
 
 			if err == nil && latestEval != nil {
 				switch constants.MatchingEvaluationStatus(latestEval.EvaluationStatus) {
@@ -256,7 +255,6 @@ func (s *matchingService) TriggerCompatibilityBulk(
 						continue
 					}
 					// force=true on success: create new record with uuid.New()
-					isRetry = true
 
 				case constants.MatchingStatusFailed:
 					if !item.Force {
@@ -269,7 +267,6 @@ func (s *matchingService) TriggerCompatibilityBulk(
 					}
 					// force=true on failed: reuse existing record, set status = queued_retry, keep failure_message
 					evalRecord = latestEval
-					isRetry = true
 
 				default:
 					if !item.Force {
@@ -280,7 +277,6 @@ func (s *matchingService) TriggerCompatibilityBulk(
 						})
 						continue
 					}
-					isRetry = true
 				}
 			}
 
@@ -356,12 +352,7 @@ func (s *matchingService) TriggerCompatibilityBulk(
 				EvaluationConfig: configMap,
 			}
 
-			var workflowID string
-			if isRetry {
-				workflowID = fmt.Sprintf("match-job-%s-%d", evalRecord.ID.String(), time.Now().UnixMilli())
-			} else {
-				workflowID = fmt.Sprintf("match-job-%s", evalRecord.ID.String())
-			}
+			workflowID := fmt.Sprintf("match-job-%s", evalRecord.ID.String())
 
 			if s.workflowsRepo != nil {
 				if _, err := s.workflowsRepo.StartLimiterWorkItem(ctx, workflowID, models.LimiterJobTypeMatch, wfInput); err != nil {

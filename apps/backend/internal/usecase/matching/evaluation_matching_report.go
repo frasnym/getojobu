@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"time"
 
 	"github.com/google/uuid"
 
@@ -147,7 +146,7 @@ func (s *matchingService) BulkQueueGenerateReport(
 			"report_status":        queueStatus,
 		}
 
-		workflowID := fmt.Sprintf("report-gen-%s-%d", eval.ID.String(), time.Now().UnixMilli())
+		workflowID := fmt.Sprintf("report-gen-%s", eval.ID.String())
 		if s.workflowsRepo != nil {
 			if _, err := s.workflowsRepo.StartLimiterWorkItem(ctx, workflowID, models.LimiterJobTypeReport, wfInput); err != nil {
 				errStr := fmt.Sprintf("start report workflow: %s", err.Error())

@@ -208,7 +208,7 @@ func (s *matchingService) triggerResume(
 	}
 	eval = updated
 
-	workflowID := fmt.Sprintf("resume-gen-%s-%d", id.String(), time.Now().UnixMilli())
+	workflowID := fmt.Sprintf("resume-gen-%s", id.String())
 	if _, err := s.workflowsRepo.StartLimiterWorkItem(ctx, workflowID, models.LimiterJobTypeResume, input); err != nil {
 		return nil, fmt.Errorf("start resume workflow: %w", err)
 	}
