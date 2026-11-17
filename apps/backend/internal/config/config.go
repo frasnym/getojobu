@@ -24,6 +24,13 @@ type Config struct {
 	MachineAuth MachineAuth
 	Temporal    TemporalConfig
 	R2          R2Config
+	Telemetry   TelemetryConfig
+}
+
+// TelemetryConfig holds OpenTelemetry export settings. An empty OTLPEndpoint
+// means telemetry is disabled: no SDK, no export, no behavior change.
+type TelemetryConfig struct {
+	OTLPEndpoint string
 }
 
 // R2Config holds Cloudflare R2 object storage settings.
@@ -199,6 +206,8 @@ func Load() (*Config, error) {
 	cfg.Temporal.Host = envString("TEMPORAL_HOST", "localhost:7233")
 	cfg.Temporal.Namespace = envString("TEMPORAL_NAMESPACE", "default")
 	cfg.Temporal.TaskQueue = envString("TEMPORAL_TASK_QUEUE_JOB_ANALYZE", "job-evaluation")
+
+	cfg.Telemetry.OTLPEndpoint = envString("OTEL_EXPORTER_OTLP_ENDPOINT", "")
 
 	cfg.R2.AccountID = os.Getenv("R2_ACCOUNT_ID")
 	cfg.R2.AccessKeyID = os.Getenv("R2_ACCESS_KEY_ID")
