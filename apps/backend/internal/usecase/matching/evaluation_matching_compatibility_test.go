@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -551,6 +552,58 @@ func TestTriggerCompatibilityBulk(t *testing.T) {
 		assert.Equal(t, "unknown-job", res[2].Slug)
 		require.NotNil(t, res[2].Error)
 		assert.Contains(t, *res[2].Error, "job not found")
+	})
+
+	t.Run("workflow input evaluation_config strips scoring config row metadata", func(t *testing.T) {
+		fullConfig := &models.ScoringConfig{
+			ID:        uuid.New(),
+			Family:    "technology",
+			Version:   1,
+			IsActive:  true,
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+			Categories: []models.CategoryConfig{
+				{Name: "technical_skills", Weight: 1.0},
+			},
+		}
+
+		jobsRepo.EXPECT().GetBySlug(ctx, slug, "").Return(&models.JobWithOwnership{Job: job}, nil)
+		userJobsRepo.EXPECT().IsOwned(ctx, userID.String(), job.ID).Return(true, nil)
+		scoringConfigsRepo.EXPECT().GetActiveByFamily(ctx, "technology").Return(fullConfig, nil)
+		userJobsRepo.EXPECT().GetByUserAndJob(ctx, userID.String(), job.ID).Return(userJob, nil)
+		evalRepo.EXPECT().GetLatestByUserAndJob(ctx, userID, job.ID).Return(nil, constants.ErrNotFound)
+		expRepo.EXPECT().ListByUser(ctx, userID.String()).Return([]*models.Experience{}, nil)
+		projRepo.EXPECT().ListByUser(ctx, userID.String()).Return([]*models.Project{}, nil)
+		projSkillsRepo.EXPECT().ListSkillsByUser(ctx, userID.String()).Return([]*models.UserSkill{}, nil)
+		evalRepo.EXPECT().Create(ctx, gomock.Any()).Return(&models.MatchingEvaluation{
+			ID:               uuid.New(),
+			UserJobID:        userJobID,
+			EvaluationStatus: string(constants.MatchingStatusQueued),
+		}, nil)
+
+		var capturedInput matching.MatchJobWorkflowInput
+		workflowsRepo.EXPECT().StartLimiterWorkItem(ctx, gomock.Any(), models.LimiterJobTypeMatch, gomock.Any()).
+			DoAndReturn(func(_ context.Context, _ string, _ models.LimiterJobType, input any) (string, error) {
+				wfInput, ok := input.(matching.MatchJobWorkflowInput)
+				require.True(t, ok)
+				capturedInput = wfInput
+				return "wf-id", nil
+			})
+
+		res, err := service.TriggerCompatibilityBulk(ctx, []models.BulkAnalyzeCompatibilityItem{
+			{Slug: slug, Force: false},
+		}, &models.Principal{ID: userID.String()})
+		require.NoError(t, err)
+		require.Len(t, res, 1)
+		assert.Nil(t, res[0].Error)
+
+		config := capturedInput.EvaluationConfig
+		assert.Equal(t, "technology", config["family"])
+		assert.NotNil(t, config["categories"])
+		for _, key := range []string{"id", "version", "is_active", "created_at", "updated_at"} {
+			_, exists := config[key]
+			assert.False(t, exists, "evaluation_config should not contain %q", key)
+		}
 	})
 
 	t.Run("includes education in candidate profile data", func(t *testing.T) {

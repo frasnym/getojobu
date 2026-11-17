@@ -924,7 +924,6 @@ profile, and configuration. The following is a shortened illustration:
   },
   "evaluation_config": {
     "family": "technology",
-    "version": 1,
     "categories": [
       {"name": "technical_skills", "weight": 0.35},
       {"name": "responsibilities", "weight": 0.25},

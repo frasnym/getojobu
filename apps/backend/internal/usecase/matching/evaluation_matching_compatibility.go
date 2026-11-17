@@ -343,6 +343,15 @@ func (s *matchingService) TriggerCompatibilityBulk(
 			var configMap map[string]interface{}
 			configBytes, _ := json.Marshal(scoringConfig)
 			_ = json.Unmarshal(configBytes, &configMap)
+			// Strip scoring-config row metadata from what is sent to Temporal —
+			// the worker only needs family and categories, and the row's id,
+			// version, is_active flag, and timestamps are not part of the
+			// evaluation contract.
+			delete(configMap, "id")
+			delete(configMap, "version")
+			delete(configMap, "is_active")
+			delete(configMap, "created_at")
+			delete(configMap, "updated_at")
 
 			wfInput := MatchJobWorkflowInput{
 				EvaluationID:     evalRecord.ID.String(),

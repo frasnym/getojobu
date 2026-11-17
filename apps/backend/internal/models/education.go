@@ -8,8 +8,8 @@ import (
 
 // UserEducation represents an education entry for a user.
 type UserEducation struct {
-	ID           uuid.UUID `json:"id"`
-	UserID       uuid.UUID `json:"user_id"`
+	ID           uuid.UUID `json:"-"`
+	UserID       uuid.UUID `json:"-"`
 	Institution  string    `json:"institution"`
 	Degree       string    `json:"degree"`
 	FieldOfStudy string    `json:"field_of_study"`
@@ -17,7 +17,7 @@ type UserEducation struct {
 	EndYear      *int      `json:"end_year,omitempty"`
 	GPA          *string   `json:"gpa,omitempty"`
 	IsCurrent    bool      `json:"is_current"`
-	SortOrder    int       `json:"sort_order"`
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
+	SortOrder    int       `json:"-"`
+	CreatedAt    time.Time `json:"-"`
+	UpdatedAt    time.Time `json:"-"`
 }
