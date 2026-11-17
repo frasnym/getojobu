@@ -81,17 +81,40 @@ func (t otelTracer) MarshalSpan(span interceptor.TracerSpan) (map[string]string,
 }
 
 // SpanFromContext returns the span stored on ctx, or nil.
+//
+// The SDK stashes spans under spanContextKey{} (via ContextWithSpan), while
+// OTel middleware stores spans under OTel's own key. Check both so a parent
+// span is found no matter which side placed it there.
 func (t otelTracer) SpanFromContext(ctx context.Context) interceptor.TracerSpan {
+	// First: our custom key (the SDK reads/writes spans here).
 	if s, ok := ctx.Value(spanContextKey{}).(*otelSpanImpl); ok {
 		return s
+	}
+	// Fall back: OTel's own key (HTTP middleware / trace.ContextWithSpan).
+	if sc := trace.SpanContextFromContext(ctx); sc.IsValid() {
+		return &otelSpanImpl{sc: sc}
 	}
 	return nil
 }
 
-// ContextWithSpan stores span on ctx.
+// ContextWithSpan stores span on ctx under both keys so that SpanFromContext
+// (and any other OTel-aware code) can find it regardless of which key it
+// looks under.
 func (t otelTracer) ContextWithSpan(ctx context.Context, span interceptor.TracerSpan) context.Context {
 	s, _ := span.(*otelSpanImpl)
-	return context.WithValue(ctx, spanContextKey{}, s)
+	if s == nil {
+		return ctx
+	}
+	// Store under our custom key so the SDK's next SpanFromContext call finds it.
+	ctx = context.WithValue(ctx, spanContextKey{}, s)
+	// Also mirror onto OTel's key so OTel-aware code sees the span.
+	if s.span != nil {
+		return trace.ContextWithSpan(ctx, s.span)
+	}
+	if s.sc.IsValid() {
+		return trace.ContextWithSpanContext(ctx, s.sc)
+	}
+	return ctx
 }
 
 // StartSpan starts an OTel child span of the parent (if any) and returns it.
@@ -100,10 +123,23 @@ func (t otelTracer) StartSpan(options *interceptor.TracerStartSpanOptions) (inte
 
 	var opts []trace.SpanStartOption
 	if options.Parent != nil {
-		if ref, ok := options.Parent.(*otelSpanRef); ok && ref.sc.IsValid() {
-			// Attach the remote parent so the new span links to it. The SDK
-			// passes header-derived parents here, which are remote contexts.
-			ctx = trace.ContextWithRemoteSpanContext(ctx, ref.sc)
+		switch ref := options.Parent.(type) {
+		case *otelSpanRef:
+			if ref.sc.IsValid() {
+				// Attach the remote parent so the new span links to it. The SDK
+				// passes header-derived parents here, which are remote contexts.
+				ctx = trace.ContextWithRemoteSpanContext(ctx, ref.sc)
+			}
+		case *otelSpanImpl:
+			if ref != nil && ref.sc.IsValid() {
+				// A parent taken from the live context is local; keep its real
+				// span when available so the child links to it directly.
+				if ref.span != nil {
+					ctx = trace.ContextWithSpan(ctx, ref.span)
+				} else {
+					ctx = trace.ContextWithSpanContext(ctx, ref.sc)
+				}
+			}
 		}
 	}
 	opts = append(opts, trace.WithSpanKind(trace.SpanKindClient))

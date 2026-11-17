@@ -26,7 +26,12 @@ func TestOtelTracer_options_and_round_trip(t *testing.T) {
 }
 
 func TestOtelTracer_start_finish_and_context_round_trip(t *testing.T) {
-	// Arrange.
+	// Arrange: a real SDK provider so spans carry valid contexts, mirroring
+	// telemetry.Init having been called. Under the no-op provider the span
+	// context is invalid and SpanFromContext correctly returns nil.
+	otel.SetTracerProvider(sdktrace.NewTracerProvider())
+	defer otel.SetTracerProvider(noop.NewTracerProvider())
+
 	tr := otelTracer{}
 	ctx := context.Background()
 
