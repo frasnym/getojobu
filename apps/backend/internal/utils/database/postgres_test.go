@@ -149,3 +149,20 @@ func TestDefaultQueryExecMode_Configuration(t *testing.T) {
 	}
 	assert.Equal(t, pgx.QueryExecModeSimpleProtocol, cfgExplicit.ConnConfig.DefaultQueryExecMode)
 }
+
+func TestTelemetryTracer_attached_only_when_endpoint_set(t *testing.T) {
+	// Arrange: a plain pool config.
+	url := "postgres://user:pass@localhost:5432/db?sslmode=disable"
+
+	poolConfig, err := pgxpool.ParseConfig(url)
+	require.NoError(t, err)
+	require.Nil(t, poolConfig.ConnConfig.Tracer, "expected no tracer by default")
+
+	// Act/Assert: disabled telemetry leaves the connection config untouched.
+	require.NoError(t, applyTelemetryTracer(poolConfig, ""))
+	assert.Nil(t, poolConfig.ConnConfig.Tracer, "no tracer expected when OTLP endpoint is empty")
+
+	// Act/Assert: enabled telemetry attaches the otelpgx tracer.
+	require.NoError(t, applyTelemetryTracer(poolConfig, "localhost:4317"))
+	assert.NotNil(t, poolConfig.ConnConfig.Tracer, "otelpgx tracer expected when OTLP endpoint is set")
+}

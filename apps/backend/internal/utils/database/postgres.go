@@ -12,8 +12,11 @@ import (
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/ctxval"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/graceful"
 
+	"github.com/exaring/otelpgx"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	"go.opentelemetry.io/otel"
 )
 
 // DB is the database connection abstraction. Any provider (Neon, Supabase,
@@ -56,6 +59,11 @@ func NewDB(cfg *config.Config) (DB, graceful.ProcessStopper, error) {
 	poolConfig, err := pgxpool.ParseConfig(connectionURL)
 	if err != nil {
 		return nil, nil, fmt.Errorf("parse pool config: %w", err)
+	}
+
+	// Trace queries via otelpgx when telemetry is enabled; noop otherwise.
+	if err := applyTelemetryTracer(poolConfig, cfg.Telemetry.OTLPEndpoint); err != nil {
+		return nil, nil, err
 	}
 
 	// Default to QueryExecModeExec if not explicitly overridden in the connection string.
@@ -131,6 +139,19 @@ func Transact(ctx context.Context, db DB, operation func(ctx context.Context) er
 	}()
 	err = operation(ctx)
 	return err
+}
+
+// applyTelemetryTracer attaches the otelpgx tracer to the pool config when
+// the OTLP endpoint is configured, so queries appear as child spans of the
+// request that issued them. An empty endpoint leaves the config unchanged.
+func applyTelemetryTracer(poolConfig *pgxpool.Config, otlpEndpoint string) error {
+	if otlpEndpoint == "" {
+		return nil
+	}
+	poolConfig.ConnConfig.Tracer = otelpgx.NewTracer(
+		otelpgx.WithTracerProvider(otel.GetTracerProvider()),
+	)
+	return nil
 }
 
 // buildURLFromPGEnv constructs a PostgreSQL connection URL from PG* fields.
