@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"go.opentelemetry.io/otel/trace"
+
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/ctxval"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/httpx"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/logging"
@@ -32,12 +34,19 @@ func Recovery(next http.Handler) http.Handler {
 }
 
 // RequestID extracts or generates a request id and stores it in the context.
-// It echoes the X-Request-Id request header when present, otherwise generates one.
+// It echoes the X-Request-Id request header when present, otherwise uses the
+// current trace id (the request id and the OTel trace id are the same value),
+// otherwise generates one.
 func RequestID(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		reqID := r.Header.Get("X-Request-Id")
 		if reqID == "" {
 			reqID = r.Header.Get("X-Correlation-Id")
+		}
+		if reqID == "" {
+			if sc := trace.SpanContextFromContext(r.Context()); sc.HasTraceID() {
+				reqID = sc.TraceID().String()
+			}
 		}
 		if reqID == "" {
 			reqID = generateRequestID()

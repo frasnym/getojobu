@@ -12,6 +12,7 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
+	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
@@ -46,6 +47,9 @@ func Init(ctx context.Context, endpoint string) (stop func(context.Context) erro
 		sdktrace.WithBatcher(traceExporter),
 	)
 	otel.SetTracerProvider(tracerProvider)
+
+	// Extract incoming traceparent headers so callers can continue their trace.
+	otel.SetTextMapPropagator(propagation.TraceContext{})
 
 	metricExporter, err := otlpmetricgrpc.New(ctx, otlpmetricgrpc.WithEndpoint(endpoint), otlpmetricgrpc.WithInsecure())
 	if err != nil {
