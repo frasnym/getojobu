@@ -97,6 +97,12 @@ class OpenAIClient:
         if not content:
             raise RuntimeError("extract match evaluation: empty LLM response")
 
+        finish_reason = response.choices[0].finish_reason
+        if finish_reason == "length":
+            raise RuntimeError(
+                "extract match evaluation: LLM response truncated before JSON completed"
+            )
+
         return parse_llm_json(content)
 
     def _render_prompt(

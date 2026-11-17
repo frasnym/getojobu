@@ -112,6 +112,29 @@ async def test_extract_match_evaluation_injects_category_enum(
     assert "responsibilities" in user_msg
 
 
+@pytest.mark.asyncio
+async def test_extract_match_evaluation_raises_on_truncated_response(
+    mock_openai_client: OpenAIClient,
+) -> None:
+    """A truncated LLM response (finish_reason='length') must fail clearly."""
+    mock_chat_completion = MagicMock()
+    mock_choice = MagicMock()
+    mock_choice.finish_reason = "length"
+    mock_choice.message.content = '{"evaluations":[{"category":"technical_sk'
+    mock_chat_completion.choices = [mock_choice]
+
+    mock_openai_client._client.chat.completions.create = AsyncMock(  # type: ignore[method-assign]
+        return_value=mock_chat_completion
+    )
+
+    with pytest.raises(RuntimeError, match="truncated"):
+        await mock_openai_client.extract_match_evaluation(
+            candidate_profile={"skills": ["golang"]},
+            job_profile={"title": "Backend Engineer"},
+            evaluation_config={"family": "technology"},
+        )
+
+
 def test_render_prompt_missing_placeholder(tmp_path: pytest.TempPathFactory) -> None:
     client = OpenAIClient(
         api_key="test-key",
