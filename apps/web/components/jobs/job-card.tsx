@@ -52,7 +52,7 @@ export function JobCard({
 	return (
 		<div
 			onClick={isClickable ? () => onSelect(userJob) : undefined}
-			className={`group relative rounded-xl border p-6 pb-12 transition-all duration-300 ${
+			className={`group relative rounded-xl border p-6 transition-all duration-300 ${
 				isSelected
 					? "border-primary bg-primary/5 shadow-md shadow-primary/5 ring-1 ring-primary/30"
 					: isHidden
@@ -114,37 +114,6 @@ export function JobCard({
 							</span>
 						)}
 					</div>
-
-					{(job.status || userJob.evaluation) && (
-						<div className="flex flex-wrap items-center gap-2.5 pt-3 border-t border-border/40">
-							<EvaluationStatusTag status={job.status} />
-							{userJob.evaluation && (
-								<>
-									<EvaluationStatusTag status={userJob.evaluation.evaluation_status} label="Evaluation" />
-									<EvaluationStatusTag status={userJob.evaluation.report_status} label="Report" />
-									<EvaluationStatusTag
-										status={userJob.evaluation.resume_status}
-										label="Resume"
-										message={userJob.evaluation.resume_failure_message}
-									/>
-								</>
-							)}
-							{retryLabel && onRetry && (
-								<button
-									type="button"
-									onClick={(e) => {
-										e.stopPropagation();
-										onRetry(userJob.id);
-									}}
-									className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3.5 py-1.5 text-xs font-semibold text-foreground hover:bg-secondary transition-colors"
-									aria-label={retryLabel}
-								>
-									<RotateCcw className="h-3.5 w-3.5 text-red-500" />
-									<span>{retryLabel}</span>
-								</button>
-							)}
-						</div>
-					)}
 				</div>
 
 				{/* Actions */}
@@ -181,22 +150,52 @@ export function JobCard({
 						)}
 					</div>
 				</div>
-
-				{selectable && (
-					<label
-						className="absolute bottom-4 right-4 inline-flex items-center cursor-pointer shrink-0"
-						onClick={(e) => e.stopPropagation()}
-					>
-						<input
-							type="checkbox"
-							checked={isChecked}
-							onChange={(e) => onCheckChange?.(e.target.checked)}
-							className="h-4 w-4 rounded border-border text-primary focus:ring-primary cursor-pointer"
-							aria-label={`Select ${job.title}`}
-						/>
-					</label>
-				)}
 			</div>
+
+			{(job.status || userJob.evaluation || selectable) && (
+				<div className="mt-4 flex flex-wrap items-center gap-2.5 border-t border-border/40 pt-3">
+					<EvaluationStatusTag status={job.status} />
+					{userJob.evaluation && (
+						<>
+							<EvaluationStatusTag status={userJob.evaluation.evaluation_status} label="Evaluation" />
+							<EvaluationStatusTag status={userJob.evaluation.report_status} label="Report" />
+							<EvaluationStatusTag
+								status={userJob.evaluation.resume_status}
+								label="Resume"
+								message={userJob.evaluation.resume_failure_message}
+							/>
+						</>
+					)}
+					{retryLabel && onRetry && (
+						<button
+							type="button"
+							onClick={(e) => {
+								e.stopPropagation();
+								onRetry(userJob.id);
+							}}
+							className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3.5 py-1.5 text-xs font-semibold text-foreground hover:bg-secondary transition-colors"
+							aria-label={retryLabel}
+						>
+							<RotateCcw className="h-3.5 w-3.5 text-red-500" />
+							<span>{retryLabel}</span>
+						</button>
+					)}
+					{selectable && (
+						<label
+							className="relative z-10 ml-auto inline-flex shrink-0 cursor-pointer items-center"
+							onClick={(e) => e.stopPropagation()}
+						>
+							<input
+								type="checkbox"
+								checked={isChecked}
+								onChange={(e) => onCheckChange?.(e.target.checked)}
+								className="h-4 w-4 cursor-pointer rounded border-border text-primary focus:ring-primary"
+								aria-label={`Select ${job.title}`}
+							/>
+						</label>
+					)}
+				</div>
+			)}
 		</div>
 	);
 }

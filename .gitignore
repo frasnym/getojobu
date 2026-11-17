@@ -26,3 +26,4 @@ htmlcov/
 .mypy_cache/
 .agents
 .worktrees/
+.playwright-mcp/

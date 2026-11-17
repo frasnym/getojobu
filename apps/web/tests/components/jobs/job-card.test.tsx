@@ -270,6 +270,32 @@ describe("JobCard detail access", () => {
   });
 });
 
+describe("JobCard selection", () => {
+  it("places the checkbox on the same row as the status tags", () => {
+    render(<JobCard userJob={mockUserJob} selectable isChecked={false} />);
+
+    const statusRow = screen.getAllByTestId("evaluation-status-tag")[0].parentElement;
+    expect(statusRow).toContainElement(screen.getByRole("checkbox", { name: /Select Senior Go Engineer/i }));
+  });
+
+  it("reports checkbox changes and does not open the detail view", () => {
+    const onCheckChange = vi.fn();
+    const onSelect = vi.fn();
+    render(
+      <JobCard
+        userJob={mockUserJob}
+        selectable
+        onCheckChange={onCheckChange}
+        onSelect={onSelect}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("checkbox", { name: /Select Senior Go Engineer/i }));
+    expect(onCheckChange).toHaveBeenCalledWith(true);
+    expect(onSelect).not.toHaveBeenCalled();
+  });
+});
+
 describe("JobCard retry", () => {
   const failedJob: UserJob = {
     ...mockUserJob,
