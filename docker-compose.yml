@@ -9,7 +9,7 @@
 # - Python worker reads TEMPORAL_HOST, API_BASE_URL, etc. from env
 # - Both services on the "web" Docker network
 # - On .env change: vault-sync restarts only the affected container
-# - Jaeger is opt-in tracing backend: UI on 127.0.0.1 only (SSH tunnel),
+# - Jaeger is opt-in tracing backend: UI on all interfaces (Tailscale reachable),
 #   OTLP ports 4317/4318 stay compose-network internal (never published)
 
 services:
@@ -21,7 +21,7 @@ services:
     environment:
       - COLLECTOR_OTLP_ENABLED=true
     ports:
-      - "127.0.0.1:16686:16686"   # UI: localhost-only, accessed via SSH tunnel
+      - "16686:16686"   # UI on all interfaces — reachable via Tailscale IP
     volumes:
       - getojobu_jaeger_data:/badger   # traces survive restarts
     networks:
