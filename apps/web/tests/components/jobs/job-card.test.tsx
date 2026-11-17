@@ -86,10 +86,11 @@ describe("JobCard evaluation tags", () => {
     expect(tags[1]).toHaveTextContent("Evaluation");
   });
 
-  it("renders a yellow Evaluation tag when evaluation_status is pending", () => {
+  it("renders a yellow Evaluation tag with a clock icon when evaluation_status is pending", () => {
     render(<JobCard userJob={evaluatedJob({ evaluation_status: "pending" })} />);
     const tags = screen.getAllByTestId("evaluation-status-tag");
     expect(tags[1]).toHaveClass("bg-amber-500/10 text-amber-600");
+    expect(tags[1].querySelector(".lucide-clock")).not.toBeNull();
   });
 
   it("renders a red Evaluation tag when evaluation_status is failed", () => {

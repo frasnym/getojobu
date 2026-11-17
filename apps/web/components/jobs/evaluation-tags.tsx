@@ -1,5 +1,5 @@
 import React from "react";
-import { AlertCircle, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { AlertCircle, AlertTriangle, CheckCircle2, Clock } from "lucide-react";
 
 /**
  * Small status tags for a user job's evaluation, rendered on the
@@ -24,7 +24,7 @@ const evaluationTagStyle = (status: string) => {
       };
     case "pending":
       return {
-        icon: <AlertTriangle className="h-3 w-3" />,
+        icon: <Clock className="h-3 w-3" />,
         className: "border-amber-500/20 bg-amber-500/10 text-amber-600",
       };
     case "failed":
