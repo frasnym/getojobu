@@ -137,3 +137,32 @@ async def test_analyze_metadata_empty_when_unset():
 
     assert analysis.metadata["model"] is None
     assert analysis.metadata["prompt_version"] == "extract-job-v1"
+
+
+class _ListReturningLLM:
+    """Fake LLM that returns a JSON array instead of an object."""
+
+    async def extract_job_analysis(self, *, job_description: str, prompt_version: str):
+        return [{"original_name": "Bachelor's Degree Learning Familiarity"}]
+
+
+@pytest.mark.asyncio
+async def test_analyze_rejects_llm_returning_a_list():
+    """An LLM that returns a JSON array instead of an object must be rejected,
+    and the job should transition to 'failed'."""
+    fake_api = _FakeAPI(
+        {
+            "id": 1,
+            "slug": "job-1",
+            "status": "queued",
+            "description": "We need a Senior Backend Engineer with Golang.",
+        }
+    )
+    svc = AnalyzeJob(api=fake_api, llm=_ListReturningLLM())
+
+    with pytest.raises(ValueError, match="instead of a JSON object"):
+        await svc.analyze(slug="job-1")
+
+    assert fake_api.patched is not None
+    assert fake_api.patched["status"] == "failed"
+    assert "instead of a JSON object" in fake_api.patched["failure_message"]

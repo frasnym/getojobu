@@ -136,10 +136,15 @@ class AnalyzeJob:
         if self._llm is None:
             raise ValueError("llm client is required")
 
-        raw = await self._llm.extract_job_analysis(
+        raw: object = await self._llm.extract_job_analysis(
             job_description=job_description,
             prompt_version=self._prompt_version,
         )
+
+        if not isinstance(raw, dict):
+            raise ValueError(
+                f"LLM returned a {type(raw).__name__} instead of a JSON object matching JobExtractionOutput"
+            )
 
         extraction = JobExtractionOutput.model_validate(raw)
         model = self._model if isinstance(self._model, str) else None
