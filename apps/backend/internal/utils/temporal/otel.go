@@ -95,11 +95,8 @@ func (t otelTracer) ContextWithSpan(ctx context.Context, span interceptor.Tracer
 }
 
 // StartSpan starts an OTel child span of the parent (if any) and returns it.
-// options.Context carries the parent span context from the calling Temporal
-// client; using context.Background() here would discard it and break
-// distributed trace propagation (every span becomes an isolated root).
 func (t otelTracer) StartSpan(options *interceptor.TracerStartSpanOptions) (interceptor.TracerSpan, error) {
-	ctx := options.Context
+	ctx := context.Background()
 
 	var opts []trace.SpanStartOption
 	if options.Parent != nil {
