@@ -116,6 +116,21 @@ func (mr *MockMatchingEvaluationsMockRecorder) Update(ctx, id, params any) *gomo
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockMatchingEvaluations)(nil).Update), ctx, id, params)
 }
 
+// UpdateCoverLetter mocks base method.
+func (m *MockMatchingEvaluations) UpdateCoverLetter(ctx context.Context, id uuid.UUID, params models.UpdateMatchingEvaluationCoverLetterParams) (*models.MatchingEvaluation, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateCoverLetter", ctx, id, params)
+	ret0, _ := ret[0].(*models.MatchingEvaluation)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// UpdateCoverLetter indicates an expected call of UpdateCoverLetter.
+func (mr *MockMatchingEvaluationsMockRecorder) UpdateCoverLetter(ctx, id, params any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateCoverLetter", reflect.TypeOf((*MockMatchingEvaluations)(nil).UpdateCoverLetter), ctx, id, params)
+}
+
 // UpdateReport mocks base method.
 func (m *MockMatchingEvaluations) UpdateReport(ctx context.Context, id uuid.UUID, params models.UpdateMatchingEvaluationReportParams) (*models.MatchingEvaluation, error) {
 	m.ctrl.T.Helper()

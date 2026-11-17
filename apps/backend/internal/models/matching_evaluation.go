@@ -46,28 +46,44 @@ type MatchEvaluationOutput struct {
 	Model                 *string                          `json:"model,omitempty"`
 }
 
+// CoverLetterMetadata records the model and prompt that produced a cover letter.
+type CoverLetterMetadata struct {
+	Model         string `json:"model"`
+	PromptVersion string `json:"prompt_version"`
+}
+
+// CoverLetterContent is the generated letter text and its provenance metadata.
+type CoverLetterContent struct {
+	Text     string              `json:"text"`
+	Metadata CoverLetterMetadata `json:"metadata"`
+}
+
 // MatchingEvaluation represents the stored matching evaluation record.
 type MatchingEvaluation struct {
-	ID                   uuid.UUID
-	UserJobID            uuid.UUID
-	EvaluationStatus     string
-	CandidateProfileData json.RawMessage
-	JobProfileData       json.RawMessage
-	ScoringConfigID      uuid.UUID
-	EvaluationData       json.RawMessage
-	OverallScore         *float64
-	EligibilityStatus    *string
-	RecommendationLabel  *string
-	FailureMessage       *string
-	ReportData           json.RawMessage
-	ReportStatus         *string
-	ReportFailureMessage *string
-	ResumeStatus         *string
-	ResumeFailureMessage *string
-	ResumePDFKey         *string
-	ResumeJSONKey        *string
-	CreatedAt            time.Time
-	UpdatedAt            time.Time
+	ID                        uuid.UUID
+	UserJobID                 uuid.UUID
+	EvaluationStatus          string
+	CandidateProfileData      json.RawMessage
+	JobProfileData            json.RawMessage
+	ScoringConfigID           uuid.UUID
+	EvaluationData            json.RawMessage
+	OverallScore              *float64
+	EligibilityStatus         *string
+	RecommendationLabel       *string
+	FailureMessage            *string
+	ReportData                json.RawMessage
+	ReportStatus              *string
+	ReportFailureMessage      *string
+	ResumeStatus              *string
+	ResumeFailureMessage      *string
+	ResumePDFKey              *string
+	ResumeJSONKey             *string
+	CoverLetterStatus         *string
+	CoverLetterContent        json.RawMessage
+	CoverLetterFailureMessage *string
+	CoverLetterFileName       string // transient: computed on read, never persisted
+	CreatedAt                 time.Time
+	UpdatedAt                 time.Time
 }
 
 // EvaluationWithJob is an internal read model coupling an evaluation to its
@@ -152,6 +168,13 @@ type UpdateMatchingEvaluationResumeParams struct {
 	ResumeFailureMessage *string
 	ResumePDFKey         *string
 	ResumeJSONKey        *string
+}
+
+// UpdateMatchingEvaluationCoverLetterParams contains fields for updating cover letter generation.
+type UpdateMatchingEvaluationCoverLetterParams struct {
+	CoverLetterStatus         string
+	CoverLetterContent        json.RawMessage
+	CoverLetterFailureMessage *string
 }
 
 // ValidateEvaluationOutput validates LLM output against active scoring categories.
