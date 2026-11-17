@@ -81,30 +81,35 @@ func (s *matchingService) triggerResume(
 	_ = json.Unmarshal(eval.JobProfileData, &job)
 	_ = json.Unmarshal(eval.EvaluationData, &evidence)
 
-	// Assemble education from user_educations table
+	// Assemble education from user_educations table (pre-formatted lines for
+	// all educations — keep the payload small, no raw DB rows in facts; the
+	// full array is mirrored into candidate_profile.educations).
 	var educationLine string
 	var eduRows []*models.UserEducation
 	if s.eduRepo != nil {
 		edus, err := s.eduRepo.ListByUser(ctx, user.ID)
 		if err == nil && len(edus) > 0 {
 			eduRows = edus
-			top := edus[0]
-			var yearStr string
-			if top.StartYear != nil && top.EndYear != nil {
-				yearStr = fmt.Sprintf("%d-%d", *top.StartYear, *top.EndYear)
-			} else if top.EndYear != nil {
-				yearStr = fmt.Sprintf("%d", *top.EndYear)
-			} else if top.StartYear != nil {
-				yearStr = fmt.Sprintf("%d", *top.StartYear)
+			var lines []string
+			for _, top := range edus {
+				var yearStr string
+				if top.StartYear != nil && top.EndYear != nil {
+					yearStr = fmt.Sprintf("%d-%d", *top.StartYear, *top.EndYear)
+				} else if top.EndYear != nil {
+					yearStr = fmt.Sprintf("%d", *top.EndYear)
+				} else if top.StartYear != nil {
+					yearStr = fmt.Sprintf("%d", *top.StartYear)
+				}
+				parts := []string{fmt.Sprintf("%s in %s, %s", top.Degree, top.FieldOfStudy, top.Institution)}
+				if yearStr != "" {
+					parts = append(parts, yearStr)
+				}
+				if top.GPA != nil && *top.GPA != "" {
+					parts = append(parts, fmt.Sprintf("GPA: %s", *top.GPA))
+				}
+				lines = append(lines, strings.Join(parts, " | "))
 			}
-			parts := []string{fmt.Sprintf("%s in %s, %s", top.Degree, top.FieldOfStudy, top.Institution)}
-			if yearStr != "" {
-				parts = append(parts, yearStr)
-			}
-			if top.GPA != nil && *top.GPA != "" {
-				parts = append(parts, fmt.Sprintf("GPA: %s", *top.GPA))
-			}
-			educationLine = strings.Join(parts, " | ")
+			educationLine = strings.Join(lines, "\n")
 		}
 	}
 
@@ -165,22 +170,22 @@ func (s *matchingService) triggerResume(
 	}
 	contactLine := strings.Join(contactParts, " | ")
 
+	// Enrich candidate_profile with educations so the resume worker finds
+	// education data alongside the rest of the candidate profile instead of
+	// only inside facts.
+	candidate["educations"] = eduRows
+
 	facts := map[string]interface{}{
-		"name":             utils.PtrStringOrEmpty(user.FullName),
-		"headline":         utils.PtrStringOrEmpty(user.Headline),
-		"phone":            utils.PtrStringOrEmpty(user.Phone),
-		"email":            utils.PtrStringOrEmpty(user.Email),
-		"linkedin":         utils.PtrStringOrEmpty(user.LinkedInURL),
-		"github":           utils.PtrStringOrEmpty(user.GitHubURL),
-		"portfolio":        utils.PtrStringOrEmpty(user.PortfolioURL),
-		"education":        educationLine,
-		"contact":          contactLine,
-		"roles":            roles,
-		"education_rows":   eduRows,
-		"years_experience": candidate["years_experience"],
-		"skills":           candidate["skills"],
-		"experience":       candidate["experience"],
-		"projects":         candidate["projects"],
+		"name":      utils.PtrStringOrEmpty(user.FullName),
+		"headline":  utils.PtrStringOrEmpty(user.Headline),
+		"phone":     utils.PtrStringOrEmpty(user.Phone),
+		"email":     utils.PtrStringOrEmpty(user.Email),
+		"linkedin":  utils.PtrStringOrEmpty(user.LinkedInURL),
+		"github":    utils.PtrStringOrEmpty(user.GitHubURL),
+		"portfolio": utils.PtrStringOrEmpty(user.PortfolioURL),
+		"education": educationLine,
+		"contact":   contactLine,
+		"roles":     roles,
 	}
 
 	input := map[string]interface{}{
