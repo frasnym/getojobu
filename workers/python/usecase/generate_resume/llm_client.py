@@ -82,10 +82,7 @@ class OpenAIResumeClient:
             content = response.choices[0].message.content
             if not content:
                 raise RuntimeError(f"{schema_name}: empty LLM response")
-            parsed = parse_llm_json(content)
-            if not isinstance(parsed, dict):
-                raise TypeError(f"{schema_name}: expected dict, got {type(parsed)}")
-            return cast(dict[str, Any], parsed)
+            return parse_llm_json(content)
         except LLMError:
             raise
         except Exception as exc:

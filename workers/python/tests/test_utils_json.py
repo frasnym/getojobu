@@ -13,10 +13,9 @@ def test_parse_llm_json_clean_object():
     assert res == {"key": "value", "num": 123}
 
 
-def test_parse_llm_json_clean_array():
-    content = '[1, 2, "three"]'
-    res = parse_llm_json(content)
-    assert res == [1, 2, "three"]
+def test_parse_llm_json_rejects_top_level_array():
+    with pytest.raises(TypeError, match="expected JSON object, got list"):
+        _ = parse_llm_json('[1, 2, "three"]')
 
 
 def test_parse_llm_json_markdown_code_fence():
@@ -44,4 +43,4 @@ def test_parse_llm_json_leading_and_trailing_text():
 
 def test_parse_llm_json_invalid_raises():
     with pytest.raises(json.JSONDecodeError):
-        parse_llm_json("not valid json at all")
+        _ = parse_llm_json("not valid json at all")

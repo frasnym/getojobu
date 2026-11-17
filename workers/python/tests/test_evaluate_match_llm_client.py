@@ -137,6 +137,33 @@ async def test_extract_match_evaluation_raises_on_truncated_response(
 
 
 @pytest.mark.asyncio
+async def test_extract_match_evaluation_rejects_json_array(
+    mock_openai_client: OpenAIClient,
+) -> None:
+    """A top-level JSON array is not a valid match evaluation object."""
+    mock_chat_completion = MagicMock()
+    mock_choice = MagicMock()
+    mock_choice.finish_reason = "stop"
+    mock_choice.message.content = "[]"
+    mock_chat_completion.choices = [mock_choice]
+
+    mock_openai_client._client.chat.completions.create = AsyncMock(  # type: ignore[method-assign]
+        return_value=mock_chat_completion
+    )
+
+    with pytest.raises(LLMError) as exc_info:
+        await mock_openai_client.extract_match_evaluation(
+            candidate_profile={"skills": ["golang"]},
+            job_profile={"title": "Backend Engineer"},
+            evaluation_config={"family": "technology"},
+        )
+
+    assert exc_info.value.message == "LLM error during match evaluation"
+    assert "expected JSON object" in exc_info.value.detail
+    assert "list" in exc_info.value.detail
+
+
+@pytest.mark.asyncio
 async def test_extract_match_evaluation_wraps_provider_error(
     mock_openai_client: OpenAIClient,
 ) -> None:
