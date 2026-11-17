@@ -115,11 +115,6 @@ export default function UserJobsPage() {
 		setActiveTab("details");
 	};
 
-	const handleResume = (userJob: UserJob) => {
-		setSelectedRow(userJob);
-		setActiveTab("resume");
-	};
-
 	return (
 		<div className="mx-auto max-w-screen-2xl px-4 py-8 sm:px-6 lg:px-10 space-y-8">
 			{/* Header section */}
@@ -263,7 +258,6 @@ export default function UserJobsPage() {
 							canOpenDetail={userJob.job.status === "analyzed"}
 							isSelected={selectedRow?.id === userJob.id}
 							onHideToggle={hideJob}
-							onResume={handleResume}
 							onRetry={retryJob}
 							selectable
 							isChecked={checkedIds.has(userJob.id)}

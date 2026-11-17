@@ -1,7 +1,7 @@
 import React from "react";
 import Link from "next/link";
 import { UserJob } from "@/lib/api/types";
-import { AlertCircle, MapPin, Globe, Clock, ArrowRight, Eye, EyeOff, Download } from "lucide-react";
+import { AlertCircle, MapPin, Globe, Clock, ArrowRight, Eye, EyeOff } from "lucide-react";
 import { EvaluationStatusTag, EligibilityTag, RecommendationTag } from "@/components/jobs/evaluation-tags";
 
 interface JobCardProps {
@@ -10,8 +10,6 @@ interface JobCardProps {
 	onSelect?: (userJob: UserJob) => void;
 	isSelected?: boolean;
 	onHideToggle?: (userJobId: string, isHidden: boolean) => void | Promise<void>;
-	/** Open the drawer on the Resume tab for this job. */
-	onResume?: (userJob: UserJob) => void;
 	/** When false, the job cannot open the detail view (drawer or link). */
 	canOpenDetail?: boolean;
 	/** When true, renders a checkbox for bulk selection. */
@@ -37,7 +35,6 @@ export function JobCard({
 	onSelect,
 	isSelected,
 	onHideToggle,
-	onResume,
 	onRetry,
 	canOpenDetail = true,
 	selectable = false,
@@ -69,7 +66,7 @@ export function JobCard({
 					<div className="flex flex-wrap items-center gap-2">
 						<span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{job.company}</span>
 						{job.is_remote && (
-							<span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-500">
+							<span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
 								<Globe className="h-3 w-3" />
 								Remote
 							</span>
@@ -165,20 +162,6 @@ export function JobCard({
 								<span>Details</span>
 								<ArrowRight className="h-3.5 w-3.5" />
 							</div>
-						)}
-						{onResume && userJob.evaluation?.resume_status === "success" && (
-							<button
-								type="button"
-								onClick={(e) => {
-									e.stopPropagation();
-									onResume(userJob);
-								}}
-								className="inline-flex items-center gap-1.5 rounded-lg border border-border/60 bg-card px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-secondary transition-colors focus:outline-none focus:ring-2 focus:ring-ring"
-								aria-label="Download tailored resume"
-							>
-								<Download className="h-3.5 w-3.5" />
-								<span>Resume</span>
-							</button>
 						)}
 						{canRetry && onRetry && (
 							<button

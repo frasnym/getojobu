@@ -174,6 +174,22 @@ describe("JobCard evaluation tags", () => {
     expect(statusRow).not.toContainElement(recommendation);
   });
 
+  it("uses the same green text color for remote, eligibility and recommendation tags", () => {
+    render(
+      <JobCard
+        userJob={evaluatedJob({
+          eligibility_status: "eligible",
+          recommendation_label: "strong_match",
+        })}
+      />
+    );
+
+    const expected = ["bg-emerald-500/10", "text-emerald-600", "dark:text-emerald-400"];
+    expect(screen.getByText("Remote")).toHaveClass(...expected);
+    expect(screen.getByTestId("eligibility-tag")).toHaveClass(...expected);
+    expect(screen.getByTestId("recommendation-tag")).toHaveClass(...expected);
+  });
+
   it("colors each recommendation label", () => {
     const labels: Array<[string, string]> = [
       ["strong_match", "bg-emerald-500/10 text-emerald-600"],
