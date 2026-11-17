@@ -9,6 +9,7 @@ from typing import Any
 from models.report import MatchReportExtraction
 from openai import AsyncOpenAI
 from utils.json import parse_llm_json
+from utils.llm_errors import LLMError
 from utils.prompt_sanitizer import (
     sanitize_evaluation_results,
     sanitize_job_profile,
@@ -51,31 +52,38 @@ class OpenAIReportClient:
             recommendation_label=recommendation_label,
         )
 
-        response = await self._client.chat.completions.create(
-            model=self._model,
-            messages=[
-                {"role": "system", "content": prompt},
-                {
-                    "role": "user",
-                    "content": "Generate the match report based on the candidate profile, job profile, evaluation results, and authoritative facts provided.",
+        try:
+            response = await self._client.chat.completions.create(
+                model=self._model,
+                messages=[
+                    {"role": "system", "content": prompt},
+                    {
+                        "role": "user",
+                        "content": "Generate the match report based on the candidate profile, job profile, evaluation results, and authoritative facts provided.",
+                    },
+                ],
+                temperature=0,
+                response_format={
+                    "type": "json_schema",
+                    "json_schema": {
+                        "name": "match_report",
+                        "schema": MatchReportExtraction.model_json_schema(),
+                        "strict": True,
+                    },
                 },
-            ],
-            temperature=0,
-            response_format={
-                "type": "json_schema",
-                "json_schema": {
-                    "name": "match_report",
-                    "schema": MatchReportExtraction.model_json_schema(),
-                    "strict": True,
-                },
-            },
-        )
+            )
 
-        content = response.choices[0].message.content
-        if not content:
-            raise RuntimeError("generate match report: empty LLM response")
+            content = response.choices[0].message.content
+            if not content:
+                raise RuntimeError("generate match report: empty LLM response")
 
-        return parse_llm_json(content)
+            return parse_llm_json(content)
+        except LLMError:
+            raise
+        except Exception as exc:
+            raise LLMError(
+                "LLM error during report generation", detail=str(exc)
+            ) from exc
 
     def _render_prompt(
         self,

@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from usecase.evaluate_match.llm_client import OpenAIClient
+from utils.llm_errors import LLMError
 
 
 @pytest.fixture
@@ -133,6 +134,27 @@ async def test_extract_match_evaluation_raises_on_truncated_response(
             job_profile={"title": "Backend Engineer"},
             evaluation_config={"family": "technology"},
         )
+
+
+@pytest.mark.asyncio
+async def test_extract_match_evaluation_wraps_provider_error(
+    mock_openai_client: OpenAIClient,
+) -> None:
+    """A provider/SDK failure becomes a clear LLM error with a detail message."""
+    mock_openai_client._client.chat.completions.create = AsyncMock(  # type: ignore[method-assign]
+        side_effect=Exception("Error code: 499 - Request aborted")
+    )
+
+    with pytest.raises(LLMError) as exc_info:
+        await mock_openai_client.extract_match_evaluation(
+            candidate_profile={"skills": ["golang"]},
+            job_profile={"title": "Backend Engineer"},
+            evaluation_config={"family": "technology"},
+        )
+
+    error = exc_info.value
+    assert error.message == "LLM error during match evaluation"
+    assert error.detail == "Error code: 499 - Request aborted"
 
 
 def test_render_prompt_missing_placeholder(tmp_path: pytest.TempPathFactory) -> None:

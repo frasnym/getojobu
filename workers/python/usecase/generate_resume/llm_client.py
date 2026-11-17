@@ -9,6 +9,7 @@ from typing import Any, cast
 from openai import AsyncOpenAI
 
 from utils.json import parse_llm_json
+from utils.llm_errors import LLMError
 
 _PROMPTS_DIR = Path(__file__).resolve().parents[2] / "prompts"
 
@@ -65,22 +66,29 @@ class OpenAIResumeClient:
 
         rendered = rendered.replace("{{critique_feedback}}", "")
 
-        response = await self._client.chat.completions.create(
-            model=self._model,
-            messages=[
-                {"role": "system", "content": rendered},
-                {
-                    "role": "user",
-                    "content": "Generate the output strictly following the schema and instructions provided.",
-                },
-            ],
-            temperature=0,
-            response_format={"type": "json_object"},
-        )
-        content = response.choices[0].message.content
-        if not content:
-            raise RuntimeError(f"{schema_name}: empty LLM response")
-        parsed = parse_llm_json(content)
-        if not isinstance(parsed, dict):
-            raise TypeError(f"{schema_name}: expected dict, got {type(parsed)}")
-        return cast(dict[str, Any], parsed)
+        try:
+            response = await self._client.chat.completions.create(
+                model=self._model,
+                messages=[
+                    {"role": "system", "content": rendered},
+                    {
+                        "role": "user",
+                        "content": "Generate the output strictly following the schema and instructions provided.",
+                    },
+                ],
+                temperature=0,
+                response_format={"type": "json_object"},
+            )
+            content = response.choices[0].message.content
+            if not content:
+                raise RuntimeError(f"{schema_name}: empty LLM response")
+            parsed = parse_llm_json(content)
+            if not isinstance(parsed, dict):
+                raise TypeError(f"{schema_name}: expected dict, got {type(parsed)}")
+            return cast(dict[str, Any], parsed)
+        except LLMError:
+            raise
+        except Exception as exc:
+            raise LLMError(
+                "LLM error during resume generation", detail=str(exc)
+            ) from exc

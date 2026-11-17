@@ -13,6 +13,7 @@ from typing import Any
 from models.evaluation import MatchEvaluationExtraction
 from openai import AsyncOpenAI
 from utils.json import parse_llm_json
+from utils.llm_errors import LLMError
 from utils.prompt_sanitizer import sanitize_job_profile
 
 _PROMPTS_DIR = Path(__file__).resolve().parents[2] / "prompts"
@@ -73,37 +74,44 @@ class OpenAIClient:
             if "category" in cat_props:
                 cat_props["category"]["enum"] = category_names
 
-        response = await self._client.chat.completions.create(
-            model=self._model,
-            messages=[
-                {"role": "system", "content": prompt},
-                {
-                    "role": "user",
-                    "content": user_content,
+        try:
+            response = await self._client.chat.completions.create(
+                model=self._model,
+                messages=[
+                    {"role": "system", "content": prompt},
+                    {
+                        "role": "user",
+                        "content": user_content,
+                    },
+                ],
+                temperature=0,
+                response_format={
+                    "type": "json_schema",
+                    "json_schema": {
+                        "name": "match_evaluation",
+                        "schema": schema,
+                        "strict": True,
+                    },
                 },
-            ],
-            temperature=0,
-            response_format={
-                "type": "json_schema",
-                "json_schema": {
-                    "name": "match_evaluation",
-                    "schema": schema,
-                    "strict": True,
-                },
-            },
-        )
-
-        content = response.choices[0].message.content
-        if not content:
-            raise RuntimeError("extract match evaluation: empty LLM response")
-
-        finish_reason = response.choices[0].finish_reason
-        if finish_reason == "length":
-            raise RuntimeError(
-                "extract match evaluation: LLM response truncated before JSON completed"
             )
 
-        return parse_llm_json(content)
+            content = response.choices[0].message.content
+            if not content:
+                raise RuntimeError("extract match evaluation: empty LLM response")
+
+            finish_reason = response.choices[0].finish_reason
+            if finish_reason == "length":
+                raise RuntimeError(
+                    "extract match evaluation: LLM response truncated before JSON completed"
+                )
+
+            return parse_llm_json(content)
+        except LLMError:
+            raise
+        except Exception as exc:
+            raise LLMError(
+                "LLM error during match evaluation", detail=str(exc)
+            ) from exc
 
     def _render_prompt(
         self,

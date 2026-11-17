@@ -13,6 +13,7 @@ from typing import Any
 from models.job_analysis import JobExtractionOutput
 from openai import AsyncOpenAI
 from utils.json import parse_llm_json
+from utils.llm_errors import LLMError
 
 _PROMPTS_DIR = Path(__file__).resolve().parents[2] / "prompts"
 
@@ -35,33 +36,38 @@ class OpenAIClient:
     ) -> dict[str, Any]:
         prompt = self._render_prompt(prompt_version, job_description)
 
-        # Structured output: JSON Schema guarantees the response matches JobAnalysis.
-        response = await self._client.chat.completions.create(
-            model=self._model,
-            messages=[
-                {"role": "system", "content": prompt},
-                {
-                    "role": "user",
-                    "content": f"Job Description:\n{job_description}",
+        try:
+            # Structured output: JSON Schema guarantees the response matches JobAnalysis.
+            response = await self._client.chat.completions.create(
+                model=self._model,
+                messages=[
+                    {"role": "system", "content": prompt},
+                    {
+                        "role": "user",
+                        "content": f"Job Description:\n{job_description}",
+                    },
+                ],
+                temperature=0,
+                response_format={
+                    "type": "json_schema",
+                    "json_schema": {
+                        "name": "job_analysis",
+                        "schema": JobExtractionOutput.model_json_schema(),
+                        "strict": True,
+                    },
                 },
-            ],
-            temperature=0,
-            response_format={
-                "type": "json_schema",
-                "json_schema": {
-                    "name": "job_analysis",
-                    "schema": JobExtractionOutput.model_json_schema(),
-                    "strict": True,
-                },
-            },
-        )
+            )
 
-        content = response.choices[0].message.content
-        if not content:
-            raise RuntimeError("extract job analysis: empty LLM response")
+            content = response.choices[0].message.content
+            if not content:
+                raise RuntimeError("extract job analysis: empty LLM response")
 
-        # OmniRoute returns structured output as a JSON string.
-        return parse_llm_json(content)
+            # OmniRoute returns structured output as a JSON string.
+            return parse_llm_json(content)
+        except LLMError:
+            raise
+        except Exception as exc:
+            raise LLMError("LLM error during job analysis", detail=str(exc)) from exc
 
     def _render_prompt(self, prompt_version: str, job_description: str) -> str:
         template_path = _PROMPTS_DIR / f"{prompt_version}.txt"
