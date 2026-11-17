@@ -122,7 +122,11 @@ export function JobCard({
 								<>
 									<EvaluationStatusTag status={userJob.evaluation.evaluation_status} label="Evaluation" />
 									<EvaluationStatusTag status={userJob.evaluation.report_status} label="Report" />
-									<EvaluationStatusTag status={userJob.evaluation.resume_status} label="Resume" />
+									<EvaluationStatusTag
+										status={userJob.evaluation.resume_status}
+										label="Resume"
+										message={userJob.evaluation.resume_failure_message}
+									/>
 								</>
 							)}
 							{retryLabel && onRetry && (

@@ -12,6 +12,8 @@ import { AlertCircle, AlertTriangle, CheckCircle2, Clock } from "lucide-react";
 interface EvaluationStatusTagProps {
   status: string | null | undefined;
   label?: string;
+  /** Optional detail shown as a tooltip when the status is "failed". */
+  message?: string;
 }
 
 /** Turn a raw status like "analyze_pending" into "Analyze Pending". */
@@ -52,13 +54,15 @@ const evaluationTagStyle = (status: string) => {
   }
 };
 
-export function EvaluationStatusTag({ status, label }: EvaluationStatusTagProps) {
+export function EvaluationStatusTag({ status, label, message }: EvaluationStatusTagProps) {
   if (!status) return null;
   const { icon, className } = evaluationTagStyle(status);
+  const isFailed = status.toLowerCase() === "failed";
   return (
     <span
       data-testid="evaluation-status-tag"
       className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-bold capitalize ${className}`}
+      title={isFailed && message ? message : undefined}
     >
       {icon}
       <span>{label ?? formatStatusLabel(status)}</span>

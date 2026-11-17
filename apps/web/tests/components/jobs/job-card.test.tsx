@@ -313,6 +313,22 @@ describe("JobCard retry", () => {
     expect(screen.getByRole("button", { name: /Retry Generate Resume/i })).toBeInTheDocument();
   });
 
+  it("shows the resume failure message as a tooltip on the failed Resume tag", () => {
+    const resumeFailedJob: UserJob = {
+      ...mockUserJob,
+      evaluation: {
+        id: "eval-1",
+        evaluation_status: "success",
+        report_status: "success",
+        resume_status: "failed",
+        resume_failure_message: "skills must contain between 1 and 12 items",
+      },
+    };
+    render(<JobCard userJob={resumeFailedJob} onRetry={vi.fn()} />);
+    const resumeTag = screen.getAllByTestId("evaluation-status-tag")[3];
+    expect(resumeTag).toHaveAttribute("title", "skills must contain between 1 and 12 items");
+  });
+
   it("calls onRetry with the user job id without opening the detail view", () => {
     const onRetry = vi.fn();
     const onSelect = vi.fn();

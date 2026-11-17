@@ -17,6 +17,33 @@ with workflow.unsafe.imports_passed_through():
 
 RETRY_POLICY = RetryPolicy(maximum_attempts=3, initial_interval=timedelta(seconds=2))
 
+# Generic strings Temporal's ActivityError/FailureError wrapper can fall back to
+# instead of the real underlying cause. Never store or return these as-is.
+_GENERIC_ACTIVITY_MESSAGES = {
+    "Activity task failed",
+    "Activity error",
+    "Encoded failure",
+    "",
+}
+
+
+def _activity_error_message(exc: BaseException) -> str:
+    """Return the underlying reason for an activity failure.
+
+    Temporal wraps activity failures in ActivityError/FailureError whose
+    ``str()`` can be the generic wrapper (e.g. "Activity task failed") rather
+    than the real cause. The real reason is carried on the wrapped failure
+    proto; fall back to ``str(exc)`` when it isn't available.
+    """
+    message = str(exc).strip()
+    if message in _GENERIC_ACTIVITY_MESSAGES:
+        failure = getattr(exc, "failure", None)
+        if failure is not None:
+            proto_message = getattr(failure, "message", None)
+            if proto_message and proto_message not in _GENERIC_ACTIVITY_MESSAGES:
+                message = proto_message
+    return message
+
 
 @workflow.defn(name="GenerateResumeWorkflow")
 class GenerateResumeWorkflow:
@@ -72,7 +99,7 @@ class GenerateResumeWorkflow:
                 "artifacts": artifacts,
             }
         except Exception as exc:  # noqa: BLE001
-            message = str(exc)
+            message = _activity_error_message(exc)
             fail_payload: dict[str, Any] = {
                 "evaluation_id": evaluation_id,
                 "resume_status": "failed",

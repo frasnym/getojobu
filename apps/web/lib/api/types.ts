@@ -65,6 +65,7 @@ export interface UserJobEvaluation {
   recommendation_label?: string;
   report_status?: string;
   resume_status?: string;
+  resume_failure_message?: string;
 }
 
 export interface UserJob {
@@ -108,6 +109,7 @@ export interface MatchReport {
   eligibility_status?: string;
   recommendation_label?: string;
   resume_status?: string;
+  resume_failure_message?: string;
   report_data?: {
     summary?: string;
     strengths?: string[];
