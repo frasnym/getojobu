@@ -13,11 +13,11 @@ func TestResumeFileName(t *testing.T) {
 		jobTitle string
 		want     string
 	}{
-		{"both present", "Jane Doe", "Senior Go Engineer", "Jane_Doe_resume_Senior-Go-Engineer.pdf"},
-		{"name only", "Jane Doe", "", "Jane_Doe_resume.pdf"},
-		{"title only", "", "Senior Go Engineer", "resume_Senior-Go-Engineer.pdf"},
+		{"both present", "Jane Doe", "Senior Go Engineer", "Jane_Doe_Resume_Senior-Go-Engineer.pdf"},
+		{"name only", "Jane Doe", "", "Jane_Doe_Resume.pdf"},
+		{"title only", "", "Senior Go Engineer", "Resume_Senior-Go-Engineer.pdf"},
 		{"neither present", "", "", "Resume.pdf"},
-		{"empty job title", "Jane Doe", "   ", "Jane_Doe_resume.pdf"},
+		{"empty job title", "Jane Doe", "   ", "Jane_Doe_Resume.pdf"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

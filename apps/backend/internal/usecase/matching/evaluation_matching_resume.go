@@ -277,13 +277,15 @@ func (s *matchingService) DownloadResume(
 		name = strings.TrimSpace(*user.FullName)
 	}
 
-	// Derive the job title from the evaluation's stored job profile so the
-	// downloaded file name reflects the job the resume was tailored for.
-	var jobProfile map[string]interface{}
-	_ = json.Unmarshal(eval.JobProfileData, &jobProfile)
+	// The job profile is the analysis result and has no title, so read the
+	// position from the job listing itself.
+	withJob, err := s.evalRepo.GetLatestByUserJobID(ctx, userJob.UserID, eval.UserJobID)
+	if err != nil {
+		return nil, fmt.Errorf("get job for resume download: %w", err)
+	}
 	jobTitle := ""
-	if title, ok := jobProfile["title"].(string); ok {
-		jobTitle = strings.TrimSpace(title)
+	if withJob != nil && withJob.Job != nil {
+		jobTitle = strings.TrimSpace(withJob.Job.Title)
 	}
 
 	filename := resumeFileName(name, jobTitle)
@@ -305,7 +307,7 @@ func (s *matchingService) DownloadResume(
 }
 
 // resumeFileName builds the resume download file name as
-// name_resume_job-title.pdf, falling back gracefully when the candidate name
+// Name_Resume_Job-Title.pdf, falling back gracefully when the candidate name
 // or job title is unavailable. Spaces in the name become underscores and
 // spaces in the job title become hyphens. Blank names/titles are omitted.
 func resumeFileName(name, jobTitle string) string {
@@ -316,13 +318,13 @@ func resumeFileName(name, jobTitle string) string {
 	if cleanName != "" {
 		parts = append(parts, cleanName)
 	}
-	parts = append(parts, "resume")
+	parts = append(parts, "Resume")
 	if cleanTitle != "" {
 		parts = append(parts, cleanTitle)
 	}
 
 	filename := strings.Join(parts, "_")
-	if filename == "" || filename == "resume" {
+	if filename == "" || filename == "Resume" {
 		return "Resume.pdf"
 	}
 	return filename + ".pdf"

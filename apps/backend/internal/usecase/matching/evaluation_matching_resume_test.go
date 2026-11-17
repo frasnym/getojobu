@@ -502,12 +502,14 @@ func TestDownloadResume(t *testing.T) {
 	})
 
 	t.Run("returns presigned download url with candidate name and job title when owner calls", func(t *testing.T) {
+		// Real job analysis payloads have no "title" field; the position comes
+		// from the jobs table, not from job_profile_data.
 		eval := &models.MatchingEvaluation{
 			ID:             evalID,
 			UserJobID:      userJobID,
 			ResumeStatus:   &statusSuccess,
 			ResumePDFKey:   &pdfKey,
-			JobProfileData: json.RawMessage(`{"title":"Senior Go Engineer"}`),
+			JobProfileData: json.RawMessage(`{"family":"technology","seniority":"senior"}`),
 		}
 		evalRepo.EXPECT().GetByID(ctx, evalID).Return(eval, nil)
 		userJobsRepo.EXPECT().GetByID(ctx, userJobID).Return(&models.UserJob{
@@ -518,15 +520,18 @@ func TestDownloadResume(t *testing.T) {
 			ID:       ownerID.String(),
 			FullName: &userName,
 		}, nil)
+		evalRepo.EXPECT().GetLatestByUserJobID(ctx, ownerID, userJobID).Return(&models.EvaluationWithJob{
+			Job: &models.Job{Title: "Senior Go Engineer"},
+		}, nil)
 
 		expectedURL := "https://r2.example.com/download-resume"
-		storageRepo.EXPECT().GetPresignedDownloadURL(ctx, pdfKey, "Jane_Doe_resume_Senior-Go-Engineer.pdf", 15*time.Minute).Return(expectedURL, nil)
+		storageRepo.EXPECT().GetPresignedDownloadURL(ctx, pdfKey, "Jane_Doe_Resume_Senior-Go-Engineer.pdf", 15*time.Minute).Return(expectedURL, nil)
 
 		res, err := service.DownloadResume(ctx, evalID, &models.Principal{ActorType: "", ID: ownerID.String()})
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		assert.Equal(t, expectedURL, res.DownloadURL)
-		assert.Equal(t, "Jane_Doe_resume_Senior-Go-Engineer.pdf", res.Filename)
+		assert.Equal(t, "Jane_Doe_Resume_Senior-Go-Engineer.pdf", res.Filename)
 		assert.False(t, res.ExpiresAt.IsZero())
 	})
 
@@ -546,6 +551,9 @@ func TestDownloadResume(t *testing.T) {
 			ID:       ownerID.String(),
 			FullName: nil,
 		}, nil)
+		evalRepo.EXPECT().GetLatestByUserJobID(ctx, ownerID, userJobID).Return(&models.EvaluationWithJob{
+			Job: &models.Job{Title: ""},
+		}, nil)
 
 		expectedURL := "https://r2.example.com/download-resume"
 		storageRepo.EXPECT().GetPresignedDownloadURL(ctx, pdfKey, "Resume.pdf", 15*time.Minute).Return(expectedURL, nil)
@@ -556,13 +564,13 @@ func TestDownloadResume(t *testing.T) {
 		assert.Equal(t, "Resume.pdf", res.Filename)
 	})
 
-	t.Run("uses resume.pdf when only job title is missing", func(t *testing.T) {
+	t.Run("uses name and Resume when only job title is missing", func(t *testing.T) {
 		eval := &models.MatchingEvaluation{
 			ID:             evalID,
 			UserJobID:      userJobID,
 			ResumeStatus:   &statusSuccess,
 			ResumePDFKey:   &pdfKey,
-			JobProfileData: json.RawMessage(`{}`),
+			JobProfileData: json.RawMessage(`{"family":"technology"}`),
 		}
 		evalRepo.EXPECT().GetByID(ctx, evalID).Return(eval, nil)
 		userJobsRepo.EXPECT().GetByID(ctx, userJobID).Return(&models.UserJob{
@@ -573,13 +581,16 @@ func TestDownloadResume(t *testing.T) {
 			ID:       ownerID.String(),
 			FullName: &userName,
 		}, nil)
+		evalRepo.EXPECT().GetLatestByUserJobID(ctx, ownerID, userJobID).Return(&models.EvaluationWithJob{
+			Job: &models.Job{Title: ""},
+		}, nil)
 
 		expectedURL := "https://r2.example.com/download-resume"
-		storageRepo.EXPECT().GetPresignedDownloadURL(ctx, pdfKey, "Jane_Doe_resume.pdf", 15*time.Minute).Return(expectedURL, nil)
+		storageRepo.EXPECT().GetPresignedDownloadURL(ctx, pdfKey, "Jane_Doe_Resume.pdf", 15*time.Minute).Return(expectedURL, nil)
 
 		res, err := service.DownloadResume(ctx, evalID, &models.Principal{ActorType: "", ID: ownerID.String()})
 		require.NoError(t, err)
 		require.NotNil(t, res)
-		assert.Equal(t, "Jane_Doe_resume.pdf", res.Filename)
+		assert.Equal(t, "Jane_Doe_Resume.pdf", res.Filename)
 	})
 }
