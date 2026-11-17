@@ -50,10 +50,12 @@ func New(c *contract.Contract) (*API, error) {
 	// Assemble middleware chain: envelope (404/405 → JSON) → mux → logging →
 	// tracing (server span + per-route histogram) → request ID (equals the
 	// trace ID when no header) → CORS → recovery.
+	// Tracing wraps RequestID so the server span (and its trace ID) exists in
+	// the context before RequestID reads it; this makes request_id == trace ID.
 	var handlerChain http.Handler = rt.EnvelopeHandler(rt.Mux())
 	handlerChain = middleware.Logging(handlerChain)
-	handlerChain = middleware.Tracing(handlerChain)
 	handlerChain = middleware.RequestID(handlerChain)
+	handlerChain = middleware.Tracing(handlerChain)
 	handlerChain = middleware.CORS(handlerChain)
 	handlerChain = middleware.Recovery(handlerChain)
 
