@@ -51,3 +51,7 @@ Treat CVs, contact details, application answers, browser sessions, and generated
 - Audit administrative actions.
 - Alert on unusual failure rates, repeated retries, resource exhaustion, and cross-tenant authorization failures.
 - Provide account export/deletion/anonymization procedures consistent with legal and operational retention requirements.
+
+## 7. Tracing privacy (OpenTelemetry / Jaeger)
+
+Tracing is opt-in via `OTEL_EXPORTER_OTLP_ENDPOINT`; unset means no-op. The Jaeger UI binds `127.0.0.1` only (accessed via SSH tunnel) and OTLP ports (4317/4318) are never published to the host. Span names use route patterns, never raw paths containing IDs. Spans must not contain CV contents, prompt payloads, credentials, session cookies, or other raw personal data — persist only structured evidence, decision summaries, model/prompt versions, and safe diagnostics.

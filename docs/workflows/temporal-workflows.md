@@ -72,3 +72,9 @@ Do not expose browser debugging ports publicly.
 ## 8. Observability
 
 Log workflow ID, run ID, activity type, job/application ID, and tenant ID where safe. Avoid logging CV contents, credentials, session cookies, or full prompt payloads. Emit metrics for workflow starts, completions, retries, failures, activity latency, queue backlog, and browser resource use.
+
+### Tracing (§8.1)
+
+Distributed tracing connects one user action end-to-end: API request → Temporal workflow → Python worker activities. The OTel trace ID is unified with the API's `request_id`, so the response `request_id` equals the trace ID shown in Jaeger. Tracing is opt-in via `OTEL_EXPORTER_OTLP_ENDPOINT`; unset means no-op (local dev unchanged).
+
+Trace context flows across the API/worker boundary through Temporal SDK interceptors carrying W3C `traceparent` headers. Span names use route patterns (never raw paths with IDs), and spans must not contain CV contents, prompt payloads, credentials, or session cookies.

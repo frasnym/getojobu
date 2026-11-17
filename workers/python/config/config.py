@@ -63,6 +63,7 @@ class Config:
     omni_route: OmniRouteConfig
     r2: R2Config = R2Config()
     scrape: ScrapeConfig = ScrapeConfig(vendor_methods={})
+    otel_endpoint: str = ""
 
 
 class MissingEnvError(ValueError):
@@ -86,7 +87,7 @@ def load() -> Config:
     Reads TEMPORAL_HOST, TEMPORAL_NAMESPACE,
     TEMPORAL_TASK_QUEUE_JOB_ANALYZE, TEMPORAL_TASK_QUEUE_JOB_SCRAPE, API_BASE_URL,
     API_KEY, OMNIROUTE_BASE_URL, OMNIROUTE_API_KEY, OMNIROUTE_MODEL,
-    and SCRAPER_METHODS_BY_BOARD_*.
+    OTEL_EXPORTER_OTLP_ENDPOINT, and SCRAPER_METHODS_BY_BOARD_*.
     """
     vendor_methods: dict[str, str] = {}
     board_prefix = "SCRAPER_METHODS_BY_BOARD_"
@@ -135,4 +136,5 @@ def load() -> Config:
             ),
         ),
         scrape=ScrapeConfig(vendor_methods=vendor_methods),
+        otel_endpoint=_optional("OTEL_EXPORTER_OTLP_ENDPOINT", ""),
     )

@@ -206,3 +206,27 @@ func TestLoad_temporal_config_defaults_and_worker_api_key(t *testing.T) {
 	assert.Equal(t, "worker", workerKey.ActorType)
 	assert.Equal(t, "getojobu-worker", workerKey.ActorID)
 }
+
+func TestLoad_telemetry_config_endpoint(t *testing.T) {
+	// Arrange.
+	os.Setenv("DATABASE_URL", "postgres://user:pass@localhost:5432/db?sslmode=require")
+	os.Unsetenv("OTEL_EXPORTER_OTLP_ENDPOINT")
+	defer os.Unsetenv("DATABASE_URL")
+
+	// Act.
+	cfg, err := Load()
+	require.NoError(t, err, "unexpected error")
+
+	// Assert: unset OTLP endpoint means telemetry disabled.
+	assert.Empty(t, cfg.Telemetry.OTLPEndpoint, "expected empty OTLP endpoint when unset")
+
+	// Arrange: endpoint set.
+	t.Setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://jaeger:4317")
+
+	// Act.
+	cfg, err = Load()
+	require.NoError(t, err, "unexpected error")
+
+	// Assert: configured endpoint passes through verbatim.
+	assert.Equal(t, "http://jaeger:4317", cfg.Telemetry.OTLPEndpoint)
+}

@@ -6,11 +6,13 @@ import (
 	"fmt"
 
 	"go.temporal.io/sdk/client"
+	"go.temporal.io/sdk/interceptor"
 
 	"github.com/frasnym/getojobu/apps/backend/internal/config"
 	repo "github.com/frasnym/getojobu/apps/backend/internal/repository"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/database"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/graceful"
+	"github.com/frasnym/getojobu/apps/backend/internal/utils/temporal"
 )
 
 // Contract holds shared infrastructure dependencies, currently the database
@@ -61,9 +63,15 @@ func New(cfg *config.Config) (*Contract, graceful.ProcessStopper, error) {
 
 	var temporalClient client.Client
 	if cfg.Temporal.Host != "" {
+		// Attach the OTel tracing interceptor so StartWorkflow / SignalWithStart
+		// etc. become child spans of the requesting API call, with the W3C
+		// traceparent propagated through Temporal headers for the Python worker.
 		tc, err := client.NewLazyClient(client.Options{
 			HostPort:  cfg.Temporal.Host,
 			Namespace: cfg.Temporal.Namespace,
+			Interceptors: []interceptor.ClientInterceptor{
+				interceptor.NewTracingInterceptor(temporal.Tracer()),
+			},
 		})
 		if err != nil {
 			return nil, nil, fmt.Errorf("create temporal client: %w", err)

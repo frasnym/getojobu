@@ -16,6 +16,7 @@ import sys
 from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
 
+from temporalio.contrib.opentelemetry import TracingInterceptor
 from temporalio.worker import Worker
 
 from config.config import load as config_load
@@ -48,6 +49,7 @@ from deliveries.consumer.activities.resume_generation import (
     upload_resume_activity,
 )
 from utils.logging import BUILD_VERSION, configure, get_logger
+from utils.telemetry import setup_otel
 from utils.temporal import connect as temporal_connect
 from workflows.concurrency_limiter import ConcurrencyLimiter
 from workflows.generate_report import GenerateReportWorkflow
@@ -61,6 +63,7 @@ logger = get_logger("worker.main")
 
 async def run() -> int:
     cfg = config_load()
+    setup_otel(cfg.otel_endpoint)
     configure(level="info")
     logger.info("worker_started", build=BUILD_VERSION)
 
@@ -95,6 +98,10 @@ async def run() -> int:
 
     graceful_timeout = timedelta(seconds=30)
 
+    # Propagate trace context through Temporal (child spans of the requesting
+    # API call) only when OTel is enabled.
+    worker_interceptors = [TracingInterceptor()] if cfg.otel_endpoint else []
+
     try:
         job_analyze_worker = Worker(
             temporal_client.client,
@@ -118,6 +125,7 @@ async def run() -> int:
             activity_executor=activity_executor,
             graceful_shutdown_timeout=graceful_timeout,
             build_id=BUILD_VERSION,
+            interceptors=worker_interceptors,
         )
         job_scrape_worker = Worker(
             temporal_client.client,
@@ -127,6 +135,7 @@ async def run() -> int:
             activity_executor=activity_executor,
             graceful_shutdown_timeout=graceful_timeout,
             build_id=BUILD_VERSION,
+            interceptors=worker_interceptors,
         )
         job_limit_worker = Worker(
             temporal_client.client,
@@ -134,6 +143,7 @@ async def run() -> int:
             workflows=[ConcurrencyLimiter],
             graceful_shutdown_timeout=graceful_timeout,
             build_id=BUILD_VERSION,
+            interceptors=worker_interceptors,
         )
 
         logger.info(
