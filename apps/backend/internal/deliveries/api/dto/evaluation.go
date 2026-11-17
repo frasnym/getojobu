@@ -9,16 +9,10 @@ import (
 	"github.com/frasnym/getojobu/apps/backend/internal/models"
 )
 
-// CoverLetterMetadataResponse records the model and prompt that produced a letter.
-type CoverLetterMetadataResponse struct {
-	Model         string `json:"model"`
-	PromptVersion string `json:"prompt_version"`
-}
-
-// CoverLetterContentResponse is the generated letter and its provenance metadata.
+// CoverLetterContentResponse is the generated letter. Model and prompt version
+// stay stored with the letter but are not exposed by the public API.
 type CoverLetterContentResponse struct {
-	Text     string                      `json:"text"`
-	Metadata CoverLetterMetadataResponse `json:"metadata"`
+	Text string `json:"text"`
 }
 
 // MatchingEvaluationResponse is a stored matching evaluation without its job.

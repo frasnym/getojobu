@@ -15,7 +15,6 @@ vi.mock("@/lib/api/endpoints", () => ({
 
 const readyContent = {
   text: "Dear Hiring Manager, I am excited to apply for the Senior Go Engineer role.",
-  metadata: { model: "gpt-4o", prompt_version: "cover-letter-v1" },
 };
 
 const fileName = "Cover Letter_Jane Doe_Software Engineer.pdf";
@@ -104,45 +103,6 @@ describe("CoverLetterTab component", () => {
     expect(
       screen.queryByRole("button", { name: /Generate Cover Letter/i })
     ).not.toBeInTheDocument();
-  });
-
-  it("shows the produced variant badge and selects the variant that generated the letter", () => {
-    render(
-      <CoverLetterTab
-        evalId="eval-001"
-        status="success"
-        content={{
-          text: readyContent.text,
-          metadata: { model: "gpt-4o", prompt_version: "generate-cover-letter-full-v1" },
-        }}
-        fileName={fileName}
-      />
-    );
-
-    expect(screen.getByText(/Generated with full/i)).toBeInTheDocument();
-    expect(screen.getByRole("radio", { name: /Full/i })).toBeChecked();
-    expect(screen.getByRole("radio", { name: /Short/i })).not.toBeChecked();
-  });
-
-  it("syncs the selector when refreshed content was generated with a different variant", () => {
-    const renderWithVariant = (variant: "short" | "full") => (
-      <CoverLetterTab
-        evalId="eval-001"
-        status="success"
-        content={{
-          text: readyContent.text,
-          metadata: { model: "gpt-4o", prompt_version: `generate-cover-letter-${variant}-v1` },
-        }}
-        fileName={fileName}
-      />
-    );
-
-    const { rerender } = render(renderWithVariant("full"));
-    expect(screen.getByRole("radio", { name: /Full/i })).toBeChecked();
-
-    rerender(renderWithVariant("short"));
-    expect(screen.getByRole("radio", { name: /Short/i })).toBeChecked();
-    expect(screen.getByText(/Generated with short/i)).toBeInTheDocument();
   });
 
   it("keeps the print DOM until afterprint, then cleans up the letter and style", () => {

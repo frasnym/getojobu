@@ -196,8 +196,10 @@ func TestMatchingEvaluationResponse_mapsCoverLetterFields(t *testing.T) {
 
 	require.NotNil(t, resp.CoverLetterContent)
 	assert.Equal(t, "Dear Hiring Manager, ...", resp.CoverLetterContent.Text)
-	assert.Equal(t, "use-combo", resp.CoverLetterContent.Metadata.Model)
-	assert.Equal(t, "generate-cover-letter-short-v1", resp.CoverLetterContent.Metadata.PromptVersion)
+	contentJSON, err := json.Marshal(resp.CoverLetterContent)
+	require.NoError(t, err)
+	assert.NotContains(t, string(contentJSON), "metadata")
+	assert.NotContains(t, string(contentJSON), "prompt_version")
 	assert.Equal(t, &status, resp.CoverLetterStatus)
 	assert.Equal(t, &failure, resp.CoverLetterFailureMessage)
 	assert.Equal(t, "Cover Letter_Jane Doe_Software Engineer.pdf", resp.CoverLetterFileName)

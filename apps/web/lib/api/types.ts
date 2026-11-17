@@ -99,14 +99,8 @@ export interface MandatoryRequirementAssessment {
   evidence?: string[];
 }
 
-export interface CoverLetterMetadata {
-  model: string;
-  prompt_version: string;
-}
-
 export interface CoverLetterContent {
   text: string;
-  metadata: CoverLetterMetadata;
 }
 
 export interface MatchReport {
