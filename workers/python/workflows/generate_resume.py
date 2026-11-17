@@ -25,12 +25,6 @@ class GenerateResumeWorkflow:
         evaluation_id = input.get("evaluation_id")
         if not isinstance(evaluation_id, str) or not evaluation_id:
             raise ValueError("evaluation_id is required")
-        if input.get("recommendation_label") not in {"strong_match", "worth_applying"}:
-            return {
-                "workflow": "GenerateResumeWorkflow",
-                "evaluation_id": evaluation_id,
-                "resume_status": "skipped",
-            }
         pending_payload: dict[str, Any] = {
             "evaluation_id": evaluation_id,
             "resume_status": "pending",
