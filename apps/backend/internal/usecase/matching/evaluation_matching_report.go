@@ -67,10 +67,10 @@ func (s *matchingService) BulkQueueGenerateReport(
 		if eval.EvaluationStatus != string(constants.MatchingStatusSuccess) {
 			errStr := fmt.Sprintf("cannot generate report: evaluation status is %s (must be success)", eval.EvaluationStatus)
 			summaries = append(summaries, &models.MatchingEvaluationSummary{
-				ID:               &eval.ID,
-				UserJobID:        &eval.UserJobID,
-				EvaluationStatus: eval.EvaluationStatus,
-				Error:            &errStr,
+				ID:           &eval.ID,
+				UserJobID:    &eval.UserJobID,
+				ReportStatus: eval.ReportStatus,
+				Error:        &errStr,
 			})
 			continue
 		}
@@ -78,10 +78,10 @@ func (s *matchingService) BulkQueueGenerateReport(
 		if eval.ReportStatus != nil && *eval.ReportStatus == string(constants.ReportStatusSuccess) && !item.Force {
 			errStr := "report already generated, force must be true to regenerate"
 			summaries = append(summaries, &models.MatchingEvaluationSummary{
-				ID:               &eval.ID,
-				UserJobID:        &eval.UserJobID,
-				EvaluationStatus: eval.EvaluationStatus,
-				Error:            &errStr,
+				ID:           &eval.ID,
+				UserJobID:    &eval.UserJobID,
+				ReportStatus: eval.ReportStatus,
+				Error:        &errStr,
 			})
 			continue
 		}
@@ -89,10 +89,10 @@ func (s *matchingService) BulkQueueGenerateReport(
 		if eval.ReportStatus != nil && (*eval.ReportStatus == string(constants.ReportStatusPending) || *eval.ReportStatus == string(constants.ReportStatusPendingRetry)) && !item.Force {
 			errStr := "report generation already in progress"
 			summaries = append(summaries, &models.MatchingEvaluationSummary{
-				ID:               &eval.ID,
-				UserJobID:        &eval.UserJobID,
-				EvaluationStatus: eval.EvaluationStatus,
-				Error:            &errStr,
+				ID:           &eval.ID,
+				UserJobID:    &eval.UserJobID,
+				ReportStatus: eval.ReportStatus,
+				Error:        &errStr,
 			})
 			continue
 		}
@@ -108,10 +108,10 @@ func (s *matchingService) BulkQueueGenerateReport(
 		if err != nil {
 			errStr := fmt.Sprintf("mark report pending: %s", err.Error())
 			summaries = append(summaries, &models.MatchingEvaluationSummary{
-				ID:               &eval.ID,
-				UserJobID:        &eval.UserJobID,
-				EvaluationStatus: eval.EvaluationStatus,
-				Error:            &errStr,
+				ID:           &eval.ID,
+				UserJobID:    &eval.UserJobID,
+				ReportStatus: eval.ReportStatus,
+				Error:        &errStr,
 			})
 			continue
 		}
@@ -156,20 +156,20 @@ func (s *matchingService) BulkQueueGenerateReport(
 					ReportFailureMessage: &errStr,
 				})
 				summaries = append(summaries, &models.MatchingEvaluationSummary{
-					ID:               &eval.ID,
-					UserJobID:        &eval.UserJobID,
-					EvaluationStatus: eval.EvaluationStatus,
-					Error:            &errStr,
+					ID:           &eval.ID,
+					UserJobID:    &eval.UserJobID,
+					ReportStatus: eval.ReportStatus,
+					Error:        &errStr,
 				})
 				continue
 			}
 		}
 
 		summaries = append(summaries, &models.MatchingEvaluationSummary{
-			ID:               &eval.ID,
-			UserJobID:        &eval.UserJobID,
-			EvaluationStatus: eval.EvaluationStatus,
-			CreatedAt:        &eval.CreatedAt,
+			ID:           &eval.ID,
+			UserJobID:    &eval.UserJobID,
+			ReportStatus: eval.ReportStatus,
+			CreatedAt:    &eval.CreatedAt,
 		})
 	}
 

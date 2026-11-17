@@ -2707,6 +2707,12 @@ const docTemplate = `{
                 "id": {
                     "type": "string"
                 },
+                "report_status": {
+                    "type": "string"
+                },
+                "resume_status": {
+                    "type": "string"
+                },
                 "slug": {
                     "type": "string"
                 },

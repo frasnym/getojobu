@@ -346,7 +346,7 @@ func (s *matchingService) BulkQueueGenerateResume(
 			continue
 		}
 		summaries = append(summaries, &models.MatchingEvaluationSummary{
-			ID: &eval.ID, UserJobID: &eval.UserJobID, EvaluationStatus: eval.EvaluationStatus, CreatedAt: &eval.CreatedAt,
+			ID: &eval.ID, UserJobID: &eval.UserJobID, ResumeStatus: eval.ResumeStatus, CreatedAt: &eval.CreatedAt,
 		})
 	}
 	return summaries, nil

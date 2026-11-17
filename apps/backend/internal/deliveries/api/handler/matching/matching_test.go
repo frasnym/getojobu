@@ -401,12 +401,13 @@ func TestReportHandlers(t *testing.T) {
 		body, _ := json.Marshal([]map[string]interface{}{
 			{"id": evalID.String(), "force": true},
 		})
+		resumeStatus := string(constants.ResumeStatusSuccess)
 		mockMatching.EXPECT().BulkQueueGenerateResume(gomock.Any(), []models.BulkGenerateResumeItem{
 			{ID: evalID, Force: true},
 		}, gomock.Any()).Return([]*models.MatchingEvaluationSummary{
 			{
-				ID:               &evalID,
-				EvaluationStatus: string(constants.MatchingStatusSuccess),
+				ID:           &evalID,
+				ResumeStatus: &resumeStatus,
 			},
 		}, nil)
 

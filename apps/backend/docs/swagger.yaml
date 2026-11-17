@@ -492,6 +492,10 @@ definitions:
         type: string
       id:
         type: string
+      report_status:
+        type: string
+      resume_status:
+        type: string
       slug:
         type: string
       user_job_id:
