@@ -3,7 +3,6 @@
 import React, { useState } from "react";
 import { DownloadCoverLetterButton } from "./download-cover-letter-button";
 import { generateCoverLetter } from "@/lib/api/endpoints";
-import { CoverLetterContent } from "@/lib/api/types";
 import {
   FileText,
   CheckCircle2,
@@ -19,7 +18,7 @@ type Variant = "short" | "full";
 interface CoverLetterTabProps {
   evalId?: string;
   status?: string;
-  content?: CoverLetterContent;
+  text?: string;
   /**
    * Backend failure history. Intentionally unused by the UI: raw worker
    * exceptions can contain prompt text or CV contents, so only the fixed
@@ -83,7 +82,7 @@ function EmptyState({ message }: { message: string }) {
 export function CoverLetterTab({
   evalId,
   status,
-  content,
+  text,
   fileName,
   reportStatus,
   onQueued,
@@ -223,7 +222,7 @@ export function CoverLetterTab({
             <VariantSelector value={variant} onChange={setVariant} />
           )}
           {isReady && (
-            <DownloadCoverLetterButton text={content?.text ?? ""} fileName={fileName ?? "Cover Letter.pdf"} />
+            <DownloadCoverLetterButton text={text ?? ""} fileName={fileName ?? "Cover Letter.pdf"} />
           )}
           {isFailed && (
             <button
@@ -260,9 +259,9 @@ export function CoverLetterTab({
       </div>
 
       {/* The letter itself. A failed regeneration keeps the previous letter visible. */}
-      {content?.text ? (
+      {text ? (
         <div className="whitespace-pre-wrap rounded-xl border border-border/60 bg-card p-6 text-sm leading-relaxed text-foreground/90">
-          {content.text}
+          {text}
         </div>
       ) : (
         <div className="rounded-xl border border-border/40 bg-card/40 p-6 text-sm text-muted-foreground">

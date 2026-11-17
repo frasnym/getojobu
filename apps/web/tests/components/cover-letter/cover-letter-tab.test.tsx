@@ -13,9 +13,7 @@ vi.mock("@/lib/api/endpoints", () => ({
   }),
 }));
 
-const readyContent = {
-  text: "Dear Hiring Manager, I am excited to apply for the Senior Go Engineer role.",
-};
+const readyLetter = "Dear Hiring Manager, I am excited to apply for the Senior Go Engineer role.";
 
 const fileName = "Cover Letter_Jane Doe_Software Engineer.pdf";
 
@@ -29,12 +27,12 @@ describe("CoverLetterTab component", () => {
       <CoverLetterTab
         evalId="eval-001"
         status="success"
-        content={readyContent}
+        text={readyLetter}
         fileName={fileName}
       />
     );
 
-    expect(screen.getByText(readyContent.text)).toBeInTheDocument();
+    expect(screen.getByText(readyLetter)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Download/i })).toBeInTheDocument();
   });
 
@@ -77,7 +75,7 @@ describe("CoverLetterTab component", () => {
       <CoverLetterTab
         evalId="eval-001"
         status="success"
-        content={readyContent}
+        text={readyLetter}
         fileName={fileName}
         onQueued={onQueued}
       />
@@ -115,7 +113,7 @@ describe("CoverLetterTab component", () => {
       <CoverLetterTab
         evalId="eval-001"
         status="success"
-        content={readyContent}
+        text={readyLetter}
         fileName={fileName}
       />
     );
@@ -145,7 +143,7 @@ describe("CoverLetterTab component", () => {
       <CoverLetterTab
         evalId="eval-001"
         status="success"
-        content={readyContent}
+        text={readyLetter}
         fileName={fileName}
       />
     );

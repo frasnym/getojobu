@@ -4,9 +4,12 @@ from __future__ import annotations
 
 from typing import Any, Protocol
 
+VARIANT_SHORT = "short"
+VARIANT_FULL = "full"
+
 _PROMPT_VERSIONS: dict[str, str] = {
-    "short": "generate-cover-letter-short-v1",
-    "full": "generate-cover-letter-full-v1",
+    VARIANT_SHORT: "generate-cover-letter-short-v1",
+    VARIANT_FULL: "generate-cover-letter-full-v1",
 }
 
 

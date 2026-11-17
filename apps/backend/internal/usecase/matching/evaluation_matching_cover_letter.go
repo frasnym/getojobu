@@ -33,19 +33,6 @@ const CoverLetterGenerationFailedMessage = "Cover letter generation failed"
 
 const maxCoverLetterFailureLines = 10
 
-var coverLetterStatuses = map[string]bool{
-	"queued":       true,
-	"queued_retry": true,
-	"pending":      true,
-	"success":      true,
-	"failed":       true,
-}
-
-var coverLetterVariants = map[string]bool{
-	"short": true,
-	"full":  true,
-}
-
 // appendFailureLine appends a timestamped failure line and keeps only the most
 // recent lines. The newest line is always last.
 func appendFailureLine(existing, message string, now time.Time) string {
@@ -99,7 +86,7 @@ func (s *matchingService) UpdateEvaluationCoverLetter(
 	id uuid.UUID,
 	req UpdateEvaluationCoverLetterRequest,
 ) (*models.MatchingEvaluation, error) {
-	if !coverLetterStatuses[req.CoverLetterStatus] {
+	if !constants.IsValidCoverLetterStatus(req.CoverLetterStatus) {
 		return nil, fmt.Errorf("%w: invalid cover_letter_status %s", constants.ErrInvalidRequest, req.CoverLetterStatus)
 	}
 
@@ -148,7 +135,7 @@ func (s *matchingService) QueueCoverLetter(
 	if caller == nil {
 		return nil, constants.ErrUnauthorized
 	}
-	if !coverLetterVariants[req.Variant] {
+	if !constants.IsValidCoverLetterVariant(req.Variant) {
 		return nil, fmt.Errorf("%w: invalid cover letter variant %s", constants.ErrInvalidRequest, req.Variant)
 	}
 

@@ -56,7 +56,7 @@ func (h *handler) GenerateCoverLetter(w http.ResponseWriter, r *http.Request) er
 	if variant == "" {
 		return httpx.Envelope(httpx.CodeInvalidRequest, "variant is required", "")
 	}
-	if variant != "short" && variant != "full" {
+	if !constants.IsValidCoverLetterVariant(variant) {
 		return httpx.Envelope(httpx.CodeInvalidRequest, "invalid variant", "")
 	}
 
@@ -116,15 +116,13 @@ func (h *handler) UpdateCoverLetter(w http.ResponseWriter, r *http.Request) erro
 	if status == "" {
 		return httpx.Envelope(httpx.CodeInvalidRequest, "cover_letter_status is required", "")
 	}
-	switch status {
-	case "queued", "queued_retry", "pending", "success", "failed":
-	default:
+	if !constants.IsValidCoverLetterStatus(status) {
 		return httpx.Envelope(httpx.CodeInvalidRequest, "invalid cover_letter_status", "")
 	}
 
 	// A success without content would otherwise keep stale content from a
 	// previous attempt while flipping the status to success.
-	if status == "success" && len(payload.CoverLetterContent) == 0 {
+	if status == string(constants.CoverLetterStatusSuccess) && len(payload.CoverLetterContent) == 0 {
 		return httpx.Envelope(httpx.CodeInvalidRequest, "cover_letter_content is required for success", "")
 	}
 
@@ -134,7 +132,7 @@ func (h *handler) UpdateCoverLetter(w http.ResponseWriter, r *http.Request) erro
 		if err := json.Unmarshal(payload.CoverLetterContent, &parsed); err != nil {
 			return httpx.Envelope(httpx.CodeInvalidRequest, "invalid cover_letter_content", "")
 		}
-		if status == "success" && strings.TrimSpace(parsed.Text) == "" {
+		if status == string(constants.CoverLetterStatusSuccess) && strings.TrimSpace(parsed.Text) == "" {
 			return httpx.Envelope(httpx.CodeInvalidRequest, "invalid cover_letter_content: text is required", "")
 		}
 		content = &parsed

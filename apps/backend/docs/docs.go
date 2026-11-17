@@ -2211,9 +2211,6 @@ const docTemplate = `{
         "dto.MatchingEvaluationResponse": {
             "type": "object",
             "properties": {
-                "cover_letter_content": {
-                    "type": "object"
-                },
                 "cover_letter_failure_message": {
                     "type": "string"
                 },
@@ -2221,6 +2218,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "cover_letter_status": {
+                    "type": "string"
+                },
+                "cover_letter_text": {
                     "type": "string"
                 },
                 "created_at": {

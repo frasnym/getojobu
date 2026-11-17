@@ -20,6 +20,10 @@ RETRY_POLICY = RetryPolicy(maximum_attempts=3, initial_interval=timedelta(second
 # text, or CV contents to the API (and therefore to the user).
 COVER_LETTER_FAILURE_MESSAGE = "Cover letter generation failed"
 
+STATUS_PENDING = "pending"
+STATUS_SUCCESS = "success"
+STATUS_FAILED = "failed"
+
 
 @workflow.defn(name="GenerateCoverLetterWorkflow")
 class GenerateCoverLetterWorkflow:
@@ -30,7 +34,7 @@ class GenerateCoverLetterWorkflow:
             raise ValueError("evaluation_id is required")
         pending_payload: dict[str, Any] = {
             "evaluation_id": evaluation_id,
-            "cover_letter_status": "pending",
+            "cover_letter_status": STATUS_PENDING,
         }
         await workflow.execute_activity(
             update_cover_letter_status_activity,
@@ -47,7 +51,7 @@ class GenerateCoverLetterWorkflow:
             )
             success_payload: dict[str, Any] = {
                 "evaluation_id": evaluation_id,
-                "cover_letter_status": "success",
+                "cover_letter_status": STATUS_SUCCESS,
                 "cover_letter_content": content,
             }
             await workflow.execute_activity(
@@ -59,7 +63,7 @@ class GenerateCoverLetterWorkflow:
             return {
                 "workflow": "GenerateCoverLetterWorkflow",
                 "evaluation_id": evaluation_id,
-                "cover_letter_status": "success",
+                "cover_letter_status": STATUS_SUCCESS,
                 "cover_letter": content,
             }
         except Exception:  # noqa: BLE001
@@ -67,7 +71,7 @@ class GenerateCoverLetterWorkflow:
             # the previous letter text, and an empty content would clear it.
             fail_payload: dict[str, Any] = {
                 "evaluation_id": evaluation_id,
-                "cover_letter_status": "failed",
+                "cover_letter_status": STATUS_FAILED,
                 "cover_letter_failure_message": COVER_LETTER_FAILURE_MESSAGE,
             }
             await workflow.execute_activity(
@@ -79,6 +83,6 @@ class GenerateCoverLetterWorkflow:
             return {
                 "workflow": "GenerateCoverLetterWorkflow",
                 "evaluation_id": evaluation_id,
-                "cover_letter_status": "failed",
+                "cover_letter_status": STATUS_FAILED,
                 "cover_letter_error": COVER_LETTER_FAILURE_MESSAGE,
             }

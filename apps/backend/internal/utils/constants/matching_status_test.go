@@ -82,3 +82,21 @@ func TestValidateMatchingStatusTransition(t *testing.T) {
 		})
 	}
 }
+
+func TestCoverLetterValidationHelpers(t *testing.T) {
+	for _, status := range []string{
+		string(CoverLetterStatusQueued),
+		string(CoverLetterStatusQueuedRetry),
+		string(CoverLetterStatusPending),
+		string(CoverLetterStatusSuccess),
+		string(CoverLetterStatusFailed),
+	} {
+		assert.True(t, IsValidCoverLetterStatus(status), status)
+	}
+	assert.False(t, IsValidCoverLetterStatus("new"))
+	assert.False(t, IsValidCoverLetterStatus(""))
+
+	assert.True(t, IsValidCoverLetterVariant(string(CoverLetterVariantShort)))
+	assert.True(t, IsValidCoverLetterVariant(string(CoverLetterVariantFull)))
+	assert.False(t, IsValidCoverLetterVariant("medium"))
+}

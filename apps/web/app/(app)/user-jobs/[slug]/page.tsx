@@ -230,7 +230,7 @@ export default function UserJobDetailPage({ params }: UserJobDetailPageProps) {
           <CoverLetterTab
             evalId={evalId || undefined}
             status={fetchedEvaluation?.evaluation.cover_letter_status ?? undefined}
-            content={fetchedEvaluation?.evaluation.cover_letter_content ?? undefined}
+            text={fetchedEvaluation?.evaluation.cover_letter_text ?? undefined}
             failureMessage={fetchedEvaluation?.evaluation.cover_letter_failure_message ?? undefined}
             fileName={fetchedEvaluation?.evaluation.cover_letter_file_name ?? undefined}
             reportStatus={fetchedEvaluation?.evaluation.report_status ?? undefined}

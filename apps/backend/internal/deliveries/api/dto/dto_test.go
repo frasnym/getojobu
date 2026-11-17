@@ -194,19 +194,16 @@ func TestMatchingEvaluationResponse_mapsCoverLetterFields(t *testing.T) {
 
 	resp := NewMatchingEvaluationResponse(eval)
 
-	require.NotNil(t, resp.CoverLetterContent)
-	assert.Equal(t, "Dear Hiring Manager, ...", resp.CoverLetterContent.Text)
-	contentJSON, err := json.Marshal(resp.CoverLetterContent)
-	require.NoError(t, err)
-	assert.NotContains(t, string(contentJSON), "metadata")
-	assert.NotContains(t, string(contentJSON), "prompt_version")
+	require.NotNil(t, resp.CoverLetterText)
+	assert.Equal(t, "Dear Hiring Manager, ...", *resp.CoverLetterText)
 	assert.Equal(t, &status, resp.CoverLetterStatus)
 	assert.Equal(t, &failure, resp.CoverLetterFailureMessage)
 	assert.Equal(t, "Cover Letter_Jane Doe_Software Engineer.pdf", resp.CoverLetterFileName)
 
 	keys := marshalKeys(t, resp)
 	assert.Contains(t, keys, "cover_letter_status")
-	assert.Contains(t, keys, "cover_letter_content")
+	assert.Contains(t, keys, "cover_letter_text")
+	assert.NotContains(t, keys, "cover_letter_content")
 	assert.Contains(t, keys, "cover_letter_failure_message")
 	assert.Contains(t, keys, "cover_letter_file_name")
 }
