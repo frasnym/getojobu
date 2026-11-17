@@ -142,6 +142,9 @@ func TestBulkQueueGenerateResume(t *testing.T) {
 		}, nil)
 		eduRepo.EXPECT().ListByUser(ctx, userID.String()).Return([]*models.UserEducation{}, nil)
 		expRepo.EXPECT().ListByUser(ctx, userID.String()).Return([]*models.Experience{}, nil)
+		evalRepo.EXPECT().UpdateResume(ctx, evalID, models.UpdateMatchingEvaluationResumeParams{
+			ResumeStatus: string(constants.ResumeStatusQueuedRetry),
+		}).Return(eval, nil)
 		workflowsRepo.EXPECT().StartLimiterWorkItem(ctx, gomock.Any(), models.LimiterJobTypeResume, gomock.Any()).Return("wf-resume-1", nil)
 
 		clerkCaller := &models.Principal{ActorType: "", ID: userID.String()}
@@ -171,22 +174,53 @@ func TestBulkQueueGenerateResume(t *testing.T) {
 		assert.Contains(t, *res[0].Error, "evaluation must be successful")
 	})
 
-	t.Run("rejects ineligible recommendation label", func(t *testing.T) {
+	t.Run("allows any recommendation label to generate resume", func(t *testing.T) {
+		userJobID := uuid.New()
+		userID := uuid.New()
 		lowRec := string(constants.RecommendationLowMatch)
 		eval := &models.MatchingEvaluation{
-			ID:                  evalID,
-			EvaluationStatus:    string(constants.MatchingStatusSuccess),
-			RecommendationLabel: &lowRec,
+			ID:                   evalID,
+			UserJobID:            userJobID,
+			EvaluationStatus:     string(constants.MatchingStatusSuccess),
+			RecommendationLabel:  &lowRec,
+			CandidateProfileData: json.RawMessage(`{"skills":["Go"],"experience":[]}`),
+			JobProfileData:       json.RawMessage(`{"title":"Senior Engineer"}`),
+			EvaluationData:       json.RawMessage(`{"summary":"Great fit"}`),
 		}
-		evalRepo.EXPECT().GetByID(ctx, evalID).Return(eval, nil)
 
+		evalRepo.EXPECT().GetByID(ctx, evalID).Return(eval, nil)
+		userJobsRepo.EXPECT().GetByID(ctx, userJobID).Return(&models.UserJob{
+			ID: userJobID, UserID: userID,
+		}, nil)
+		// triggerResume fetches the evaluation and user job again.
+		evalRepo.EXPECT().GetByID(ctx, evalID).Return(eval, nil)
+		userJobsRepo.EXPECT().GetByID(ctx, userJobID).Return(&models.UserJob{
+			ID: userJobID, UserID: userID,
+		}, nil)
+		now := time.Now()
+		fullName := "Jane Doe"
+		email := "jane@example.com"
+		usersRepo.EXPECT().FindByID(ctx, userID.String()).Return(&models.User{
+			ID:                    userID.String(),
+			FullName:              &fullName,
+			Email:                 &email,
+			OnboardingCompletedAt: &now,
+		}, nil)
+		eduRepo.EXPECT().ListByUser(ctx, userID.String()).Return([]*models.UserEducation{}, nil)
+		expRepo.EXPECT().ListByUser(ctx, userID.String()).Return([]*models.Experience{}, nil)
+		evalRepo.EXPECT().UpdateResume(ctx, evalID, models.UpdateMatchingEvaluationResumeParams{
+			ResumeStatus: string(constants.ResumeStatusQueued),
+		}).Return(eval, nil)
+		workflowsRepo.EXPECT().StartLimiterWorkItem(ctx, gomock.Any(), models.LimiterJobTypeResume, gomock.Any()).Return("wf-resume-1", nil)
+
+		clerkCaller := &models.Principal{ActorType: "", ID: userID.String()}
 		res, err := service.BulkQueueGenerateResume(ctx, []models.BulkGenerateResumeItem{
 			{ID: evalID, Force: false},
-		}, caller)
+		}, clerkCaller)
 		require.NoError(t, err)
 		require.Len(t, res, 1)
-		require.NotNil(t, res[0].Error)
-		assert.Contains(t, *res[0].Error, "not eligible for resume generation")
+		require.Nil(t, res[0].Error)
+		assert.Equal(t, evalID, *res[0].ID)
 	})
 
 	t.Run("rejects already successful resume even with force=true", func(t *testing.T) {
@@ -282,6 +316,9 @@ func TestBulkQueueGenerateResume(t *testing.T) {
 		}, nil)
 		eduRepo.EXPECT().ListByUser(ctx, userID.String()).Return([]*models.UserEducation{}, nil)
 		expRepo.EXPECT().ListByUser(ctx, userID.String()).Return([]*models.Experience{}, nil)
+		evalRepo.EXPECT().UpdateResume(ctx, evalID, models.UpdateMatchingEvaluationResumeParams{
+			ResumeStatus: string(constants.ResumeStatusQueued),
+		}).Return(eval, nil)
 		workflowsRepo.EXPECT().StartLimiterWorkItem(ctx, gomock.Any(), models.LimiterJobTypeResume, gomock.Any()).Return("wf-resume-1", nil)
 
 		res, err := service.BulkQueueGenerateResume(ctx, []models.BulkGenerateResumeItem{

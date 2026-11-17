@@ -147,7 +147,7 @@ func TestUpdateEvaluation(t *testing.T) {
 		ID:               evalID,
 		UserJobID:        userJobID,
 		ScoringConfigID:  configID,
-		EvaluationStatus: string(constants.MatchingStatusNew),
+		EvaluationStatus: string(constants.MatchingStatusQueued),
 	}
 
 	t.Run("transition to pending", func(t *testing.T) {
@@ -165,9 +165,9 @@ func TestUpdateEvaluation(t *testing.T) {
 		assert.Equal(t, string(constants.MatchingStatusPending), res.EvaluationStatus)
 	})
 
-	t.Run("transition to pending allowed from new-retry", func(t *testing.T) {
+	t.Run("transition to pending allowed from queued_retry", func(t *testing.T) {
 		retryEval := *existingEval
-		retryEval.EvaluationStatus = string(constants.MatchingStatusNewRetry)
+		retryEval.EvaluationStatus = string(constants.MatchingStatusQueuedRetry)
 		evalRepo.EXPECT().GetByID(ctx, evalID).Return(&retryEval, nil)
 		pendingEval := retryEval
 		pendingEval.EvaluationStatus = string(constants.MatchingStatusPending)
@@ -421,7 +421,7 @@ func TestTriggerCompatibilityBulk(t *testing.T) {
 		createdEval := &models.MatchingEvaluation{
 			ID:               newEvalID,
 			UserJobID:        userJobID,
-			EvaluationStatus: string(constants.MatchingStatusNew),
+			EvaluationStatus: string(constants.MatchingStatusQueued),
 		}
 		evalRepo.EXPECT().Create(ctx, gomock.Any()).Return(createdEval, nil)
 		workflowsRepo.EXPECT().StartLimiterWorkItem(ctx, gomock.Any(), models.LimiterJobTypeMatch, gomock.Any()).Return("wf-id", nil)
@@ -433,7 +433,7 @@ func TestTriggerCompatibilityBulk(t *testing.T) {
 		require.Len(t, res, 1)
 		assert.Nil(t, res[0].Error)
 		assert.Equal(t, newEvalID, *res[0].ID)
-		assert.Equal(t, string(constants.MatchingStatusNew), res[0].EvaluationStatus)
+		assert.Equal(t, string(constants.MatchingStatusQueued), res[0].EvaluationStatus)
 	})
 
 	t.Run("rejects failed without force", func(t *testing.T) {
@@ -458,7 +458,7 @@ func TestTriggerCompatibilityBulk(t *testing.T) {
 		assert.Contains(t, *res[0].Error, "evaluation failed, force must be true")
 	})
 
-	t.Run("re-evaluates failed with force=true updates existing record to new-retry", func(t *testing.T) {
+	t.Run("re-evaluates failed with force=true updates existing record to queued_retry", func(t *testing.T) {
 		jobsRepo.EXPECT().GetBySlug(ctx, slug, "").Return(&models.JobWithOwnership{Job: job}, nil)
 		userJobsRepo.EXPECT().IsOwned(ctx, userID.String(), job.ID).Return(true, nil)
 		scoringConfigsRepo.EXPECT().GetActiveByFamily(ctx, "technology").Return(scoringConfig, nil)
@@ -479,9 +479,9 @@ func TestTriggerCompatibilityBulk(t *testing.T) {
 		projSkillsRepo.EXPECT().ListSkillsByUser(ctx, userID.String()).Return([]*models.UserSkill{}, nil)
 
 		updatedEval := *failedEval
-		updatedEval.EvaluationStatus = string(constants.MatchingStatusNewRetry)
+		updatedEval.EvaluationStatus = string(constants.MatchingStatusQueuedRetry)
 		evalRepo.EXPECT().Update(ctx, existingFailedID, models.UpdateMatchingEvaluationParams{
-			EvaluationStatus: string(constants.MatchingStatusNewRetry),
+			EvaluationStatus: string(constants.MatchingStatusQueuedRetry),
 		}).Return(&updatedEval, nil)
 
 		workflowsRepo.EXPECT().StartLimiterWorkItem(ctx, gomock.Any(), models.LimiterJobTypeMatch, gomock.Any()).Return("wf-id", nil)
@@ -493,7 +493,7 @@ func TestTriggerCompatibilityBulk(t *testing.T) {
 		require.Len(t, res, 1)
 		assert.Nil(t, res[0].Error)
 		assert.Equal(t, existingFailedID, *res[0].ID)
-		assert.Equal(t, string(constants.MatchingStatusNewRetry), res[0].EvaluationStatus)
+		assert.Equal(t, string(constants.MatchingStatusQueuedRetry), res[0].EvaluationStatus)
 	})
 
 	t.Run("partial batch processing with multiple items", func(t *testing.T) {
@@ -513,7 +513,7 @@ func TestTriggerCompatibilityBulk(t *testing.T) {
 		expRepo.EXPECT().ListByUser(ctx, userID.String()).Return([]*models.Experience{}, nil)
 		projRepo.EXPECT().ListByUser(ctx, userID.String()).Return([]*models.Project{}, nil)
 		projSkillsRepo.EXPECT().ListSkillsByUser(ctx, userID.String()).Return([]*models.UserSkill{}, nil)
-		createdEval1 := &models.MatchingEvaluation{ID: uuid.New(), UserJobID: userJob1.ID, EvaluationStatus: string(constants.MatchingStatusNew)}
+		createdEval1 := &models.MatchingEvaluation{ID: uuid.New(), UserJobID: userJob1.ID, EvaluationStatus: string(constants.MatchingStatusQueued)}
 		evalRepo.EXPECT().Create(ctx, gomock.Any()).Return(createdEval1, nil)
 		workflowsRepo.EXPECT().StartLimiterWorkItem(ctx, gomock.Any(), models.LimiterJobTypeMatch, gomock.Any()).Return("wf-1", nil)
 
@@ -540,7 +540,7 @@ func TestTriggerCompatibilityBulk(t *testing.T) {
 		// Item 1 succeeded
 		assert.Equal(t, slug1, res[0].Slug)
 		assert.Nil(t, res[0].Error)
-		assert.Equal(t, string(constants.MatchingStatusNew), res[0].EvaluationStatus)
+		assert.Equal(t, string(constants.MatchingStatusQueued), res[0].EvaluationStatus)
 
 		// Item 2 failed with force error
 		assert.Equal(t, slug2, res[1].Slug)

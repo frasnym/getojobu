@@ -20,7 +20,7 @@ class _FakeAPI:
         self.job_data = job_data or {
             "id": 1,
             "slug": "job-1",
-            "status": "new",
+            "status": "queued",
             "description": "We need a Senior Backend Engineer with Golang.",
         }
         self.patched = None
@@ -36,7 +36,7 @@ class _FakeAPI:
 @pytest.mark.asyncio
 async def test_analyze_rejects_empty_job_description():
     fake_api = _FakeAPI(
-        {"id": 1, "slug": "job-1", "status": "new", "description": "   "}
+        {"id": 1, "slug": "job-1", "status": "queued", "description": "   "}
     )
     llm = _FakeLLM({"family": "technology", "seniority": "unknown"})
     svc = AnalyzeJob(api=fake_api, llm=llm)
@@ -48,12 +48,26 @@ async def test_analyze_rejects_empty_job_description():
 
 
 @pytest.mark.asyncio
+async def test_analyze_rejects_new_status():
+    fake_api = _FakeAPI(
+        {"id": 1, "slug": "job-1", "status": "new", "description": "Some description"}
+    )
+    llm = _FakeLLM({"family": "technology", "seniority": "unknown"})
+    svc = AnalyzeJob(api=fake_api, llm=llm)
+
+    with pytest.raises(ValueError, match="must be 'queued' or 'queued_retry'"):
+        await svc.analyze(slug="job-1")
+
+    assert llm.calls == 0
+
+
+@pytest.mark.asyncio
 async def test_analyze_returns_parsed_analysis():
     fake_api = _FakeAPI(
         {
             "id": 1,
             "slug": "job-1",
-            "status": "new",
+            "status": "queued",
             "description": "We need a Senior Backend Engineer with Golang.",
         }
     )
@@ -90,7 +104,7 @@ async def test_analyze_sets_metadata_defaults():
         {
             "id": 42,
             "slug": "job-42",
-            "status": "new",
+            "status": "queued",
             "description": "We need an engineer.",
         }
     )
@@ -112,7 +126,7 @@ async def test_analyze_metadata_empty_when_unset():
         {
             "id": 42,
             "slug": "job-42",
-            "status": "new",
+            "status": "queued",
             "description": "We need an engineer.",
         }
     )

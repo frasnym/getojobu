@@ -77,17 +77,10 @@ class GenerateReportWorkflow:
         raw_rec = input.get("recommendation_label")
         recommendation_label: str = str(raw_rec) if raw_rec is not None else "worth_applying"
 
-        raw_report_status = input.get("report_status")
-        initial_report_status: str = (
-            str(raw_report_status)
-            if raw_report_status in ("pending", "pending-retry")
-            else "pending"
-        )
-
         # Step 1: Mark report pending
         pending_input: dict[str, Any] = {
             "evaluation_id": evaluation_id,
-            "report_status": initial_report_status,
+            "report_status": "pending",
         }
         await workflow.execute_activity(
             update_report_status_activity,

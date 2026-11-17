@@ -137,17 +137,12 @@ class MatchJobWorkflow:
             raise
 
         # Step 4: Auto-generate match report
-        is_retry = bool(
-            input.get("is_retry") or input.get("evaluation_status") == "new-retry"
-        )
-        initial_report_status = "pending-retry" if is_retry else "pending"
-
         report_output: dict[str, Any] | None = None
         report_error: str | None = None
         try:
             report_pending_input: dict[str, Any] = {
                 "evaluation_id": evaluation_id,
-                "report_status": initial_report_status,
+                "report_status": "pending",
             }
             await workflow.execute_activity(
                 update_report_status_activity,

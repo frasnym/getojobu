@@ -15,16 +15,28 @@ func TestValidateMatchingStatusTransition(t *testing.T) {
 		expectErr bool
 	}{
 		{
-			name:      "new to pending is allowed",
-			current:   MatchingStatusNew,
+			name:      "queued to pending is allowed",
+			current:   MatchingStatusQueued,
 			next:      MatchingStatusPending,
 			expectErr: false,
 		},
 		{
-			name:      "new-retry to pending is allowed",
-			current:   MatchingStatusNewRetry,
+			name:      "queued_retry to pending is allowed",
+			current:   MatchingStatusQueuedRetry,
 			next:      MatchingStatusPending,
 			expectErr: false,
+		},
+		{
+			name:      "new to pending is rejected",
+			current:   MatchingEvaluationStatus("new"),
+			next:      MatchingStatusPending,
+			expectErr: true,
+		},
+		{
+			name:      "new-retry to pending is rejected",
+			current:   MatchingEvaluationStatus("new-retry"),
+			next:      MatchingStatusPending,
+			expectErr: true,
 		},
 		{
 			name:      "pending to pending is rejected",

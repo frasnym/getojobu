@@ -186,6 +186,8 @@ const STATUS_OPTIONS: FilterOption<StatusFilter>[] = [
   { label: "All Statuses", value: "all" },
   { label: "Analyzed", value: "analyzed" },
   { label: "Pending", value: "analyze_pending" },
+  { label: "Queued", value: "queued" },
+  { label: "Queued Retry", value: "queued_retry" },
   { label: "Failed", value: "failed" },
 ];
 
@@ -205,6 +207,8 @@ const EVALUATION_STATUS_OPTIONS: FilterOption<string>[] = [
   { label: "All", value: "all" },
   { label: "Success", value: "success" },
   { label: "Pending", value: "pending" },
+  { label: "Queued", value: "queued" },
+  { label: "Queued Retry", value: "queued_retry" },
   { label: "Failed", value: "failed" },
 ];
 
@@ -212,6 +216,8 @@ const REPORT_STATUS_OPTIONS: FilterOption<string>[] = [
   { label: "All", value: "all" },
   { label: "Success", value: "success" },
   { label: "Pending", value: "pending" },
+  { label: "Queued", value: "queued" },
+  { label: "Queued Retry", value: "queued_retry" },
   { label: "Failed", value: "failed" },
 ];
 

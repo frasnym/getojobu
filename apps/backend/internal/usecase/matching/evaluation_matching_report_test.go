@@ -143,13 +143,13 @@ func TestBulkQueueGenerateReport(t *testing.T) {
 			EvaluationData:       json.RawMessage(`{"evaluations":[]}`),
 		}
 
-		pendingStatus := string(constants.ReportStatusPending)
+		queueStatus := string(constants.ReportStatusQueued)
 		updatedEval := *eval
-		updatedEval.ReportStatus = &pendingStatus
+		updatedEval.ReportStatus = &queueStatus
 
 		evalRepo.EXPECT().GetByID(ctx, evalID).Return(eval, nil)
 		evalRepo.EXPECT().UpdateReport(ctx, evalID, models.UpdateMatchingEvaluationReportParams{
-			ReportStatus: string(constants.ReportStatusPending),
+			ReportStatus: string(constants.ReportStatusQueued),
 		}).Return(&updatedEval, nil)
 		workflowsRepo.EXPECT().StartLimiterWorkItem(ctx, gomock.Any(), models.LimiterJobTypeReport, gomock.Any()).Return("wf-report-1", nil)
 
@@ -162,7 +162,7 @@ func TestBulkQueueGenerateReport(t *testing.T) {
 		assert.Nil(t, res[0].Error)
 	})
 
-	t.Run("success marks pending-retry when retrying report", func(t *testing.T) {
+	t.Run("success marks queued_retry when retrying report", func(t *testing.T) {
 		failedStatus := string(constants.ReportStatusFailed)
 		eval := &models.MatchingEvaluation{
 			ID:                   evalID,
@@ -174,13 +174,13 @@ func TestBulkQueueGenerateReport(t *testing.T) {
 			ReportStatus:         &failedStatus,
 		}
 
-		pendingRetryStatus := string(constants.ReportStatusPendingRetry)
+		queueRetryStatus := string(constants.ReportStatusQueuedRetry)
 		updatedEval := *eval
-		updatedEval.ReportStatus = &pendingRetryStatus
+		updatedEval.ReportStatus = &queueRetryStatus
 
 		evalRepo.EXPECT().GetByID(ctx, evalID).Return(eval, nil)
 		evalRepo.EXPECT().UpdateReport(ctx, evalID, models.UpdateMatchingEvaluationReportParams{
-			ReportStatus: string(constants.ReportStatusPendingRetry),
+			ReportStatus: string(constants.ReportStatusQueuedRetry),
 		}).Return(&updatedEval, nil)
 		workflowsRepo.EXPECT().StartLimiterWorkItem(ctx, gomock.Any(), models.LimiterJobTypeReport, gomock.Any()).Return("wf-report-2", nil)
 
@@ -203,13 +203,13 @@ func TestBulkQueueGenerateReport(t *testing.T) {
 			EvaluationData:       json.RawMessage(`{}`),
 		}
 
-		pendingStatus := string(constants.ReportStatusPending)
+		queueStatus := string(constants.ReportStatusQueued)
 		updatedEval := *eval
-		updatedEval.ReportStatus = &pendingStatus
+		updatedEval.ReportStatus = &queueStatus
 
 		evalRepo.EXPECT().GetByID(ctx, evalID).Return(eval, nil)
 		evalRepo.EXPECT().UpdateReport(ctx, evalID, models.UpdateMatchingEvaluationReportParams{
-			ReportStatus: string(constants.ReportStatusPending),
+			ReportStatus: string(constants.ReportStatusQueued),
 		}).Return(&updatedEval, nil)
 		workflowsRepo.EXPECT().StartLimiterWorkItem(ctx, gomock.Any(), models.LimiterJobTypeReport, gomock.Any()).Return("", errors.New("temporal connection error"))
 

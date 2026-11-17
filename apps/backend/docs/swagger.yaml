@@ -917,8 +917,8 @@ paths:
     patch:
       consumes:
       - application/json
-      description: Transition a job's status (analyze_pending | analyzed | failed).
-        Called by the Temporal worker on completion.
+      description: Transition a job's status (queued | queued_retry | analyze_pending
+        | analyzed | failed). Called by the Temporal worker on completion.
       parameters:
       - description: Job slug
         in: path
@@ -1037,7 +1037,7 @@ paths:
       consumes:
       - application/json
       description: Queue job description analysis workflows in Temporal for multiple
-        jobs. Jobs must have status 'new' or 'failed' (with force=true).
+        jobs. Jobs must have status 'new', 'queued', or 'failed' (with force=true).
       parameters:
       - description: Jobs to queue for analysis
         in: body

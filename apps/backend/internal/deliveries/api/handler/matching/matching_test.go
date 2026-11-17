@@ -98,7 +98,7 @@ func TestBulkAnalyzeCompatibilityHandler(t *testing.T) {
 			{
 				Slug:             "job-1",
 				ID:               &newID,
-				EvaluationStatus: string(constants.MatchingStatusNew),
+				EvaluationStatus: string(constants.MatchingStatusQueued),
 			},
 			{
 				Slug:  "job-2",
@@ -217,8 +217,8 @@ func TestReportHandlers(t *testing.T) {
 		assert.Equal(t, http.StatusOK, rec.Code)
 	})
 
-	t.Run("worker updates report to pending-retry", func(t *testing.T) {
-		repStatus := string(constants.ReportStatusPendingRetry)
+	t.Run("worker updates report to queued_retry", func(t *testing.T) {
+		repStatus := string(constants.ReportStatusQueuedRetry)
 		mockMatching.EXPECT().UpdateEvaluationReport(gomock.Any(), evalID, gomock.Any()).Return(&models.MatchingEvaluation{
 			ID:               evalID,
 			EvaluationStatus: string(constants.MatchingStatusSuccess),
@@ -226,7 +226,7 @@ func TestReportHandlers(t *testing.T) {
 		}, nil)
 
 		body, err := json.Marshal(map[string]interface{}{
-			"report_status": "pending-retry",
+			"report_status": "queued_retry",
 		})
 		require.NoError(t, err)
 
@@ -238,8 +238,8 @@ func TestReportHandlers(t *testing.T) {
 		assert.Equal(t, http.StatusOK, rec.Code)
 	})
 
-	t.Run("worker updates report to pending-retry", func(t *testing.T) {
-		repStatus := string(constants.ReportStatusPendingRetry)
+	t.Run("worker updates report to queued_retry", func(t *testing.T) {
+		repStatus := string(constants.ReportStatusQueuedRetry)
 		mockMatching.EXPECT().UpdateEvaluationReport(gomock.Any(), evalID, gomock.Any()).Return(&models.MatchingEvaluation{
 			ID:               evalID,
 			EvaluationStatus: string(constants.MatchingStatusSuccess),
@@ -247,7 +247,7 @@ func TestReportHandlers(t *testing.T) {
 		}, nil)
 
 		body, err := json.Marshal(map[string]interface{}{
-			"report_status": "pending-retry",
+			"report_status": "queued_retry",
 		})
 		require.NoError(t, err)
 

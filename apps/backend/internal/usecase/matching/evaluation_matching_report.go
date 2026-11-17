@@ -86,7 +86,7 @@ func (s *matchingService) BulkQueueGenerateReport(
 			continue
 		}
 
-		if eval.ReportStatus != nil && (*eval.ReportStatus == string(constants.ReportStatusPending) || *eval.ReportStatus == string(constants.ReportStatusPendingRetry)) && !item.Force {
+		if eval.ReportStatus != nil && (*eval.ReportStatus == string(constants.ReportStatusQueued) || *eval.ReportStatus == string(constants.ReportStatusQueuedRetry) || *eval.ReportStatus == string(constants.ReportStatusPending)) && !item.Force {
 			errStr := "report generation already in progress"
 			summaries = append(summaries, &models.MatchingEvaluationSummary{
 				ID:           &eval.ID,
@@ -97,13 +97,13 @@ func (s *matchingService) BulkQueueGenerateReport(
 			continue
 		}
 
-		// Mark report pending (or pending-retry if previously attempted)
-		pendingStatus := string(constants.ReportStatusPending)
+		// Mark report queued (or queued_retry if previously attempted)
+		queueStatus := string(constants.ReportStatusQueued)
 		if eval.ReportStatus != nil {
-			pendingStatus = string(constants.ReportStatusPendingRetry)
+			queueStatus = string(constants.ReportStatusQueuedRetry)
 		}
 		updated, err := s.evalRepo.UpdateReport(ctx, eval.ID, models.UpdateMatchingEvaluationReportParams{
-			ReportStatus: pendingStatus,
+			ReportStatus: queueStatus,
 		})
 		if err != nil {
 			errStr := fmt.Sprintf("mark report pending: %s", err.Error())
@@ -144,7 +144,7 @@ func (s *matchingService) BulkQueueGenerateReport(
 			"overall_score":        overallScore,
 			"eligibility_status":   eligStatus,
 			"recommendation_label": recLabel,
-			"report_status":        pendingStatus,
+			"report_status":        queueStatus,
 		}
 
 		workflowID := fmt.Sprintf("report-gen-%s-%d", eval.ID.String(), time.Now().UnixMilli())

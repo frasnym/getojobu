@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { filterJobs } from "@/hooks/use-jobs";
+import { filterJobs, statusBadgeClasses } from "@/hooks/use-jobs";
 import { Job } from "@/lib/api/types";
 
 const sampleJobs: Job[] = [
@@ -33,6 +33,16 @@ const sampleJobs: Job[] = [
     status: "failed",
     created_at: "2026-11-12T10:00:00Z",
   },
+  {
+    id: 4,
+    slug: "queued-job",
+    title: "Platform Engineer",
+    company: "GitHub",
+    location: "Remote",
+    is_remote: true,
+    status: "queued",
+    created_at: "2026-11-15T10:00:00Z",
+  },
 ];
 
 describe("filterJobs helper", () => {
@@ -56,11 +66,20 @@ describe("filterJobs helper", () => {
     const pending = filterJobs(sampleJobs, "", "analyze_pending");
     expect(pending).toHaveLength(1);
     expect(pending[0].status).toBe("analyze_pending");
+
+    const queued = filterJobs(sampleJobs, "", "queued");
+    expect(queued).toHaveLength(1);
+    expect(queued[0].status).toBe("queued");
+  });
+
+  it("applies sky badge class for queued statuses", () => {
+    expect(statusBadgeClasses("queued")).toContain("text-sky-600");
+    expect(statusBadgeClasses("queued_retry")).toContain("text-sky-600");
   });
 
   it("filters by remoteOnly flag correctly", () => {
     const remoteJobs = filterJobs(sampleJobs, "", "all", true);
-    expect(remoteJobs).toHaveLength(2);
+    expect(remoteJobs).toHaveLength(3);
     expect(remoteJobs.every((j) => j.is_remote === true)).toBe(true);
 
     const nonRemoteSearch = filterJobs(sampleJobs, "cloudflare", "all", true);
@@ -78,11 +97,11 @@ describe("filterJobs helper", () => {
     expect(owned[0].is_owned).toBe(true);
 
     const notOwned = filterJobs(withOwned, "", "all", false, "not_owned");
-    expect(notOwned).toHaveLength(2);
+    expect(notOwned).toHaveLength(3);
     expect(notOwned.every((j) => j.is_owned !== true)).toBe(true);
 
     const all = filterJobs(withOwned, "", "all", false, "all");
-    expect(all).toHaveLength(3);
+    expect(all).toHaveLength(4);
   });
 
   it("handles non-array inputs defensively without throwing TypeError", () => {

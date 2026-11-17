@@ -59,17 +59,34 @@ func (s *jobService) queueAnalysis(ctx context.Context, slug string, force bool,
 		actorID = caller.ActorID
 	}
 
-	// Pre-condition: status must be new, new-retry, failed (force=true), or analyze_pending (force=true, updated_at > 30m, workflow not running).
-	// When retrying failed or stale analyze_pending jobs, update status to new-retry before queueing.
+	if job.Description == nil || strings.TrimSpace(*job.Description) == "" {
+		return "", fmt.Errorf("%w: job %q has no description to analyze", constants.ErrInvalidTransition, job.Slug)
+	}
+
+	if s.workflows == nil {
+		return "", fmt.Errorf("workflows repository not configured")
+	}
+
+	// Pre-condition: status must be new, queued (force=true), queued_retry (force=true), failed (force=true), or analyze_pending (force=true, updated_at > 30m, workflow not running).
+	// When queueing jobs, update status to queued. When retrying failed or stale jobs, update status to queued_retry before queueing.
 	switch constants.JobStatus(job.Status) {
-	case constants.StatusNew, constants.StatusNewRetry:
-		// Ready to queue.
+	case constants.StatusNew:
+		if _, err := s.repo.UpdateStatus(ctx, job.Slug, string(constants.StatusQueued), nil, nil, actorType, actorID); err != nil {
+			return "", fmt.Errorf("update job status to queued: %w", err)
+		}
+	case constants.StatusQueued, constants.StatusQueuedRetry:
+		if !force {
+			return "", fmt.Errorf("%w: job %q is already queued for analysis", constants.ErrInvalidTransition, job.Slug)
+		}
+		if _, err := s.repo.UpdateStatus(ctx, job.Slug, string(constants.StatusQueuedRetry), nil, nil, actorType, actorID); err != nil {
+			return "", fmt.Errorf("update job status to queued_retry: %w", err)
+		}
 	case constants.StatusFailed:
 		if !force {
 			return "", fmt.Errorf("%w: job %q is failed, force must be true to re-analyze", constants.ErrInvalidTransition, job.Slug)
 		}
-		if _, err := s.repo.UpdateStatus(ctx, job.Slug, string(constants.StatusNewRetry), nil, nil, actorType, actorID); err != nil {
-			return "", fmt.Errorf("update job status to new-retry: %w", err)
+		if _, err := s.repo.UpdateStatus(ctx, job.Slug, string(constants.StatusQueuedRetry), nil, nil, actorType, actorID); err != nil {
+			return "", fmt.Errorf("update job status to queued_retry: %w", err)
 		}
 	case constants.StatusAnalyzePending:
 		if !force {
@@ -88,15 +105,11 @@ func (s *jobService) queueAnalysis(ctx context.Context, slug string, force bool,
 		if running {
 			return "", fmt.Errorf("%w: job %q analysis workflow is currently running", constants.ErrInvalidTransition, job.Slug)
 		}
-		if _, err := s.repo.UpdateStatus(ctx, job.Slug, string(constants.StatusNewRetry), nil, nil, actorType, actorID); err != nil {
-			return "", fmt.Errorf("update job status to new-retry: %w", err)
+		if _, err := s.repo.UpdateStatus(ctx, job.Slug, string(constants.StatusQueuedRetry), nil, nil, actorType, actorID); err != nil {
+			return "", fmt.Errorf("update job status to queued_retry: %w", err)
 		}
 	default:
 		return "", fmt.Errorf("%w: job %q cannot be queued for analysis with status %q", constants.ErrInvalidTransition, job.Slug, job.Status)
-	}
-
-	if job.Description == nil || strings.TrimSpace(*job.Description) == "" {
-		return "", fmt.Errorf("%w: job %q has no description to analyze", constants.ErrInvalidTransition, job.Slug)
 	}
 
 	workflowID := GenerateWorkflowID(job.ID, force)

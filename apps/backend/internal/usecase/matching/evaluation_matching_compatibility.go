@@ -238,7 +238,7 @@ func (s *matchingService) TriggerCompatibilityBulk(
 
 			if err == nil && latestEval != nil {
 				switch constants.MatchingEvaluationStatus(latestEval.EvaluationStatus) {
-				case constants.MatchingStatusNew, constants.MatchingStatusPending, constants.MatchingStatusNewRetry:
+				case constants.MatchingStatusQueued, constants.MatchingStatusQueuedRetry, constants.MatchingStatusPending:
 					errStr := fmt.Sprintf("evaluation is already in progress with status %s", latestEval.EvaluationStatus)
 					summaries = append(summaries, &models.MatchingEvaluationSummary{
 						Slug:  item.Slug,
@@ -267,7 +267,7 @@ func (s *matchingService) TriggerCompatibilityBulk(
 						})
 						continue
 					}
-					// force=true on failed: reuse existing record, set status = new-retry, keep failure_message
+					// force=true on failed: reuse existing record, set status = queued_retry, keep failure_message
 					evalRecord = latestEval
 					isRetry = true
 
@@ -305,9 +305,9 @@ func (s *matchingService) TriggerCompatibilityBulk(
 			}
 
 			if evalRecord != nil {
-				// Reusing existing failed record -> status = new-retry
+				// Reusing existing failed record -> status = queued_retry
 				updated, err := s.evalRepo.Update(ctx, evalRecord.ID, models.UpdateMatchingEvaluationParams{
-					EvaluationStatus: string(constants.MatchingStatusNewRetry),
+					EvaluationStatus: string(constants.MatchingStatusQueuedRetry),
 				})
 				if err != nil {
 					errStr := fmt.Sprintf("update matching evaluation: %s", err.Error())
@@ -322,7 +322,7 @@ func (s *matchingService) TriggerCompatibilityBulk(
 				// Create new record (first-time or force-re-evaluating a success record)
 				newRecord := &models.MatchingEvaluation{
 					UserJobID:            userJob.ID,
-					EvaluationStatus:     string(constants.MatchingStatusNew),
+					EvaluationStatus:     string(constants.MatchingStatusQueued),
 					CandidateProfileData: candidateJSON,
 					JobProfileData:       job.AnalyzeResult,
 					ScoringConfigID:      scoringConfig.ID,

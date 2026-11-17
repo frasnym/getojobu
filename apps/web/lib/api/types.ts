@@ -8,7 +8,7 @@ export interface EvaluationSummary {
   id: string;
   user_job_id: string;
   job?: Job;
-  evaluation_status: "new" | "pending" | "success" | "failed";
+  evaluation_status: "queued" | "queued_retry" | "pending" | "success" | "failed";
   overall_score?: number;
   eligibility_status?: string;
   recommendation_label?: string;

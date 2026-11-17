@@ -16,14 +16,14 @@ func TestValidateJobStatusTransition(t *testing.T) {
 			current JobStatus
 			next    JobStatus
 		}{
-			{"blank_to_analyze_pending", "", StatusAnalyzePending},
-			{"new_to_analyze_pending", StatusNew, StatusAnalyzePending},
-			{"new_retry_to_analyze_pending", StatusNewRetry, StatusAnalyzePending},
+			{"blank_to_queued", "", StatusQueued},
+			{"new_to_queued", StatusNew, StatusQueued},
+			{"queued_to_analyze_pending", StatusQueued, StatusAnalyzePending},
+			{"queued_retry_to_analyze_pending", StatusQueuedRetry, StatusAnalyzePending},
 			{"analyze_pending_to_analyzed", StatusAnalyzePending, StatusAnalyzed},
 			{"analyze_pending_to_failed", StatusAnalyzePending, StatusFailed},
-			{"analyze_pending_to_new_retry", StatusAnalyzePending, StatusNewRetry},
-			{"failed_to_new_retry", StatusFailed, StatusNewRetry},
-			{"failed_to_analyze_pending_retry", StatusFailed, StatusAnalyzePending},
+			{"analyze_pending_to_queued_retry", StatusAnalyzePending, StatusQueuedRetry},
+			{"failed_to_queued_retry", StatusFailed, StatusQueuedRetry},
 		}
 
 		for _, tc := range cases {
@@ -80,13 +80,19 @@ func TestValidateJobStatusTransition(t *testing.T) {
 				name:        "new_to_analyzed_skip_pending",
 				current:     StatusNew,
 				next:        StatusAnalyzed,
-				wantContain: "analyze_pending",
+				wantContain: "job must move to \"queued\" first",
 			},
 			{
 				name:        "new_to_failed_skip_pending",
 				current:     StatusNew,
 				next:        StatusFailed,
-				wantContain: "analyze_pending",
+				wantContain: "job must move to \"queued\" first",
+			},
+			{
+				name:        "new_to_analyze_pending_skip_queued",
+				current:     StatusNew,
+				next:        StatusAnalyzePending,
+				wantContain: "job must move to \"queued\" first",
 			},
 			{
 				name:        "unknown_current_status",
@@ -102,12 +108,12 @@ func TestValidateJobStatusTransition(t *testing.T) {
 				t.Parallel()
 				err := ValidateJobStatusTransition(tc.current, tc.next)
 				if err == nil {
-					t.Fatalf("expected an error for %q → %q, got nil", tc.current, tc.next)
+					t.Fatalf("expected error for %q → %q, got nil", tc.current, tc.next)
 				}
 				if !strings.Contains(err.Error(), tc.wantContain) {
 					t.Errorf(
-						"error for %q → %q = %q; want it to contain %q",
-						tc.current, tc.next, err.Error(), tc.wantContain,
+						"error %q does not contain expected substring %q",
+						err.Error(), tc.wantContain,
 					)
 				}
 			})

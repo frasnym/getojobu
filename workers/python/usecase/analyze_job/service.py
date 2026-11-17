@@ -65,10 +65,10 @@ class AnalyzeJob:
         if not current_status:
             raise RuntimeError(f"job {slug!r} response missing 'status' field")
 
-        # 2. Reject if not 'new' or 'new-retry'
-        if current_status not in ("new", "new-retry"):
+        # 2. Reject if not 'queued' or 'queued_retry'
+        if current_status not in ("queued", "queued_retry"):
             raise ValueError(
-                f"job {slug!r} cannot be analyzed: current status is {current_status!r} (must be 'new' or 'new-retry')"
+                f"job {slug!r} cannot be analyzed: current status is {current_status!r} (must be 'queued' or 'queued_retry')"
             )
 
         # 3. Transition status to 'analyze_pending' and verify response

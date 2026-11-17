@@ -46,7 +46,7 @@ func (r *matchingEvaluationsRepository) Create(ctx context.Context, eval *models
 	defer r.Committer(ctx, tx, &err)
 
 	if eval.EvaluationStatus == "" {
-		eval.EvaluationStatus = string(constants.MatchingStatusNew)
+		eval.EvaluationStatus = string(constants.MatchingStatusQueued)
 	}
 	now := time.Now()
 	eval.CreatedAt = now

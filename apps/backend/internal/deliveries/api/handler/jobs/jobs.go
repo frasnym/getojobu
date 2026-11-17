@@ -206,7 +206,7 @@ func (h *handler) BulkCreateJob(w http.ResponseWriter, r *http.Request) error {
 
 // @Tags jobs
 // @Summary Bulk queue job analysis
-// @Description Queue job description analysis workflows in Temporal for multiple jobs. Jobs must have status 'new' or 'failed' (with force=true).
+// @Description Queue job description analysis workflows in Temporal for multiple jobs. Jobs must have status 'new', 'queued', or 'failed' (with force=true).
 // @Accept json
 // @Produce json
 // @Param jobs body bulkQueueAnalyzeRequest true "Jobs to queue for analysis"
@@ -390,7 +390,7 @@ func (h *handler) GetJob(w http.ResponseWriter, r *http.Request) error {
 
 // @Tags jobs
 // @Summary Update job status
-// @Description Transition a job's status (analyze_pending | analyzed | failed). Called by the Temporal worker on completion.
+// @Description Transition a job's status (queued | queued_retry | analyze_pending | analyzed | failed). Called by the Temporal worker on completion.
 // @Accept json
 // @Produce json
 // @Param slug path string true "Job slug"

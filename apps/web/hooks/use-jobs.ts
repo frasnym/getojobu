@@ -3,7 +3,7 @@ import { useAuth } from "@clerk/nextjs";
 import { Job, ApiPagination } from "@/lib/api/types";
 import { getJobs } from "@/lib/api/endpoints";
 
-export type StatusFilter = "all" | "analyzed" | "analyze_pending" | "failed";
+export type StatusFilter = "all" | "analyzed" | "analyze_pending" | "queued" | "queued_retry" | "failed";
 export type OwnedFilter = "all" | "owned" | "not_owned";
 export type HideFilter = "all" | "visible" | "hidden";
 
@@ -13,6 +13,7 @@ export function statusBadgeClasses(status: string): string {
     "rounded-full px-2 py-0.5 text-[11px] font-medium capitalize border";
   switch (status.toLowerCase()) {
     case "analyzed":
+    case "success":
       // green
       return `${base} border-emerald-500/20 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400`;
     case "failed":
@@ -22,6 +23,10 @@ export function statusBadgeClasses(status: string): string {
     case "pending":
       // yellow
       return `${base} border-amber-500/20 bg-amber-500/15 text-amber-600 dark:text-amber-400`;
+    case "queued":
+    case "queued_retry":
+      // sky / blue
+      return `${base} border-sky-500/20 bg-sky-500/15 text-sky-600 dark:text-sky-400`;
     default:
       return `${base} border-border/60 bg-secondary text-secondary-foreground`;
   }

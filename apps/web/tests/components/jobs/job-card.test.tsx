@@ -93,6 +93,13 @@ describe("JobCard evaluation tags", () => {
     expect(tags[1].querySelector(".lucide-clock")).not.toBeNull();
   });
 
+  it("renders a sky Evaluation tag with a clock icon when evaluation_status is queued", () => {
+    render(<JobCard userJob={evaluatedJob({ evaluation_status: "queued" })} />);
+    const tags = screen.getAllByTestId("evaluation-status-tag");
+    expect(tags[1]).toHaveClass("bg-sky-500/10 text-sky-600");
+    expect(tags[1].querySelector(".lucide-clock")).not.toBeNull();
+  });
+
   it("renders a red Evaluation tag when evaluation_status is failed", () => {
     render(<JobCard userJob={evaluatedJob({ evaluation_status: "failed" })} />);
     const tags = screen.getAllByTestId("evaluation-status-tag");

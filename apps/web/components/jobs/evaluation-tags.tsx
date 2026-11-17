@@ -23,9 +23,16 @@ const evaluationTagStyle = (status: string) => {
         className: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
       };
     case "pending":
+    case "analyze_pending":
       return {
         icon: <Clock className="h-3 w-3" />,
         className: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
+      };
+    case "queued":
+    case "queued_retry":
+      return {
+        icon: <Clock className="h-3 w-3" />,
+        className: "bg-sky-500/10 text-sky-600 dark:text-sky-400",
       };
     case "failed":
       return {

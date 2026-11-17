@@ -232,7 +232,7 @@ func TestUpdateStatus_allowed(t *testing.T) {
 	s := newServiceWithMock(repo, userJobs)
 
 	slug := "test-job-status"
-	existing := &models.Job{Slug: slug, Status: "new"}
+	existing := &models.Job{Slug: slug, Status: "queued"}
 	updated := &models.Job{Slug: slug, Status: "analyze_pending"}
 
 	repo.EXPECT().

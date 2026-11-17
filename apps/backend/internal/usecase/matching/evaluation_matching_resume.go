@@ -29,10 +29,11 @@ func (s *matchingService) UpdateEvaluationResume(
 	req UpdateEvaluationResumeRequest,
 ) (*models.MatchingEvaluation, error) {
 	if _, ok := map[string]bool{
-		string(constants.ResumeStatusPending):      true,
-		string(constants.ResumeStatusPendingRetry): true,
-		string(constants.ResumeStatusSuccess):      true,
-		string(constants.ResumeStatusFailed):       true,
+		string(constants.ResumeStatusQueued):      true,
+		string(constants.ResumeStatusQueuedRetry): true,
+		string(constants.ResumeStatusPending):     true,
+		string(constants.ResumeStatusSuccess):     true,
+		string(constants.ResumeStatusFailed):      true,
 	}[req.ResumeStatus]; !ok {
 		return nil, fmt.Errorf("%w: invalid resume_status %s", constants.ErrInvalidRequest, req.ResumeStatus)
 	}
@@ -56,15 +57,10 @@ func (s *matchingService) triggerResume(
 	if eval.EvaluationStatus != string(constants.MatchingStatusSuccess) {
 		return nil, fmt.Errorf("%w: evaluation must be successful", constants.ErrInvalidRequest)
 	}
-	if eval.RecommendationLabel == nil ||
-		(*eval.RecommendationLabel != string(constants.RecommendationStrongMatch) &&
-			*eval.RecommendationLabel != string(constants.RecommendationWorthApplying)) {
-		return nil, fmt.Errorf("%w: recommendation is not eligible for resume generation", constants.ErrInvalidRequest)
-	}
 	if eval.ResumeStatus != nil && *eval.ResumeStatus == string(constants.ResumeStatusSuccess) {
 		return nil, fmt.Errorf("%w: resume already successfully generated; regeneration not allowed", constants.ErrInvalidRequest)
 	}
-	if eval.ResumeStatus != nil && (*eval.ResumeStatus == string(constants.ResumeStatusPending) || *eval.ResumeStatus == string(constants.ResumeStatusPendingRetry)) && !force {
+	if eval.ResumeStatus != nil && (*eval.ResumeStatus == string(constants.ResumeStatusQueued) || *eval.ResumeStatus == string(constants.ResumeStatusQueuedRetry) || *eval.ResumeStatus == string(constants.ResumeStatusPending)) && !force {
 		return nil, fmt.Errorf("%w: resume generation already in progress", constants.ErrInvalidRequest)
 	}
 
@@ -199,6 +195,19 @@ func (s *matchingService) triggerResume(
 		"eligibility_status":   utils.PtrStringOrEmpty(eval.EligibilityStatus),
 		"recommendation_label": *eval.RecommendationLabel,
 	}
+
+	queueStatus := string(constants.ResumeStatusQueued)
+	if eval.ResumeStatus != nil {
+		queueStatus = string(constants.ResumeStatusQueuedRetry)
+	}
+	updated, err := s.evalRepo.UpdateResume(ctx, id, models.UpdateMatchingEvaluationResumeParams{
+		ResumeStatus: queueStatus,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("update resume status to %s: %w", queueStatus, err)
+	}
+	eval = updated
+
 	workflowID := fmt.Sprintf("resume-gen-%s-%d", id.String(), time.Now().UnixMilli())
 	if _, err := s.workflowsRepo.StartLimiterWorkItem(ctx, workflowID, models.LimiterJobTypeResume, input); err != nil {
 		return nil, fmt.Errorf("start resume workflow: %w", err)

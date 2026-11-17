@@ -104,7 +104,7 @@ async def test_integration_worker_with_real_temporal_and_fakes():
         {
             "id": 101,
             "slug": "job-integration-001",
-            "status": "new",
+            "status": "queued",
             "description": "We need a Senior Backend Engineer with Golang experience.",
         }
     )
@@ -143,7 +143,7 @@ async def test_integration_worker_task_queue_handling():
             {
                 "id": i + 1,
                 "slug": slug,
-                "status": "new",
+                "status": "queued",
                 "description": f"We need a {seniority} engineer.",
             }
         )
@@ -159,13 +159,13 @@ async def test_integration_worker_task_queue_handling():
 
 
 @pytest.mark.asyncio
-async def test_activity_flow_success_new_to_analyze_pending_to_analyzed():
-    """Verify 5-step flow for a 'new' job: GET -> check new -> PATCH pending -> LLM -> PATCH analyzed."""
+async def test_activity_flow_success_queued_to_analyze_pending_to_analyzed():
+    """Verify 5-step flow for a 'queued' job: GET -> check queued -> PATCH pending -> LLM -> PATCH analyzed."""
     fake_api = _FakeAPI(
         {
             "id": 101,
             "slug": "lead-go-developer-acme",
-            "status": "new",
+            "status": "queued",
             "description": "We need a Lead Go Developer with 8 years experience.",
         }
     )
@@ -213,13 +213,13 @@ async def test_activity_flow_success_new_to_analyze_pending_to_analyzed():
 
 
 @pytest.mark.asyncio
-async def test_activity_flow_success_new_retry_to_analyze_pending_to_analyzed():
-    """Verify 5-step flow for a 'new-retry' job: GET -> check new-retry -> PATCH pending -> LLM -> PATCH analyzed."""
+async def test_activity_flow_success_queued_retry_to_analyze_pending_to_analyzed():
+    """Verify 5-step flow for a 'queued_retry' job: GET -> check queued_retry -> PATCH pending -> LLM -> PATCH analyzed."""
     fake_api = _FakeAPI(
         {
             "id": 102,
-            "slug": "new-retry-job",
-            "status": "new-retry",
+            "slug": "queued-retry-job",
+            "status": "queued_retry",
             "description": "Retry job description",
         }
     )
@@ -240,7 +240,7 @@ async def test_activity_flow_success_new_retry_to_analyze_pending_to_analyzed():
         )
     )
 
-    result = await analyze_job_activity({"slug": "new-retry-job"})
+    result = await analyze_job_activity({"slug": "queued-retry-job"})
     assert result["family"] == "technology"
     assert fake_api.patched_statuses == ["analyze_pending", "analyzed"]
 
@@ -284,7 +284,7 @@ async def test_activity_flow_rejects_analyzed_status():
 
 @pytest.mark.asyncio
 async def test_activity_flow_rejects_failed_status():
-    """Verify activity rejects a job with status 'failed' (must be queued via API which sets new-retry)."""
+    """Verify activity rejects a job with status 'failed' (must be queued via API which sets queued_retry)."""
     fake_api = _FakeAPI(
         {
             "id": 104,
@@ -363,7 +363,7 @@ async def test_activity_flow_patches_failed_on_llm_error():
         {
             "id": 105,
             "slug": "failing-job-slug",
-            "status": "new",
+            "status": "queued",
             "description": "Some job description",
         }
     )
@@ -426,7 +426,7 @@ async def test_activity_flow_raises_on_patch_pending_unexpected_response():
         {
             "id": 107,
             "slug": "test-slug",
-            "status": "new",
+            "status": "queued",
             "description": "desc",
         },
         patch_pending_response={"slug": "test-slug", "status": "failed"},
@@ -461,7 +461,7 @@ async def test_activity_flow_raises_on_patch_analyzed_unexpected_response():
         {
             "id": 108,
             "slug": "test-slug",
-            "status": "new",
+            "status": "queued",
             "description": "desc",
         },
         patch_analyzed_response={"slug": "test-slug", "status": "failed"},

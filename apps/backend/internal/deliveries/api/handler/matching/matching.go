@@ -161,7 +161,7 @@ func (h *handler) UpdateReport(w http.ResponseWriter, r *http.Request) error {
 		return httpx.Envelope(httpx.CodeInvalidRequest, "report_status is required", "")
 	}
 	switch status {
-	case constants.ReportStatusPending, constants.ReportStatusPendingRetry, constants.ReportStatusSuccess, constants.ReportStatusFailed:
+	case constants.ReportStatusQueued, constants.ReportStatusQueuedRetry, constants.ReportStatusPending, constants.ReportStatusSuccess, constants.ReportStatusFailed:
 	default:
 		return httpx.Envelope(httpx.CodeInvalidRequest, "invalid report_status", "")
 	}
@@ -222,7 +222,7 @@ func (h *handler) UpdateResume(w http.ResponseWriter, r *http.Request) error {
 		return httpx.Envelope(httpx.CodeInvalidRequest, "resume_status is required", "")
 	}
 	switch resumeStatus {
-	case constants.ResumeStatusPending, constants.ResumeStatusPendingRetry, constants.ResumeStatusSuccess, constants.ResumeStatusFailed:
+	case constants.ResumeStatusQueued, constants.ResumeStatusQueuedRetry, constants.ResumeStatusPending, constants.ResumeStatusSuccess, constants.ResumeStatusFailed:
 	default:
 		return httpx.Envelope(httpx.CodeInvalidRequest, "invalid resume_status", "")
 	}

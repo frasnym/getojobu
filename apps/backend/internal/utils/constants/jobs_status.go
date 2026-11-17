@@ -8,7 +8,8 @@ type JobStatus string
 // Job status constants.
 const (
 	StatusNew            JobStatus = "new"
-	StatusNewRetry       JobStatus = "new-retry"
+	StatusQueued         JobStatus = "queued"
+	StatusQueuedRetry    JobStatus = "queued_retry"
 	StatusAnalyzePending JobStatus = "analyze_pending"
 	StatusAnalyzed       JobStatus = "analyzed"
 	StatusFailed         JobStatus = "failed"
@@ -17,14 +18,15 @@ const (
 // ValidateJobStatusTransition returns an error when transitioning from current
 // to next is not permitted. Allowed paths:
 //
-//	""              → analyze_pending  (blank / unset treated as new)
-//	new             → analyze_pending
-//	new-retry       → analyze_pending
-//	analyze_pending → new-retry        (stale retry)
+//	""              → queued
+//	new             → queued
+//	queued          → analyze_pending
+//	queued          → queued_retry    (force retry)
+//	queued_retry    → analyze_pending
+//	analyze_pending → queued_retry    (stale retry)
 //	analyze_pending → analyzed
 //	analyze_pending → failed
-//	failed          → new-retry        (retry)
-//	failed          → analyze_pending  (retry)
+//	failed          → queued_retry    (retry)
 //
 // Everything else is rejected, including any transition out of "analyzed".
 func ValidateJobStatusTransition(current, next JobStatus) error {
@@ -34,22 +36,40 @@ func ValidateJobStatusTransition(current, next JobStatus) error {
 	}
 
 	switch current {
-	case StatusNew, StatusNewRetry:
-		if next == StatusAnalyzePending {
+	case StatusNew:
+		if next == StatusQueued {
 			return nil
 		}
 		return fmt.Errorf(
 			"transition from %q to %q is not allowed: job must move to %q first",
+			current, next, StatusQueued,
+		)
+
+	case StatusQueued:
+		if next == StatusAnalyzePending || next == StatusQueuedRetry {
+			return nil
+		}
+		return fmt.Errorf(
+			"transition from %q to %q is not allowed: expected %q or %q",
+			current, next, StatusAnalyzePending, StatusQueuedRetry,
+		)
+
+	case StatusQueuedRetry:
+		if next == StatusAnalyzePending {
+			return nil
+		}
+		return fmt.Errorf(
+			"transition from %q to %q is not allowed: expected %q",
 			current, next, StatusAnalyzePending,
 		)
 
 	case StatusAnalyzePending:
-		if next == StatusNewRetry || next == StatusAnalyzed || next == StatusFailed {
+		if next == StatusQueuedRetry || next == StatusAnalyzed || next == StatusFailed {
 			return nil
 		}
 		return fmt.Errorf(
 			"transition from %q to %q is not allowed: expected %q, %q or %q",
-			current, next, StatusNewRetry, StatusAnalyzed, StatusFailed,
+			current, next, StatusQueuedRetry, StatusAnalyzed, StatusFailed,
 		)
 
 	case StatusAnalyzed:
@@ -59,12 +79,12 @@ func ValidateJobStatusTransition(current, next JobStatus) error {
 		)
 
 	case StatusFailed:
-		if next == StatusNewRetry || next == StatusAnalyzePending {
+		if next == StatusQueuedRetry {
 			return nil
 		}
 		return fmt.Errorf(
-			"transition from %q to %q is not allowed: failed jobs may only be retried via %q or %q",
-			current, next, StatusNewRetry, StatusAnalyzePending,
+			"transition from %q to %q is not allowed: failed jobs may only be retried via %q",
+			current, next, StatusQueuedRetry,
 		)
 
 	default:

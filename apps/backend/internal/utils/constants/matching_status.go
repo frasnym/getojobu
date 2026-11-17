@@ -6,22 +6,22 @@ import "fmt"
 type MatchingEvaluationStatus string
 
 const (
-	MatchingStatusNew      MatchingEvaluationStatus = "new"
-	MatchingStatusNewRetry MatchingEvaluationStatus = "new-retry"
-	MatchingStatusPending  MatchingEvaluationStatus = "pending"
-	MatchingStatusSuccess  MatchingEvaluationStatus = "success"
-	MatchingStatusFailed   MatchingEvaluationStatus = "failed"
+	MatchingStatusQueued      MatchingEvaluationStatus = "queued"
+	MatchingStatusQueuedRetry MatchingEvaluationStatus = "queued_retry"
+	MatchingStatusPending     MatchingEvaluationStatus = "pending"
+	MatchingStatusSuccess     MatchingEvaluationStatus = "success"
+	MatchingStatusFailed      MatchingEvaluationStatus = "failed"
 )
 
 // ValidateMatchingStatusTransition checks whether moving from current to next is permitted.
-// Moving to "pending" is only allowed if current status is "new" or "new-retry".
+// Moving to "pending" is only allowed if current status is "queued" or "queued_retry".
 func ValidateMatchingStatusTransition(current, next MatchingEvaluationStatus) error {
 	switch next {
 	case MatchingStatusPending:
-		if current != MatchingStatusNew && current != MatchingStatusNewRetry {
+		if current != MatchingStatusQueued && current != MatchingStatusQueuedRetry {
 			return fmt.Errorf(
 				"transition from %q to %q is not allowed: evaluation must be %q or %q",
-				current, next, MatchingStatusNew, MatchingStatusNewRetry,
+				current, next, MatchingStatusQueued, MatchingStatusQueuedRetry,
 			)
 		}
 	}
@@ -60,18 +60,20 @@ const (
 type ReportStatus string
 
 const (
-	ReportStatusPending      ReportStatus = "pending"
-	ReportStatusPendingRetry ReportStatus = "pending-retry"
-	ReportStatusSuccess      ReportStatus = "success"
-	ReportStatusFailed       ReportStatus = "failed"
+	ReportStatusQueued      ReportStatus = "queued"
+	ReportStatusQueuedRetry ReportStatus = "queued_retry"
+	ReportStatusPending     ReportStatus = "pending"
+	ReportStatusSuccess     ReportStatus = "success"
+	ReportStatusFailed      ReportStatus = "failed"
 )
 
 // ResumeStatus represents the lifecycle state of resume generation.
 type ResumeStatus string
 
 const (
-	ResumeStatusPending      ResumeStatus = "pending"
-	ResumeStatusPendingRetry ResumeStatus = "pending-retry"
-	ResumeStatusSuccess      ResumeStatus = "success"
-	ResumeStatusFailed       ResumeStatus = "failed"
+	ResumeStatusQueued      ResumeStatus = "queued"
+	ResumeStatusQueuedRetry ResumeStatus = "queued_retry"
+	ResumeStatusPending     ResumeStatus = "pending"
+	ResumeStatusSuccess     ResumeStatus = "success"
+	ResumeStatusFailed      ResumeStatus = "failed"
 )
