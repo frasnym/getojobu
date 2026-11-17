@@ -11,8 +11,36 @@ from typing import Any, Protocol, cast, runtime_checkable
 import httpx
 
 from utils.logging import get_logger
+from utils.telemetry import inject_trace_context
 
 logger = get_logger("repository.getojobu_api")
+
+
+async def _on_request(request: httpx.Request) -> None:
+    """Attach the active span so the Go API continues this trace."""
+    inject_trace_context(request.headers)
+
+
+def new_api_http_client(
+    *,
+    base_url: str,
+    api_key: str,
+    timeout_seconds: float = 30.0,
+    transport: httpx.AsyncBaseTransport | None = None,
+) -> httpx.AsyncClient:
+    """Build the shared Go API client, injecting W3C trace context per request."""
+    kwargs: dict[str, Any] = {
+        "base_url": base_url,
+        "timeout": httpx.Timeout(timeout_seconds),
+        "headers": {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        },
+        "event_hooks": {"request": [_on_request]},
+    }
+    if transport is not None:
+        kwargs["transport"] = transport
+    return httpx.AsyncClient(**kwargs)
 
 
 @runtime_checkable
@@ -90,13 +118,10 @@ class _getojobuAPI:
     ) -> None:
         self._base_url = base_url.rstrip("/")
         self._api_key = api_key
-        self._client = httpx.AsyncClient(
+        self._client = new_api_http_client(
             base_url=self._base_url,
-            timeout=httpx.Timeout(timeout_seconds),
-            headers={
-                "Authorization": f"Bearer {self._api_key}",
-                "Content-Type": "application/json",
-            },
+            api_key=self._api_key,
+            timeout_seconds=timeout_seconds,
         )
 
     def _check_response(self, response: httpx.Response, operation: str) -> None:

@@ -10,7 +10,10 @@ interceptor becomes available for the workers.
 
 from __future__ import annotations
 
+from collections.abc import MutableMapping
+
 from opentelemetry import trace
+from opentelemetry.propagate import inject
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
@@ -43,3 +46,12 @@ def setup_otel(endpoint: str, service_name: str = SERVICE_NAME) -> None:
 def is_enabled() -> bool:
     """Whether setup_otel installed a real provider."""
     return _TRACER_PROVIDER is not None
+
+
+def inject_trace_context(headers: MutableMapping[str, str]) -> None:
+    """Copy the active span into outgoing headers as a W3C traceparent.
+
+    No-op when there is no active span (OTel disabled), so local development
+    without Jaeger stays unchanged.
+    """
+    inject(headers)
