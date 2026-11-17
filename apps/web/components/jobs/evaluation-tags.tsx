@@ -20,22 +20,22 @@ const evaluationTagStyle = (status: string) => {
     case "analyzed":
       return {
         icon: <CheckCircle2 className="h-3 w-3" />,
-        className: "border-emerald-500/20 bg-emerald-500/10 text-emerald-600",
+        className: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
       };
     case "pending":
       return {
         icon: <Clock className="h-3 w-3" />,
-        className: "border-amber-500/20 bg-amber-500/10 text-amber-600",
+        className: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
       };
     case "failed":
       return {
         icon: <AlertCircle className="h-3 w-3" />,
-        className: "border-destructive/20 bg-destructive/10 text-destructive",
+        className: "bg-destructive/10 text-destructive dark:text-destructive",
       };
     default:
       return {
         icon: null,
-        className: "border-border/40 bg-muted/50 text-muted-foreground",
+        className: "bg-secondary/50 text-secondary-foreground dark:text-secondary-foreground",
       };
   }
 };
@@ -46,7 +46,7 @@ export function EvaluationStatusTag({ status, label = "Evaluation" }: Evaluation
   return (
     <span
       data-testid="evaluation-status-tag"
-      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-bold capitalize ${className}`}
+      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-bold capitalize ${className}`}
     >
       {icon}
       <span>{label}</span>
@@ -85,9 +85,9 @@ const recommendationTagStyle = (label: string) => {
     case "possible_match":
       return { className: "bg-amber-500/10 text-amber-600 dark:text-amber-400" };
     case "low_match":
-      return { className: "bg-destructive/10 text-destructive" };
+      return { className: "bg-destructive/10 text-destructive dark:text-destructive" };
     default:
-      return { className: "bg-secondary text-secondary-foreground" };
+      return { className: "bg-secondary/50 text-secondary-foreground dark:text-secondary-foreground" };
   }
 };
 
