@@ -20,7 +20,8 @@ interface JobCardProps {
 	isChecked?: boolean;
 	/** Called when the checkbox toggles. */
 	onCheckChange?: (checked: boolean) => void;
-}
+	/** Called when the user retries a failed job analysis. */
+	onRetry?: (userJobId: string) => void | Promise<void>;
 
 /** Turn a raw status like "analyze_pending" into "Analyze Pending". */
 function formatJobStatusLabel(status: string): string {

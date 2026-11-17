@@ -22,7 +22,7 @@ func TestOtelTracer_options_and_round_trip(t *testing.T) {
 	// Assert: tracing interceptor requires a span context key and header key.
 	require.NotNil(t, opts.SpanContextKey, "SpanContextKey must be set")
 	assert.NotEmpty(t, opts.HeaderKey, "HeaderKey must be set")
-	assert.False(t, opts.EncodeHeaders, "headers stay plain W3C traceparent")
+	assert.False(t, opts.EncodeHeaders, "SDK serializes the carrier into the standard JSON payload")
 }
 
 func TestOtelTracer_start_finish_and_context_round_trip(t *testing.T) {
@@ -84,6 +84,38 @@ func TestOtelTracer_marshal_unmarshal_header_round_trip(t *testing.T) {
 	require.NotNil(t, child)
 	child.Finish(&interceptor.TracerFinishSpanOptions{})
 	span.Finish(&interceptor.TracerFinishSpanOptions{})
+}
+
+func TestOtelTracer_marshal_matches_python_worker_header_contract(t *testing.T) {
+	// The Python worker's temporalio.contrib.opentelemetry TracingInterceptor reads
+	// trace context from header "_tracer-data" and expects a W3C propagator carrier
+	// with a "traceparent" key. Any other header or carrier key makes Python skip
+	// the workflow span, so every activity shows up as an orphan root trace.
+	otel.SetTracerProvider(sdktrace.NewTracerProvider())
+	defer otel.SetTracerProvider(noop.NewTracerProvider())
+
+	tr := otelTracer{}
+	assert.Equal(t, "_tracer-data", tr.Options().HeaderKey)
+
+	span, err := tr.StartSpan(&interceptor.TracerStartSpanOptions{
+		Operation: "StartWorkflow",
+		Name:      "JobAnalyzeWorkflow",
+	})
+	require.NoError(t, err)
+	defer span.Finish(&interceptor.TracerFinishSpanOptions{})
+
+	headers, err := tr.MarshalSpan(span)
+	require.NoError(t, err)
+	require.Len(t, headers, 1, "carrier must contain only the W3C traceparent key")
+	traceparent, ok := headers["traceparent"]
+	require.True(t, ok, "carrier must use the W3C traceparent key, got %v", headers)
+	assert.Regexp(t, `^00-[0-9a-f]{32}-[0-9a-f]{16}-0[01]$`, traceparent)
+
+	// Python feeds the decoded carrier to its propagator, so UnmarshalSpan must
+	// accept the same W3C carrier shape.
+	ref, err := tr.UnmarshalSpan(map[string]string{"traceparent": traceparent})
+	require.NoError(t, err)
+	require.NotNil(t, ref)
 }
 
 func TestOtelTracer_attributes_and_status(t *testing.T) {

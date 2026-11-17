@@ -37,7 +37,7 @@ const evaluationTagStyle = (status: string) => {
     case "failed":
       return {
         icon: <AlertCircle className="h-3 w-3" />,
-        className: "bg-destructive/10 text-destructive dark:text-destructive",
+        className: "bg-destructive/15 text-destructive dark:text-destructive",
       };
     default:
       return {

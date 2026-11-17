@@ -27,10 +27,15 @@ import (
 // SpanContextKey. It is unexported so unrelated WithValue calls cannot collide.
 type spanContextKey struct{}
 
-// headerKey is the Temporal header carrying the W3C traceparent. The Python
-// worker's temporalio.contrib.opentelemetry interceptor uses the same key.
+// headerKey is the Temporal header carrying the serialized trace-context
+// carrier. It must match temporalio.contrib.opentelemetry.TracingInterceptor's
+// header_key so the Python worker can read the context we write here.
+// carrierKey is the W3C propagator key inside that carrier; the Python
+// interceptor extracts its context with TraceContextTextMapPropagator, which
+// looks for "traceparent".
 const (
-	headerKey  = "temporal-trace-context"
+	headerKey  = "_tracer-data"
+	carrierKey = "traceparent"
 	tracerName = "getojobu-temporal"
 )
 
@@ -52,15 +57,16 @@ func (t otelTracer) Options() interceptor.TracerOptions {
 	return interceptor.TracerOptions{
 		SpanContextKey: spanContextKey{},
 		HeaderKey:      headerKey,
-		// Headers stay plain W3C traceparent; the Python worker's
-		// temporalio.contrib.opentelemetry interceptor reads the same format.
+		// The SDK serializes the MarshalSpan map into a JSON Payload under
+		// HeaderKey. That matches the Payload the Python interceptor decodes,
+		// so no extra payload encoding is needed here.
 		EncodeHeaders: false,
 	}
 }
 
 // UnmarshalSpan parses a W3C traceparent header map back into a span reference.
 func (t otelTracer) UnmarshalSpan(headers map[string]string) (interceptor.TracerSpanRef, error) {
-	tp, ok := headers[headerKey]
+	tp, ok := headers[carrierKey]
 	if !ok || tp == "" {
 		return nil, nil
 	}
@@ -77,7 +83,7 @@ func (t otelTracer) MarshalSpan(span interceptor.TracerSpan) (map[string]string,
 	if !ok || s == nil || !s.sc.IsValid() {
 		return map[string]string{}, nil
 	}
-	return map[string]string{headerKey: formatTraceparent(s.sc)}, nil
+	return map[string]string{carrierKey: formatTraceparent(s.sc)}, nil
 }
 
 // SpanFromContext returns the span stored on ctx, or nil.

@@ -61,6 +61,18 @@ from workflows.match_job import MatchJobWorkflow
 logger = get_logger("worker.main")
 
 
+def build_worker_interceptors(otel_enabled: bool) -> list[TracingInterceptor]:
+    """Build Temporal interceptors that propagate trace context when OTel is on.
+
+    always_create_workflow_spans keeps a RunWorkflow span for workflows started
+    without a client span (cron, CLI, schedules). Without it those workflows have
+    no parent context and each activity shows up as an orphan root trace.
+    """
+    if not otel_enabled:
+        return []
+    return [TracingInterceptor(always_create_workflow_spans=True)]
+
+
 async def run() -> int:
     cfg = config_load()
     setup_otel(cfg.otel_endpoint)
@@ -100,7 +112,7 @@ async def run() -> int:
 
     # Propagate trace context through Temporal (child spans of the requesting
     # API call) only when OTel is enabled.
-    worker_interceptors = [TracingInterceptor()] if cfg.otel_endpoint else []
+    worker_interceptors = build_worker_interceptors(bool(cfg.otel_endpoint))
 
     try:
         job_analyze_worker = Worker(
