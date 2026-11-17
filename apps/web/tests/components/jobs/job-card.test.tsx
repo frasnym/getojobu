@@ -276,41 +276,76 @@ describe("JobCard retry", () => {
     job: { ...mockUserJob.job, status: "failed" },
   };
 
-  it("shows a Retry button when the job status is failed", () => {
+  it("labels a failed job as Retry Analyze Job", () => {
     render(<JobCard userJob={failedJob} onRetry={vi.fn()} />);
-    expect(screen.getByRole("button", { name: /Retry failed job/i })).toBeInTheDocument();
-    expect(screen.getByText("Retry")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Retry Analyze Job/i })).toBeInTheDocument();
+  });
+
+  it("labels a failed evaluation as Retry Evaluate Job", () => {
+    const evalFailedJob: UserJob = {
+      ...mockUserJob,
+      evaluation: { id: "eval-1", evaluation_status: "failed", report_status: "success" },
+    };
+    render(<JobCard userJob={evalFailedJob} onRetry={vi.fn()} />);
+    expect(screen.getByRole("button", { name: /Retry Evaluate Job/i })).toBeInTheDocument();
+  });
+
+  it("labels a failed report as Retry Generate Report", () => {
+    const reportFailedJob: UserJob = {
+      ...mockUserJob,
+      evaluation: { id: "eval-1", evaluation_status: "success", report_status: "failed" },
+    };
+    render(<JobCard userJob={reportFailedJob} onRetry={vi.fn()} />);
+    expect(screen.getByRole("button", { name: /Retry Generate Report/i })).toBeInTheDocument();
+  });
+
+  it("labels a failed resume as Retry Generate Resume", () => {
+    const resumeFailedJob: UserJob = {
+      ...mockUserJob,
+      evaluation: {
+        id: "eval-1",
+        evaluation_status: "success",
+        report_status: "success",
+        resume_status: "failed",
+      },
+    };
+    render(<JobCard userJob={resumeFailedJob} onRetry={vi.fn()} />);
+    expect(screen.getByRole("button", { name: /Retry Generate Resume/i })).toBeInTheDocument();
   });
 
   it("calls onRetry with the user job id without opening the detail view", () => {
     const onRetry = vi.fn();
     const onSelect = vi.fn();
     render(<JobCard userJob={failedJob} onRetry={onRetry} onSelect={onSelect} />);
-    fireEvent.click(screen.getByRole("button", { name: /Retry failed job/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Retry Analyze Job/i }));
     expect(onRetry).toHaveBeenCalledWith("11111111-1111-1111-1111-111111111111");
     expect(onSelect).not.toHaveBeenCalled();
   });
 
-  it("shows a Retry button when only the evaluation failed", () => {
-    const evalFailedJob: UserJob = {
-      ...mockUserJob,
-      evaluation: {
-        id: "eval-1",
-        evaluation_status: "failed",
-        report_status: "success",
-      },
-    };
-    render(<JobCard userJob={evalFailedJob} onRetry={vi.fn()} />);
-    expect(screen.getByRole("button", { name: /Retry failed job/i })).toBeInTheDocument();
+  it("places the Retry button beside the bottom status tags", () => {
+    render(<JobCard userJob={failedJob} onRetry={vi.fn()} />);
+    const statusRow = screen.getAllByTestId("evaluation-status-tag")[0].parentElement;
+    expect(statusRow).toContainElement(screen.getByRole("button", { name: /Retry Analyze Job/i }));
+  });
+
+  it("styles the Retry button like the Explore More Jobs button with a retry icon", () => {
+    const { container } = render(<JobCard userJob={failedJob} onRetry={vi.fn()} />);
+    const retryButton = screen.getByRole("button", { name: /Retry Analyze Job/i });
+    expect(retryButton.className).toContain("border-border");
+    expect(retryButton.className).toContain("bg-card");
+    expect(retryButton.className).toContain("text-foreground");
+    expect(retryButton.className).toContain("hover:bg-secondary");
+    expect(retryButton.className).not.toContain("bg-primary");
+    expect(container.querySelector(".lucide-rotate-ccw")).toBeInTheDocument();
   });
 
   it("does not show a Retry button for a non-failed job", () => {
     render(<JobCard userJob={mockUserJob} onRetry={vi.fn()} />);
-    expect(screen.queryByRole("button", { name: /Retry failed job/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Retry /i })).not.toBeInTheDocument();
   });
 
   it("does not show a Retry button when no handler is provided", () => {
     render(<JobCard userJob={failedJob} />);
-    expect(screen.queryByRole("button", { name: /Retry failed job/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Retry /i })).not.toBeInTheDocument();
   });
 });

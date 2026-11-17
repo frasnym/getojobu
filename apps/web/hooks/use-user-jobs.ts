@@ -7,6 +7,7 @@ import {
   setUserJobHideStatus,
   setUserJobsHideStatus,
   triggerJobCompatibility,
+  retryResumeGeneration,
 } from "@/lib/api/endpoints";
 import { StatusFilter } from "./use-jobs";
 
@@ -353,6 +354,38 @@ export function useUserJobs(explicitToken?: string | null) {
               ? {
                   ...uj,
                   evaluation: { ...uj.evaluation, evaluation_status: "queued_retry" },
+                }
+              : uj
+          )
+        );
+        return;
+      }
+
+      // Report generation runs inside the match workflow, so re-run
+      // compatibility with force to queue a fresh evaluation and report.
+      if (target.evaluation?.report_status === "failed") {
+        await triggerJobCompatibility(target.job.slug, true, token);
+        setUserJobs((prev) =>
+          prev.map((uj) =>
+            uj.id === userJobId && uj.evaluation
+              ? {
+                  ...uj,
+                  evaluation: { ...uj.evaluation, report_status: "queued_retry" },
+                }
+              : uj
+          )
+        );
+        return;
+      }
+
+      if (target.evaluation?.resume_status === "failed") {
+        await retryResumeGeneration(target.evaluation.id, token);
+        setUserJobs((prev) =>
+          prev.map((uj) =>
+            uj.id === userJobId && uj.evaluation
+              ? {
+                  ...uj,
+                  evaluation: { ...uj.evaluation, resume_status: "queued_retry" },
                 }
               : uj
           )

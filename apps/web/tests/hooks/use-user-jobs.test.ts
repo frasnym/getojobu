@@ -238,4 +238,81 @@ describe("useUserJobs hook and filterUserJobs", () => {
       expect(result.current.jobs[0].job.status).toBe("queued_retry");
     });
   });
+
+  it("retryJob re-runs compatibility when only the report failed", async () => {
+    const reportFailedJob: UserJob = {
+      ...mockUserJobs[0],
+      evaluation: { id: "eval-1", evaluation_status: "success", report_status: "failed" },
+    };
+    vi.spyOn(endpoints, "getUserJobs").mockResolvedValue({
+      data: [reportFailedJob],
+      pagination: {
+        page: 1,
+        limit: 10,
+        totalItems: 1,
+        totalPages: 1,
+        hasNext: false,
+        hasPrev: false,
+      },
+    });
+    const compatSpy = vi
+      .spyOn(endpoints, "triggerJobCompatibility")
+      .mockResolvedValue({} as never);
+
+    const { result } = renderHook(() => useUserJobs());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    await act(async () => {
+      await result.current.retryJob(reportFailedJob.id);
+    });
+
+    expect(compatSpy).toHaveBeenCalledWith("go-stripe", true, "test-token");
+    await waitFor(() => {
+      expect(result.current.jobs[0].evaluation?.report_status).toBe("queued_retry");
+    });
+  });
+
+  it("retryJob queues resume generation when the resume failed", async () => {
+    const resumeFailedJob: UserJob = {
+      ...mockUserJobs[0],
+      evaluation: {
+        id: "eval-1",
+        evaluation_status: "success",
+        report_status: "success",
+        resume_status: "failed",
+      },
+    };
+    vi.spyOn(endpoints, "getUserJobs").mockResolvedValue({
+      data: [resumeFailedJob],
+      pagination: {
+        page: 1,
+        limit: 10,
+        totalItems: 1,
+        totalPages: 1,
+        hasNext: false,
+        hasPrev: false,
+      },
+    });
+    const resumeSpy = vi
+      .spyOn(endpoints, "retryResumeGeneration")
+      .mockResolvedValue({} as never);
+
+    const { result } = renderHook(() => useUserJobs());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    await act(async () => {
+      await result.current.retryJob(resumeFailedJob.id);
+    });
+
+    expect(resumeSpy).toHaveBeenCalledWith("eval-1", "test-token");
+    await waitFor(() => {
+      expect(result.current.jobs[0].evaluation?.resume_status).toBe("queued_retry");
+    });
+  });
 });

@@ -1,7 +1,7 @@
 import React from "react";
 import Link from "next/link";
 import { UserJob } from "@/lib/api/types";
-import { AlertCircle, MapPin, Globe, Clock, ArrowRight, Eye, EyeOff } from "lucide-react";
+import { MapPin, Globe, Clock, ArrowRight, Eye, EyeOff, RotateCcw } from "lucide-react";
 import { EvaluationStatusTag, EligibilityTag, RecommendationTag } from "@/components/jobs/evaluation-tags";
 
 interface JobCardProps {
@@ -45,8 +45,16 @@ export function JobCard({
 	const targetHref = href || `/user-jobs/${job.slug}`;
 	const isClickable = !!onSelect && canOpenDetail;
 	const isHidden = userJob.is_hidden === true;
-	const canRetry =
-		job.status === "failed" || userJob.evaluation?.evaluation_status === "failed";
+	// Matches retryJob priority so the label always says what a click will retry.
+	const retryLabel = job.status === "failed"
+		? "Retry Analyze Job"
+		: userJob.evaluation?.evaluation_status === "failed"
+			? "Retry Evaluate Job"
+			: userJob.evaluation?.report_status === "failed"
+				? "Retry Generate Report"
+				: userJob.evaluation?.resume_status === "failed"
+					? "Retry Generate Resume"
+					: null;
 
 	return (
 		<div
@@ -127,6 +135,20 @@ export function JobCard({
 									<EvaluationStatusTag status={userJob.evaluation.resume_status} label="Resume" />
 								</>
 							)}
+							{retryLabel && onRetry && (
+								<button
+									type="button"
+									onClick={(e) => {
+										e.stopPropagation();
+										onRetry(userJob.id);
+									}}
+									className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3.5 py-1.5 text-xs font-semibold text-foreground hover:bg-secondary transition-colors"
+									aria-label={retryLabel}
+								>
+									<RotateCcw className="h-3.5 w-3.5 text-red-500" />
+									<span>{retryLabel}</span>
+								</button>
+							)}
 						</div>
 					)}
 				</div>
@@ -162,20 +184,6 @@ export function JobCard({
 								<span>Details</span>
 								<ArrowRight className="h-3.5 w-3.5" />
 							</div>
-						)}
-						{canRetry && onRetry && (
-							<button
-								type="button"
-								onClick={(e) => {
-									e.stopPropagation();
-									onRetry(userJob.id);
-								}}
-								className="inline-flex items-center gap-1.5 rounded-lg border border-red-500/40 bg-card px-2.5 py-1.5 text-xs font-medium text-red-400 dark:text-red-300 hover:bg-red-500/10 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500/60"
-								aria-label="Retry failed job"
-							>
-								<AlertCircle className="h-3.5 w-3.5" />
-								<span>Retry</span>
-							</button>
 						)}
 					</div>
 				</div>
