@@ -181,6 +181,34 @@ func TestMatchingEvaluationResponse_hasNoJobKey(t *testing.T) {
 	assert.Contains(t, keys, "evaluation_status")
 }
 
+func TestMatchingEvaluationResponse_mapsCoverLetterFields(t *testing.T) {
+	status := "success"
+	failure := "2026-11-17T10:00:00Z — Cover letter generation failed"
+	eval := &models.MatchingEvaluation{
+		EvaluationStatus:          "success",
+		CoverLetterStatus:         &status,
+		CoverLetterContent:        json.RawMessage(`{"text":"Dear Hiring Manager, ...","metadata":{"model":"use-combo","prompt_version":"generate-cover-letter-short-v1"}}`),
+		CoverLetterFailureMessage: &failure,
+		CoverLetterFileName:       "Cover Letter_Jane Doe_Software Engineer.pdf",
+	}
+
+	resp := NewMatchingEvaluationResponse(eval)
+
+	require.NotNil(t, resp.CoverLetterContent)
+	assert.Equal(t, "Dear Hiring Manager, ...", resp.CoverLetterContent.Text)
+	assert.Equal(t, "use-combo", resp.CoverLetterContent.Metadata.Model)
+	assert.Equal(t, "generate-cover-letter-short-v1", resp.CoverLetterContent.Metadata.PromptVersion)
+	assert.Equal(t, &status, resp.CoverLetterStatus)
+	assert.Equal(t, &failure, resp.CoverLetterFailureMessage)
+	assert.Equal(t, "Cover Letter_Jane Doe_Software Engineer.pdf", resp.CoverLetterFileName)
+
+	keys := marshalKeys(t, resp)
+	assert.Contains(t, keys, "cover_letter_status")
+	assert.Contains(t, keys, "cover_letter_content")
+	assert.Contains(t, keys, "cover_letter_failure_message")
+	assert.Contains(t, keys, "cover_letter_file_name")
+}
+
 func TestEvaluationResponse_includesJob(t *testing.T) {
 	eval := &models.MatchingEvaluation{
 		ID:               uuid.MustParse("5f0c1d8e-0000-0000-0000-000000000000"),

@@ -117,6 +117,21 @@ func (mr *MockMatchingMockRecorder) GetResume(ctx, id, caller any) *gomock.Call 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetResume", reflect.TypeOf((*MockMatching)(nil).GetResume), ctx, id, caller)
 }
 
+// QueueCoverLetter mocks base method.
+func (m *MockMatching) QueueCoverLetter(ctx context.Context, id uuid.UUID, req matching.QueueCoverLetterRequest, caller *models.Principal) (*models.MatchingEvaluationSummary, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "QueueCoverLetter", ctx, id, req, caller)
+	ret0, _ := ret[0].(*models.MatchingEvaluationSummary)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// QueueCoverLetter indicates an expected call of QueueCoverLetter.
+func (mr *MockMatchingMockRecorder) QueueCoverLetter(ctx, id, req, caller any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueueCoverLetter", reflect.TypeOf((*MockMatching)(nil).QueueCoverLetter), ctx, id, req, caller)
+}
+
 // TriggerCompatibilityBulk mocks base method.
 func (m *MockMatching) TriggerCompatibilityBulk(ctx context.Context, items []models.BulkAnalyzeCompatibilityItem, caller *models.Principal) ([]*models.MatchingEvaluationSummary, error) {
 	m.ctrl.T.Helper()
@@ -145,6 +160,21 @@ func (m *MockMatching) UpdateEvaluation(ctx context.Context, id uuid.UUID, req m
 func (mr *MockMatchingMockRecorder) UpdateEvaluation(ctx, id, req any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateEvaluation", reflect.TypeOf((*MockMatching)(nil).UpdateEvaluation), ctx, id, req)
+}
+
+// UpdateEvaluationCoverLetter mocks base method.
+func (m *MockMatching) UpdateEvaluationCoverLetter(ctx context.Context, id uuid.UUID, req matching.UpdateEvaluationCoverLetterRequest) (*models.MatchingEvaluation, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateEvaluationCoverLetter", ctx, id, req)
+	ret0, _ := ret[0].(*models.MatchingEvaluation)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// UpdateEvaluationCoverLetter indicates an expected call of UpdateEvaluationCoverLetter.
+func (mr *MockMatchingMockRecorder) UpdateEvaluationCoverLetter(ctx, id, req any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateEvaluationCoverLetter", reflect.TypeOf((*MockMatching)(nil).UpdateEvaluationCoverLetter), ctx, id, req)
 }
 
 // UpdateEvaluationReport mocks base method.

@@ -117,14 +117,15 @@ type DownloadResumeResponse struct {
 
 // MatchingEvaluationSummary represents a lightweight summary of an evaluation.
 type MatchingEvaluationSummary struct {
-	Slug             string     `json:"slug,omitempty"`
-	ID               *uuid.UUID `json:"id,omitempty"`
-	UserJobID        *uuid.UUID `json:"user_job_id,omitempty"`
-	EvaluationStatus string     `json:"evaluation_status,omitempty"`
-	ResumeStatus     *string    `json:"resume_status,omitempty"`
-	ReportStatus     *string    `json:"report_status,omitempty"`
-	CreatedAt        *time.Time `json:"created_at,omitempty"`
-	Error            *string    `json:"error,omitempty"`
+	Slug              string     `json:"slug,omitempty"`
+	ID                *uuid.UUID `json:"id,omitempty"`
+	UserJobID         *uuid.UUID `json:"user_job_id,omitempty"`
+	EvaluationStatus  string     `json:"evaluation_status,omitempty"`
+	ResumeStatus      *string    `json:"resume_status,omitempty"`
+	ReportStatus      *string    `json:"report_status,omitempty"`
+	CoverLetterStatus *string    `json:"cover_letter_status,omitempty"`
+	CreatedAt         *time.Time `json:"created_at,omitempty"`
+	Error             *string    `json:"error,omitempty"`
 }
 
 // BulkAnalyzeCompatibilityItem holds input for a single compatibility evaluation in a batch.

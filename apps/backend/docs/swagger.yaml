@@ -70,6 +70,14 @@ definitions:
     type: object
   dto.MatchingEvaluationResponse:
     properties:
+      cover_letter_content:
+        type: object
+      cover_letter_failure_message:
+        type: string
+      cover_letter_file_name:
+        type: string
+      cover_letter_status:
+        type: string
       created_at:
         type: string
       eligibility_status:
@@ -307,6 +315,22 @@ definitions:
       id:
         type: string
     type: object
+  matching.generateCoverLetterPayload:
+    properties:
+      force:
+        type: boolean
+      variant:
+        type: string
+    type: object
+  matching.updateCoverLetterPayload:
+    properties:
+      cover_letter_content:
+        type: object
+      cover_letter_failure_message:
+        type: string
+      cover_letter_status:
+        type: string
+    type: object
   matching.updateEvaluationPayload:
     properties:
       evaluation_data:
@@ -484,6 +508,8 @@ definitions:
     type: object
   models.MatchingEvaluationSummary:
     properties:
+      cover_letter_status:
+        type: string
       created_at:
         type: string
       error:
@@ -1147,6 +1173,94 @@ paths:
       security:
       - ApiKeyAuth: []
       summary: Update matching evaluation
+      tags:
+      - matching
+  /v1/matching-evaluations/{id}/cover-letter:
+    patch:
+      consumes:
+      - application/json
+      description: Records cover letter status, generated content, or a failure. Failed
+        attempts append a safe, fixed message. Accessible only via machine API key.
+      parameters:
+      - description: Matching evaluation ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Cover letter status update payload
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/matching.updateCoverLetterPayload'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.MatchingEvaluationResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpx.Error'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpx.Error'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httpx.Error'
+      security:
+      - ApiKeyAuth: []
+      summary: Update cover letter generation status
+      tags:
+      - matching
+  /v1/matching-evaluations/{id}/cover-letter/generate:
+    post:
+      consumes:
+      - application/json
+      description: Queues short or full cover letter generation. Clerk users may only
+        enqueue evaluations they own. Returns 202 while the worker generates the letter.
+      parameters:
+      - description: Matching evaluation ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Variant and optional force flag
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/matching.generateCoverLetterPayload'
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            $ref: '#/definitions/models.MatchingEvaluationSummary'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpx.Error'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpx.Error'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/httpx.Error'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httpx.Error'
+      security:
+      - ApiKeyAuth: []
+      summary: Generate cover letter
       tags:
       - matching
   /v1/matching-evaluations/{id}/report:
