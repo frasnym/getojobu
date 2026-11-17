@@ -259,6 +259,7 @@ export default function UserJobsPage() {
 							key={userJob.id}
 							userJob={userJob}
 							onSelect={setSelectedRow}
+							canOpenDetail={userJob.job.status === "analyzed"}
 							isSelected={selectedRow?.id === userJob.id}
 							onHideToggle={hideJob}
 							onResume={handleResume}

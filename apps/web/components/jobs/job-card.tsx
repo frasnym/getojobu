@@ -12,12 +12,21 @@ interface JobCardProps {
 	onHideToggle?: (userJobId: string, isHidden: boolean) => void | Promise<void>;
 	/** Open the drawer on the Resume tab for this job. */
 	onResume?: (userJob: UserJob) => void;
+	/** When false, the job cannot open the detail view (drawer or link). */
+	canOpenDetail?: boolean;
 	/** When true, renders a checkbox for bulk selection. */
 	selectable?: boolean;
 	/** Whether this card's checkbox is checked. */
 	isChecked?: boolean;
 	/** Called when the checkbox toggles. */
 	onCheckChange?: (checked: boolean) => void;
+}
+
+/** Turn a raw status like "analyze_pending" into "Analyze Pending". */
+function formatJobStatusLabel(status: string): string {
+	return status
+		.replace(/_/g, " ")
+		.replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
 export function JobCard({
@@ -27,13 +36,14 @@ export function JobCard({
 	isSelected,
 	onHideToggle,
 	onResume,
+	canOpenDetail = true,
 	selectable = false,
 	isChecked = false,
 	onCheckChange,
 }: JobCardProps) {
 	const job = userJob.job;
 	const targetHref = href || `/user-jobs/${job.slug}`;
-	const isClickable = !!onSelect;
+	const isClickable = !!onSelect && canOpenDetail;
 	const isHidden = userJob.is_hidden === true;
 
 	return (
@@ -70,11 +80,13 @@ export function JobCard({
 					<h3 className="text-lg font-bold tracking-tight text-foreground group-hover:text-primary transition-colors">
 						{isClickable ? (
 							<span className="group-hover:text-primary transition-colors">{job.title}</span>
-						) : (
+						) : canOpenDetail ? (
 							<Link href={targetHref} className="focus:outline-none">
 								<span className="absolute inset-0" aria-hidden="true" />
 								{job.title}
 							</Link>
+						) : (
+							<span>{job.title}</span>
 						)}
 					</h3>
 
@@ -94,14 +106,21 @@ export function JobCard({
 						)}
 					</div>
 
-					{userJob.evaluation && (
+					{(job.status || userJob.evaluation) && (
 						<div className="flex flex-wrap items-center gap-2.5 pt-3 border-t border-border/40">
-							<EvaluationStatusTag status={job.status} label="Analyzed" />
-							<EvaluationStatusTag status={userJob.evaluation.evaluation_status} label="Evaluation" />
-							<EvaluationStatusTag status={userJob.evaluation.report_status} label="Report" />
-							<EvaluationStatusTag status={userJob.evaluation.resume_status} label="Resume" />
-							<EligibilityTag status={userJob.evaluation.eligibility_status} />
-							<RecommendationTag label={userJob.evaluation.recommendation_label} />
+							<EvaluationStatusTag
+								status={job.status}
+								label={formatJobStatusLabel(job.status)}
+							/>
+							{userJob.evaluation && (
+								<>
+									<EvaluationStatusTag status={userJob.evaluation.evaluation_status} label="Evaluation" />
+									<EvaluationStatusTag status={userJob.evaluation.report_status} label="Report" />
+									<EvaluationStatusTag status={userJob.evaluation.resume_status} label="Resume" />
+									<EligibilityTag status={userJob.evaluation.eligibility_status} />
+									<RecommendationTag label={userJob.evaluation.recommendation_label} />
+								</>
+							)}
 						</div>
 					)}
 				</div>
@@ -132,10 +151,12 @@ export function JobCard({
 								)}
 							</button>
 						)}
-						<div className="flex items-center gap-1 text-xs font-medium text-muted-foreground group-hover:text-foreground group-hover:translate-x-0.5 transition-all">
-							<span>Details</span>
-							<ArrowRight className="h-3.5 w-3.5" />
-						</div>
+						{canOpenDetail && (
+							<div className="flex items-center gap-1 text-xs font-medium text-muted-foreground group-hover:text-foreground group-hover:translate-x-0.5 transition-all">
+								<span>Details</span>
+								<ArrowRight className="h-3.5 w-3.5" />
+							</div>
+						)}
 						{onResume && userJob.evaluation?.resume_status === "success" && (
 							<button
 								type="button"

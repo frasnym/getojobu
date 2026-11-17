@@ -173,10 +173,62 @@ describe("JobCard evaluation tags", () => {
     }
   });
 
-  it("renders no evaluation tags when there is no evaluation", () => {
+  it("renders only the job status tag when there is no evaluation", () => {
     render(<JobCard userJob={mockUserJob} />);
-    expect(screen.queryByTestId("evaluation-status-tag")).not.toBeInTheDocument();
+    const tags = screen.getAllByTestId("evaluation-status-tag");
+    expect(tags).toHaveLength(1);
+    expect(tags[0]).toHaveTextContent("Analyzed");
     expect(screen.queryByTestId("eligibility-tag")).not.toBeInTheDocument();
     expect(screen.queryByTestId("recommendation-tag")).not.toBeInTheDocument();
+  });
+
+  it("renders the job status tag for a job with any status and no evaluation", () => {
+    const queuedJob: UserJob = {
+      ...mockUserJob,
+      job: { ...mockUserJob.job, status: "analyze_pending" },
+    };
+    render(<JobCard userJob={queuedJob} />);
+    const tags = screen.getAllByTestId("evaluation-status-tag");
+    expect(tags).toHaveLength(1);
+    expect(tags[0]).toHaveTextContent("Analyze Pending");
+    expect(tags[0]).toHaveClass("bg-amber-500/10 text-amber-600");
+    expect(screen.queryByTestId("eligibility-tag")).not.toBeInTheDocument();
+  });
+});
+
+describe("JobCard detail access", () => {
+  it("opens the detail drawer on click by default", () => {
+    const onSelect = vi.fn();
+    render(<JobCard userJob={mockUserJob} onSelect={onSelect} />);
+    fireEvent.click(screen.getByText("Senior Go Engineer"));
+    expect(onSelect).toHaveBeenCalledWith(mockUserJob);
+  });
+
+  it("does not open detail when canOpenDetail is false", () => {
+    const onSelect = vi.fn();
+    const pendingJob: UserJob = {
+      ...mockUserJob,
+      job: { ...mockUserJob.job, status: "analyze_pending" },
+    };
+    render(<JobCard userJob={pendingJob} onSelect={onSelect} canOpenDetail={false} />);
+    fireEvent.click(screen.getByText("Senior Go Engineer"));
+    expect(onSelect).not.toHaveBeenCalled();
+  });
+
+  it("hides the Details affordance when canOpenDetail is false", () => {
+    const pendingJob: UserJob = {
+      ...mockUserJob,
+      job: { ...mockUserJob.job, status: "queued" },
+    };
+    render(<JobCard userJob={pendingJob} canOpenDetail={false} />);
+    expect(screen.queryByText(/Details/i)).not.toBeInTheDocument();
+  });
+
+  it("renders the title as a link when used standalone with detail allowed", () => {
+    render(<JobCard userJob={mockUserJob} />);
+    expect(screen.getByRole("link", { name: /Senior Go Engineer/i })).toHaveAttribute(
+      "href",
+      "/user-jobs/senior-go-engineer-stripe-remote"
+    );
   });
 });
