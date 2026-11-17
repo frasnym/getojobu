@@ -128,6 +128,36 @@ describe("JobDetailDrawer component", () => {
     });
   });
 
+  it("shows the same job status tag as the list, with the real status label and blue pending color", async () => {
+    const pendingJob: Job = { ...mockJob, status: "analyze_pending" };
+    vi.spyOn(endpoints, "getUserJobEvaluation").mockResolvedValue({
+      id: "eval-123",
+      user_job_id: "uj-456",
+      evaluation: {
+        id: "eval-123",
+        user_job_id: "uj-456",
+        evaluation_status: "pending",
+      },
+    });
+
+    render(
+      <JobDetailDrawer
+        job={pendingJob}
+        userJobId="uj-456"
+        isOpen={true}
+        onClose={() => {}}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getAllByTestId("evaluation-status-tag").length).toBeGreaterThan(0);
+    });
+
+    const statusTags = screen.getAllByTestId("evaluation-status-tag");
+    expect(statusTags[0]).toHaveTextContent("Analyze Pending");
+    expect(statusTags[0]).toHaveClass("bg-sky-500/10 text-sky-600");
+  });
+
   it("does not trigger evaluation fetch when userJobId is omitted", () => {
     const evalSpy = vi.spyOn(endpoints, "getUserJobEvaluation");
     evalSpy.mockClear();

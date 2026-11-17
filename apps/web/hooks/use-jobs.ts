@@ -21,8 +21,8 @@ export function statusBadgeClasses(status: string): string {
       return `${base} border-destructive/20 bg-destructive/15 text-destructive`;
     case "analyze_pending":
     case "pending":
-      // yellow
-      return `${base} border-amber-500/20 bg-amber-500/15 text-amber-600 dark:text-amber-400`;
+      // sky / blue
+      return `${base} border-sky-500/20 bg-sky-500/15 text-sky-600 dark:text-sky-400`;
     case "queued":
     case "queued_retry":
       // sky / blue

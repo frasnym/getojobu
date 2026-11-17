@@ -182,7 +182,7 @@ export function JobDetailDrawer({
 
 					{fetchedEvaluation && (
 						<div className="flex flex-wrap items-center gap-2.5 pt-3 border-t border-border/40">
-							<EvaluationStatusTag status={job.status} label="Analyzed" />
+							<EvaluationStatusTag status={job.status} />
 							<EvaluationStatusTag status={fetchedEvaluation.evaluation.evaluation_status} label="Evaluation" />
 							<EvaluationStatusTag status={fetchedEvaluation.evaluation.report_status} label="Report" />
 							<EligibilityTag status={fetchedEvaluation.evaluation.eligibility_status} />

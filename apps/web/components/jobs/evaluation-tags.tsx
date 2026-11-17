@@ -14,6 +14,11 @@ interface EvaluationStatusTagProps {
   label?: string;
 }
 
+/** Turn a raw status like "analyze_pending" into "Analyze Pending". */
+export function formatStatusLabel(status: string): string {
+  return status.replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
 const evaluationTagStyle = (status: string) => {
   switch (status.toLowerCase()) {
     case "success":
@@ -26,7 +31,7 @@ const evaluationTagStyle = (status: string) => {
     case "analyze_pending":
       return {
         icon: <Clock className="h-3 w-3" />,
-        className: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
+        className: "bg-sky-500/10 text-sky-600 dark:text-sky-400",
       };
     case "queued":
     case "queued_retry":
@@ -47,7 +52,7 @@ const evaluationTagStyle = (status: string) => {
   }
 };
 
-export function EvaluationStatusTag({ status, label = "Evaluation" }: EvaluationStatusTagProps) {
+export function EvaluationStatusTag({ status, label }: EvaluationStatusTagProps) {
   if (!status) return null;
   const { icon, className } = evaluationTagStyle(status);
   return (
@@ -56,7 +61,7 @@ export function EvaluationStatusTag({ status, label = "Evaluation" }: Evaluation
       className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-bold capitalize ${className}`}
     >
       {icon}
-      <span>{label}</span>
+      <span>{label ?? formatStatusLabel(status)}</span>
     </span>
   );
 }

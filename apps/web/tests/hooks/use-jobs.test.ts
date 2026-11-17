@@ -77,6 +77,11 @@ describe("filterJobs helper", () => {
     expect(statusBadgeClasses("queued_retry")).toContain("text-sky-600");
   });
 
+  it("applies the same blue badge class for pending statuses", () => {
+    expect(statusBadgeClasses("pending")).toContain("text-sky-600");
+    expect(statusBadgeClasses("analyze_pending")).toContain("text-sky-600");
+  });
+
   it("filters by remoteOnly flag correctly", () => {
     const remoteJobs = filterJobs(sampleJobs, "", "all", true);
     expect(remoteJobs).toHaveLength(3);

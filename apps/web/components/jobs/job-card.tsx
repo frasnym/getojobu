@@ -22,13 +22,6 @@ interface JobCardProps {
 	onRetry?: (userJobId: string) => void | Promise<void>;
 }
 
-/** Turn a raw status like "analyze_pending" into "Analyze Pending". */
-function formatJobStatusLabel(status: string): string {
-	return status
-		.replace(/_/g, " ")
-		.replace(/\b\w/g, (char) => char.toUpperCase());
-}
-
 export function JobCard({
 	userJob,
 	href,
@@ -124,10 +117,7 @@ export function JobCard({
 
 					{(job.status || userJob.evaluation) && (
 						<div className="flex flex-wrap items-center gap-2.5 pt-3 border-t border-border/40">
-							<EvaluationStatusTag
-								status={job.status}
-								label={formatJobStatusLabel(job.status)}
-							/>
+							<EvaluationStatusTag status={job.status} />
 							{userJob.evaluation && (
 								<>
 									<EvaluationStatusTag status={userJob.evaluation.evaluation_status} label="Evaluation" />
