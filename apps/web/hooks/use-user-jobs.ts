@@ -3,8 +3,10 @@ import { useAuth } from "@clerk/nextjs";
 import { UserJob, ApiPagination } from "@/lib/api/types";
 import {
   getUserJobs,
+  retryJobAnalysis,
   setUserJobHideStatus,
   setUserJobsHideStatus,
+  triggerJobCompatibility,
 } from "@/lib/api/endpoints";
 import { StatusFilter } from "./use-jobs";
 
@@ -323,6 +325,43 @@ export function useUserJobs(explicitToken?: string | null) {
     [explicitToken, getToken]
   );
 
+  const retryJob = useCallback(
+    async (userJobId: string) => {
+      const target = userJobs.find((uj) => uj.id === userJobId);
+      if (!target) return;
+      const token = explicitToken !== undefined ? explicitToken : await getToken();
+
+      // A failed analysis has to be retried first. When only the compatibility
+      // evaluation failed, re-run just that step.
+      if (target.job.status === "failed") {
+        await retryJobAnalysis(target.job.slug, token);
+        // The backend moves a retried job to queued_retry. Update local state
+        // directly so the Retry button disappears without a full refetch.
+        setUserJobs((prev) =>
+          prev.map((uj) =>
+            uj.id === userJobId ? { ...uj, job: { ...uj.job, status: "queued_retry" } } : uj
+          )
+        );
+        return;
+      }
+
+      if (target.evaluation?.evaluation_status === "failed") {
+        await triggerJobCompatibility(target.job.slug, true, token);
+        setUserJobs((prev) =>
+          prev.map((uj) =>
+            uj.id === userJobId && uj.evaluation
+              ? {
+                  ...uj,
+                  evaluation: { ...uj.evaluation, evaluation_status: "queued_retry" },
+                }
+              : uj
+          )
+        );
+      }
+    },
+    [explicitToken, getToken, userJobs]
+  );
+
   return {
     jobs: userJobs,
     userJobs,
@@ -353,6 +392,7 @@ export function useUserJobs(explicitToken?: string | null) {
     setRecommendationLabelFilter: handleRecommendationLabelChange,
     hideJob,
     bulkHideJob,
+    retryJob,
     refetch: () => load(),
     isFiltersChanged,
     queryAll,

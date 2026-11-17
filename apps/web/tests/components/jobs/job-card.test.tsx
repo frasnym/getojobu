@@ -103,7 +103,7 @@ describe("JobCard evaluation tags", () => {
   it("renders a red Evaluation tag when evaluation_status is failed", () => {
     render(<JobCard userJob={evaluatedJob({ evaluation_status: "failed" })} />);
     const tags = screen.getAllByTestId("evaluation-status-tag");
-    expect(tags[1]).toHaveClass("bg-destructive/10 text-destructive");
+    expect(tags[1]).toHaveClass("bg-red-500/10 text-red-400 dark:text-red-300");
   });
 
   it("renders an Analyzed tag colored by job.status first", () => {
@@ -149,7 +149,7 @@ describe("JobCard evaluation tags", () => {
       "low match"
     );
     expect(screen.getByTestId("recommendation-tag")).toHaveClass(
-      "bg-destructive/10 text-destructive"
+      "bg-red-500/10 text-red-400 dark:text-red-300"
     );
   });
 
@@ -158,7 +158,7 @@ describe("JobCard evaluation tags", () => {
       ["strong_match", "bg-emerald-500/10 text-emerald-600"],
       ["worth_applying", "bg-blue-500/10 text-blue-600"],
       ["possible_match", "bg-amber-500/10 text-amber-600"],
-      ["low_match", "bg-destructive/10 text-destructive"],
+      ["low_match", "bg-red-500/10 text-red-400 dark:text-red-300"],
     ];
     for (const [label, expectedClass] of labels) {
       render(
@@ -230,5 +230,50 @@ describe("JobCard detail access", () => {
       "href",
       "/user-jobs/senior-go-engineer-stripe-remote"
     );
+  });
+});
+
+describe("JobCard retry", () => {
+  const failedJob: UserJob = {
+    ...mockUserJob,
+    job: { ...mockUserJob.job, status: "failed" },
+  };
+
+  it("shows a Retry button when the job status is failed", () => {
+    render(<JobCard userJob={failedJob} onRetry={vi.fn()} />);
+    expect(screen.getByRole("button", { name: /Retry failed job/i })).toBeInTheDocument();
+    expect(screen.getByText("Retry")).toBeInTheDocument();
+  });
+
+  it("calls onRetry with the user job id without opening the detail view", () => {
+    const onRetry = vi.fn();
+    const onSelect = vi.fn();
+    render(<JobCard userJob={failedJob} onRetry={onRetry} onSelect={onSelect} />);
+    fireEvent.click(screen.getByRole("button", { name: /Retry failed job/i }));
+    expect(onRetry).toHaveBeenCalledWith("11111111-1111-1111-1111-111111111111");
+    expect(onSelect).not.toHaveBeenCalled();
+  });
+
+  it("shows a Retry button when only the evaluation failed", () => {
+    const evalFailedJob: UserJob = {
+      ...mockUserJob,
+      evaluation: {
+        id: "eval-1",
+        evaluation_status: "failed",
+        report_status: "success",
+      },
+    };
+    render(<JobCard userJob={evalFailedJob} onRetry={vi.fn()} />);
+    expect(screen.getByRole("button", { name: /Retry failed job/i })).toBeInTheDocument();
+  });
+
+  it("does not show a Retry button for a non-failed job", () => {
+    render(<JobCard userJob={mockUserJob} onRetry={vi.fn()} />);
+    expect(screen.queryByRole("button", { name: /Retry failed job/i })).not.toBeInTheDocument();
+  });
+
+  it("does not show a Retry button when no handler is provided", () => {
+    render(<JobCard userJob={failedJob} />);
+    expect(screen.queryByRole("button", { name: /Retry failed job/i })).not.toBeInTheDocument();
   });
 });

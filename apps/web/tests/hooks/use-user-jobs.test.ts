@@ -1,12 +1,16 @@
 import { describe, it, expect, vi } from "vitest";
-import { renderHook, waitFor } from "@testing-library/react";
+import { renderHook, waitFor, act } from "@testing-library/react";
 import { useUserJobs, filterUserJobs } from "@/hooks/use-user-jobs";
 import * as endpoints from "@/lib/api/endpoints";
 import { UserJob } from "@/lib/api/types";
 
+const { getToken } = vi.hoisted(() => ({
+  getToken: vi.fn().mockResolvedValue("test-token"),
+}));
+
 vi.mock("@clerk/nextjs", () => ({
   useAuth: () => ({
-    getToken: vi.fn().mockResolvedValue("test-token"),
+    getToken,
     isLoaded: true,
   }),
 }));
@@ -155,5 +159,83 @@ describe("useUserJobs hook and filterUserJobs", () => {
     });
 
     expect(listSpy.mock.calls.length).toBe(callsAtHide);
+  });
+
+  it("retryJob re-runs compatibility when only the evaluation failed", async () => {
+    const evalFailedJob: UserJob = {
+      ...mockUserJobs[0],
+      evaluation: {
+        id: "eval-1",
+        evaluation_status: "failed",
+        report_status: "success",
+      },
+    };
+    vi.spyOn(endpoints, "getUserJobs").mockResolvedValue({
+      data: [evalFailedJob],
+      pagination: {
+        page: 1,
+        limit: 10,
+        totalItems: 1,
+        totalPages: 1,
+        hasNext: false,
+        hasPrev: false,
+      },
+    });
+    const analysisSpy = vi.spyOn(endpoints, "retryJobAnalysis");
+    const compatSpy = vi
+      .spyOn(endpoints, "triggerJobCompatibility")
+      .mockResolvedValue({} as never);
+
+    const { result } = renderHook(() => useUserJobs());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    await act(async () => {
+      await result.current.retryJob(evalFailedJob.id);
+    });
+
+    expect(compatSpy).toHaveBeenCalledWith("go-stripe", true, "test-token");
+    expect(analysisSpy).not.toHaveBeenCalled();
+    await waitFor(() => {
+      expect(result.current.jobs[0].evaluation?.evaluation_status).toBe("queued_retry");
+    });
+  });
+
+  it("retryJob queues analysis by slug and moves the job to queued_retry locally", async () => {
+    const failedJob: UserJob = {
+      ...mockUserJobs[0],
+      job: { ...mockUserJobs[0].job, status: "failed" },
+    };
+    vi.spyOn(endpoints, "getUserJobs").mockResolvedValue({
+      data: [failedJob],
+      pagination: {
+        page: 1,
+        limit: 10,
+        totalItems: 1,
+        totalPages: 1,
+        hasNext: false,
+        hasPrev: false,
+      },
+    });
+    const retrySpy = vi
+      .spyOn(endpoints, "retryJobAnalysis")
+      .mockResolvedValue({ workflow_ids: ["job-analyze-1-force-1"] });
+
+    const { result } = renderHook(() => useUserJobs());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    await act(async () => {
+      await result.current.retryJob(failedJob.id);
+    });
+
+    expect(retrySpy).toHaveBeenCalledWith("go-stripe", "test-token");
+    await waitFor(() => {
+      expect(result.current.jobs[0].job.status).toBe("queued_retry");
+    });
   });
 });

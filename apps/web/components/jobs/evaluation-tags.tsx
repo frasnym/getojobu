@@ -37,7 +37,7 @@ const evaluationTagStyle = (status: string) => {
     case "failed":
       return {
         icon: <AlertCircle className="h-3 w-3" />,
-        className: "bg-destructive/15 text-destructive dark:text-destructive",
+        className: "bg-red-500/10 text-red-400 dark:text-red-300",
       };
     default:
       return {
@@ -92,7 +92,7 @@ const recommendationTagStyle = (label: string) => {
     case "possible_match":
       return { className: "bg-amber-500/10 text-amber-600 dark:text-amber-400" };
     case "low_match":
-      return { className: "bg-destructive/10 text-destructive dark:text-destructive" };
+      return { className: "bg-red-500/10 text-red-400 dark:text-red-300" };
     default:
       return { className: "bg-secondary/50 text-secondary-foreground dark:text-secondary-foreground" };
   }

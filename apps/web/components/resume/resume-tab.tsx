@@ -135,7 +135,7 @@ export function ResumeTab({
               </span>
             )}
             {isFailed && (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-destructive/10 px-2.5 py-0.5 text-xs font-bold text-destructive">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-red-500/10 px-2.5 py-0.5 text-xs font-bold text-red-400 dark:text-red-300">
                 <AlertCircle className="h-3.5 w-3.5" />
                 Generation Failed
               </span>

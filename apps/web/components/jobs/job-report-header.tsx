@@ -114,7 +114,7 @@ export function JobReportHeader({
 							onClick={() => onHideToggle(userJobId, !isHidden)}
 							className={`inline-flex shrink-0 items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${
 								isHidden
-									? "border-destructive/40 text-destructive hover:bg-destructive/5"
+									? "border-red-500/40 text-red-400 dark:text-red-300 hover:bg-red-500/10"
 									: "border-border/60 text-muted-foreground hover:bg-secondary hover:text-foreground"
 							}`}
 							aria-label={isHidden ? "Unhide job" : "Hide job"}

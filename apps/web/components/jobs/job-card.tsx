@@ -1,7 +1,7 @@
 import React from "react";
 import Link from "next/link";
 import { UserJob } from "@/lib/api/types";
-import { MapPin, Globe, Clock, ArrowRight, Eye, EyeOff, Download } from "lucide-react";
+import { AlertCircle, MapPin, Globe, Clock, ArrowRight, Eye, EyeOff, Download } from "lucide-react";
 import { EvaluationStatusTag, EligibilityTag, RecommendationTag } from "@/components/jobs/evaluation-tags";
 
 interface JobCardProps {
@@ -22,6 +22,7 @@ interface JobCardProps {
 	onCheckChange?: (checked: boolean) => void;
 	/** Called when the user retries a failed job analysis. */
 	onRetry?: (userJobId: string) => void | Promise<void>;
+}
 
 /** Turn a raw status like "analyze_pending" into "Analyze Pending". */
 function formatJobStatusLabel(status: string): string {
@@ -37,6 +38,7 @@ export function JobCard({
 	isSelected,
 	onHideToggle,
 	onResume,
+	onRetry,
 	canOpenDetail = true,
 	selectable = false,
 	isChecked = false,
@@ -46,6 +48,8 @@ export function JobCard({
 	const targetHref = href || `/user-jobs/${job.slug}`;
 	const isClickable = !!onSelect && canOpenDetail;
 	const isHidden = userJob.is_hidden === true;
+	const canRetry =
+		job.status === "failed" || userJob.evaluation?.evaluation_status === "failed";
 
 	return (
 		<div
@@ -170,6 +174,20 @@ export function JobCard({
 							>
 								<Download className="h-3.5 w-3.5" />
 								<span>Resume</span>
+							</button>
+						)}
+						{canRetry && onRetry && (
+							<button
+								type="button"
+								onClick={(e) => {
+									e.stopPropagation();
+									onRetry(userJob.id);
+								}}
+								className="inline-flex items-center gap-1.5 rounded-lg border border-red-500/40 bg-card px-2.5 py-1.5 text-xs font-medium text-red-400 dark:text-red-300 hover:bg-red-500/10 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500/60"
+								aria-label="Retry failed job"
+							>
+								<AlertCircle className="h-3.5 w-3.5" />
+								<span>Retry</span>
 							</button>
 						)}
 					</div>

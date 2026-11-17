@@ -270,7 +270,7 @@ export function JobFilters({
       "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30";
   } else if (statusFilter === "failed") {
     statusColorClass =
-      "bg-destructive/15 text-destructive border-destructive/30";
+      "bg-red-500/15 text-red-400 dark:text-red-300 border-red-500/30";
   }
 
   // Filters drawer state
@@ -635,12 +635,12 @@ export function JobFilters({
                       value={recommendationLabelFilter}
                       options={RECOMMENDATION_LABEL_OPTIONS}
                       onChange={onRecommendationLabelChange}
-                      activeColorClass="bg-destructive/15 text-destructive border-destructive/30"
+                      activeColorClass="bg-red-500/15 text-red-400 dark:text-red-300 border-red-500/30"
                       icon={
                         <Sparkles
                           className={`h-3 w-3 ${
                             recommendationLabelFilter !== "all"
-                              ? "text-destructive fill-destructive/20"
+                              ? "text-red-400 dark:text-red-300 fill-red-500/20"
                               : "text-muted-foreground"
                           }`}
                         />

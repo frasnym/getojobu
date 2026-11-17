@@ -104,6 +104,18 @@ export async function getJobBySlug(slug: string, token?: string | null): Promise
   return apiClient<Job>(`/v1/jobs/${slug}`, { token });
 }
 
+/** Re-queue analysis for a failed job. The backend sets its status to queued_retry. */
+export async function retryJobAnalysis(
+  slug: string,
+  token?: string | null
+): Promise<{ workflow_ids: string[] }> {
+  return apiClient<{ workflow_ids: string[] }>("/v1/jobs/bulk-queue-analyze", {
+    method: "POST",
+    token,
+    body: JSON.stringify([{ slug, force: true }]),
+  });
+}
+
 export async function triggerJobCompatibility(
   slug: string,
   force: boolean = false,

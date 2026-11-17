@@ -31,6 +31,7 @@ export default function UserJobsPage() {
 		setHideFilter,
 		hideJob,
 		bulkHideJob,
+		retryJob,
 		refetch,
 		isFiltersChanged,
 		queryAll,
@@ -172,7 +173,7 @@ export default function UserJobsPage() {
 								className={`ml-3 inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors disabled:opacity-50 disabled:pointer-events-none ${
 									bulkBusy || checkedIds.size === 0
 										? "border-border/40 text-muted-foreground bg-muted"
-										: "border-destructive/40 text-destructive hover:bg-destructive/5"
+										: "border-red-500/40 text-red-400 dark:text-red-300 hover:bg-red-500/10"
 								}`}
 								aria-label="Hide selected jobs"
 							>
@@ -220,8 +221,8 @@ export default function UserJobsPage() {
 
 			{/* Error state */}
 			{error && !loading && (
-				<div className="rounded-xl border border-destructive/20 bg-destructive/5 p-6 text-center">
-					<p className="text-sm text-destructive font-medium">Failed to load your jobs: {error.message}</p>
+				<div className="rounded-xl border border-red-500/20 bg-red-500/5 p-6 text-center">
+					<p className="text-sm text-red-400 dark:text-red-300 font-medium">Failed to load your jobs: {error.message}</p>
 				</div>
 			)}
 
@@ -263,6 +264,7 @@ export default function UserJobsPage() {
 							isSelected={selectedRow?.id === userJob.id}
 							onHideToggle={hideJob}
 							onResume={handleResume}
+							onRetry={retryJob}
 							selectable
 							isChecked={checkedIds.has(userJob.id)}
 							onCheckChange={(checked) => toggleCheck(userJob.id, checked)}
@@ -295,7 +297,7 @@ export default function UserJobsPage() {
 							className={`inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors disabled:opacity-50 disabled:pointer-events-none ${
 								bulkBusy
 									? "border-border/40 text-muted-foreground bg-muted"
-									: "border-destructive/40 text-destructive hover:bg-destructive/5"
+									: "border-red-500/40 text-red-400 dark:text-red-300 hover:bg-red-500/10"
 							}`}
 							aria-label="Hide selected jobs"
 						>
