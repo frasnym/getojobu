@@ -217,7 +217,7 @@ func TestMatchingEvaluationResponse_mapsCoverLetterFields(t *testing.T) {
 		CoverLetterStatus:         &status,
 		CoverLetterContent:        json.RawMessage(`{"text":"Dear Hiring Manager, ...","metadata":{"model":"use-combo","prompt_version":"generate-cover-letter-short-v1"}}`),
 		CoverLetterFailureMessage: &failure,
-		CoverLetterFileName:       "Cover Letter_Jane Doe_Software Engineer.pdf",
+		CoverLetterFileName:       "Jane Doe_Cover Letter_Software Engineer.pdf",
 	}
 
 	resp := NewMatchingEvaluationResponse(eval)
@@ -226,7 +226,7 @@ func TestMatchingEvaluationResponse_mapsCoverLetterFields(t *testing.T) {
 	assert.Equal(t, "Dear Hiring Manager, ...", *resp.CoverLetterText)
 	assert.Equal(t, &status, resp.CoverLetterStatus)
 	assert.Equal(t, &failure, resp.CoverLetterFailureMessage)
-	assert.Equal(t, "Cover Letter_Jane Doe_Software Engineer.pdf", resp.CoverLetterFileName)
+	assert.Equal(t, "Jane Doe_Cover Letter_Software Engineer.pdf", resp.CoverLetterFileName)
 
 	keys := marshalKeys(t, resp)
 	assert.Contains(t, keys, "cover_letter_status")

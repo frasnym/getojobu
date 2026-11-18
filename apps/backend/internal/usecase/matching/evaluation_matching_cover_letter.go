@@ -50,17 +50,19 @@ func appendFailureLine(existing, message string, now time.Time) string {
 	return strings.Join(lines, "\n")
 }
 
-// CoverLetterFileName builds the on-demand download file name. Both parts are
-// optional; missing parts and their underscores are omitted. Path separators
-// and other filename-unsafe characters are stripped.
+// CoverLetterFileName builds the on-demand download file name as
+// Name_Cover Letter_Position.pdf. Both optional parts and their underscores
+// are omitted when missing. Path separators and other filename-unsafe
+// characters are stripped.
 func CoverLetterFileName(name, jobTitle string) string {
 	cleanName := utils.SanitizeFileNamePart(name)
 	cleanTitle := utils.SanitizeFileNamePart(jobTitle)
 
-	parts := []string{"Cover Letter"}
+	parts := []string{}
 	if cleanName != "" {
 		parts = append(parts, cleanName)
 	}
+	parts = append(parts, "Cover Letter")
 	if cleanTitle != "" {
 		parts = append(parts, cleanTitle)
 	}

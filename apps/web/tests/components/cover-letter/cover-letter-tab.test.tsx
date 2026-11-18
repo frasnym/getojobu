@@ -15,7 +15,7 @@ vi.mock("@/lib/api/endpoints", () => ({
 
 const readyLetter = "Dear Hiring Manager, I am excited to apply for the Senior Go Engineer role.";
 
-const fileName = "Cover Letter_Jane Doe_Software Engineer.pdf";
+const fileName = "Jane Doe_Cover Letter_Software Engineer.pdf";
 
 describe("CoverLetterTab component", () => {
   beforeEach(() => {
@@ -132,6 +132,33 @@ describe("CoverLetterTab component", () => {
     expect(document.title).not.toBe(fileName);
     expect(document.getElementById("cover-letter-print-root")).toBeNull();
     expect(document.querySelector("style[data-cover-letter-print]")).toBeNull();
+    printSpy.mockRestore();
+  });
+
+  it("injects print CSS that collapses hidden page content and suppresses browser header/footer", () => {
+    const printSpy = vi.spyOn(window, "print").mockImplementation(() => {});
+
+    render(
+      <CoverLetterTab
+        evalId="eval-001"
+        status="success"
+        text={readyLetter}
+        fileName={fileName}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Download PDF/i }));
+
+    const css =
+      document.querySelector("style[data-cover-letter-print]")?.textContent ?? "";
+    expect(css).toContain(
+      "body > *:not(#cover-letter-print-root) { display: none !important; }"
+    );
+    expect(css).toContain("@page { margin: 0; }");
+    expect(css).not.toContain("visibility: hidden");
+    expect(css).not.toContain("position: absolute");
+
+    document.dispatchEvent(new Event("afterprint"));
     printSpy.mockRestore();
   });
 

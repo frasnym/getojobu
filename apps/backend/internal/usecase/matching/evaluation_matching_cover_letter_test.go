@@ -349,14 +349,14 @@ func TestUpdateEvaluationCoverLetter_KeepsFixedFailureMessage(t *testing.T) {
 }
 
 func TestCoverLetterFileName_Format(t *testing.T) {
-	assert.Equal(t, "Cover Letter_Jane Doe_Software Engineer.pdf",
+	assert.Equal(t, "Jane Doe_Cover Letter_Software Engineer.pdf",
 		matching.CoverLetterFileName("Jane Doe", "Software Engineer"))
-	assert.Equal(t, "Cover Letter_Jane Doe.pdf",
+	assert.Equal(t, "Jane Doe_Cover Letter.pdf",
 		matching.CoverLetterFileName("Jane Doe", ""))
 	assert.Equal(t, "Cover Letter_Software Engineer.pdf",
 		matching.CoverLetterFileName("", "Software Engineer"))
 	assert.Equal(t, "Cover Letter.pdf",
 		matching.CoverLetterFileName("", ""))
-	assert.Equal(t, "Cover Letter_Jane Doe_Senior Engineer.pdf",
+	assert.Equal(t, "Jane Doe_Cover Letter_Senior Engineer.pdf",
 		matching.CoverLetterFileName("Jane/ Doe\\", "Senior Engineer"))
 }

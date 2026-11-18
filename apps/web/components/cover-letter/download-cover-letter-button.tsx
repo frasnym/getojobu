@@ -30,26 +30,24 @@ export function DownloadCoverLetterButton({
     const style = document.createElement("style");
     style.setAttribute("data-cover-letter-print", "true");
     style.textContent = `
+      @page { margin: 0; }
       @media print {
-        body > *:not(#${PRINT_ROOT_ID}) { visibility: hidden !important; }
+        html, body { margin: 0 !important; padding: 0 !important; }
+        body > *:not(#${PRINT_ROOT_ID}) { display: none !important; }
         #${PRINT_ROOT_ID} {
-          visibility: visible !important;
-          position: absolute !important;
-          left: 0 !important;
-          top: 0 !important;
-          width: 100% !important;
+          display: block !important;
+          width: auto !important;
           margin: 0 !important;
-          padding: 0 !important;
+          padding: 2cm !important;
+          box-sizing: border-box !important;
         }
         #${PRINT_ROOT_ID} .cover-letter-print-text {
-          visibility: visible !important;
           white-space: pre-wrap !important;
           font-family: Georgia, "Times New Roman", serif !important;
           font-size: 12pt !important;
           line-height: 1.6 !important;
           color: #000 !important;
         }
-        @page { margin: 2cm; }
       }
     `;
 

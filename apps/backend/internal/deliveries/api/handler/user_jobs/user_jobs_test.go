@@ -678,7 +678,7 @@ func TestGetEvaluation_includesJob(t *testing.T) {
 	assert.Equal(t, evalID.String(), evalObj["id"])
 	assert.Equal(t, ujID.String(), evalObj["user_job_id"])
 	assert.Equal(t, "success", evalObj["evaluation_status"])
-	assert.Equal(t, "Cover Letter_Jane Doe_Platform Engineer.pdf", evalObj["cover_letter_file_name"])
+	assert.Equal(t, "Jane Doe_Cover Letter_Platform Engineer.pdf", evalObj["cover_letter_file_name"])
 
 	evalData := evalObj["evaluation_data"].(map[string]interface{})
 	assert.Nil(t, evalData["metadata"])
