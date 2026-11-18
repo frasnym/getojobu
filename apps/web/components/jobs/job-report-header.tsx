@@ -2,6 +2,7 @@ import React from "react";
 import Link from "next/link";
 import { Job } from "@/lib/api/types";
 import { ArrowLeft, ChevronLeft, ChevronRight, Globe, MapPin, Eye, EyeOff, RefreshCw } from "lucide-react";
+import { StatusTag } from "@/components/jobs/evaluation-tags";
 
 export type ReportTab = "details" | "report" | "resume" | "cover-letter";
 
@@ -112,10 +113,12 @@ export function JobReportHeader({
 						<div className="flex flex-wrap items-center gap-2">
 							<span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{job.company}</span>
 							{job.is_remote && (
-								<span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-semibold text-emerald-500">
-									<Globe className="h-3 w-3" />
-									Remote
-								</span>
+								<StatusTag
+									label="Remote"
+									tone="success"
+									icon={<Globe className="h-3 w-3" />}
+									testId="remote-tag"
+								/>
 							)}
 							<span className="flex items-center gap-1 text-xs text-muted-foreground">
 								<MapPin className="h-3.5 w-3.5" />

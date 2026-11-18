@@ -2,6 +2,7 @@ import React from "react";
 import { Job } from "@/lib/api/types";
 import { MapPin, Globe, Clock, ArrowRight, Bookmark, Check, Loader2 } from "lucide-react";
 import { statusBadgeClasses } from "@/hooks/use-jobs";
+import { StatusTag } from "@/components/jobs/evaluation-tags";
 interface ExploreJobCardProps {
   job: Job;
   isSelected?: boolean;
@@ -35,10 +36,12 @@ export function ExploreJobCard({
               {job.company}
             </span>
             {job.is_remote === true && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 px-2 py-0.5 text-[11px] font-semibold">
-                <Globe className="h-3 w-3" />
-                Remote
-              </span>
+              <StatusTag
+                label="Remote"
+                tone="success"
+                icon={<Globe className="h-3 w-3" />}
+                testId="remote-tag"
+              />
             )}
             <span className={statusBadgeClasses(job.status)}>
               {job.status}

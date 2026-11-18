@@ -2,7 +2,7 @@ import React from "react";
 import Link from "next/link";
 import { UserJob } from "@/lib/api/types";
 import { MapPin, Globe, Clock, ArrowRight, Eye, EyeOff, RotateCcw } from "lucide-react";
-import { EvaluationStatusTag, EligibilityTag, RecommendationTag } from "@/components/jobs/evaluation-tags";
+import { EvaluationStatusTag, EligibilityTag, RecommendationTag, StatusTag } from "@/components/jobs/evaluation-tags";
 
 interface JobCardProps {
 	userJob: UserJob;
@@ -67,22 +67,18 @@ export function JobCard({
 					<div className="flex flex-wrap items-center gap-2">
 						<span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{job.company}</span>
 						{job.is_remote && (
-							<span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
-								<Globe className="h-3 w-3" />
-								Remote
-							</span>
+							<StatusTag
+								label="Remote"
+								tone="success"
+								icon={<Globe className="h-3 w-3" />}
+								testId="remote-tag"
+							/>
 						)}
 						{userJob.evaluation && (
 							<>
 								<EligibilityTag status={userJob.evaluation.eligibility_status} />
 								<RecommendationTag label={userJob.evaluation.recommendation_label} />
 							</>
-						)}
-						{isHidden && (
-							<span className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium border-muted-foreground/40 bg-muted/30 text-muted-foreground">
-								<EyeOff className="h-2.5 w-2.5" />
-								Hidden
-							</span>
 						)}
 					</div>
 
