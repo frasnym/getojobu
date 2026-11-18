@@ -308,5 +308,5 @@ func (h *handler) GetEvaluation(w http.ResponseWriter, r *http.Request) error {
 		*field = utils.StripJSONKeys(*field, "metadata")
 	}
 
-	return httpx.RespondJSON(w, r, http.StatusOK, dto.NewEvaluationResponse(evalWithJob.Evaluation, evalWithJob.Job))
+	return httpx.RespondJSON(w, r, http.StatusOK, dto.NewEvaluationResponsePublic(evalWithJob.Evaluation, evalWithJob.Job))
 }

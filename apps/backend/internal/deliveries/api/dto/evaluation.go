@@ -87,10 +87,15 @@ func NewMatchingEvaluationResponse(eval *models.MatchingEvaluation) MatchingEval
 	}
 }
 
-// NewEvaluationResponse maps an evaluation plus its job to the candidate-facing
+// NewEvaluationResponsePublic maps an evaluation plus its job to the candidate-facing
 // API shape.
-func NewEvaluationResponse(eval *models.MatchingEvaluation, job *models.Job) EvaluationResponse {
+func NewEvaluationResponsePublic(eval *models.MatchingEvaluation, job *models.Job) EvaluationResponse {
 	evalResp := NewMatchingEvaluationResponse(eval)
+	// The shared DTO keeps these keys for worker endpoints, but the candidate-
+	// facing /evaluation response should not expose object-storage keys. They
+	// are *string with omitempty, so nil removes them from the JSON only here.
+	evalResp.ResumePDFKey = nil
+	evalResp.ResumeJSONKey = nil
 	return EvaluationResponse{
 		ID:         eval.ID,
 		UserJobID:  eval.UserJobID,

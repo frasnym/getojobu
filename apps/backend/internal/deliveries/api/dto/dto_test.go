@@ -243,7 +243,7 @@ func TestEvaluationResponse_includesJob(t *testing.T) {
 		EvaluationStatus: "success",
 	}
 
-	keys := marshalKeys(t, NewEvaluationResponse(eval, sampleJob()))
+	keys := marshalKeys(t, NewEvaluationResponsePublic(eval, sampleJob()))
 
 	assert.Contains(t, keys, "job")
 	assert.Contains(t, keys, "evaluation")
@@ -259,6 +259,26 @@ func TestEvaluationResponse_includesJob(t *testing.T) {
 	assert.Equal(t, "success", evalObj["evaluation_status"])
 	assert.NotContains(t, keys, "evaluation_status")
 	assert.Contains(t, keys, "user_job_id")
+}
+
+func TestEvaluationResponse_omitsResumeKeysOnlyForCandidates(t *testing.T) {
+	pdfKey := "resumes/resume.pdf"
+	jsonKey := "resumes/resume.json"
+	eval := &models.MatchingEvaluation{
+		EvaluationStatus: "success",
+		ResumePDFKey:     &pdfKey,
+		ResumeJSONKey:    &jsonKey,
+	}
+
+	workerKeys := marshalKeys(t, NewMatchingEvaluationResponse(eval))
+	assert.Contains(t, workerKeys, "resume_pdf_key")
+	assert.Contains(t, workerKeys, "resume_json_key")
+
+	candidateKeys := marshalKeys(t, NewEvaluationResponsePublic(eval, sampleJob()))
+	evalObj, ok := candidateKeys["evaluation"].(map[string]any)
+	require.True(t, ok, "evaluation must be an object")
+	assert.NotContains(t, evalObj, "resume_pdf_key")
+	assert.NotContains(t, evalObj, "resume_json_key")
 }
 
 func TestCreateJobResponse_snakeCase(t *testing.T) {
