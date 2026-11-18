@@ -101,6 +101,21 @@ func (mr *MockMatchingEvaluationsMockRecorder) FlipStatus(ctx, id, from, to any)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FlipStatus", reflect.TypeOf((*MockMatchingEvaluations)(nil).FlipStatus), ctx, id, from, to)
 }
 
+// FlipStatusWithClear mocks base method.
+func (m *MockMatchingEvaluations) FlipStatusWithClear(ctx context.Context, id uuid.UUID, from, to string) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FlipStatusWithClear", ctx, id, from, to)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FlipStatusWithClear indicates an expected call of FlipStatusWithClear.
+func (mr *MockMatchingEvaluationsMockRecorder) FlipStatusWithClear(ctx, id, from, to any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FlipStatusWithClear", reflect.TypeOf((*MockMatchingEvaluations)(nil).FlipStatusWithClear), ctx, id, from, to)
+}
+
 // GetByID mocks base method.
 func (m *MockMatchingEvaluations) GetByID(ctx context.Context, id uuid.UUID) (*models.MatchingEvaluation, error) {
 	m.ctrl.T.Helper()

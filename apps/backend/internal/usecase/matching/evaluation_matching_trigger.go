@@ -12,8 +12,9 @@ import (
 
 // TriggerEvaluations starts the Temporal workflow behind each evaluation that
 // is ready to run. A new row moves to queued; a failed row is retried in place
-// and moves to queued_retry. Every workflow is started before its status is
-// flipped, so a queued row never exists without a workflow behind it.
+// with one atomic clear-and-flip and moves to queued_retry. Every workflow is
+// started before its status is flipped, so a queued row never exists without a
+// workflow behind it.
 func (s *matchingService) TriggerEvaluations(
 	ctx context.Context,
 	items []models.TriggerEvaluationItem,
@@ -119,7 +120,7 @@ func (s *matchingService) TriggerEvaluations(
 		}
 
 		// Decode the stored profile bytes and scoring config into memory before
-		// a retry clears those columns from the row.
+		// a retry clears those columns in the same update as the status flip.
 		var candidateMap, jobMap, configMap map[string]interface{}
 		_ = json.Unmarshal(eval.CandidateProfileData, &candidateMap)
 		_ = json.Unmarshal(eval.JobProfileData, &jobMap)
@@ -143,19 +144,12 @@ func (s *matchingService) TriggerEvaluations(
 			continue
 		}
 
+		var flipped bool
 		if from == constants.MatchingStatusFailed {
-			if err := s.evalRepo.ClearEvaluationResult(ctx, eval.ID); err != nil {
-				errStr := fmt.Sprintf("clear evaluation result: %s", err.Error())
-				summaries = append(summaries, &models.MatchingEvaluationSummary{
-					ID:        &eval.ID,
-					UserJobID: &eval.UserJobID,
-					Error:     &errStr,
-				})
-				continue
-			}
+			flipped, err = s.evalRepo.FlipStatusWithClear(ctx, eval.ID, string(from), string(to))
+		} else {
+			flipped, err = s.evalRepo.FlipStatus(ctx, eval.ID, string(from), string(to))
 		}
-
-		flipped, err := s.evalRepo.FlipStatus(ctx, eval.ID, string(from), string(to))
 		if err != nil {
 			errStr := fmt.Sprintf("flip evaluation status: %s", err.Error())
 			summaries = append(summaries, &models.MatchingEvaluationSummary{

@@ -125,29 +125,39 @@ func TestTriggerEvaluations(t *testing.T) {
 		}
 	})
 
-	t.Run("failed evaluation starts workflow clears results then flips to queued_retry", func(t *testing.T) {
+	t.Run("failed evaluation uses one atomic clear-and-flip after starting workflow", func(t *testing.T) {
 		h := newTriggerHarness(t)
 		ownerID, userJobID, scoringConfigID := triggerFixture()
 		id := uuid.New()
 		eval := storedEvaluation(id, userJobID, scoringConfigID, string(constants.MatchingStatusFailed))
 		config := triggerScoringConfig(scoringConfigID)
 
-		// The workflow input must be built from the stored bytes before the
-		// retry clears those columns; the recorded call order enforces that.
+		var capturedInput matching.MatchJobWorkflowInput
+		// The single atomic call must replace the old clear-then-flip sequence.
+		// The recorded order proves the stored profile and scoring config were
+		// decoded into the workflow input before the row is mutated.
 		gomock.InOrder(
 			h.evalRepo.EXPECT().GetByID(ctx, id).Return(eval, nil),
 			h.userJobsRepo.EXPECT().GetByID(ctx, userJobID).Return(&models.UserJob{ID: userJobID, UserID: ownerID}, nil),
 			h.scoringConfigsRepo.EXPECT().GetByID(ctx, scoringConfigID).Return(config, nil),
-			h.workflowsRepo.EXPECT().StartLimiterWorkItem(ctx, "match-job-"+id.String(), models.LimiterJobTypeMatch, gomock.Any()).Return("wf-id", nil),
-			h.evalRepo.EXPECT().ClearEvaluationResult(ctx, id).Return(nil),
-			h.evalRepo.EXPECT().FlipStatus(ctx, id, string(constants.MatchingStatusFailed), string(constants.MatchingStatusQueuedRetry)).Return(true, nil),
+			h.workflowsRepo.EXPECT().StartLimiterWorkItem(ctx, "match-job-"+id.String(), models.LimiterJobTypeMatch, gomock.Any()).
+				DoAndReturn(func(_ context.Context, _ string, _ models.LimiterJobType, input any) (string, error) {
+					capturedInput, _ = input.(matching.MatchJobWorkflowInput)
+					return "wf-id", nil
+				}),
+			h.evalRepo.EXPECT().FlipStatusWithClear(ctx, id, string(constants.MatchingStatusFailed), string(constants.MatchingStatusQueuedRetry)).Return(true, nil),
 		)
+		h.evalRepo.EXPECT().ClearEvaluationResult(gomock.Any(), gomock.Any()).Times(0)
+		h.evalRepo.EXPECT().FlipStatus(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
 
 		res, err := h.service.TriggerEvaluations(ctx, []models.TriggerEvaluationItem{{ID: id}}, &models.Principal{ID: ownerID.String()})
 		require.NoError(t, err)
 		require.Len(t, res, 1)
 		assert.Nil(t, res[0].Error)
 		assert.Equal(t, string(constants.MatchingStatusQueuedRetry), res[0].EvaluationStatus)
+		assert.Equal(t, "Backend Engineer", capturedInput.JobProfile["title"])
+		assert.Equal(t, []interface{}{"go"}, capturedInput.CandidateProfile["skills"])
+		assert.Equal(t, "technology", capturedInput.EvaluationConfig["family"])
 	})
 
 	t.Run("terminal and in-progress statuses return per-item errors and start nothing", func(t *testing.T) {
@@ -212,8 +222,9 @@ func TestTriggerEvaluations(t *testing.T) {
 		h.userJobsRepo.EXPECT().GetByID(ctx, userJobID).Return(&models.UserJob{ID: userJobID, UserID: ownerID}, nil)
 		h.scoringConfigsRepo.EXPECT().GetByID(ctx, scoringConfigID).Return(config, nil)
 		h.workflowsRepo.EXPECT().StartLimiterWorkItem(ctx, "match-job-"+id.String(), models.LimiterJobTypeMatch, gomock.Any()).Return("", errors.New("temporal down"))
-		// No FlipStatus and no ClearEvaluationResult expectations: any such call
-		// would fail the subtest.
+		h.evalRepo.EXPECT().FlipStatus(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
+		h.evalRepo.EXPECT().FlipStatusWithClear(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
+		h.evalRepo.EXPECT().ClearEvaluationResult(gomock.Any(), gomock.Any()).Times(0)
 
 		res, err := h.service.TriggerEvaluations(ctx, []models.TriggerEvaluationItem{{ID: id}}, &models.Principal{ID: ownerID.String()})
 		require.NoError(t, err)

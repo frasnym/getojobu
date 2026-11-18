@@ -21,6 +21,7 @@ type MatchingEvaluations interface {
 	Create(ctx context.Context, eval *models.MatchingEvaluation) (*models.MatchingEvaluation, error)
 	CreateIfAbsent(ctx context.Context, eval *models.MatchingEvaluation) (*models.MatchingEvaluation, bool, error)
 	FlipStatus(ctx context.Context, id uuid.UUID, from string, to string) (bool, error)
+	FlipStatusWithClear(ctx context.Context, id uuid.UUID, from string, to string) (bool, error)
 	ClearEvaluationResult(ctx context.Context, id uuid.UUID) error
 	GetByID(ctx context.Context, id uuid.UUID) (*models.MatchingEvaluation, error)
 	GetLatestByUserAndJob(ctx context.Context, userID uuid.UUID, jobID int64) (*models.MatchingEvaluation, error)
@@ -227,6 +228,38 @@ func (r *matchingEvaluationsRepository) FlipStatus(ctx context.Context, id uuid.
 	`, id, from, to)
 	if err != nil {
 		return false, fmt.Errorf("flip matching evaluation status: %w", err)
+	}
+
+	return res.RowsAffected() > 0, nil
+}
+
+// FlipStatusWithClear clears the evaluation-result columns and flips the
+// status in a single conditional update. A failed retry must never leave a row
+// without the profile bytes needed to rebuild its workflow input. Report,
+// resume, and cover-letter columns are untouched.
+func (r *matchingEvaluationsRepository) FlipStatusWithClear(ctx context.Context, id uuid.UUID, from string, to string) (updated bool, err error) {
+	tx, err := r.StartTrx(ctx)
+	if err != nil {
+		return false, fmt.Errorf("flip matching evaluation status with clear start trx: %w", err)
+	}
+	defer r.Committer(ctx, tx, &err)
+
+	res, err := tx.Exec(ctx, `
+		UPDATE matching_evaluations
+		SET
+			evaluation_status = $2,
+			evaluation_data = NULL,
+			overall_score = NULL,
+			eligibility_status = NULL,
+			recommendation_label = NULL,
+			failure_message = NULL,
+			candidate_profile_data = NULL,
+			job_profile_data = NULL,
+			updated_at = NOW()
+		WHERE id = $1 AND evaluation_status = $3
+	`, id, to, from)
+	if err != nil {
+		return false, fmt.Errorf("flip matching evaluation status with clear: %w", err)
 	}
 
 	return res.RowsAffected() > 0, nil
