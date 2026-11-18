@@ -691,6 +691,125 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/maintenance/retry-failed-jobs": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Re-queues up to 20 failed job analysis workflows with force=true. Machine API key only.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "maintenance"
+                ],
+                "summary": "Retry failed jobs",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.RetryJobsResult"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/httpx.Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/maintenance/retry-failed-matching-evaluations": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Re-queues up to 50 evaluations with any failed workflow status. Cover letters use variant short. Machine API key only.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "maintenance"
+                ],
+                "summary": "Retry failed matching evaluations",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.RetryMatchingEvaluationsResult"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/httpx.Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/matching-evaluations/bulk-generate-cover-letter": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Queues short or full cover letter generation for multiple evaluations. Clerk users may only enqueue evaluations they own; worker API key callers may enqueue any evaluation.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "matching"
+                ],
+                "summary": "Bulk queue cover letter generation",
+                "parameters": [
+                    {
+                        "description": "Evaluations to generate cover letters for",
+                        "name": "items",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/matching.bulkGenerateCoverLetterItemRequest"
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Accepted",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/models.MatchingEvaluationSummary"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpx.Error"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/httpx.Error"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/matching-evaluations/bulk-generate-report": {
             "post": {
                 "security": [
@@ -920,76 +1039,6 @@ const docTemplate = `{
                     },
                     "401": {
                         "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/httpx.Error"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/httpx.Error"
-                        }
-                    }
-                }
-            }
-        },
-        "/v1/matching-evaluations/{id}/cover-letter/generate": {
-            "post": {
-                "security": [
-                    {
-                        "ApiKeyAuth": []
-                    }
-                ],
-                "description": "Queues short or full cover letter generation. Clerk users may only enqueue evaluations they own. Returns 202 while the worker generates the letter.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "matching"
-                ],
-                "summary": "Generate cover letter",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Matching evaluation ID (UUID)",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Variant and optional force flag",
-                        "name": "payload",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/matching.generateCoverLetterPayload"
-                        }
-                    }
-                ],
-                "responses": {
-                    "202": {
-                        "description": "Accepted",
-                        "schema": {
-                            "$ref": "#/definitions/models.MatchingEvaluationSummary"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/httpx.Error"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/httpx.Error"
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
                         "schema": {
                             "$ref": "#/definitions/httpx.Error"
                         }
@@ -2556,6 +2605,20 @@ const docTemplate = `{
                 }
             }
         },
+        "matching.bulkGenerateCoverLetterItemRequest": {
+            "type": "object",
+            "properties": {
+                "force": {
+                    "type": "boolean"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "variant": {
+                    "type": "string"
+                }
+            }
+        },
         "matching.bulkGenerateReportItemRequest": {
             "type": "object",
             "properties": {
@@ -2574,17 +2637,6 @@ const docTemplate = `{
                     "type": "boolean"
                 },
                 "id": {
-                    "type": "string"
-                }
-            }
-        },
-        "matching.generateCoverLetterPayload": {
-            "type": "object",
-            "properties": {
-                "force": {
-                    "type": "boolean"
-                },
-                "variant": {
                     "type": "string"
                 }
             }
@@ -2936,6 +2988,31 @@ const docTemplate = `{
                 },
                 "userID": {
                     "type": "string"
+                }
+            }
+        },
+        "models.RetryJobsResult": {
+            "type": "object",
+            "properties": {
+                "requeued": {
+                    "type": "integer"
+                }
+            }
+        },
+        "models.RetryMatchingEvaluationsResult": {
+            "type": "object",
+            "properties": {
+                "cover_letters": {
+                    "type": "integer"
+                },
+                "evaluations": {
+                    "type": "integer"
+                },
+                "reports": {
+                    "type": "integer"
+                },
+                "resumes": {
+                    "type": "integer"
                 }
             }
         },

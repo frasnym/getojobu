@@ -55,15 +55,13 @@ func (h *handler) Route(g *httpx.Router) {
 	// GET /v1/matching-evaluations/{id}/resume/download (Clerk user session or worker API key)
 	g.GET("/{id}/resume/download", h.DownloadResume, auth.ValidClerkOrAPIKey)
 
-	// POST /v1/matching-evaluations/{id}/cover-letter/generate (Clerk user session or worker API key)
-	g.POST("/{id}/cover-letter/generate", h.GenerateCoverLetter, auth.ValidClerkOrAPIKey)
-
 	// PATCH /v1/matching-evaluations/{id}/cover-letter (strictly worker API key)
 	g.PATCH("/{id}/cover-letter", h.UpdateCoverLetter, auth.ValidAPIKey)
 
 	// POST /v1/matching-evaluations/bulk-generate-report (strictly worker API key)
 	g.POST("/bulk-generate-report", h.BulkQueueGenerateReport, auth.ValidAPIKey)
 	g.POST("/bulk-generate-resume", h.BulkQueueGenerateResume, auth.ValidClerkOrAPIKey)
+	g.POST("/bulk-generate-cover-letter", h.BulkQueueGenerateCoverLetter, auth.ValidClerkOrAPIKey)
 }
 
 type updateEvaluationPayload struct {

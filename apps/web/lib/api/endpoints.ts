@@ -145,21 +145,29 @@ export async function getResumeDownloadUrl(
   );
 }
 
-/** Queue cover-letter generation for an evaluation. Returns immediately with a queued status. */
+/** Queue cover-letter generation for an evaluation via the bulk endpoint. */
 export async function generateCoverLetter(
   evalId: string,
   variant: "short" | "full",
   force: boolean,
   token?: string | null
 ): Promise<EvaluationSummary> {
-  return apiClient<EvaluationSummary>(
-    `/v1/matching-evaluations/${evalId}/cover-letter/generate`,
+  const result = await apiClient<Array<EvaluationSummary & { error?: string | null }>>(
+    "/v1/matching-evaluations/bulk-generate-cover-letter",
     {
       method: "POST",
       token,
-      body: JSON.stringify({ variant, force }),
+      body: JSON.stringify([{ id: evalId, variant, force }]),
     }
   );
+  const item = Array.isArray(result) ? result[0] : undefined;
+  if (!item) {
+    throw new Error("Empty response from bulk-generate-cover-letter");
+  }
+  if (item.error) {
+    throw new Error(item.error);
+  }
+  return item;
 }
 
 /** Queue resume generation for an evaluation (retry path). Clerk users must own the evaluation. */

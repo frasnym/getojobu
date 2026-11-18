@@ -517,7 +517,7 @@ func TestUpdateEvaluation_responseKeysUnchanged(t *testing.T) {
 	assert.Nil(t, keys["job"])
 }
 
-func TestGenerateCoverLetter(t *testing.T) {
+func TestBulkGenerateCoverLetter(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -526,51 +526,54 @@ func TestGenerateCoverLetter(t *testing.T) {
 	apiKey := "test-worker-key"
 	rt := setupTestRouter(ctrl, mockMatching, mockUsers, apiKey)
 	evalID := uuid.New()
-	path := "/v1/matching-evaluations/" + evalID.String() + "/cover-letter/generate"
+	path := "/v1/matching-evaluations/bulk-generate-cover-letter"
+	body := fmt.Sprintf(`[{"id":"%s","variant":"full","force":true}]`, evalID.String())
 
 	t.Run("unauthenticated returns 401", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodPost, path, bytes.NewBufferString(`{"variant":"short","force":false}`))
+		req := httptest.NewRequest(http.MethodPost, path, bytes.NewBufferString(body))
 		rec := httptest.NewRecorder()
 		rt.Mux().ServeHTTP(rec, req)
 		assert.Equal(t, http.StatusUnauthorized, rec.Code)
 	})
 
-	t.Run("wrong owner returns 403", func(t *testing.T) {
-		mockMatching.EXPECT().QueueCoverLetter(gomock.Any(), evalID, gomock.Any(), gomock.Any()).
-			Return(nil, constants.ErrForbidden)
-
-		req := httptest.NewRequest(http.MethodPost, path, bytes.NewBufferString(`{"variant":"short","force":false}`))
-		req.Header.Set("Authorization", "Bearer "+apiKey)
-		rec := httptest.NewRecorder()
-		rt.Mux().ServeHTTP(rec, req)
-		assert.Equal(t, http.StatusForbidden, rec.Code)
-	})
-
-	t.Run("valid body returns 202 with queued summary", func(t *testing.T) {
-		mockMatching.EXPECT().QueueCoverLetter(gomock.Any(), evalID, usecaseMatching.QueueCoverLetterRequest{
-			Variant: "full",
-			Force:   true,
-		}, gomock.Any()).Return(&models.MatchingEvaluationSummary{
+	t.Run("valid body returns 202 with queued summaries", func(t *testing.T) {
+		mockMatching.EXPECT().BulkQueueCoverLetter(gomock.Any(), []models.BulkGenerateCoverLetterItem{
+			{ID: evalID, Variant: "full", Force: true},
+		}, gomock.Any()).Return([]*models.MatchingEvaluationSummary{{
 			ID:                &evalID,
 			CoverLetterStatus: stringPtr("queued_retry"),
-		}, nil)
+		}}, nil)
 
-		req := httptest.NewRequest(http.MethodPost, path, bytes.NewBufferString(`{"variant":"full","force":true}`))
+		req := httptest.NewRequest(http.MethodPost, path, bytes.NewBufferString(body))
 		req.Header.Set("Authorization", "Bearer "+apiKey)
 		rec := httptest.NewRecorder()
 		rt.Mux().ServeHTTP(rec, req)
 		require.Equal(t, http.StatusAccepted, rec.Code)
 
-		var resp httpx.Response[models.MatchingEvaluationSummary]
+		var resp httpx.Response[[]models.MatchingEvaluationSummary]
 		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
-		require.NotNil(t, resp.Data.ID)
-		assert.Equal(t, evalID, *resp.Data.ID)
-		require.NotNil(t, resp.Data.CoverLetterStatus)
-		assert.Equal(t, "queued_retry", *resp.Data.CoverLetterStatus)
+		require.Len(t, resp.Data, 1)
+		require.NotNil(t, resp.Data[0].ID)
+		assert.Equal(t, evalID, *resp.Data[0].ID)
+		require.NotNil(t, resp.Data[0].CoverLetterStatus)
+		assert.Equal(t, "queued_retry", *resp.Data[0].CoverLetterStatus)
 	})
 
-	t.Run("missing variant returns 400", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodPost, path, bytes.NewBufferString(`{"force":false}`))
+	t.Run("keeps per-item errors from the usecase", func(t *testing.T) {
+		errMsg := "evaluation must be successful"
+		mockMatching.EXPECT().BulkQueueCoverLetter(gomock.Any(), gomock.Any(), gomock.Any()).
+			Return([]*models.MatchingEvaluationSummary{{ID: &evalID, Error: &errMsg}}, nil)
+
+		req := httptest.NewRequest(http.MethodPost, path, bytes.NewBufferString(body))
+		req.Header.Set("Authorization", "Bearer "+apiKey)
+		rec := httptest.NewRecorder()
+		rt.Mux().ServeHTTP(rec, req)
+		require.Equal(t, http.StatusAccepted, rec.Code)
+		assert.Contains(t, rec.Body.String(), errMsg)
+	})
+
+	t.Run("empty array returns 400", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodPost, path, bytes.NewBufferString(`[]`))
 		req.Header.Set("Authorization", "Bearer "+apiKey)
 		rec := httptest.NewRecorder()
 		rt.Mux().ServeHTTP(rec, req)
@@ -578,7 +581,15 @@ func TestGenerateCoverLetter(t *testing.T) {
 	})
 
 	t.Run("invalid variant returns 400", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodPost, path, bytes.NewBufferString(`{"variant":"medium","force":false}`))
+		req := httptest.NewRequest(http.MethodPost, path, bytes.NewBufferString(`[{"id":"`+evalID.String()+`","variant":"medium"}]`))
+		req.Header.Set("Authorization", "Bearer "+apiKey)
+		rec := httptest.NewRecorder()
+		rt.Mux().ServeHTTP(rec, req)
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+	})
+
+	t.Run("missing id returns 400", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodPost, path, bytes.NewBufferString(`[{"variant":"short"}]`))
 		req.Header.Set("Authorization", "Bearer "+apiKey)
 		rec := httptest.NewRecorder()
 		rt.Mux().ServeHTTP(rec, req)

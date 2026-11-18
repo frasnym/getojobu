@@ -598,6 +598,26 @@ func TestTriggerCompatibilityBulk(t *testing.T) {
 		assert.Equal(t, string(constants.MatchingStatusQueuedRetry), res[0].EvaluationStatus)
 	})
 
+	t.Run("failed_only skips successful evaluations", func(t *testing.T) {
+		jobsRepo.EXPECT().GetBySlug(ctx, slug, "").Return(&models.JobWithOwnership{Job: job}, nil)
+		userJobsRepo.EXPECT().IsOwned(ctx, userID.String(), job.ID).Return(true, nil)
+		scoringConfigsRepo.EXPECT().GetActiveByFamily(ctx, "technology").Return(scoringConfig, nil)
+		userJobsRepo.EXPECT().GetByUserAndJob(ctx, userID.String(), job.ID).Return(userJob, nil)
+
+		successEval := &models.MatchingEvaluation{
+			ID:               uuid.New(),
+			UserJobID:        userJobID,
+			EvaluationStatus: string(constants.MatchingStatusSuccess),
+		}
+		evalRepo.EXPECT().GetLatestByUserAndJob(ctx, userID, job.ID).Return(successEval, nil)
+
+		res, err := service.TriggerCompatibilityBulk(ctx, []models.BulkAnalyzeCompatibilityItem{
+			{Slug: slug, Force: true, FailedOnly: true},
+		}, &models.Principal{ID: userID.String()})
+		require.NoError(t, err)
+		assert.Empty(t, res)
+	})
+
 	t.Run("partial batch processing with multiple items", func(t *testing.T) {
 		slug1 := "job-1"
 		slug2 := "job-2"

@@ -303,6 +303,15 @@ definitions:
       status:
         type: string
     type: object
+  matching.bulkGenerateCoverLetterItemRequest:
+    properties:
+      force:
+        type: boolean
+      id:
+        type: string
+      variant:
+        type: string
+    type: object
   matching.bulkGenerateReportItemRequest:
     properties:
       force:
@@ -315,13 +324,6 @@ definitions:
       force:
         type: boolean
       id:
-        type: string
-    type: object
-  matching.generateCoverLetterPayload:
-    properties:
-      force:
-        type: boolean
-      variant:
         type: string
     type: object
   matching.updateCoverLetterPayload:
@@ -555,6 +557,22 @@ definitions:
         type: string
       userID:
         type: string
+    type: object
+  models.RetryJobsResult:
+    properties:
+      requeued:
+        type: integer
+    type: object
+  models.RetryMatchingEvaluationsResult:
+    properties:
+      cover_letters:
+        type: integer
+      evaluations:
+        type: integer
+      reports:
+        type: integer
+      resumes:
+        type: integer
     type: object
   models.ScoringConfig:
     properties:
@@ -1135,6 +1153,46 @@ paths:
       summary: Queue a job scrape scan
       tags:
       - jobs
+  /v1/maintenance/retry-failed-jobs:
+    post:
+      description: Re-queues up to 20 failed job analysis workflows with force=true.
+        Machine API key only.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.RetryJobsResult'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpx.Error'
+      security:
+      - ApiKeyAuth: []
+      summary: Retry failed jobs
+      tags:
+      - maintenance
+  /v1/maintenance/retry-failed-matching-evaluations:
+    post:
+      description: Re-queues up to 50 evaluations with any failed workflow status.
+        Cover letters use variant short. Machine API key only.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.RetryMatchingEvaluationsResult'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpx.Error'
+      security:
+      - ApiKeyAuth: []
+      summary: Retry failed matching evaluations
+      tags:
+      - maintenance
   /v1/matching-evaluations/{id}:
     patch:
       consumes:
@@ -1217,52 +1275,6 @@ paths:
       security:
       - ApiKeyAuth: []
       summary: Update cover letter generation status
-      tags:
-      - matching
-  /v1/matching-evaluations/{id}/cover-letter/generate:
-    post:
-      consumes:
-      - application/json
-      description: Queues short or full cover letter generation. Clerk users may only
-        enqueue evaluations they own. Returns 202 while the worker generates the letter.
-      parameters:
-      - description: Matching evaluation ID (UUID)
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Variant and optional force flag
-        in: body
-        name: payload
-        required: true
-        schema:
-          $ref: '#/definitions/matching.generateCoverLetterPayload'
-      produces:
-      - application/json
-      responses:
-        "202":
-          description: Accepted
-          schema:
-            $ref: '#/definitions/models.MatchingEvaluationSummary'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/httpx.Error'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/httpx.Error'
-        "403":
-          description: Forbidden
-          schema:
-            $ref: '#/definitions/httpx.Error'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/httpx.Error'
-      security:
-      - ApiKeyAuth: []
-      summary: Generate cover letter
       tags:
       - matching
   /v1/matching-evaluations/{id}/report:
@@ -1418,6 +1430,44 @@ paths:
       security:
       - ApiKeyAuth: []
       summary: Download resume PDF
+      tags:
+      - matching
+  /v1/matching-evaluations/bulk-generate-cover-letter:
+    post:
+      consumes:
+      - application/json
+      description: Queues short or full cover letter generation for multiple evaluations.
+        Clerk users may only enqueue evaluations they own; worker API key callers
+        may enqueue any evaluation.
+      parameters:
+      - description: Evaluations to generate cover letters for
+        in: body
+        name: items
+        required: true
+        schema:
+          items:
+            $ref: '#/definitions/matching.bulkGenerateCoverLetterItemRequest'
+          type: array
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            items:
+              $ref: '#/definitions/models.MatchingEvaluationSummary'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpx.Error'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpx.Error'
+      security:
+      - ApiKeyAuth: []
+      summary: Bulk queue cover letter generation
       tags:
       - matching
   /v1/matching-evaluations/bulk-generate-report:

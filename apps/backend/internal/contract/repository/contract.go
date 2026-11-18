@@ -23,6 +23,7 @@ type Contract struct {
 	ScoringConfigsRepository      repo.ScoringConfigs
 	UserPreferencesRepository     repo.UserPreferences
 	MatchingEvaluationsRepository repo.MatchingEvaluations
+	RetryRepository               repo.Retry
 	EducationsRepository          repo.Educations
 	StorageRepository             repo.Storage
 }
@@ -50,6 +51,7 @@ func NewRepository(comm *common.Contract) (*Contract, error) {
 		ScoringConfigsRepository:      repo.NewScoringConfigsRepository(pg),
 		UserPreferencesRepository:     repo.NewUserPreferencesRepository(pg),
 		MatchingEvaluationsRepository: repo.NewMatchingEvaluationsRepository(pg),
+		RetryRepository:               repo.NewRetryRepository(pg),
 		EducationsRepository:          repo.NewEducationsRepository(comm.DB),
 		StorageRepository:             comm.Storage,
 	}

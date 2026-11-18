@@ -83,3 +83,11 @@ Log workflow ID, run ID, activity type, job/application ID, and tenant ID where 
 Distributed tracing connects one user action end-to-end: API request → Temporal workflow → Python worker activities. The OTel trace ID is unified with the API's `request_id`, so the response `request_id` equals the trace ID shown in Jaeger. Tracing is opt-in via `OTEL_EXPORTER_OTLP_ENDPOINT`; unset means no-op (local dev unchanged).
 
 Trace context flows across the API/worker boundary through Temporal SDK interceptors carrying W3C `traceparent` headers. Span names use route patterns (never raw paths with IDs), and spans must not contain CV contents, prompt payloads, credentials, or session cookies.
+
+## 9. Failed-workflow retry sweep
+
+Temporal retries activities according to each workflow's retry policy, but a workflow that exhausts its retries ends in `failed` and its application row stays `failed` until something re-queues it. Two machine-key endpoints re-queue those states, both selecting oldest `updated_at` first: `POST /v1/maintenance/retry-failed-jobs` reads up to 20 rows with `jobs.status = 'failed'`, and `POST /v1/maintenance/retry-failed-matching-evaluations` reads up to 50 evaluation rows where any of `evaluation_status`, `report_status`, `resume_status`, or `cover_letter_status` is `failed`.
+
+Job analysis uses `force=true` on `QueueAnalysisBulk`; compatibility evaluation, report and resume use their bulk force paths; cover letters use variant `short` because the database does not record which variant failed. A single evaluation row can have several failed fields, and each failed field is re-queued. Compatibility retries go through the public bulk path with `failed_only`, so users linked to the job whose latest evaluation is not `failed` are skipped instead of getting a fresh queued record. Items a usecase rejects are skipped and excluded from the reported counts, so one bad row does not block the rest of the sweep. The host cron calls both endpoints every 10 minutes; see `hermes/COMMON.md` in the homelab repo.
+
+The sweep only touches `failed` rows. Rows stuck in `queued`, `queued_retry`, or `pending` are a separate reconciliation case and are not retried here.

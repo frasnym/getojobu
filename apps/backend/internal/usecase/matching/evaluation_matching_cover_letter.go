@@ -20,6 +20,32 @@ type QueueCoverLetterRequest struct {
 	Force   bool
 }
 
+// BulkQueueCoverLetter queues cover-letter generation for each item. Failures
+// are returned per item so one rejected evaluation does not stop the batch.
+func (s *matchingService) BulkQueueCoverLetter(
+	ctx context.Context,
+	items []models.BulkGenerateCoverLetterItem,
+	caller *models.Principal,
+) ([]*models.MatchingEvaluationSummary, error) {
+	summaries := make([]*models.MatchingEvaluationSummary, 0, len(items))
+	for _, item := range items {
+		summary, err := s.QueueCoverLetter(ctx, item.ID, QueueCoverLetterRequest{
+			Variant: item.Variant,
+			Force:   item.Force,
+		}, caller)
+		if err != nil {
+			errStr := err.Error()
+			summaries = append(summaries, &models.MatchingEvaluationSummary{
+				ID:    &item.ID,
+				Error: &errStr,
+			})
+			continue
+		}
+		summaries = append(summaries, summary)
+	}
+	return summaries, nil
+}
+
 // UpdateEvaluationCoverLetterRequest holds the worker's cover-letter status update.
 type UpdateEvaluationCoverLetterRequest struct {
 	CoverLetterStatus         string

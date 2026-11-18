@@ -232,6 +232,13 @@ func (s *matchingService) TriggerCompatibilityBulk(
 				continue
 			}
 
+			// A failed-only retry must not touch users whose latest evaluation
+			// is healthy: force=true would create a new record and hide their
+			// existing report/resume/cover letter behind a fresh queued row.
+			if item.FailedOnly && (err != nil || latestEval == nil || latestEval.EvaluationStatus != string(constants.MatchingStatusFailed)) {
+				continue
+			}
+
 			var evalRecord *models.MatchingEvaluation
 
 			if err == nil && latestEval != nil {

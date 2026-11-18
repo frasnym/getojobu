@@ -42,6 +42,21 @@ func (m *MockMatching) EXPECT() *MockMatchingMockRecorder {
 	return m.recorder
 }
 
+// BulkQueueCoverLetter mocks base method.
+func (m *MockMatching) BulkQueueCoverLetter(ctx context.Context, items []models.BulkGenerateCoverLetterItem, caller *models.Principal) ([]*models.MatchingEvaluationSummary, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "BulkQueueCoverLetter", ctx, items, caller)
+	ret0, _ := ret[0].([]*models.MatchingEvaluationSummary)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// BulkQueueCoverLetter indicates an expected call of BulkQueueCoverLetter.
+func (mr *MockMatchingMockRecorder) BulkQueueCoverLetter(ctx, items, caller any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BulkQueueCoverLetter", reflect.TypeOf((*MockMatching)(nil).BulkQueueCoverLetter), ctx, items, caller)
+}
+
 // BulkQueueGenerateReport mocks base method.
 func (m *MockMatching) BulkQueueGenerateReport(ctx context.Context, items []models.BulkGenerateReportItem, caller *models.Principal) ([]*models.MatchingEvaluationSummary, error) {
 	m.ctrl.T.Helper()

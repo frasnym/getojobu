@@ -348,6 +348,38 @@ func TestUpdateEvaluationCoverLetter_KeepsFixedFailureMessage(t *testing.T) {
 	assert.Equal(t, time.UTC, parsed.Location())
 }
 
+func TestBulkQueueCoverLetter_ReturnsPerItemResults(t *testing.T) {
+	ctx := context.Background()
+	d := newCoverLetterDeps(t)
+	okID, userJobID, userID := uuid.New(), uuid.New(), uuid.New()
+	failID := uuid.New()
+	caller := &models.Principal{ActorType: "worker", ID: "worker-1"}
+
+	d.evalRepo.EXPECT().GetByID(ctx, okID).Return(successfulEvaluation(okID, userJobID), nil)
+	d.userJobsRepo.EXPECT().GetByID(ctx, userJobID).Return(&models.UserJob{ID: userJobID, UserID: userID}, nil)
+	d.usersRepo.EXPECT().FindByID(ctx, userID.String()).Return(onboardedUser(userID), nil)
+	d.evalRepo.EXPECT().UpdateCoverLetter(ctx, okID, gomock.Any()).DoAndReturn(
+		func(_ context.Context, _ uuid.UUID, params models.UpdateMatchingEvaluationCoverLetterParams) (*models.MatchingEvaluation, error) {
+			queued := successfulEvaluation(okID, userJobID)
+			queued.CoverLetterStatus = utils.PtrString(params.CoverLetterStatus)
+			return queued, nil
+		},
+	)
+	d.workflowsRepo.EXPECT().StartLimiterWorkItem(ctx, gomock.Any(), models.LimiterJobTypeCoverLetter, gomock.Any()).
+		Return("wf-cover-letter-1", nil)
+	d.evalRepo.EXPECT().GetByID(ctx, failID).Return(nil, constants.ErrNotFound)
+
+	summaries, err := d.service.BulkQueueCoverLetter(ctx, []models.BulkGenerateCoverLetterItem{
+		{ID: okID, Variant: "short", Force: false},
+		{ID: failID, Variant: "short", Force: false},
+	}, caller)
+	require.NoError(t, err)
+	require.Len(t, summaries, 2)
+	assert.Nil(t, summaries[0].Error)
+	require.NotNil(t, summaries[1].Error)
+	assert.Equal(t, failID, *summaries[1].ID)
+}
+
 func TestCoverLetterFileName_Format(t *testing.T) {
 	assert.Equal(t, "Jane Doe_Cover Letter_Software Engineer.pdf",
 		matching.CoverLetterFileName("Jane Doe", "Software Engineer"))

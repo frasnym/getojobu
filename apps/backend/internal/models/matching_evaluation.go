@@ -125,8 +125,9 @@ type MatchingEvaluationSummary struct {
 
 // BulkAnalyzeCompatibilityItem holds input for a single compatibility evaluation in a batch.
 type BulkAnalyzeCompatibilityItem struct {
-	Slug  string `json:"slug"`
-	Force bool   `json:"force"`
+	Slug       string `json:"slug"`
+	Force      bool   `json:"force"`
+	FailedOnly bool   `json:"failed_only,omitempty"`
 }
 
 // BulkGenerateReportItem holds input for a single report generation in a batch.
@@ -139,6 +140,13 @@ type BulkGenerateReportItem struct {
 type BulkGenerateResumeItem struct {
 	ID    uuid.UUID `json:"id"`
 	Force bool      `json:"force"`
+}
+
+// BulkGenerateCoverLetterItem holds input for a cover letter generation batch.
+type BulkGenerateCoverLetterItem struct {
+	ID      uuid.UUID `json:"id"`
+	Variant string    `json:"variant"`
+	Force   bool      `json:"force"`
 }
 
 // UpdateMatchingEvaluationParams contains fields for updating a matching evaluation.

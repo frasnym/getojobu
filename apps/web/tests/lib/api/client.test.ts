@@ -3,6 +3,7 @@ import {
   getJobs,
   getJobBySlug,
   getResumeDownloadUrl,
+  generateCoverLetter,
   triggerJobCompatibility,
 } from "@/lib/api/endpoints";
 
@@ -165,6 +166,41 @@ describe("API endpoints", () => {
     expect(caughtError.message).toBe("unauthenticated user token");
     expect(caughtError.code).toBe("UNAUTHORIZED");
     expect(caughtError.status).toBe(401);
+  });
+
+  it("generateCoverLetter posts one item to the bulk endpoint", async () => {
+    const summary = {
+      id: "eval-001",
+      cover_letter_status: "queued",
+    };
+    mockFetch({
+      success: true,
+      data: [summary],
+      meta: { timestamp: "", requestId: "" },
+      error: null,
+    });
+
+    const result = await generateCoverLetter("eval-001", "short", true);
+
+    const [url, init] = (global.fetch as any).mock.calls[0];
+    expect(url).toContain("/v1/matching-evaluations/bulk-generate-cover-letter");
+    expect(JSON.parse(init.body)).toEqual([
+      { id: "eval-001", variant: "short", force: true },
+    ]);
+    expect(result).toEqual(summary);
+  });
+
+  it("generateCoverLetter throws on a per-item error", async () => {
+    mockFetch({
+      success: true,
+      data: [{ id: "eval-001", error: "evaluation must be successful" }],
+      meta: { timestamp: "", requestId: "" },
+      error: null,
+    });
+
+    await expect(generateCoverLetter("eval-001", "short", false)).rejects.toThrow(
+      "evaluation must be successful"
+    );
   });
 
   it("throws error when backend fails", async () => {

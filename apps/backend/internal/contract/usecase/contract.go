@@ -9,6 +9,7 @@ import (
 	ucMatching "github.com/frasnym/getojobu/apps/backend/internal/usecase/matching"
 	ucProjects "github.com/frasnym/getojobu/apps/backend/internal/usecase/projects"
 	ucProjectSkills "github.com/frasnym/getojobu/apps/backend/internal/usecase/projectskills"
+	ucRetry "github.com/frasnym/getojobu/apps/backend/internal/usecase/retry"
 	ucScoringConfigs "github.com/frasnym/getojobu/apps/backend/internal/usecase/scoringConfigs"
 	ucUserJobs "github.com/frasnym/getojobu/apps/backend/internal/usecase/user_jobs"
 	ucUsers "github.com/frasnym/getojobu/apps/backend/internal/usecase/users"
@@ -24,6 +25,7 @@ type Contract struct {
 	Jobs           ucJobs.Job
 	ScoringConfigs ucScoringConfigs.ScoringConfig
 	Matching       ucMatching.Matching
+	Retry          ucRetry.Retry
 	UserJobs       ucUserJobs.UserJobs
 }
 
@@ -43,5 +45,6 @@ func NewUsecase(r *repository.Contract) (*Contract, error) {
 		Matching:       ucMatching.NewService(r),
 		UserJobs:       ucUserJobs.NewUserJobsService(r),
 	}
+	c.Retry = ucRetry.NewService(r, c.Jobs, c.Matching)
 	return c, nil
 }

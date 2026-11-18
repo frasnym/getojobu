@@ -10,6 +10,7 @@ import (
 	"github.com/frasnym/getojobu/apps/backend/internal/deliveries/api/handler/jobs"
 	"github.com/frasnym/getojobu/apps/backend/internal/deliveries/api/handler/matching"
 	"github.com/frasnym/getojobu/apps/backend/internal/deliveries/api/handler/projects"
+	"github.com/frasnym/getojobu/apps/backend/internal/deliveries/api/handler/retry"
 	scoringConfigs "github.com/frasnym/getojobu/apps/backend/internal/deliveries/api/handler/scoringconfigs"
 	userJobs "github.com/frasnym/getojobu/apps/backend/internal/deliveries/api/handler/user_jobs"
 	"github.com/frasnym/getojobu/apps/backend/internal/deliveries/api/handler/webhook"
@@ -69,6 +70,9 @@ func (h *handler) Route(rt *httpx.Router) {
 
 	// Matching routes (evaluation updates).
 	matching.NewHandler(h.contract).Route(v1.Group("/matching-evaluations"))
+
+	// Failed-workflow retry sweep (machine API key only).
+	retry.NewHandler(h.contract).Route(v1.Group("/maintenance"))
 }
 
 // swaggerAuth gates the Swagger UI behind HTTP Basic Auth when SWAGGER_TOKEN
