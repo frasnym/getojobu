@@ -87,6 +87,21 @@ func (mr *MockMatchingMockRecorder) BulkQueueGenerateResume(ctx, items, caller a
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BulkQueueGenerateResume", reflect.TypeOf((*MockMatching)(nil).BulkQueueGenerateResume), ctx, items, caller)
 }
 
+// CreateEvaluations mocks base method.
+func (m *MockMatching) CreateEvaluations(ctx context.Context, items []models.CreateEvaluationItem, caller *models.Principal) ([]*models.MatchingEvaluationSummary, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CreateEvaluations", ctx, items, caller)
+	ret0, _ := ret[0].([]*models.MatchingEvaluationSummary)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CreateEvaluations indicates an expected call of CreateEvaluations.
+func (mr *MockMatchingMockRecorder) CreateEvaluations(ctx, items, caller any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateEvaluations", reflect.TypeOf((*MockMatching)(nil).CreateEvaluations), ctx, items, caller)
+}
+
 // DownloadResume mocks base method.
 func (m *MockMatching) DownloadResume(ctx context.Context, id uuid.UUID, caller *models.Principal) (*models.DownloadResumeResponse, error) {
 	m.ctrl.T.Helper()
