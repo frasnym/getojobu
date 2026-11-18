@@ -79,10 +79,27 @@ class OpenAIResumeClient:
                 temperature=0,
                 response_format={"type": "json_object"},
             )
-            content = response.choices[0].message.content
-            if not content:
+            choice = response.choices[0]
+            content = choice.message.content
+            finish_reason = choice.finish_reason
+            if finish_reason == "length":
+                raise RuntimeError(
+                    f"{schema_name}: LLM response truncated before JSON completed"
+                )
+            if not content or not content.strip():
                 raise RuntimeError(f"{schema_name}: empty LLM response")
-            return parse_llm_json(content)
+            try:
+                return parse_llm_json(content)
+            except (json.JSONDecodeError, TypeError) as exc:
+                raise LLMError(
+                    "LLM error during resume generation",
+                    detail=(
+                        f"{schema_name}: non-JSON LLM response "
+                        f"(finish_reason={finish_reason}, length={len(content)}, "
+                        f"has_object={'{' in content}, "
+                        f"fenced={content.strip().startswith('```')}): {exc}"
+                    ),
+                ) from exc
         except LLMError:
             raise
         except Exception as exc:
