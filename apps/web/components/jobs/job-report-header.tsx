@@ -1,8 +1,8 @@
 import React from "react";
 import Link from "next/link";
-import { Job } from "@/lib/api/types";
-import { ArrowLeft, ChevronLeft, ChevronRight, Globe, MapPin, Eye, EyeOff, RefreshCw } from "lucide-react";
-import { StatusTag } from "@/components/jobs/evaluation-tags";
+import { Job, MatchReport } from "@/lib/api/types";
+import { ArrowLeft, ChevronLeft, ChevronRight, Globe, MapPin, Clock, Eye, EyeOff, RefreshCw } from "lucide-react";
+import { EvaluationStatusTag, EligibilityTag, RecommendationTag, StatusTag } from "@/components/jobs/evaluation-tags";
 
 export type ReportTab = "details" | "report" | "resume" | "cover-letter";
 
@@ -19,6 +19,8 @@ interface JobReportHeaderProps {
 	userJobId?: string;
 	/** Toggle hide on the user↔job link (bulk endpoint). Receives (userJobId, isHidden). */
 	onHideToggle?: (userJobId: string, isHidden: boolean) => void | Promise<void>;
+	/** Latest evaluation, used for the card-style tags in the header. */
+	evaluation?: MatchReport;
 	/** Manually refetch the job detail and the latest evaluation. */
 	onRefresh?: () => void | Promise<void>;
 	/** Disables the Refresh button while a refetch is in progress. */
@@ -35,6 +37,7 @@ export function JobReportHeader({
 	isHidden = false,
 	userJobId,
 	onHideToggle,
+	evaluation,
 	onRefresh,
 	refreshing = false,
 }: JobReportHeaderProps) {
@@ -107,44 +110,76 @@ export function JobReportHeader({
 					</div>
 				</div>
 
-				{/* Title, Metadata & Action Header */}
-				<div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-					<div className="space-y-1.5 flex-1">
-						<div className="flex flex-wrap items-center gap-2">
-							<span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{job.company}</span>
-							{job.is_remote && (
-								<StatusTag
-									label="Remote"
-									tone="success"
-									icon={<Globe className="h-3 w-3" />}
-									testId="remote-tag"
-								/>
-							)}
-							<span className="flex items-center gap-1 text-xs text-muted-foreground">
-								<MapPin className="h-3.5 w-3.5" />
-								{job.location}
-							</span>
-						</div>
+				{/* Same four rows as the job card: tags, title + hide, meta, status tags. */}
+				<div className="space-y-2">
+					<div className="flex flex-wrap items-center gap-2">
+						<span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{job.company}</span>
+						{job.is_remote && (
+							<StatusTag
+								label="Remote"
+								tone="success"
+								icon={<Globe className="h-3 w-3" />}
+								testId="remote-tag"
+							/>
+						)}
+						<EligibilityTag status={evaluation?.eligibility_status} />
+						<RecommendationTag label={evaluation?.recommendation_label} />
+					</div>
 
+					<div className="flex flex-wrap items-center gap-x-3 gap-y-2">
 						<h1 className={`text-2xl sm:text-3xl font-black tracking-tight ${isHidden ? "text-muted-foreground" : "text-foreground"}`}>
 							{job.title}
 						</h1>
+						{onHideToggle && userJobId && (
+							<button
+								type="button"
+								onClick={() => onHideToggle(userJobId, !isHidden)}
+								className="inline-flex items-center gap-1 rounded-lg border border-border/60 bg-card px-2 py-1 text-xs font-medium text-foreground transition-colors hover:bg-secondary focus:outline-none focus:ring-2 focus:ring-ring"
+								aria-label={isHidden ? "Unhide job" : "Hide job"}
+								title={isHidden ? "Unhide job" : "Hide job"}
+							>
+								{isHidden ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+								<span>{isHidden ? "Unhide" : "Hide"}</span>
+							</button>
+						)}
 					</div>
 
-					{onHideToggle && userJobId && (
-						<button
-							type="button"
-							onClick={() => onHideToggle(userJobId, !isHidden)}
-							className={`inline-flex shrink-0 items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${
-								isHidden
-									? "border-red-500/40 text-red-400 dark:text-red-300 hover:bg-red-500/10"
-									: "border-border/60 text-muted-foreground hover:bg-secondary hover:text-foreground"
-							}`}
-							aria-label={isHidden ? "Unhide job" : "Hide job"}
-						>
-							{isHidden ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
-							{isHidden ? "Unhide" : "Hide"}
-						</button>
+					<div className="flex flex-wrap items-center gap-5 text-xs text-muted-foreground">
+						<span className="flex items-center gap-1">
+							<MapPin className="h-3.5 w-3.5" />
+							{job.location}
+						</span>
+						{job.posted_date && (
+							<span className="flex items-center gap-1">
+								<Clock className="h-3.5 w-3.5" />
+								{new Date(job.posted_date).toLocaleDateString(undefined, {
+									month: "short",
+									day: "numeric",
+								})}
+							</span>
+						)}
+					</div>
+
+					{(job.status || evaluation) && (
+						<div className="flex flex-wrap items-center gap-2.5 border-t border-border/40 pt-3">
+							<EvaluationStatusTag status={job.status} />
+							{evaluation && (
+								<>
+									<EvaluationStatusTag status={evaluation.evaluation_status} label="Evaluation" />
+									<EvaluationStatusTag status={evaluation.report_status} label="Report" />
+									<EvaluationStatusTag
+										status={evaluation.resume_status}
+										label="Resume"
+										message={evaluation.resume_failure_message}
+									/>
+									<EvaluationStatusTag
+										status={evaluation.cover_letter_status}
+										label="Cover Letter"
+										message={evaluation.cover_letter_failure_message}
+									/>
+								</>
+							)}
+						</div>
 					)}
 				</div>
 

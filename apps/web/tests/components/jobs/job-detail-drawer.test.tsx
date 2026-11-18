@@ -47,10 +47,9 @@ describe("JobDetailDrawer component", () => {
 
     expect(screen.getByRole("dialog")).toBeInTheDocument();
     expect(screen.getByText("Systems Lead")).toBeInTheDocument();
-    // Company appears in summary grid only
-    expect(screen.getAllByText("Datadog")).toHaveLength(1);
-    // Location appears in summary grid only
-    expect(screen.getAllByText("New York, NY")).toHaveLength(1);
+    // Company and location now appear in both the header and the summary grid
+    expect(screen.getAllByText("Datadog")).toHaveLength(2);
+    expect(screen.getAllByText("New York, NY")).toHaveLength(2);
     expect(screen.getByText("On-site / Hybrid")).toBeInTheDocument();
     expect(screen.getByText("Detailed description of the systems role.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Save to My Job/i })).toBeInTheDocument();
@@ -156,6 +155,41 @@ describe("JobDetailDrawer component", () => {
     const statusTags = screen.getAllByTestId("evaluation-status-tag");
     expect(statusTags[0]).toHaveTextContent("Analyze Pending");
     expect(statusTags[0]).toHaveClass("bg-sky-500/10 text-sky-600");
+  });
+
+  it("renders the card-style header rows with the hide button after the title", async () => {
+    vi.spyOn(endpoints, "getUserJobEvaluation").mockResolvedValue({
+      id: "eval-123",
+      user_job_id: "uj-456",
+      evaluation: {
+        id: "eval-123",
+        user_job_id: "uj-456",
+        evaluation_status: "success",
+        eligibility_status: "eligible",
+        recommendation_label: "strong_match",
+        report_status: "success",
+        resume_status: "success",
+        cover_letter_status: "success",
+      },
+    });
+
+    render(
+      <JobDetailDrawer
+        job={{ ...mockJob, is_remote: true }}
+        userJobId="uj-456"
+        isOpen={true}
+        onClose={() => {}}
+        onHideToggle={vi.fn()}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("eligibility-tag")).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("remote-tag")).toBeInTheDocument();
+    expect(screen.getByTestId("recommendation-tag")).toBeInTheDocument();
+    expect(screen.getAllByTestId("evaluation-status-tag")).toHaveLength(5);
+    expect(screen.getByRole("button", { name: /Hide job/i }).previousElementSibling?.tagName).toBe("H2");
   });
 
   it("does not trigger evaluation fetch when userJobId is omitted", () => {

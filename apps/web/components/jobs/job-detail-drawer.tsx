@@ -11,13 +11,14 @@ import { ResumeTab } from "@/components/resume/resume-tab";
 import { CoverLetterTab } from "@/components/cover-letter/cover-letter-tab";
 import { getUserJobEvaluation } from "@/lib/api/endpoints";
 import { EvaluationDetail } from "@/lib/api/types";
-import { EvaluationStatusTag, EligibilityTag, RecommendationTag } from "@/components/jobs/evaluation-tags";
+import { EvaluationStatusTag, EligibilityTag, RecommendationTag, StatusTag } from "@/components/jobs/evaluation-tags";
 import {
 	X,
 	MapPin,
 	Globe,
 	Building2,
 	Calendar,
+	Clock,
 	Bookmark,
 	Check,
 	AlertTriangle,
@@ -163,57 +164,80 @@ export function JobDetailDrawer({
 				aria-label={job.title}
 				className="fixed z-50 flex top-0 right-0 bottom-0 w-full max-w-full lg:max-w-[80vw] flex-col bg-card border-l border-border shadow-2xl animate-in slide-in-from-right duration-300"
 			>
-				{/* Drawer Header */}
+				{/* Drawer Header — same four rows as the job card */}
 				<div className="border-b border-border/60 p-6 space-y-4">
-					<div className="flex items-center justify-between gap-4">
-						<div className="flex flex-wrap items-center gap-2">
-							<h2 className={`text-2xl font-black tracking-tight ${isHidden ? "text-muted-foreground" : "text-foreground"}`}>
-								{job.title}
-							</h2>
-						</div>
-
+					<div className="flex flex-wrap items-center gap-2">
+						<span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{job.company}</span>
+						{job.is_remote && (
+							<StatusTag
+								label="Remote"
+								tone="success"
+								icon={<Globe className="h-3 w-3" />}
+								testId="remote-tag"
+							/>
+						)}
+						<EligibilityTag status={fetchedEvaluation?.evaluation.eligibility_status} />
+						<RecommendationTag label={fetchedEvaluation?.evaluation.recommendation_label} />
 						<button
 							type="button"
 							onClick={onClose}
-							className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+							className="ml-auto rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
 							aria-label="Close job details"
 						>
 							<X className="h-5 w-5" />
 						</button>
 					</div>
 
-					{fetchedEvaluation && (
-						<div className="flex flex-wrap items-center gap-2.5 pt-3 border-t border-border/40">
-							<EvaluationStatusTag status={job.status} />
-							<EvaluationStatusTag status={fetchedEvaluation.evaluation.evaluation_status} label="Evaluation" />
-							<EvaluationStatusTag status={fetchedEvaluation.evaluation.report_status} label="Report" />
-							<EligibilityTag status={fetchedEvaluation.evaluation.eligibility_status} />
-							<RecommendationTag label={fetchedEvaluation.evaluation.recommendation_label} />
-							<EvaluationStatusTag
-								status={fetchedEvaluation.evaluation.resume_status}
-								label="Resume"
-								message={fetchedEvaluation.evaluation.resume_failure_message}
-							/>
-						</div>
-					)}
-
-					{/* Hide/Unhide — placed right under the job title, above the tabs */}
-					{onHideToggle && userJobId && (
-						<div className="flex items-center">
+					<div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+						<h2 className={`text-2xl font-black tracking-tight ${isHidden ? "text-muted-foreground" : "text-foreground"}`}>
+							{job.title}
+						</h2>
+						{onHideToggle && userJobId && (
 							<button
 								type="button"
 								onClick={() => onHideToggle(userJobId, !isHidden)}
 								disabled={isSaving}
-								className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${
-									isHidden
-										? "border-red-500/40 text-red-400 dark:text-red-300 hover:bg-red-500/10"
-										: "border-border/60 text-muted-foreground hover:bg-secondary hover:text-foreground"
-								}`}
+								className="inline-flex items-center gap-1 rounded-lg border border-border/60 bg-card px-2 py-1 text-xs font-medium text-foreground transition-colors hover:bg-secondary focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
 								aria-label={isHidden ? "Unhide job" : "Hide job"}
+								title={isHidden ? "Unhide job" : "Hide job"}
 							>
-								{isHidden ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
-								{isHidden ? "Unhide" : "Hide"}
+								{isHidden ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+								<span>{isHidden ? "Unhide" : "Hide"}</span>
 							</button>
+						)}
+					</div>
+
+					<div className="flex flex-wrap items-center gap-5 text-xs text-muted-foreground">
+						<span className="flex items-center gap-1">
+							<MapPin className="h-3.5 w-3.5" />
+							{job.location}
+						</span>
+						{job.posted_date && (
+							<span className="flex items-center gap-1">
+								<Clock className="h-3.5 w-3.5" />
+								{new Date(job.posted_date).toLocaleDateString(undefined, {
+									month: "short",
+									day: "numeric",
+								})}
+							</span>
+						)}
+					</div>
+
+					{(job.status || fetchedEvaluation) && (
+						<div className="flex flex-wrap items-center gap-2.5 border-t border-border/40 pt-3">
+							<EvaluationStatusTag status={job.status} />
+							<EvaluationStatusTag status={fetchedEvaluation?.evaluation.evaluation_status} label="Evaluation" />
+							<EvaluationStatusTag status={fetchedEvaluation?.evaluation.report_status} label="Report" />
+							<EvaluationStatusTag
+								status={fetchedEvaluation?.evaluation.resume_status}
+								label="Resume"
+								message={fetchedEvaluation?.evaluation.resume_failure_message}
+							/>
+							<EvaluationStatusTag
+								status={fetchedEvaluation?.evaluation.cover_letter_status}
+								label="Cover Letter"
+								message={fetchedEvaluation?.evaluation.cover_letter_failure_message}
+							/>
 						</div>
 					)}
 

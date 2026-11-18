@@ -187,6 +187,7 @@ export default function UserJobDetailPage({ params }: UserJobDetailPageProps) {
         isHidden={isHidden}
         userJobId={resolvedUserJobId}
         onHideToggle={handleHideToggle}
+        evaluation={fetchedEvaluation?.evaluation}
         onRefresh={handleRefresh}
         refreshing={refreshing}
       />

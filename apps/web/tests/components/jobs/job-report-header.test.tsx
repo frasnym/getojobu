@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import React from "react";
 import { JobReportHeader } from "@/components/jobs/job-report-header";
-import { Job } from "@/lib/api/types";
+import { Job, MatchReport } from "@/lib/api/types";
 
 const mockJob: Job = {
   id: 1,
@@ -30,6 +30,36 @@ describe("JobReportHeader component", () => {
     expect(screen.getByText("Senior Go Engineer")).toBeInTheDocument();
     expect(screen.getByText("Stripe")).toBeInTheDocument();
     expect(screen.getByText("Back to My Jobs")).toBeInTheDocument();
+  });
+
+  const mockEvaluation: MatchReport = {
+    id: "eval-1",
+    user_job_id: "user-job-1",
+    evaluation_status: "success",
+    eligibility_status: "eligible",
+    recommendation_label: "strong_match",
+    report_status: "success",
+    resume_status: "success",
+    cover_letter_status: "success",
+  };
+
+  it("renders the card-style tag rows with the hide button after the title", () => {
+    render(
+      <JobReportHeader
+        job={{ ...mockJob, posted_date: "2026-11-13T10:00:00Z" }}
+        activeTab="details"
+        onTabChange={() => {}}
+        evaluation={mockEvaluation}
+        userJobId="user-job-1"
+        onHideToggle={vi.fn()}
+      />
+    );
+
+    expect(screen.getByTestId("remote-tag")).toBeInTheDocument();
+    expect(screen.getByTestId("eligibility-tag")).toBeInTheDocument();
+    expect(screen.getByTestId("recommendation-tag")).toBeInTheDocument();
+    expect(screen.getAllByTestId("evaluation-status-tag")).toHaveLength(5);
+    expect(screen.getByRole("button", { name: /Hide job/i }).previousElementSibling?.tagName).toBe("H1");
   });
 
   it("calls onTabChange when segmented tabs are clicked", () => {
