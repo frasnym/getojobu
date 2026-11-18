@@ -119,6 +119,9 @@ class _ActiveEntry:
 
 
 CONTINUE_AS_NEW_PATCH_ID = "ConcurrencyLimiter.continue-as-new-v1"
+PROACTIVE_RESET_PATCH_ID = "ConcurrencyLimiter.proactive-history-reset-v1"
+HISTORY_LENGTH_RESET_THRESHOLD = 1000
+HISTORY_SIZE_RESET_THRESHOLD_BYTES = 10 * 1024 * 1024
 
 
 def _should_continue_as_new(
@@ -134,12 +137,36 @@ def _should_continue_as_new(
     return enabled and suggested and active_count == 0 and handlers_done
 
 
+def _proactive_reset_needed(enabled: bool, length: int, size: int) -> bool:
+    """Reset before the server's hard history limit, even while children run."""
+    return enabled and (
+        length >= HISTORY_LENGTH_RESET_THRESHOLD
+        or size >= HISTORY_SIZE_RESET_THRESHOLD_BYTES
+    )
+
+
 def _safe_is_continue_as_new_suggested() -> bool:
     """Check if Temporal server suggested continue-as-new; False outside workflow runtime."""
     try:
         return workflow.info().is_continue_as_new_suggested()
     except Exception:  # noqa: BLE001
         return False
+
+
+def _safe_get_current_history_length() -> int:
+    """Return current history event count; 0 outside workflow runtime."""
+    try:
+        return workflow.info().get_current_history_length()
+    except Exception:  # noqa: BLE001
+        return 0
+
+
+def _safe_get_current_history_size() -> int:
+    """Return current history size in bytes; 0 outside workflow runtime."""
+    try:
+        return workflow.info().get_current_history_size()
+    except Exception:  # noqa: BLE001
+        return 0
 
 
 def _safe_all_handlers_finished() -> bool:
@@ -336,23 +363,45 @@ class ConcurrencyLimiter:
         self._running = True
         self._apply_state(state)
         reset_enabled = _safe_patched(CONTINUE_AS_NEW_PATCH_ID)
+        proactive_enabled = _safe_patched(PROACTIVE_RESET_PATCH_ID)
 
         while True:
-            # Continue-As-New check: safe only when active is 0 and suggested by server.
-            # Resetting history before dispatching carries pending queue forward into clean generation.
-            if _should_continue_as_new(
+            reset_requested = _should_continue_as_new(
                 reset_enabled,
                 _safe_is_continue_as_new_suggested(),
                 len(self.active),
                 _safe_all_handlers_finished(),
-            ):
-                logger.info(
-                    "concurrency limiter continue-as-new queued=%s failed=%s",
-                    len(self.queue),
-                    len(self.failed_items),
+            ) or _proactive_reset_needed(
+                proactive_enabled,
+                _safe_get_current_history_length(),
+                _safe_get_current_history_size(),
+            )
+            if reset_requested:
+                if len(self.active) == 0 and _safe_all_handlers_finished():
+                    logger.info(
+                        "concurrency limiter continue-as-new queued=%s failed=%s",
+                        len(self.queue),
+                        len(self.failed_items),
+                    )
+                    _safe_continue_as_new(self.continuation_state())
+                    return
+                # Drain: stop dispatching and let active children finish. Reusing
+                # _can_dispatch_any() here would spin while the queue is non-empty.
+                await _safe_wait_condition(
+                    lambda: (
+                        _safe_all_handlers_finished()
+                        and (
+                            len(self.active) == 0
+                            or any(entry.task.done() for entry in self.active.values())
+                        )
+                    )
                 )
-                _safe_continue_as_new(self.continuation_state())
-                return
+                done_tasks = {
+                    entry.task for entry in self.active.values() if entry.task.done()
+                }
+                if done_tasks:
+                    await self._handle_completed_tasks(done_tasks)
+                continue
 
             self.dispatch_pending()
 

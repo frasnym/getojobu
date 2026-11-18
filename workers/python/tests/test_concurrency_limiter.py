@@ -437,3 +437,76 @@ async def test_limiter_run_triggers_continue_as_new_when_suggested():
     saved_state = continue_as_new_calls[0]
     # Pending items were preserved and passed to the next generation
     assert any(item["item_id"] == "pending-1" for item in saved_state["queue"])
+
+
+def test_proactive_reset_needed_thresholds():
+    from workflows.concurrency_limiter import (
+        HISTORY_LENGTH_RESET_THRESHOLD,
+        HISTORY_SIZE_RESET_THRESHOLD_BYTES,
+        _proactive_reset_needed,
+    )
+
+    assert not _proactive_reset_needed(False, HISTORY_LENGTH_RESET_THRESHOLD, 0)
+    assert not _proactive_reset_needed(True, HISTORY_LENGTH_RESET_THRESHOLD - 1, 0)
+    assert not _proactive_reset_needed(True, 0, HISTORY_SIZE_RESET_THRESHOLD_BYTES - 1)
+    assert _proactive_reset_needed(True, HISTORY_LENGTH_RESET_THRESHOLD, 0)
+    assert _proactive_reset_needed(True, 0, HISTORY_SIZE_RESET_THRESHOLD_BYTES)
+
+
+@pytest.mark.asyncio
+async def test_limiter_drains_before_proactive_reset():
+    limiter = ConcurrencyLimiter()
+    child = asyncio.Future()
+    created = []
+    continue_as_new_calls = []
+
+    def create_child(item):
+        created.append(item.item_id)
+        return child
+
+    def fake_continue_as_new(state):
+        continue_as_new_calls.append(state)
+
+    limiter._create_child_task = MagicMock(side_effect=create_child)
+    limiter.enqueue(WorkItem(params={}, item_id="wf-1", job_type="scrape"))
+    limiter.enqueue(WorkItem(params={}, item_id="wf-2", job_type="scrape"))
+
+    with (
+        patch("workflows.concurrency_limiter._safe_patched", return_value=True),
+        patch(
+            "workflows.concurrency_limiter._safe_is_continue_as_new_suggested",
+            return_value=False,
+        ),
+        patch(
+            "workflows.concurrency_limiter._safe_get_current_history_length",
+            return_value=5000,
+        ),
+        patch(
+            "workflows.concurrency_limiter._safe_get_current_history_size",
+            return_value=0,
+        ),
+        patch(
+            "workflows.concurrency_limiter._safe_all_handlers_finished",
+            return_value=True,
+        ),
+        patch(
+            "workflows.concurrency_limiter._safe_continue_as_new",
+            side_effect=fake_continue_as_new,
+        ),
+    ):
+        run_task = asyncio.create_task(limiter.run())
+        await asyncio.sleep(0.02)
+
+        assert continue_as_new_calls == []
+        assert created == ["wf-1"]
+        assert [item.item_id for item in limiter.queue] == ["wf-2"]
+
+        child.set_result({"status": "success"})
+        for _ in range(20):
+            if continue_as_new_calls:
+                break
+            await asyncio.sleep(0.01)
+        await run_task
+
+    assert len(continue_as_new_calls) == 1
+    assert [item["item_id"] for item in continue_as_new_calls[0]["queue"]] == ["wf-2"]

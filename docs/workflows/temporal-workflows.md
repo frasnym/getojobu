@@ -46,6 +46,8 @@ Python and browser workers register only the queues and activities they own. Con
 - Version workflows when changing behavior that may affect in-flight executions.
 - Do not store secrets or unnecessary personal data in workflow input/history.
 
+Long-lived dispatcher workflows reset their event history with Continue-As-New before the server's hard history limit (50 MB in this deployment). A reset is only safe when no child workflow is in flight and no signal handler is running, so pending items are carried into the next generation without orphaning children. `ConcurrencyLimiter` triggers the reset on a local event-count/size threshold instead of waiting only for the server's "suggested" flag, because a continuously fed singleton rarely reaches an idle point. This replaced the previous behavior, where a busy limiter could grow until the history service terminated the run.
+
 ## 5. Human approval
 
 The system must require an explicit approval before external application submission. Approval should be recorded as a durable application transition/activity, then signal or start the relevant workflow.
