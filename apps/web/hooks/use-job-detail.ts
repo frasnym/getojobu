@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { Job, EvaluationSummary } from "@/lib/api/types";
 import { getJobBySlug, getJobs, triggerJobCompatibility } from "@/lib/api/endpoints";
@@ -8,9 +8,29 @@ export function useJobDetail(slug: string, explicitToken?: string | null) {
   const [job, setJob] = useState<Job | null>(null);
   const [allJobs, setAllJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
+  // `refreshing` is separate from `loading`: a manual refresh keeps the page
+  // mounted and only spins the Refresh button instead of showing the skeleton.
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<Error | null>(null);
+  const [refreshError, setRefreshError] = useState<Error | null>(null);
   const [evaluating, setEvaluating] = useState(false);
 
+  const fetchJobDetail = useCallback(async () => {
+    const token = explicitToken !== undefined ? explicitToken : await getToken();
+    const [jobData, jobsList] = await Promise.all([
+      getJobBySlug(slug, token),
+      getJobs(token),
+    ]);
+    return { jobData, jobsList: Array.isArray(jobsList) ? jobsList : [] };
+  }, [slug, explicitToken, getToken]);
+
+  const applyJobDetail = useCallback((jobData: Job, jobsList: Job[]) => {
+    setJob(jobData);
+    setAllJobs(jobsList);
+  }, []);
+
+  // Initial load. Manual refresh does not re-run this effect; it calls
+  // fetchJobDetail directly through `refresh` below (no polling is added).
   useEffect(() => {
     let mounted = true;
 
@@ -20,35 +40,43 @@ export function useJobDetail(slug: string, explicitToken?: string | null) {
 
     setLoading(true);
 
-    const loadData = async () => {
-      try {
-        const token = explicitToken !== undefined ? explicitToken : await getToken();
-        const [jobData, jobsList] = await Promise.all([
-          getJobBySlug(slug, token),
-          getJobs(token),
-        ]);
+    fetchJobDetail()
+      .then(({ jobData, jobsList }) => {
         if (mounted) {
-          setJob(jobData);
-          setAllJobs(Array.isArray(jobsList) ? jobsList : []);
+          applyJobDetail(jobData, jobsList);
           setError(null);
         }
-      } catch (err: any) {
+      })
+      .catch((err) => {
         if (mounted) {
-          setError(err);
+          setError(err instanceof Error ? err : new Error(String(err)));
         }
-      } finally {
+      })
+      .finally(() => {
         if (mounted) {
           setLoading(false);
         }
-      }
-    };
-
-    loadData();
+      });
 
     return () => {
       mounted = false;
     };
-  }, [slug, explicitToken, isLoaded, getToken]);
+  }, [fetchJobDetail, applyJobDetail, explicitToken, isLoaded]);
+
+  // Manual, awaitable refetch. Failures are captured in `refreshError` so the
+  // caller can show a visible message instead of silently doing nothing.
+  const refresh = useCallback(async (): Promise<void> => {
+    setRefreshing(true);
+    setRefreshError(null);
+    try {
+      const { jobData, jobsList } = await fetchJobDetail();
+      applyJobDetail(jobData, jobsList);
+    } catch (err) {
+      setRefreshError(err instanceof Error ? err : new Error(String(err)));
+    } finally {
+      setRefreshing(false);
+    }
+  }, [fetchJobDetail, applyJobDetail]);
 
   // Compute prev/next slugs for sequential navigation
   const currentIndex = allJobs.findIndex((j) => j.slug === slug);
@@ -84,5 +112,8 @@ export function useJobDetail(slug: string, explicitToken?: string | null) {
     nextSlug,
     evaluating,
     runEvaluation,
+    refresh,
+    refreshing,
+    refreshError,
   };
 }

@@ -110,6 +110,10 @@ export interface MatchReport {
   recommendation_label?: string;
   resume_status?: string;
   resume_failure_message?: string;
+  cover_letter_status?: string;
+  cover_letter_text?: string;
+  cover_letter_failure_message?: string;
+  cover_letter_file_name?: string;
   report_data?: {
     summary?: string;
     strengths?: string[];

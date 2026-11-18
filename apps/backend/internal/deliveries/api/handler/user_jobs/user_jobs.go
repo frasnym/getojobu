@@ -292,6 +292,14 @@ func (h *handler) GetEvaluation(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
+	// The principal already carries the user's full name, so the cover-letter
+	// download filename is computed here without a second user lookup.
+	jobTitle := ""
+	if evalWithJob.Job != nil {
+		jobTitle = evalWithJob.Job.Title
+	}
+	evalWithJob.Evaluation.CoverLetterFileName = ucMatching.CoverLetterFileName(p.FullName, jobTitle)
+
 	// Strip service metadata (model, prompt_version) from evaluation_data
 	// and report_data before exposing them to clients. Internal Go usecases
 	// still read the raw fields from the DB.

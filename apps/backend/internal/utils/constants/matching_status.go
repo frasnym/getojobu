@@ -77,3 +77,43 @@ const (
 	ResumeStatusSuccess     ResumeStatus = "success"
 	ResumeStatusFailed      ResumeStatus = "failed"
 )
+
+// CoverLetterStatus represents the lifecycle state of cover letter generation.
+type CoverLetterStatus string
+
+const (
+	CoverLetterStatusQueued      CoverLetterStatus = "queued"
+	CoverLetterStatusQueuedRetry CoverLetterStatus = "queued_retry"
+	CoverLetterStatusPending     CoverLetterStatus = "pending"
+	CoverLetterStatusSuccess     CoverLetterStatus = "success"
+	CoverLetterStatusFailed      CoverLetterStatus = "failed"
+)
+
+// IsValidCoverLetterStatus reports whether v is a known cover-letter status.
+func IsValidCoverLetterStatus(v string) bool {
+	switch CoverLetterStatus(v) {
+	case CoverLetterStatusQueued, CoverLetterStatusQueuedRetry, CoverLetterStatusPending,
+		CoverLetterStatusSuccess, CoverLetterStatusFailed:
+		return true
+	default:
+		return false
+	}
+}
+
+// CoverLetterVariant selects the prompt used for cover letter generation.
+type CoverLetterVariant string
+
+const (
+	CoverLetterVariantShort CoverLetterVariant = "short"
+	CoverLetterVariantFull  CoverLetterVariant = "full"
+)
+
+// IsValidCoverLetterVariant reports whether v is a supported cover-letter variant.
+func IsValidCoverLetterVariant(v string) bool {
+	switch CoverLetterVariant(v) {
+	case CoverLetterVariantShort, CoverLetterVariantFull:
+		return true
+	default:
+		return false
+	}
+}

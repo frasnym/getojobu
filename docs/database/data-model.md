@@ -111,3 +111,15 @@ Fresh start means no wholesale import. A separate, explicit seed process may imp
 - selected document metadata if files are copied to R2.
 
 Do not import legacy verdicts, application state, or raw reasoning by default. Any imported dataset must have a documented mapping, count checks, and a repeatable dry-run mode.
+
+## 10. Cover-letter generation fields
+
+The cover-letter feature adds three columns to `matching_evaluations` in migration `000016_cover_letter_schema.sql`, after the existing resume columns. These are user-specific generation state on the per-user evaluation row, not shared job facts, and no PDF object key is stored.
+
+| Column | Type | Purpose |
+|---|---|---|
+| `cover_letter_status` | `VARCHAR(32)` | Lifecycle state: `queued`, `queued_retry`, `pending`, `success`, `failed` |
+| `cover_letter_content` | `JSONB` | The finished letter text and its provenance metadata as one object |
+| `cover_letter_failure_message` | `TEXT` | Append-only failure history, one timestamped line per failed attempt, newest last, capped at the last 10 lines |
+
+`cover_letter_content` is a single object rather than separate text/model/version columns so provenance travels with the letter. Its shape is `{ "text": "...", "metadata": { "model": "...", "prompt_version": "..." } }`: `text` holds the plain letter with line breaks, and `metadata.model` / `metadata.prompt_version` use the same nested provenance shape as job analysis, evaluation, and report results. A forced regeneration sets status to `queued_retry` and keeps the previous `cover_letter_content` visible until the new letter succeeds, so a failed regeneration does not wipe a working letter. Failure messages are a fixed safe string with the specific exception logged server-side only; no prompt or CV contents are stored. See `docs/superpowers/specs/2026-11-17-cover-letter-design.md` for the full decision record.

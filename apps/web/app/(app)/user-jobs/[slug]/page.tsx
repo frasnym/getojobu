@@ -8,6 +8,7 @@ import { JobReportHeader, ReportTab } from "@/components/jobs/job-report-header"
 import { JobDetailTab } from "@/components/jobs/job-detail-tab";
 import { MatchReportTab } from "@/components/matching/match-report-tab";
 import { ResumeTab } from "@/components/resume/resume-tab";
+import { CoverLetterTab } from "@/components/cover-letter/cover-letter-tab";
 import { JobDetailDrawer } from "@/components/jobs/job-detail-drawer";
 import { getUserJobEvaluation } from "@/lib/api/endpoints";
 import { setUserJobsHideStatus } from "@/lib/api/endpoints";
@@ -23,7 +24,17 @@ export default function UserJobDetailPage({ params }: UserJobDetailPageProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const { job, userJobId, loading, error, prevSlug, nextSlug } = useJobDetail(slug);
+  const {
+    job,
+    userJobId,
+    loading,
+    error,
+    prevSlug,
+    nextSlug,
+    refresh,
+    refreshing: refreshingJob,
+    refreshError: jobRefreshError,
+  } = useJobDetail(slug);
 
   const tabParam = searchParams.get("tab") as ReportTab | null;
   const openDrawer = searchParams.get("openDrawer") === "1";
@@ -33,8 +44,42 @@ export default function UserJobDetailPage({ params }: UserJobDetailPageProps) {
   const [fetchedEvaluation, setFetchedEvaluation] = useState<EvaluationDetail | null>(null);
   const resolvedUserJobId = userJobId ?? job?.user_job?.id;
   const [isHidden, setIsHidden] = useState(false);
-  const [evalRefreshTick, setEvalRefreshTick] = useState(0);
-  const refreshEvaluation = useCallback(() => setEvalRefreshTick((t) => t + 1), []);
+  const [evalRefreshing, setEvalRefreshing] = useState(false);
+  const [evalRefreshError, setEvalRefreshError] = useState<Error | null>(null);
+
+  const fetchEvaluation = useCallback(async () => {
+    if (!resolvedUserJobId) return null;
+    const token = await getToken();
+    return getUserJobEvaluation(resolvedUserJobId, token);
+  }, [resolvedUserJobId, getToken]);
+
+  const applyEvaluation = useCallback((evalRec: EvaluationDetail | null) => {
+    if (!evalRec?.id) return;
+    setFetchedEvaluation(evalRec);
+    setEvalId((current) => current ?? String(evalRec.id));
+  }, []);
+
+  // Manual, awaitable refetch of the latest evaluation. Errors are captured in
+  // state so the header can show a visible message.
+  const refreshEvaluation = useCallback(async () => {
+    if (!resolvedUserJobId) return;
+    setEvalRefreshing(true);
+    setEvalRefreshError(null);
+    try {
+      applyEvaluation(await fetchEvaluation());
+    } catch (err) {
+      setEvalRefreshError(err instanceof Error ? err : new Error(String(err)));
+    } finally {
+      setEvalRefreshing(false);
+    }
+  }, [resolvedUserJobId, fetchEvaluation, applyEvaluation]);
+
+  // Manual refresh refetches both the job detail and the latest evaluation.
+  // router.refresh() is not used here because this page fetches client-side.
+  const handleRefresh = useCallback(() => {
+    void refresh();
+    void refreshEvaluation();
+  }, [refresh, refreshEvaluation]);
 
   const handleHideToggle = useCallback(
     async (userJobIdParam: string, nextHidden: boolean) => {
@@ -46,7 +91,7 @@ export default function UserJobDetailPage({ params }: UserJobDetailPageProps) {
   );
 
   useEffect(() => {
-    if (tabParam && ["details", "report", "resume"].includes(tabParam)) {
+    if (tabParam && ["details", "report", "resume", "cover-letter"].includes(tabParam)) {
       setActiveTab(tabParam);
     }
   }, [tabParam]);
@@ -59,35 +104,33 @@ export default function UserJobDetailPage({ params }: UserJobDetailPageProps) {
     }
   };
 
-  // Fetch the latest evaluation for this user job so the resume tab can show
-  // the generation status and the presigned download button when ready.
+  // Initial load of the latest evaluation for this user job so the resume and
+  // cover-letter tabs can show generation status. A missing evaluation is
+  // expected (the Analyze button creates one), so this path stays silent.
   useEffect(() => {
     if (!job || !resolvedUserJobId) return;
     let cancelled = false;
-    const load = async () => {
+    (async () => {
       try {
-        const token = await getToken();
-        const evalRec = await getUserJobEvaluation(resolvedUserJobId, token);
-        if (!cancelled && evalRec.id) {
-          setFetchedEvaluation(evalRec);
-          if (!evalId) setEvalId(String(evalRec.id));
-        }
+        const evalRec = await fetchEvaluation();
+        if (!cancelled) applyEvaluation(evalRec);
       } catch (err) {
-        // Evaluation may not exist yet — that's fine, the Analyze button
-        // creates one. Silently ignore so the page still renders.
-        console.debug("No existing evaluation for user job", resolvedUserJobId, err);
+        if (!cancelled) {
+          console.debug("No existing evaluation for user job", resolvedUserJobId, err);
+        }
       }
-    };
-
-    load();
+    })();
     return () => {
       cancelled = true;
     };
-  }, [job, resolvedUserJobId, getToken, evalRefreshTick]);
+  }, [job, resolvedUserJobId, fetchEvaluation, applyEvaluation]);
 
   const handleDrawerClose = () => {
     router.push("/user-jobs");
   };
+
+  const refreshing = refreshingJob || evalRefreshing;
+  const refreshErrorMessage = jobRefreshError?.message ?? evalRefreshError?.message;
 
   if (loading) {
     return (
@@ -144,9 +187,21 @@ export default function UserJobDetailPage({ params }: UserJobDetailPageProps) {
         isHidden={isHidden}
         userJobId={resolvedUserJobId}
         onHideToggle={handleHideToggle}
+        onRefresh={handleRefresh}
+        refreshing={refreshing}
       />
 
       <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        {refreshErrorMessage && (
+          <div
+            role="alert"
+            className="mb-6 flex items-center gap-2 rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm font-medium text-destructive"
+          >
+            <AlertCircle className="h-4 w-4 shrink-0" />
+            <span>Could not refresh: {refreshErrorMessage}</span>
+          </div>
+        )}
+
         {/* Tab 1: Details */}
         {activeTab === "details" && <JobDetailTab job={job} />}
 
@@ -167,6 +222,19 @@ export default function UserJobDetailPage({ params }: UserJobDetailPageProps) {
             cvImprovements={fetchedEvaluation?.evaluation.report_data?.cv_improvements ?? []}
             token={null}
             onRetried={refreshEvaluation}
+          />
+        )}
+
+        {/* Tab 4: Cover Letter */}
+        {activeTab === "cover-letter" && (
+          <CoverLetterTab
+            evalId={evalId || undefined}
+            status={fetchedEvaluation?.evaluation.cover_letter_status ?? undefined}
+            text={fetchedEvaluation?.evaluation.cover_letter_text ?? undefined}
+            failureMessage={fetchedEvaluation?.evaluation.cover_letter_failure_message ?? undefined}
+            fileName={fetchedEvaluation?.evaluation.cover_letter_file_name ?? undefined}
+            reportStatus={fetchedEvaluation?.evaluation.report_status ?? undefined}
+            onQueued={refreshEvaluation}
           />
         )}
       </main>

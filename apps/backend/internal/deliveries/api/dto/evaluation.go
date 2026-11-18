@@ -12,23 +12,27 @@ import (
 // MatchingEvaluationResponse is a stored matching evaluation without its job.
 // Worker-facing endpoints use it so their payload keeps every key it always had.
 type MatchingEvaluationResponse struct {
-	ID                   uuid.UUID       `json:"id"`
-	UserJobID            uuid.UUID       `json:"user_job_id"`
-	EvaluationStatus     string          `json:"evaluation_status"`
-	EvaluationData       json.RawMessage `json:"evaluation_data,omitempty" swaggertype:"object"`
-	OverallScore         *float64        `json:"overall_score,omitempty"`
-	EligibilityStatus    *string         `json:"eligibility_status,omitempty"`
-	RecommendationLabel  *string         `json:"recommendation_label,omitempty"`
-	FailureMessage       *string         `json:"failure_message,omitempty"`
-	ReportData           json.RawMessage `json:"report_data,omitempty" swaggertype:"object"`
-	ReportStatus         *string         `json:"report_status,omitempty"`
-	ReportFailureMessage *string         `json:"report_failure_message,omitempty"`
-	ResumeStatus         *string         `json:"resume_status,omitempty"`
-	ResumeFailureMessage *string         `json:"resume_failure_message,omitempty"`
-	ResumePDFKey         *string         `json:"resume_pdf_key,omitempty"`
-	ResumeJSONKey        *string         `json:"resume_json_key,omitempty"`
-	CreatedAt            time.Time       `json:"created_at"`
-	UpdatedAt            time.Time       `json:"updated_at"`
+	ID                        uuid.UUID       `json:"id"`
+	UserJobID                 uuid.UUID       `json:"user_job_id"`
+	EvaluationStatus          string          `json:"evaluation_status"`
+	EvaluationData            json.RawMessage `json:"evaluation_data,omitempty" swaggertype:"object"`
+	OverallScore              *float64        `json:"overall_score,omitempty"`
+	EligibilityStatus         *string         `json:"eligibility_status,omitempty"`
+	RecommendationLabel       *string         `json:"recommendation_label,omitempty"`
+	FailureMessage            *string         `json:"failure_message,omitempty"`
+	ReportData                json.RawMessage `json:"report_data,omitempty" swaggertype:"object"`
+	ReportStatus              *string         `json:"report_status,omitempty"`
+	ReportFailureMessage      *string         `json:"report_failure_message,omitempty"`
+	ResumeStatus              *string         `json:"resume_status,omitempty"`
+	ResumeFailureMessage      *string         `json:"resume_failure_message,omitempty"`
+	ResumePDFKey              *string         `json:"resume_pdf_key,omitempty"`
+	ResumeJSONKey             *string         `json:"resume_json_key,omitempty"`
+	CoverLetterStatus         *string         `json:"cover_letter_status,omitempty"`
+	CoverLetterText           *string         `json:"cover_letter_text,omitempty"`
+	CoverLetterFailureMessage *string         `json:"cover_letter_failure_message,omitempty"`
+	CoverLetterFileName       string          `json:"cover_letter_file_name"`
+	CreatedAt                 time.Time       `json:"created_at"`
+	UpdatedAt                 time.Time       `json:"updated_at"`
 }
 
 // EvaluationResponse is a matching evaluation together with the job it
@@ -48,24 +52,38 @@ func NewMatchingEvaluationResponse(eval *models.MatchingEvaluation) MatchingEval
 		return MatchingEvaluationResponse{}
 	}
 
+	var coverLetterText *string
+	if len(eval.CoverLetterContent) > 0 {
+		var parsed struct {
+			Text string `json:"text"`
+		}
+		if err := json.Unmarshal(eval.CoverLetterContent, &parsed); err == nil && parsed.Text != "" {
+			coverLetterText = &parsed.Text
+		}
+	}
+
 	return MatchingEvaluationResponse{
-		ID:                   eval.ID,
-		UserJobID:            eval.UserJobID,
-		EvaluationStatus:     eval.EvaluationStatus,
-		EvaluationData:       eval.EvaluationData,
-		OverallScore:         eval.OverallScore,
-		EligibilityStatus:    eval.EligibilityStatus,
-		RecommendationLabel:  eval.RecommendationLabel,
-		FailureMessage:       eval.FailureMessage,
-		ReportData:           eval.ReportData,
-		ReportStatus:         eval.ReportStatus,
-		ReportFailureMessage: eval.ReportFailureMessage,
-		ResumeStatus:         eval.ResumeStatus,
-		ResumeFailureMessage: eval.ResumeFailureMessage,
-		ResumePDFKey:         eval.ResumePDFKey,
-		ResumeJSONKey:        eval.ResumeJSONKey,
-		CreatedAt:            eval.CreatedAt,
-		UpdatedAt:            eval.UpdatedAt,
+		ID:                        eval.ID,
+		UserJobID:                 eval.UserJobID,
+		EvaluationStatus:          eval.EvaluationStatus,
+		EvaluationData:            eval.EvaluationData,
+		OverallScore:              eval.OverallScore,
+		EligibilityStatus:         eval.EligibilityStatus,
+		RecommendationLabel:       eval.RecommendationLabel,
+		FailureMessage:            eval.FailureMessage,
+		ReportData:                eval.ReportData,
+		ReportStatus:              eval.ReportStatus,
+		ReportFailureMessage:      eval.ReportFailureMessage,
+		ResumeStatus:              eval.ResumeStatus,
+		ResumeFailureMessage:      eval.ResumeFailureMessage,
+		ResumePDFKey:              eval.ResumePDFKey,
+		ResumeJSONKey:             eval.ResumeJSONKey,
+		CoverLetterStatus:         eval.CoverLetterStatus,
+		CoverLetterText:           coverLetterText,
+		CoverLetterFailureMessage: eval.CoverLetterFailureMessage,
+		CoverLetterFileName:       eval.CoverLetterFileName,
+		CreatedAt:                 eval.CreatedAt,
+		UpdatedAt:                 eval.UpdatedAt,
 	}
 }
 

@@ -56,6 +56,7 @@ LIMITS: dict[str, int] = {
     "match": 2,
     "report": 2,
     "resume": 2,
+    "cover_letter": 2,
 }
 
 QUEUE_BY_TYPE: dict[str, str] = {
@@ -64,6 +65,7 @@ QUEUE_BY_TYPE: dict[str, str] = {
     "match": "job-evaluation",
     "report": "job-evaluation",
     "resume": "job-evaluation",
+    "cover_letter": "job-evaluation",
 }
 
 WORKFLOW_BY_TYPE: dict[str, str] = {
@@ -72,6 +74,7 @@ WORKFLOW_BY_TYPE: dict[str, str] = {
     "match": "MatchJobWorkflow",
     "report": "GenerateReportWorkflow",
     "resume": "GenerateResumeWorkflow",
+    "cover_letter": "GenerateCoverLetterWorkflow",
 }
 
 

@@ -8,6 +8,7 @@ import { ReportTab } from "@/components/jobs/job-report-header";
 import { JobDetailTab } from "@/components/jobs/job-detail-tab";
 import { MatchReportTab } from "@/components/matching/match-report-tab";
 import { ResumeTab } from "@/components/resume/resume-tab";
+import { CoverLetterTab } from "@/components/cover-letter/cover-letter-tab";
 import { getUserJobEvaluation } from "@/lib/api/endpoints";
 import { EvaluationDetail } from "@/lib/api/types";
 import { EvaluationStatusTag, EligibilityTag, RecommendationTag } from "@/components/jobs/evaluation-tags";
@@ -49,6 +50,7 @@ const TABS: { id: ReportTab; label: string }[] = [
 	{ id: "details", label: "Job Details" },
 	{ id: "report", label: "Match Report" },
 	{ id: "resume", label: "Tailored Resume" },
+	{ id: "cover-letter", label: "Cover Letter" },
 ];
 
 export function JobDetailDrawer({
@@ -299,6 +301,17 @@ export function JobDetailDrawer({
 									reportStatus={fetchedEvaluation?.evaluation.report_status ?? undefined}
 									cvImprovements={fetchedEvaluation?.evaluation.report_data?.cv_improvements ?? []}
 									onRetried={refreshEvaluation}
+								/>
+							)}
+							{tab === "cover-letter" && (
+								<CoverLetterTab
+									evalId={resolvedEvalId || undefined}
+									status={fetchedEvaluation?.evaluation.cover_letter_status ?? undefined}
+									text={fetchedEvaluation?.evaluation.cover_letter_text ?? undefined}
+									failureMessage={fetchedEvaluation?.evaluation.cover_letter_failure_message ?? undefined}
+									fileName={fetchedEvaluation?.evaluation.cover_letter_file_name ?? undefined}
+									reportStatus={fetchedEvaluation?.evaluation.report_status ?? undefined}
+									onQueued={refreshEvaluation}
 								/>
 							)}
 						</>

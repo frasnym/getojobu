@@ -11,6 +11,7 @@ from repository.getojobu_api import GetojobuAPI
 from repository.scraper.base import ScraperRepository
 from usecase.analyze_job.service import AnalyzeJob
 from usecase.evaluate_match.service import EvaluateMatch
+from usecase.generate_cover_letter.service import GenerateCoverLetter
 from usecase.generate_report.service import GenerateReport
 from usecase.generate_resume.llm_client import OpenAIResumeClient
 from usecase.generate_resume.service import GenerateResume
@@ -22,12 +23,14 @@ class UsecaseContract:
         self,
         analyze_job: AnalyzeJob,
         evaluate_match: EvaluateMatch | None = None,
+        generate_cover_letter: GenerateCoverLetter | None = None,
         generate_report: GenerateReport | None = None,
         generate_resume: GenerateResume | None = None,
         scraper: ScraperService | None = None,
     ) -> None:
         self.analyze_job = analyze_job
         self.evaluate_match = evaluate_match
+        self.generate_cover_letter = generate_cover_letter
         self.generate_report = generate_report
         self.generate_resume = generate_resume
         self.scraper = scraper
@@ -44,6 +47,7 @@ def new(
     """Build the usecase contract from the Go API client and configuration."""
     from usecase.analyze_job.llm_client import OpenAIClient as AnalyzeJobLLMClient
     from usecase.evaluate_match.llm_client import OpenAIClient as EvaluateMatchLLMClient
+    from usecase.generate_cover_letter.llm_client import OpenAICoverLetterClient
     from usecase.generate_report.llm_client import OpenAIReportClient
 
     analyze_job_llm = AnalyzeJobLLMClient(
@@ -56,6 +60,9 @@ def new(
         api_key=omni_api_key, base_url=omni_base_url, model=omni_model or ""
     )
     resume_llm = OpenAIResumeClient(
+        api_key=omni_api_key, base_url=omni_base_url, model=omni_model or ""
+    )
+    cover_letter_llm = OpenAICoverLetterClient(
         api_key=omni_api_key, base_url=omni_base_url, model=omni_model or ""
     )
 
@@ -74,6 +81,9 @@ def new(
         ),
         evaluate_match=EvaluateMatch(
             llm=match_llm,
+        ),
+        generate_cover_letter=GenerateCoverLetter(
+            llm=cover_letter_llm, model=omni_model or ""
         ),
         generate_report=GenerateReport(llm=report_llm, model=omni_model),
         generate_resume=GenerateResume(llm=resume_llm),

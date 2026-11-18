@@ -867,6 +867,140 @@
                 }
             }
         },
+        "/v1/matching-evaluations/{id}/cover-letter": {
+            "patch": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Records cover letter status, generated content, or a failure. Failed attempts append a safe, fixed message. Accessible only via machine API key.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "matching"
+                ],
+                "summary": "Update cover letter generation status",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Matching evaluation ID (UUID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Cover letter status update payload",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/matching.updateCoverLetterPayload"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.MatchingEvaluationResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpx.Error"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/httpx.Error"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httpx.Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/matching-evaluations/{id}/cover-letter/generate": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Queues short or full cover letter generation. Clerk users may only enqueue evaluations they own. Returns 202 while the worker generates the letter.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "matching"
+                ],
+                "summary": "Generate cover letter",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Matching evaluation ID (UUID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Variant and optional force flag",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/matching.generateCoverLetterPayload"
+                        }
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Accepted",
+                        "schema": {
+                            "$ref": "#/definitions/models.MatchingEvaluationSummary"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpx.Error"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/httpx.Error"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/httpx.Error"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httpx.Error"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/matching-evaluations/{id}/report": {
             "patch": {
                 "security": [
@@ -2075,6 +2209,18 @@
         "dto.MatchingEvaluationResponse": {
             "type": "object",
             "properties": {
+                "cover_letter_failure_message": {
+                    "type": "string"
+                },
+                "cover_letter_file_name": {
+                    "type": "string"
+                },
+                "cover_letter_status": {
+                    "type": "string"
+                },
+                "cover_letter_text": {
+                    "type": "string"
+                },
                 "created_at": {
                     "type": "string"
                 },
@@ -2427,6 +2573,31 @@
                 }
             }
         },
+        "matching.generateCoverLetterPayload": {
+            "type": "object",
+            "properties": {
+                "force": {
+                    "type": "boolean"
+                },
+                "variant": {
+                    "type": "string"
+                }
+            }
+        },
+        "matching.updateCoverLetterPayload": {
+            "type": "object",
+            "properties": {
+                "cover_letter_content": {
+                    "type": "object"
+                },
+                "cover_letter_failure_message": {
+                    "type": "string"
+                },
+                "cover_letter_status": {
+                    "type": "string"
+                }
+            }
+        },
         "matching.updateEvaluationPayload": {
             "type": "object",
             "properties": {
@@ -2693,6 +2864,9 @@
         "models.MatchingEvaluationSummary": {
             "type": "object",
             "properties": {
+                "cover_letter_status": {
+                    "type": "string"
+                },
                 "created_at": {
                     "type": "string"
                 },

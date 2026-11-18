@@ -647,8 +647,10 @@ func TestGetEvaluation_includesJob(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.Handle("GET /user-jobs/{user_job_id}/evaluation", httpx.HandlerFunc(h.GetEvaluation))
 
+	principal := principalCtx(uID.String())
+	principal.FullName = "Jane Doe"
 	req := httptest.NewRequest(http.MethodGet, "/user-jobs/"+ujID.String()+"/evaluation", nil)
-	req = req.WithContext(ctxval.ContextWithPrincipal(req.Context(), principalCtx(uID.String())))
+	req = req.WithContext(ctxval.ContextWithPrincipal(req.Context(), principal))
 	w := httptest.NewRecorder()
 
 	mux.ServeHTTP(w, req)
@@ -669,6 +671,7 @@ func TestGetEvaluation_includesJob(t *testing.T) {
 	assert.Equal(t, evalID.String(), evalObj["id"])
 	assert.Equal(t, ujID.String(), evalObj["user_job_id"])
 	assert.Equal(t, "success", evalObj["evaluation_status"])
+	assert.Equal(t, "Cover Letter_Jane Doe_Platform Engineer.pdf", evalObj["cover_letter_file_name"])
 
 	evalData := evalObj["evaluation_data"].(map[string]interface{})
 	assert.Nil(t, evalData["metadata"])

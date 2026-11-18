@@ -1,9 +1,9 @@
 import React from "react";
 import Link from "next/link";
 import { Job } from "@/lib/api/types";
-import { ArrowLeft, ChevronLeft, ChevronRight, Globe, MapPin, Eye, EyeOff } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, Globe, MapPin, Eye, EyeOff, RefreshCw } from "lucide-react";
 
-export type ReportTab = "details" | "report" | "resume";
+export type ReportTab = "details" | "report" | "resume" | "cover-letter";
 
 interface JobReportHeaderProps {
 	job: Job;
@@ -18,6 +18,10 @@ interface JobReportHeaderProps {
 	userJobId?: string;
 	/** Toggle hide on the user↔job link (bulk endpoint). Receives (userJobId, isHidden). */
 	onHideToggle?: (userJobId: string, isHidden: boolean) => void | Promise<void>;
+	/** Manually refetch the job detail and the latest evaluation. */
+	onRefresh?: () => void | Promise<void>;
+	/** Disables the Refresh button while a refetch is in progress. */
+	refreshing?: boolean;
 }
 
 export function JobReportHeader({
@@ -30,11 +34,14 @@ export function JobReportHeader({
 	isHidden = false,
 	userJobId,
 	onHideToggle,
+	onRefresh,
+	refreshing = false,
 }: JobReportHeaderProps) {
 	const tabs: { id: ReportTab; label: string; badge?: string }[] = [
 		{ id: "details", label: "Job Details" },
 		{ id: "report", label: "Match Report" },
 		{ id: "resume", label: "Tailored Resume" },
+		{ id: "cover-letter", label: "Cover Letter" },
 	];
 
 	return (
@@ -50,8 +57,21 @@ export function JobReportHeader({
 						<span>Back to My Jobs</span>
 					</Link>
 
-					{/* Sequential Prev/Next Quick Switcher */}
+					{/* Manual Refresh and sequential Prev/Next quick switcher */}
 					<div className="flex items-center gap-1 text-xs">
+						{onRefresh && (
+							<button
+								type="button"
+								onClick={() => onRefresh()}
+								disabled={refreshing}
+								aria-label="Refresh"
+								className="mr-2 inline-flex items-center gap-1 rounded-md border border-border px-2.5 py-1 font-medium text-foreground transition-colors hover:bg-secondary disabled:opacity-50"
+							>
+								<RefreshCw className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`} />
+								<span>{refreshing ? "Refreshing..." : "Refresh"}</span>
+							</button>
+						)}
+
 						{prevSlug ? (
 							<Link
 								href={`${basePath}/${prevSlug}`}

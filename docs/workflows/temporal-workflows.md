@@ -12,11 +12,16 @@ Temporal orchestrates long-running and retryable job-search operations. The Go A
 | `JobEvaluationWorkflow` | Evaluate jobs against one user's profile/skills | Python |
 | `JobReviewWorkflow` | Coordinate review state and wait for user decisions where needed | Python/API signal |
 | `DocumentGenerationWorkflow` | Generate CV/cover-letter variants | Python |
+| `GenerateCoverLetterWorkflow` | Generate a cover letter for one evaluated job; one LLM activity writes the result back to the evaluation | Python |
 | `JobApplicationWorkflow` | Execute an approved application attempt and record outcome | Browser + Python |
 | `ProfileSyncWorkflow` | Reconcile profile/skills into normalized records | Python |
 | `JobRepairWorkflow` | Reconcile recoverable inconsistencies | Python/admin |
 
 Names are proposed logical boundaries. Keep workflows cohesive and avoid creating a workflow for every trivial database operation.
+
+### Cover-letter generation (implemented)
+
+`GenerateCoverLetterWorkflow` is the implemented document-generation workflow for cover letters. The Go API starts it with a deterministic workflow ID `cover-letter-gen-{evaluation_id}` and job type `cover_letter`, so double-clicks and retries are idempotent. The concurrency limiter maps `cover_letter` to the existing `job-evaluation` task queue with a cap of 2, so no new queue is introduced. The workflow marks the evaluation `pending`, runs a single LLM activity `generate_cover_letter_activity` with a 5-minute start-to-close timeout and a retry policy of 3 attempts, then PATCHes the letter text and metadata (or a safe fixed failure message) back to the Go API. This is document generation only: there is no R2 storage and no approval step. See `docs/superpowers/specs/2026-11-17-cover-letter-design.md` for the full decision record.
 
 ## 3. Task queues
 
