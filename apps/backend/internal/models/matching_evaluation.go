@@ -130,6 +130,20 @@ type BulkAnalyzeCompatibilityItem struct {
 	FailedOnly bool   `json:"failed_only,omitempty"`
 }
 
+// CreateEvaluationItem holds input for inserting one evaluation per resolved
+// user of a job slug. UserIDs is optional and applies to machine callers.
+type CreateEvaluationItem struct {
+	Slug    string   `json:"slug"`
+	UserIDs []string `json:"user_ids,omitempty"`
+}
+
+// TriggerEvaluationItem holds input for starting the workflow behind an
+// existing evaluation. UserID applies to machine callers.
+type TriggerEvaluationItem struct {
+	ID     uuid.UUID `json:"id"`
+	UserID string    `json:"user_id,omitempty"`
+}
+
 // BulkGenerateReportItem holds input for a single report generation in a batch.
 type BulkGenerateReportItem struct {
 	ID    uuid.UUID `json:"id"`

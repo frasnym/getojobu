@@ -19,6 +19,9 @@ import (
 // MatchingEvaluations is the interface for matching evaluations data access.
 type MatchingEvaluations interface {
 	Create(ctx context.Context, eval *models.MatchingEvaluation) (*models.MatchingEvaluation, error)
+	CreateIfAbsent(ctx context.Context, eval *models.MatchingEvaluation) (*models.MatchingEvaluation, bool, error)
+	FlipStatus(ctx context.Context, id uuid.UUID, from string, to string) (bool, error)
+	ClearEvaluationResult(ctx context.Context, id uuid.UUID) error
 	GetByID(ctx context.Context, id uuid.UUID) (*models.MatchingEvaluation, error)
 	GetLatestByUserAndJob(ctx context.Context, userID uuid.UUID, jobID int64) (*models.MatchingEvaluation, error)
 	GetLatestByUserJobID(ctx context.Context, userID uuid.UUID, userJobID uuid.UUID) (*models.EvaluationWithJob, error)
@@ -94,16 +97,168 @@ func (r *matchingEvaluationsRepository) Create(ctx context.Context, eval *models
 		return nil, fmt.Errorf("insert matching evaluation: %w", err)
 	}
 
-	updateUserJobQuery := `
-		UPDATE user_jobs
-		SET latest_evaluation_id = $1, updated_at = NOW()
-		WHERE id = $2
+	return eval, nil
+}
+
+// CreateIfAbsent inserts an evaluation only when none exists for its user_job.
+// The bool reports whether a row was inserted; on conflict the existing row is
+// returned unchanged, whatever status or payload the caller supplied.
+func (r *matchingEvaluationsRepository) CreateIfAbsent(ctx context.Context, eval *models.MatchingEvaluation) (res *models.MatchingEvaluation, inserted bool, err error) {
+	tx, err := r.StartTrx(ctx)
+	if err != nil {
+		return nil, false, fmt.Errorf("create if absent matching evaluation start trx: %w", err)
+	}
+	defer r.Committer(ctx, tx, &err)
+
+	if eval.EvaluationStatus == "" {
+		eval.EvaluationStatus = string(constants.MatchingStatusNew)
+	}
+	now := time.Now()
+	eval.CreatedAt = now
+	eval.UpdatedAt = now
+
+	insertQuery := `
+		INSERT INTO matching_evaluations (
+			user_job_id, evaluation_status,
+			candidate_profile_data, job_profile_data, scoring_config_id,
+			evaluation_data, overall_score, eligibility_status,
+			recommendation_label, failure_message,
+			report_data, report_status, report_failure_message,
+			created_at, updated_at
+		) VALUES (
+			$1, $2,
+			$3, $4, $5,
+			$6, $7, $8,
+			$9, $10,
+			$11, $12, $13,
+			$14, $15
+		)
+		ON CONFLICT (user_job_id) DO NOTHING
+		RETURNING id, created_at, updated_at
 	`
-	if _, err = tx.Exec(ctx, updateUserJobQuery, eval.ID, eval.UserJobID); err != nil {
-		return nil, fmt.Errorf("update user_job latest_evaluation_id: %w", err)
+
+	insertErr := tx.QueryRow(ctx, insertQuery,
+		eval.UserJobID,
+		eval.EvaluationStatus,
+		eval.CandidateProfileData,
+		eval.JobProfileData,
+		eval.ScoringConfigID,
+		eval.EvaluationData,
+		eval.OverallScore,
+		eval.EligibilityStatus,
+		eval.RecommendationLabel,
+		eval.FailureMessage,
+		eval.ReportData,
+		eval.ReportStatus,
+		eval.ReportFailureMessage,
+		eval.CreatedAt,
+		eval.UpdatedAt,
+	).Scan(&eval.ID, &eval.CreatedAt, &eval.UpdatedAt)
+	if insertErr == nil {
+		return eval, true, nil
+	}
+	if !errors.Is(insertErr, pgx.ErrNoRows) {
+		return nil, false, fmt.Errorf("insert matching evaluation if absent: %w", insertErr)
 	}
 
-	return eval, nil
+	selectQuery := `
+		SELECT
+			id, user_job_id, evaluation_status,
+			candidate_profile_data, job_profile_data, scoring_config_id,
+			evaluation_data, overall_score, eligibility_status,
+			recommendation_label, failure_message,
+			report_data, report_status, report_failure_message,
+			resume_status, resume_failure_message, resume_pdf_key, resume_json_key,
+			cover_letter_status, cover_letter_content, cover_letter_failure_message,
+			created_at, updated_at
+		FROM matching_evaluations
+		WHERE user_job_id = $1
+	`
+
+	existing := &models.MatchingEvaluation{}
+	err = tx.QueryRow(ctx, selectQuery, eval.UserJobID).Scan(
+		&existing.ID,
+		&existing.UserJobID,
+		&existing.EvaluationStatus,
+		&existing.CandidateProfileData,
+		&existing.JobProfileData,
+		&existing.ScoringConfigID,
+		&existing.EvaluationData,
+		&existing.OverallScore,
+		&existing.EligibilityStatus,
+		&existing.RecommendationLabel,
+		&existing.FailureMessage,
+		&existing.ReportData,
+		&existing.ReportStatus,
+		&existing.ReportFailureMessage,
+		&existing.ResumeStatus,
+		&existing.ResumeFailureMessage,
+		&existing.ResumePDFKey,
+		&existing.ResumeJSONKey,
+		&existing.CoverLetterStatus,
+		&existing.CoverLetterContent,
+		&existing.CoverLetterFailureMessage,
+		&existing.CreatedAt,
+		&existing.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, false, constants.ErrNotFound
+		}
+		return nil, false, fmt.Errorf("get existing matching evaluation: %w", err)
+	}
+
+	return existing, false, nil
+}
+
+// FlipStatus updates an evaluation's status only when it still matches from.
+// The bool reports whether the conditional update matched a row.
+func (r *matchingEvaluationsRepository) FlipStatus(ctx context.Context, id uuid.UUID, from string, to string) (updated bool, err error) {
+	tx, err := r.StartTrx(ctx)
+	if err != nil {
+		return false, fmt.Errorf("flip matching evaluation status start trx: %w", err)
+	}
+	defer r.Committer(ctx, tx, &err)
+
+	res, err := tx.Exec(ctx, `
+		UPDATE matching_evaluations
+		SET evaluation_status = $3, updated_at = NOW()
+		WHERE id = $1 AND evaluation_status = $2
+	`, id, from, to)
+	if err != nil {
+		return false, fmt.Errorf("flip matching evaluation status: %w", err)
+	}
+
+	return res.RowsAffected() > 0, nil
+}
+
+// ClearEvaluationResult clears the evaluation-result columns of a row while
+// leaving report, resume, and cover-letter columns and statuses untouched.
+func (r *matchingEvaluationsRepository) ClearEvaluationResult(ctx context.Context, id uuid.UUID) (err error) {
+	tx, err := r.StartTrx(ctx)
+	if err != nil {
+		return fmt.Errorf("clear evaluation result start trx: %w", err)
+	}
+	defer r.Committer(ctx, tx, &err)
+
+	_, err = tx.Exec(ctx, `
+		UPDATE matching_evaluations
+		SET
+			evaluation_data = NULL,
+			overall_score = NULL,
+			eligibility_status = NULL,
+			recommendation_label = NULL,
+			failure_message = NULL,
+			candidate_profile_data = NULL,
+			job_profile_data = NULL,
+			updated_at = NOW()
+		WHERE id = $1
+	`, id)
+	if err != nil {
+		return fmt.Errorf("clear evaluation result: %w", err)
+	}
+
+	return nil
 }
 
 func (r *matchingEvaluationsRepository) GetByID(ctx context.Context, id uuid.UUID) (*models.MatchingEvaluation, error) {

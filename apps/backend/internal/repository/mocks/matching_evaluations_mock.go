@@ -41,6 +41,20 @@ func (m *MockMatchingEvaluations) EXPECT() *MockMatchingEvaluationsMockRecorder 
 	return m.recorder
 }
 
+// ClearEvaluationResult mocks base method.
+func (m *MockMatchingEvaluations) ClearEvaluationResult(ctx context.Context, id uuid.UUID) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ClearEvaluationResult", ctx, id)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// ClearEvaluationResult indicates an expected call of ClearEvaluationResult.
+func (mr *MockMatchingEvaluationsMockRecorder) ClearEvaluationResult(ctx, id any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ClearEvaluationResult", reflect.TypeOf((*MockMatchingEvaluations)(nil).ClearEvaluationResult), ctx, id)
+}
+
 // Create mocks base method.
 func (m *MockMatchingEvaluations) Create(ctx context.Context, eval *models.MatchingEvaluation) (*models.MatchingEvaluation, error) {
 	m.ctrl.T.Helper()
@@ -54,6 +68,37 @@ func (m *MockMatchingEvaluations) Create(ctx context.Context, eval *models.Match
 func (mr *MockMatchingEvaluationsMockRecorder) Create(ctx, eval any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockMatchingEvaluations)(nil).Create), ctx, eval)
+}
+
+// CreateIfAbsent mocks base method.
+func (m *MockMatchingEvaluations) CreateIfAbsent(ctx context.Context, eval *models.MatchingEvaluation) (*models.MatchingEvaluation, bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CreateIfAbsent", ctx, eval)
+	ret0, _ := ret[0].(*models.MatchingEvaluation)
+	ret1, _ := ret[1].(bool)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// CreateIfAbsent indicates an expected call of CreateIfAbsent.
+func (mr *MockMatchingEvaluationsMockRecorder) CreateIfAbsent(ctx, eval any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateIfAbsent", reflect.TypeOf((*MockMatchingEvaluations)(nil).CreateIfAbsent), ctx, eval)
+}
+
+// FlipStatus mocks base method.
+func (m *MockMatchingEvaluations) FlipStatus(ctx context.Context, id uuid.UUID, from, to string) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FlipStatus", ctx, id, from, to)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FlipStatus indicates an expected call of FlipStatus.
+func (mr *MockMatchingEvaluationsMockRecorder) FlipStatus(ctx, id, from, to any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FlipStatus", reflect.TypeOf((*MockMatchingEvaluations)(nil).FlipStatus), ctx, id, from, to)
 }
 
 // GetByID mocks base method.
