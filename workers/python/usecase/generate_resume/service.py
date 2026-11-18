@@ -23,12 +23,12 @@ class GenerateResume:
         self,
         llm: ResumeLLMClient | None = None,
         *,
-        prompt_version: str = "generate-resume-v1",
+        prompt_version: str = "generate-resume-v2",
         critique_version: str = "critique-resume-v1",
     ) -> None:
-        self._llm = llm
-        self._prompt_version = prompt_version
-        self._critique_version = critique_version
+        self._llm: ResumeLLMClient | None = llm
+        self._prompt_version: str = prompt_version
+        self._critique_version: str = critique_version
 
     async def generate(self, **kwargs: Any) -> dict[str, Any]:
         template_name: str | None = kwargs.pop("template_name", None)
