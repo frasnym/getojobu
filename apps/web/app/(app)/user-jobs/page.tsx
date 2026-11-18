@@ -110,6 +110,16 @@ export default function UserJobsPage() {
 		}
 	}, [activeTab]);
 
+	const handleDrawerHideToggle = useCallback(
+		async (userJobId: string, nextHidden: boolean) => {
+			await hideJob(userJobId, nextHidden);
+			setSelectedRow((prev) =>
+				prev?.id === userJobId ? { ...prev, is_hidden: nextHidden } : prev
+			);
+		},
+		[hideJob]
+	);
+
 	const handleClose = () => {
 		setSelectedRow(null);
 		setActiveTab("details");
@@ -343,7 +353,7 @@ export default function UserJobsPage() {
 				evalId={evalId}
 				showOwnedActions={false}
 				isHidden={selectedRow?.is_hidden ?? false}
-				onHideToggle={hideJob}
+				onHideToggle={handleDrawerHideToggle}
 			/>
 		</div>
 	);

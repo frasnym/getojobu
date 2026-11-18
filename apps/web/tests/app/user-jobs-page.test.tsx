@@ -1,8 +1,9 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import React from "react";
 
-const { mockUserJob } = vi.hoisted(() => ({
+const { mockUserJob, mockHideJob } = vi.hoisted(() => ({
+  mockHideJob: vi.fn(),
   mockUserJob: {
     id: "11111111-1111-1111-1111-111111111111",
     is_hidden: false,
@@ -48,7 +49,7 @@ vi.mock("@/hooks/use-user-jobs", () => ({
     setRemoteOnly: vi.fn(),
     hideFilter: "all",
     setHideFilter: vi.fn(),
-    hideJob: vi.fn(),
+    hideJob: mockHideJob,
     bulkHideJob: vi.fn(),
     retryJob: vi.fn(),
     refetch: vi.fn(),
@@ -65,6 +66,7 @@ vi.mock("@/hooks/use-user-jobs", () => ({
   }),
 }));
 
+import * as endpoints from "@/lib/api/endpoints";
 import UserJobsPage from "@/app/(app)/user-jobs/page";
 
 describe("UserJobsPage", () => {
@@ -73,5 +75,32 @@ describe("UserJobsPage", () => {
 
     expect(screen.getByText("Senior Go Engineer")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Download tailored resume/i })).not.toBeInTheDocument();
+  });
+
+  it("greys the drawer title after hiding the job from the drawer", async () => {
+    vi.spyOn(endpoints, "getUserJobEvaluation").mockResolvedValue({
+      id: "eval-1",
+      user_job_id: mockUserJob.id,
+      evaluation: {
+        id: "eval-1",
+        user_job_id: mockUserJob.id,
+        evaluation_status: "success",
+      },
+    });
+    mockHideJob.mockClear();
+
+    render(<UserJobsPage />);
+    fireEvent.click(screen.getByText("Senior Go Engineer"));
+
+    const dialog = screen.getByRole("dialog");
+    fireEvent.click(within(dialog).getByRole("button", { name: /Hide job/i }));
+
+    await waitFor(() => {
+      expect(mockHideJob).toHaveBeenCalledWith(mockUserJob.id, true);
+    });
+    expect(within(dialog).getByRole("heading", { name: /Senior Go Engineer/i })).toHaveClass(
+      "text-muted-foreground"
+    );
+    expect(within(dialog).getByRole("button", { name: /Unhide job/i })).toBeInTheDocument();
   });
 });
