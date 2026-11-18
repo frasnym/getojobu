@@ -59,10 +59,13 @@ func (r *retryRepository) ListFailedMatchingEvaluations(ctx context.Context, lim
 		FROM matching_evaluations me
 		JOIN user_jobs uj ON uj.id = me.user_job_id
 		JOIN jobs j ON j.id = uj.job_id
-		WHERE me.evaluation_status = 'failed'
-		   OR me.report_status = 'failed'
-		   OR me.resume_status = 'failed'
-		   OR me.cover_letter_status = 'failed'
+		WHERE (
+		        me.evaluation_status = 'failed'
+		        OR me.report_status = 'failed'
+		        OR me.resume_status = 'failed'
+		        OR me.cover_letter_status = 'failed'
+		      )
+		  AND uj.is_hidden = FALSE
 		ORDER BY me.updated_at ASC
 		LIMIT $1
 	`, limit)
