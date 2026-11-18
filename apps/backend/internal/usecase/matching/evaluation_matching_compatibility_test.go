@@ -115,12 +115,56 @@ func TestCalculateScores(t *testing.T) {
 	})
 }
 
+func lowMatchEvalData(t *testing.T) []byte {
+	t.Helper()
+	data, err := json.Marshal(models.MatchEvaluationOutput{
+		Evaluations: []models.CategoryEvaluation{
+			{Category: "technical_skills", Score: 90, Reason: "Proficient"},
+		},
+		MandatoryRequirements: []models.MandatoryRequirementAssessment{
+			{Requirement: "Driver License", Status: "not_met", Reason: "Missing"},
+		},
+	})
+	require.NoError(t, err)
+	return data
+}
+
+func lowMatchSetup(
+	t *testing.T,
+	ctx context.Context,
+	evalRepo *repoMocks.MockMatchingEvaluations,
+	scoringConfigsRepo *repoMocks.MockScoringConfigs,
+	evalID, configID uuid.UUID,
+	existingEval *models.MatchingEvaluation,
+) {
+	t.Helper()
+	evalRepo.EXPECT().GetByID(ctx, evalID).Return(existingEval, nil)
+	scoringConfigsRepo.EXPECT().GetByID(ctx, configID).Return(&models.ScoringConfig{
+		ID:     configID,
+		Family: "technology",
+		Categories: []models.CategoryConfig{
+			{Name: "technical_skills", Weight: 1.0},
+		},
+	}, nil)
+
+	score := 90.0
+	eligibility := string(constants.EligibilityStatusNotEligible)
+	recommendation := string(constants.RecommendationLowMatch)
+	updated := *existingEval
+	updated.EvaluationStatus = string(constants.MatchingStatusSuccess)
+	updated.OverallScore = &score
+	updated.EligibilityStatus = &eligibility
+	updated.RecommendationLabel = &recommendation
+	evalRepo.EXPECT().Update(ctx, evalID, gomock.Any()).Return(&updated, nil)
+}
+
 func TestUpdateEvaluation(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
 	evalRepo := repoMocks.NewMockMatchingEvaluations(ctrl)
 	userJobsRepo := repoMocks.NewMockUserJobs(ctrl)
+	userPrefsRepo := repoMocks.NewMockUserPreferences(ctrl)
 	scoringConfigsRepo := repoMocks.NewMockScoringConfigs(ctrl)
 	jobsRepo := repoMocks.NewMockJobs(ctrl)
 	expRepo := repoMocks.NewMockExperiences(ctrl)
@@ -131,6 +175,7 @@ func TestUpdateEvaluation(t *testing.T) {
 	service := matching.NewService(&repository.Contract{
 		MatchingEvaluationsRepository: evalRepo,
 		UserJobsRepository:            userJobsRepo,
+		UserPreferencesRepository:     userPrefsRepo,
 		ScoringConfigsRepository:      scoringConfigsRepo,
 		JobsRepository:                jobsRepo,
 		ExperiencesRepository:         expRepo,
@@ -305,6 +350,62 @@ func TestUpdateEvaluation(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, string(constants.MatchingStatusSuccess), res.EvaluationStatus)
 		assert.Equal(t, 90.0, *res.OverallScore)
+	})
+
+	t.Run("low match hides the user job when auto hide is enabled", func(t *testing.T) {
+		lowMatchSetup(t, ctx, evalRepo, scoringConfigsRepo, evalID, configID, existingEval)
+
+		userID := uuid.New()
+		userJobsRepo.EXPECT().GetByID(ctx, userJobID).Return(&models.UserJob{
+			ID:     userJobID,
+			UserID: userID,
+		}, nil)
+		userPrefsRepo.EXPECT().IsAutoHideLowMatchEnabled(ctx, userID.String()).Return(true, nil)
+		userJobsRepo.EXPECT().SetBulkHideStatus(ctx, userID.String(), []string{userJobID.String()}, true).Return(1, nil)
+
+		res, err := service.UpdateEvaluation(ctx, evalID, matching.UpdateEvaluationRequest{
+			EvaluationStatus: "success",
+			EvaluationData:   lowMatchEvalData(t),
+		})
+		require.NoError(t, err)
+		assert.Equal(t, string(constants.RecommendationLowMatch), *res.RecommendationLabel)
+	})
+
+	t.Run("low match leaves the user job visible when auto hide is disabled", func(t *testing.T) {
+		lowMatchSetup(t, ctx, evalRepo, scoringConfigsRepo, evalID, configID, existingEval)
+
+		userID := uuid.New()
+		userJobsRepo.EXPECT().GetByID(ctx, userJobID).Return(&models.UserJob{
+			ID:     userJobID,
+			UserID: userID,
+		}, nil)
+		userPrefsRepo.EXPECT().IsAutoHideLowMatchEnabled(ctx, userID.String()).Return(false, nil)
+
+		res, err := service.UpdateEvaluation(ctx, evalID, matching.UpdateEvaluationRequest{
+			EvaluationStatus: "success",
+			EvaluationData:   lowMatchEvalData(t),
+		})
+		require.NoError(t, err)
+		assert.Equal(t, string(constants.RecommendationLowMatch), *res.RecommendationLabel)
+	})
+
+	t.Run("low match fails the update when the hide cannot be applied", func(t *testing.T) {
+		lowMatchSetup(t, ctx, evalRepo, scoringConfigsRepo, evalID, configID, existingEval)
+
+		userID := uuid.New()
+		userJobsRepo.EXPECT().GetByID(ctx, userJobID).Return(&models.UserJob{
+			ID:     userJobID,
+			UserID: userID,
+		}, nil)
+		userPrefsRepo.EXPECT().IsAutoHideLowMatchEnabled(ctx, userID.String()).Return(true, nil)
+		userJobsRepo.EXPECT().SetBulkHideStatus(ctx, userID.String(), []string{userJobID.String()}, true).Return(0, errors.New("hide DB down"))
+
+		_, err := service.UpdateEvaluation(ctx, evalID, matching.UpdateEvaluationRequest{
+			EvaluationStatus: "success",
+			EvaluationData:   lowMatchEvalData(t),
+		})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "auto hide low match evaluation")
 	})
 }
 

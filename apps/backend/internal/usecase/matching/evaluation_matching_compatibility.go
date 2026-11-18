@@ -449,11 +449,41 @@ func (s *matchingService) UpdateEvaluation(
 			return nil, fmt.Errorf("update matching evaluation success: %w", err)
 		}
 
+		if recommendation == constants.RecommendationLowMatch {
+			if err := s.autoHideLowMatch(ctx, eval.UserJobID); err != nil {
+				return nil, fmt.Errorf("auto hide low match evaluation: %w", err)
+			}
+		}
+
 		return updated, nil
 
 	default:
 		return nil, fmt.Errorf("%w: invalid status %s", constants.ErrInvalidRequest, req.EvaluationStatus)
 	}
+}
+
+// autoHideLowMatch hides the user's job when they opted into automatic hiding
+// of low-match evaluations. The setting is read from any active preference row
+// for the user, so it does not depend on which search set produced the job.
+func (s *matchingService) autoHideLowMatch(ctx context.Context, userJobID uuid.UUID) error {
+	userJob, err := s.userJobsRepo.GetByID(ctx, userJobID)
+	if err != nil {
+		return fmt.Errorf("get user job: %w", err)
+	}
+
+	userID := userJob.UserID.String()
+	enabled, err := s.userPreferencesRepo.IsAutoHideLowMatchEnabled(ctx, userID)
+	if err != nil {
+		return fmt.Errorf("check auto hide preference: %w", err)
+	}
+	if !enabled {
+		return nil
+	}
+
+	if _, err := s.userJobsRepo.SetBulkHideStatus(ctx, userID, []string{userJobID.String()}, true); err != nil {
+		return fmt.Errorf("set hide status: %w", err)
+	}
+	return nil
 }
 
 func (s *matchingService) composeCandidateProfile(ctx context.Context, userID string) (map[string]interface{}, error) {

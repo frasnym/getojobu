@@ -11,6 +11,7 @@ import (
 // UserPreferences is the interface for accessing user preferences.
 type UserPreferences interface {
 	GetActivePreferences(ctx context.Context, userIDs []string) ([]models.UserPreference, error)
+	IsAutoHideLowMatchEnabled(ctx context.Context, userID string) (bool, error)
 }
 
 type userPreferencesRepository struct {
@@ -33,7 +34,8 @@ func (r *userPreferencesRepository) GetActivePreferences(ctx context.Context, us
 
 	if len(userIDs) > 0 {
 		query = `
-			SELECT id, user_id, keywords, locations, boards, is_active, created_at, updated_at
+			SELECT id, user_id, keywords, locations, boards,
+			       auto_hide_low_match_evaluation, is_active, created_at, updated_at
 			FROM user_preferences
 			WHERE is_active = TRUE AND user_id = ANY($1)
 			ORDER BY id ASC
@@ -41,7 +43,8 @@ func (r *userPreferencesRepository) GetActivePreferences(ctx context.Context, us
 		args = append(args, userIDs)
 	} else {
 		query = `
-			SELECT id, user_id, keywords, locations, boards, is_active, created_at, updated_at
+			SELECT id, user_id, keywords, locations, boards,
+			       auto_hide_low_match_evaluation, is_active, created_at, updated_at
 			FROM user_preferences
 			WHERE is_active = TRUE
 			ORDER BY id ASC
@@ -63,6 +66,7 @@ func (r *userPreferencesRepository) GetActivePreferences(ctx context.Context, us
 			&p.Keywords,
 			&p.Locations,
 			&p.Boards,
+			&p.AutoHideLowMatchEvaluation,
 			&p.IsActive,
 			&p.CreatedAt,
 			&p.UpdatedAt,
@@ -77,4 +81,23 @@ func (r *userPreferencesRepository) GetActivePreferences(ctx context.Context, us
 	}
 
 	return preferences, nil
+}
+
+// IsAutoHideLowMatchEnabled reports whether any active preference row for the
+// user has automatic hiding of low-match evaluations enabled.
+func (r *userPreferencesRepository) IsAutoHideLowMatchEnabled(ctx context.Context, userID string) (bool, error) {
+	var enabled bool
+	err := r.DB().QueryRow(ctx, `
+		SELECT EXISTS (
+			SELECT 1
+			FROM user_preferences
+			WHERE user_id = $1
+			  AND is_active = TRUE
+			  AND auto_hide_low_match_evaluation = TRUE
+		)
+	`, userID).Scan(&enabled)
+	if err != nil {
+		return false, fmt.Errorf("query auto hide low match preference: %w", err)
+	}
+	return enabled, nil
 }

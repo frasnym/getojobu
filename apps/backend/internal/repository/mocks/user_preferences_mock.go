@@ -55,3 +55,18 @@ func (mr *MockUserPreferencesMockRecorder) GetActivePreferences(ctx, userIDs any
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetActivePreferences", reflect.TypeOf((*MockUserPreferences)(nil).GetActivePreferences), ctx, userIDs)
 }
+
+// IsAutoHideLowMatchEnabled mocks base method.
+func (m *MockUserPreferences) IsAutoHideLowMatchEnabled(ctx context.Context, userID string) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "IsAutoHideLowMatchEnabled", ctx, userID)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// IsAutoHideLowMatchEnabled indicates an expected call of IsAutoHideLowMatchEnabled.
+func (mr *MockUserPreferencesMockRecorder) IsAutoHideLowMatchEnabled(ctx, userID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsAutoHideLowMatchEnabled", reflect.TypeOf((*MockUserPreferences)(nil).IsAutoHideLowMatchEnabled), ctx, userID)
+}

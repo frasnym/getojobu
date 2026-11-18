@@ -27,33 +27,35 @@ type Matching interface {
 }
 
 type matchingService struct {
-	evalRepo           repo.MatchingEvaluations
-	usersRepo          repo.Users
-	userJobsRepo       repo.UserJobs
-	scoringConfigsRepo repo.ScoringConfigs
-	jobsRepo           repo.Jobs
-	expRepo            repo.Experiences
-	projRepo           repo.Projects
-	projSkillsRepo     repo.ProjectSkills
-	workflowsRepo      repo.Workflows
-	eduRepo            repo.Educations
-	storageRepo        repo.Storage
+	evalRepo            repo.MatchingEvaluations
+	usersRepo           repo.Users
+	userJobsRepo        repo.UserJobs
+	userPreferencesRepo repo.UserPreferences
+	scoringConfigsRepo  repo.ScoringConfigs
+	jobsRepo            repo.Jobs
+	expRepo             repo.Experiences
+	projRepo            repo.Projects
+	projSkillsRepo      repo.ProjectSkills
+	workflowsRepo       repo.Workflows
+	eduRepo             repo.Educations
+	storageRepo         repo.Storage
 }
 
 // NewService constructs a new Matching usecase service.
 func NewService(r *repository.Contract) Matching {
 	return &matchingService{
-		evalRepo:           r.MatchingEvaluationsRepository,
-		usersRepo:          r.UsersRepository,
-		userJobsRepo:       r.UserJobsRepository,
-		scoringConfigsRepo: r.ScoringConfigsRepository,
-		jobsRepo:           r.JobsRepository,
-		expRepo:            r.ExperiencesRepository,
-		projRepo:           r.ProjectsRepository,
-		projSkillsRepo:     r.ProjectSkillsRepository,
-		workflowsRepo:      r.WorkflowsRepository,
-		eduRepo:            r.EducationsRepository,
-		storageRepo:        r.StorageRepository,
+		evalRepo:            r.MatchingEvaluationsRepository,
+		usersRepo:           r.UsersRepository,
+		userJobsRepo:        r.UserJobsRepository,
+		userPreferencesRepo: r.UserPreferencesRepository,
+		scoringConfigsRepo:  r.ScoringConfigsRepository,
+		jobsRepo:            r.JobsRepository,
+		expRepo:             r.ExperiencesRepository,
+		projRepo:            r.ProjectsRepository,
+		projSkillsRepo:      r.ProjectSkillsRepository,
+		workflowsRepo:       r.WorkflowsRepository,
+		eduRepo:             r.EducationsRepository,
+		storageRepo:         r.StorageRepository,
 	}
 }
 

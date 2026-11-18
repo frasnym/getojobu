@@ -99,3 +99,42 @@ func TestUserPreferences_GetActivePreferences(t *testing.T) {
 		assert.True(t, foundB)
 	})
 }
+
+func TestUserPreferences_IsAutoHideLowMatchEnabled(t *testing.T) {
+	db := testJobDB(t)
+	repo := NewUserPreferencesRepository(database.NewPG(db))
+	ctx := context.Background()
+
+	enabledUser := "pref_on_" + uuid.NewString()[:8]
+	disabledUser := "pref_off_" + uuid.NewString()[:8]
+	inactiveUser := "pref_inactive_" + uuid.NewString()[:8]
+
+	for _, tc := range []struct {
+		userID string
+		active bool
+		flag   bool
+	}{
+		{enabledUser, true, true},
+		{disabledUser, true, false},
+		{inactiveUser, false, true},
+	} {
+		_, err := db.Exec(ctx, `
+			INSERT INTO user_preferences
+				(user_id, keywords, locations, boards, is_active, auto_hide_low_match_evaluation)
+			VALUES ($1, ARRAY['go'], ARRAY['indonesia'], ARRAY['glassdoor'], $2, $3)
+		`, tc.userID, tc.active, tc.flag)
+		require.NoError(t, err)
+	}
+
+	enabled, err := repo.IsAutoHideLowMatchEnabled(ctx, enabledUser)
+	require.NoError(t, err)
+	assert.True(t, enabled)
+
+	enabled, err = repo.IsAutoHideLowMatchEnabled(ctx, disabledUser)
+	require.NoError(t, err)
+	assert.False(t, enabled)
+
+	enabled, err = repo.IsAutoHideLowMatchEnabled(ctx, inactiveUser)
+	require.NoError(t, err)
+	assert.False(t, enabled)
+}
