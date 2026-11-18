@@ -54,8 +54,8 @@ func appendFailureLine(existing, message string, now time.Time) string {
 // optional; missing parts and their underscores are omitted. Path separators
 // and other filename-unsafe characters are stripped.
 func CoverLetterFileName(name, jobTitle string) string {
-	cleanName := sanitizeFileNamePart(name)
-	cleanTitle := sanitizeFileNamePart(jobTitle)
+	cleanName := utils.SanitizeFileNamePart(name)
+	cleanTitle := utils.SanitizeFileNamePart(jobTitle)
 
 	parts := []string{"Cover Letter"}
 	if cleanName != "" {
@@ -65,17 +65,6 @@ func CoverLetterFileName(name, jobTitle string) string {
 		parts = append(parts, cleanTitle)
 	}
 	return strings.Join(parts, "_") + ".pdf"
-}
-
-func sanitizeFileNamePart(value string) string {
-	return strings.TrimSpace(strings.Map(func(r rune) rune {
-		switch r {
-		case '/', '\\', ':', '*', '?', '"', '<', '>', '|', '\n', '\r', '\t', 0:
-			return -1
-		default:
-			return r
-		}
-	}, value))
 }
 
 // UpdateEvaluationCoverLetter persists a worker status update. The previous

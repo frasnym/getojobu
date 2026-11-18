@@ -46,16 +46,11 @@ type MatchEvaluationOutput struct {
 	Model                 *string                          `json:"model,omitempty"`
 }
 
-// CoverLetterMetadata records the model and prompt that produced a cover letter.
-type CoverLetterMetadata struct {
-	Model         string `json:"model"`
-	PromptVersion string `json:"prompt_version"`
-}
-
-// CoverLetterContent is the generated letter text and its provenance metadata.
+// CoverLetterContent is the generated letter text. Metadata is informational
+// provenance and is kept as raw JSON so it round-trips without a typed struct.
 type CoverLetterContent struct {
-	Text     string              `json:"text"`
-	Metadata CoverLetterMetadata `json:"metadata"`
+	Text     string          `json:"text"`
+	Metadata json.RawMessage `json:"metadata,omitempty"`
 }
 
 // MatchingEvaluation represents the stored matching evaluation record.

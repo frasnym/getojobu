@@ -1,9 +1,11 @@
 package models_test
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/frasnym/getojobu/apps/backend/internal/models"
 )
@@ -110,4 +112,16 @@ func TestValidateEvaluationOutput(t *testing.T) {
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "invalid requirement status")
 	})
+}
+
+func TestCoverLetterContentRoundTripsRawMetadata(t *testing.T) {
+	raw := []byte(`{"text":"Dear Hiring Manager","metadata":{"model":"use-combo","prompt_version":"generate-cover-letter-full-v1"}}`)
+
+	var content models.CoverLetterContent
+	require.NoError(t, json.Unmarshal(raw, &content))
+	assert.Equal(t, "Dear Hiring Manager", content.Text)
+
+	encoded, err := json.Marshal(content)
+	require.NoError(t, err)
+	assert.JSONEq(t, string(raw), string(encoded))
 }
