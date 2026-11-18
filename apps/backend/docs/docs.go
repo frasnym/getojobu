@@ -2279,6 +2279,9 @@ const docTemplate = `{
         "dto.UserJobEvaluationResponse": {
             "type": "object",
             "properties": {
+                "cover_letter_status": {
+                    "type": "string"
+                },
                 "eligibility_status": {
                     "type": "string"
                 },

@@ -131,6 +131,7 @@ func TestUserJobResponse_rootKeys(t *testing.T) {
 	recommendationLabel := "strong_match"
 	reportStatus := "ready"
 	resumeStatus := "generated"
+	coverLetterStatus := "success"
 
 	row := &models.UserJobWithJob{
 		UserJob: userJob,
@@ -143,6 +144,7 @@ func TestUserJobResponse_rootKeys(t *testing.T) {
 			RecommendationLabel: &recommendationLabel,
 			ReportStatus:        &reportStatus,
 			ResumeStatus:        &resumeStatus,
+			CoverLetterStatus:   &coverLetterStatus,
 		},
 	}
 
@@ -172,6 +174,7 @@ func TestUserJobResponse_rootKeys(t *testing.T) {
 	assert.Equal(t, "strong_match", eval["recommendation_label"])
 	assert.Equal(t, "ready", eval["report_status"])
 	assert.Equal(t, "generated", eval["resume_status"])
+	assert.Equal(t, "success", eval["cover_letter_status"])
 
 	// Verify omitempty when evaluation is nil
 	emptyUserJob := &models.UserJob{

@@ -73,6 +73,7 @@ func TestListUserJobs_success(t *testing.T) {
 	recommendationLabel := "strong_match"
 	reportStatus := "ready"
 	resumeStatus := "generated"
+	coverLetterStatus := "success"
 
 	rows := []*models.UserJobWithJob{
 		{
@@ -94,6 +95,7 @@ func TestListUserJobs_success(t *testing.T) {
 				RecommendationLabel: &recommendationLabel,
 				ReportStatus:        &reportStatus,
 				ResumeStatus:        &resumeStatus,
+				CoverLetterStatus:   &coverLetterStatus,
 			},
 		},
 	}
@@ -123,6 +125,7 @@ func TestListUserJobs_success(t *testing.T) {
 	assert.Equal(t, "strong_match", evalMap["recommendation_label"])
 	assert.Equal(t, "ready", evalMap["report_status"])
 	assert.Equal(t, "generated", evalMap["resume_status"])
+	assert.Equal(t, "success", evalMap["cover_letter_status"])
 
 	jobMap := jobs[0]["job"].(map[string]interface{})
 	assert.Equal(t, float64(1), jobMap["id"])

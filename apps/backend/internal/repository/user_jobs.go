@@ -267,7 +267,7 @@ func (r *userJobsRepository) GetByUser(ctx context.Context, userID string, filte
 		j.is_remote, j.visa_relocation,
 		j.created_at, j.updated_at, j.updated_by_type, j.updated_by_id,
 		me.evaluation_status, me.eligibility_status, me.recommendation_label,
-		me.report_status, me.resume_status
+		me.report_status, me.resume_status, me.cover_letter_status
 	`
 	whereClause, whereArgs := whereClauses(filter)
 	// Build final args: user_id ($1), then where filters, then limit & offset.
@@ -312,6 +312,7 @@ func scanUserJobsWithJob(rows pgx.Rows) ([]*models.UserJobWithJob, error) {
 			recommendationLabel sql.NullString
 			reportStatus        sql.NullString
 			resumeStatus        sql.NullString
+			coverLetterStatus   sql.NullString
 			externalID          sql.NullString
 			sourceURL           sql.NullString
 			applyURL            sql.NullString
@@ -329,7 +330,7 @@ func scanUserJobsWithJob(rows pgx.Rows) ([]*models.UserJobWithJob, error) {
 			&postedDate, &isRemote, &visaRelocation,
 			&j.CreatedAt, &j.UpdatedAt, &j.UpdatedByType, &j.UpdatedByID,
 			&evalStatus, &eligibilityStatus, &recommendationLabel,
-			&reportStatus, &resumeStatus,
+			&reportStatus, &resumeStatus, &coverLetterStatus,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("scan user job with job: %w", err)
@@ -354,6 +355,7 @@ func scanUserJobsWithJob(rows pgx.Rows) ([]*models.UserJobWithJob, error) {
 				RecommendationLabel: utils.NullStringPtr(recommendationLabel),
 				ReportStatus:        utils.NullStringPtr(reportStatus),
 				ResumeStatus:        utils.NullStringPtr(resumeStatus),
+				CoverLetterStatus:   utils.NullStringPtr(coverLetterStatus),
 			}
 		}
 

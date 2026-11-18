@@ -115,6 +115,8 @@ definitions:
     type: object
   dto.UserJobEvaluationResponse:
     properties:
+      cover_letter_status:
+        type: string
       eligibility_status:
         type: string
       evaluation_status:
