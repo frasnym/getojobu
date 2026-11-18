@@ -63,6 +63,31 @@ func (s *matchingService) BulkQueueGenerateReport(
 			continue
 		}
 
+		// A Clerk caller may only regenerate a report on an evaluation it owns.
+		// Worker API keys keep the existing behavior and may target any
+		// evaluation.
+		if caller.ActorType == "" {
+			owned, err := s.isEvaluationOwnedBy(ctx, item.ID, caller.ID)
+			if err != nil {
+				errStr := fmt.Sprintf("check evaluation ownership: %s", err.Error())
+				summaries = append(summaries, &models.MatchingEvaluationSummary{
+					ID:        &eval.ID,
+					UserJobID: &eval.UserJobID,
+					Error:     &errStr,
+				})
+				continue
+			}
+			if !owned {
+				errStr := "not authorized to generate report for this evaluation"
+				summaries = append(summaries, &models.MatchingEvaluationSummary{
+					ID:        &eval.ID,
+					UserJobID: &eval.UserJobID,
+					Error:     &errStr,
+				})
+				continue
+			}
+		}
+
 		if eval.EvaluationStatus != string(constants.MatchingStatusSuccess) {
 			errStr := fmt.Sprintf("cannot generate report: evaluation status is %s (must be success)", eval.EvaluationStatus)
 			summaries = append(summaries, &models.MatchingEvaluationSummary{

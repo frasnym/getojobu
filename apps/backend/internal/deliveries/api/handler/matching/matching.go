@@ -60,6 +60,10 @@ func (h *handler) Route(g *httpx.Router) {
 
 	// POST /v1/matching-evaluations/bulk-generate-report (strictly worker API key)
 	g.POST("/bulk-generate-report", h.BulkQueueGenerateReport, auth.ValidAPIKey)
+
+	// POST /v1/matching-evaluations/{id}/retry-report (Clerk user session or worker API key)
+	g.POST("/{id}/retry-report", h.RetryReport, auth.ValidClerkOrAPIKey)
+
 	g.POST("/bulk-generate-resume", h.BulkQueueGenerateResume, auth.ValidClerkOrAPIKey)
 	g.POST("/bulk-generate-cover-letter", h.BulkQueueGenerateCoverLetter, auth.ValidClerkOrAPIKey)
 }
@@ -385,6 +389,43 @@ func (h *handler) BulkQueueGenerateReport(w http.ResponseWriter, r *http.Request
 	}
 
 	summaries, err := h.matchingUC.BulkQueueGenerateReport(ctx, items, p)
+	if err != nil {
+		if errors.Is(err, constants.ErrUnauthorized) {
+			return httpx.Envelope(httpx.CodeUnauthorized, "unauthorized", "")
+		}
+		return err
+	}
+
+	return httpx.RespondJSON(w, r, http.StatusAccepted, summaries)
+}
+
+// RetryReport re-queues report generation for a single successful evaluation.
+// @Summary Retry match report generation
+// @Description Re-queues report generation for one successful evaluation without changing its evaluation status. Clerk callers may only retry reports on evaluations they own; worker API key callers may retry any evaluation.
+// @Tags matching
+// @Accept json
+// @Produce json
+// @Param id path string true "Matching evaluation ID (UUID)"
+// @Success 202 {array} models.MatchingEvaluationSummary
+// @Failure 400 {object} httpx.Error
+// @Failure 401 {object} httpx.Error
+// @security ApiKeyAuth
+// @Router /v1/matching-evaluations/{id}/retry-report [post]
+func (h *handler) RetryReport(w http.ResponseWriter, r *http.Request) error {
+	ctx := r.Context()
+	p := ctxval.PrincipalFromContext(ctx)
+	if p == nil {
+		return httpx.Envelope(httpx.CodeUnauthorized, "unauthorized", "")
+	}
+
+	id, err := uuid.Parse(r.PathValue("id"))
+	if err != nil {
+		return httpx.Envelope(httpx.CodeInvalidRequest, "invalid evaluation id", "")
+	}
+
+	summaries, err := h.matchingUC.BulkQueueGenerateReport(ctx, []models.BulkGenerateReportItem{
+		{ID: id, Force: true},
+	}, p)
 	if err != nil {
 		if errors.Is(err, constants.ErrUnauthorized) {
 			return httpx.Envelope(httpx.CodeUnauthorized, "unauthorized", "")

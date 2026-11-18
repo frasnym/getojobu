@@ -26,6 +26,7 @@ import (
 	usecaseMocks "github.com/frasnym/getojobu/apps/backend/internal/usecase/matching/mocks"
 	userMocks "github.com/frasnym/getojobu/apps/backend/internal/usecase/users/mocks"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/constants"
+	"github.com/frasnym/getojobu/apps/backend/internal/utils/ctxval"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/httpx"
 )
 
@@ -659,6 +660,86 @@ func TestUpdateCoverLetter(t *testing.T) {
 		require.NotNil(t, resp.Data.CoverLetterFailureMessage)
 		assert.Equal(t, "Cover letter generation failed", *resp.Data.CoverLetterFailureMessage)
 		assert.NotContains(t, rec.Body.String(), "CV contents")
+	})
+}
+
+func TestRetryReportHandler(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockMatching := usecaseMocks.NewMockMatching(ctrl)
+	mockUsers := userMocks.NewMockUser(ctrl)
+	apiKey := "test-worker-key"
+
+	rt := setupTestRouter(ctrl, mockMatching, mockUsers, apiKey)
+	evalID := uuid.New()
+	path := "/v1/matching-evaluations/" + evalID.String() + "/retry-report"
+	queueRetryStatus := string(constants.ReportStatusQueuedRetry)
+
+	t.Run("unauthenticated returns 401", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodPost, path, nil)
+		rec := httptest.NewRecorder()
+
+		rt.Mux().ServeHTTP(rec, req)
+		assert.Equal(t, http.StatusUnauthorized, rec.Code)
+	})
+
+	t.Run("invalid id returns 400", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodPost, "/v1/matching-evaluations/not-a-uuid/retry-report", nil)
+		req.Header.Set("Authorization", "Bearer "+apiKey)
+		rec := httptest.NewRecorder()
+
+		rt.Mux().ServeHTTP(rec, req)
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+	})
+
+	t.Run("forces report regeneration and returns 202", func(t *testing.T) {
+		mockMatching.EXPECT().BulkQueueGenerateReport(gomock.Any(), []models.BulkGenerateReportItem{
+			{ID: evalID, Force: true},
+		}, gomock.Any()).Return([]*models.MatchingEvaluationSummary{{
+			ID:           &evalID,
+			ReportStatus: &queueRetryStatus,
+		}}, nil)
+
+		req := httptest.NewRequest(http.MethodPost, path, nil)
+		req.Header.Set("Authorization", "Bearer "+apiKey)
+		rec := httptest.NewRecorder()
+
+		rt.Mux().ServeHTTP(rec, req)
+
+		require.Equal(t, http.StatusAccepted, rec.Code)
+		var resp httpx.Response[[]models.MatchingEvaluationSummary]
+		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+		require.Len(t, resp.Data, 1)
+		require.NotNil(t, resp.Data[0].ReportStatus)
+		assert.Equal(t, string(constants.ReportStatusQueuedRetry), *resp.Data[0].ReportStatus)
+	})
+
+	t.Run("passes the clerk principal through to the usecase", func(t *testing.T) {
+		clerk := &models.Principal{ID: "user-clerk-1"}
+		mockMatching.EXPECT().BulkQueueGenerateReport(gomock.Any(), []models.BulkGenerateReportItem{
+			{ID: evalID, Force: true},
+		}, clerk).Return([]*models.MatchingEvaluationSummary{{
+			ID:           &evalID,
+			ReportStatus: &queueRetryStatus,
+		}}, nil)
+
+		c := &contract.Contract{
+			Cfg: &config.Config{},
+			Usecase: &contractUsecase.Contract{
+				Matching: mockMatching,
+				Users:    mockUsers,
+			},
+		}
+		h := handlerMatching.NewHandler(c)
+		req := httptest.NewRequest(http.MethodPost, path, nil)
+		req.SetPathValue("id", evalID.String())
+		req = req.WithContext(ctxval.ContextWithPrincipal(req.Context(), clerk))
+		rec := httptest.NewRecorder()
+
+		httpx.HandlerFunc(h.RetryReport).ServeHTTP(rec, req)
+
+		require.Equal(t, http.StatusAccepted, rec.Code)
 	})
 }
 
