@@ -14,6 +14,10 @@ vi.mock("next/navigation", () => ({
   usePathname: () => "/user-jobs",
 }));
 
+vi.mock("next-themes", () => ({
+  useTheme: () => ({ resolvedTheme: "dark", setTheme: vi.fn() }),
+}));
+
 describe("Navbar component", () => {
   it("renders the getojobu branding and navigation links", () => {
     render(<Navbar />);
@@ -21,5 +25,10 @@ describe("Navbar component", () => {
     expect(screen.getByText("My Jobs")).toBeInTheDocument();
     expect(screen.getByText("Explore Jobs")).toBeInTheDocument();
     expect(screen.getByTestId("clerk-user-button")).toBeInTheDocument();
+  });
+
+  it("renders the theme toggle in the navbar", () => {
+    render(<Navbar />);
+    expect(screen.getByRole("button", { name: /switch to light theme/i })).toBeInTheDocument();
   });
 });

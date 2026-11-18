@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { UserButton } from "@clerk/nextjs";
 import { Briefcase, Sparkles, Compass } from "lucide-react";
+import { ThemeToggle } from "@/components/layout/theme-toggle";
 
 export function Navbar() {
   const pathname = usePathname();
@@ -54,6 +55,7 @@ export function Navbar() {
         </div>
 
         <div className="flex items-center gap-4">
+          <ThemeToggle />
           <UserButton
             appearance={{
               elements: {
