@@ -2,6 +2,7 @@ package dto
 
 import (
 	"encoding/json"
+	"reflect"
 	"testing"
 	"time"
 
@@ -118,12 +119,11 @@ func TestJobDetailResponse_omitsOwnershipForAnonymous(t *testing.T) {
 func TestUserJobResponse_rootKeys(t *testing.T) {
 	evalID := uuid.MustParse("33333333-3333-3333-3333-333333333333")
 	userJob := &models.UserJob{
-		ID:                 uuid.MustParse("ee46d5ea-893d-4951-a3d3-8c32d7459737"),
-		JobID:              648,
-		IsHidden:           true,
-		LatestEvaluationID: &evalID,
-		CreatedAt:          time.Date(2026, 11, 16, 7, 20, 11, 0, time.UTC),
-		UpdatedAt:          time.Date(2026, 11, 16, 7, 21, 0, 0, time.UTC),
+		ID:        uuid.MustParse("ee46d5ea-893d-4951-a3d3-8c32d7459737"),
+		JobID:     648,
+		IsHidden:  true,
+		CreatedAt: time.Date(2026, 11, 16, 7, 20, 11, 0, time.UTC),
+		UpdatedAt: time.Date(2026, 11, 16, 7, 21, 0, 0, time.UTC),
 	}
 
 	evalStatus := "completed"
@@ -190,6 +190,39 @@ func TestUserJobResponse_rootKeys(t *testing.T) {
 	}
 	emptyKeys := marshalKeys(t, NewUserJobResponse(emptyRow))
 	assert.NotContains(t, emptyKeys, "evaluation")
+}
+
+func TestUserJobResponse_hasNoLatestEvaluationIDPlumbing(t *testing.T) {
+	_, hasField := reflect.TypeOf(models.UserJob{}).FieldByName("LatestEvaluationID")
+	assert.False(t, hasField, "models.UserJob must not carry LatestEvaluationID")
+
+	userJobID := uuid.MustParse("ee46d5ea-893d-4951-a3d3-8c32d7459737")
+	evalID := uuid.MustParse("33333333-3333-3333-3333-333333333333")
+	reportStatus := "ready"
+	resumeStatus := "generated"
+	coverLetterStatus := "success"
+	row := &models.UserJobWithJob{
+		UserJob: &models.UserJob{ID: userJobID, JobID: 648},
+		Job:     sampleJob(),
+		Evaluation: &models.MatchingEvaluation{
+			ID:                evalID,
+			UserJobID:         userJobID,
+			EvaluationStatus:  "completed",
+			ReportStatus:      &reportStatus,
+			ResumeStatus:      &resumeStatus,
+			CoverLetterStatus: &coverLetterStatus,
+		},
+	}
+
+	keys := marshalKeys(t, NewUserJobResponse(row))
+	assert.NotContains(t, keys, "latest_evaluation_id")
+	eval, ok := keys["evaluation"].(map[string]any)
+	require.True(t, ok, "evaluation must be an object")
+	assert.NotContains(t, eval, "latest_evaluation_id")
+	assert.Equal(t, "completed", eval["evaluation_status"])
+	assert.Equal(t, "ready", eval["report_status"])
+	assert.Equal(t, "generated", eval["resume_status"])
+	assert.Equal(t, "success", eval["cover_letter_status"])
 }
 
 func TestMatchingEvaluationResponse_hasNoJobKey(t *testing.T) {
