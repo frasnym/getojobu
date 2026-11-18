@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from config.config import Config, R2Config
 from repository.getojobu_api import GetojobuAPI, NewGetojobuAPI
+from repository.scraper.arbeitnow_api import ArbeitnowApiScraper
 from repository.scraper.base import ScraperRepository
 from repository.scraper.glassdoor_apify_valig import GlassdoorApifyValigScraper
 from repository.scraper.glassdoor_jobspy import GlassdoorJobspyScraper
@@ -47,6 +48,7 @@ def new(cfg: Config) -> RepositoryContract:
     )
     storage = R2StorageRepository(cfg.r2)
     scrapers: dict[str, ScraperRepository] = {
+        "arbeitnow-api": ArbeitnowApiScraper(),
         "linkedin-apify-curious_coder": LinkedinApifyCuriousCoderScraper(),
         "glassdoor-apify-valig": GlassdoorApifyValigScraper(),
         "glassdoor-jobspy": GlassdoorJobspyScraper(),

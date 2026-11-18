@@ -71,6 +71,7 @@ LOCATION_MAP: dict[str, dict[str, str]] = {
     "japan": {"glassdoor": "Japan", "linkedin": "Japan"},
     "malaysia": {"glassdoor": "Malaysia", "linkedin": "Malaysia"},
     "netherlands": {"glassdoor": "Netherlands", "linkedin": "Netherlands"},
+    "new zealand": {"glassdoor": "New Zealand", "linkedin": "New Zealand"},
     "norway": {"glassdoor": "Norway", "linkedin": "Norway"},
     "poland": {"glassdoor": "Poland", "linkedin": "Poland"},
     "portugal": {"glassdoor": "Portugal", "linkedin": "Portugal"},

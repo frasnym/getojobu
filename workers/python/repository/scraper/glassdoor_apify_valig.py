@@ -2,26 +2,13 @@
 
 from __future__ import annotations
 
-import re
 from datetime import UTC, datetime, timedelta
 from typing import Any, cast
 
 from repository.scraper.apify import ApifyScraper
+from repository.scraper.text import strip_html  # noqa: F401  (re-exported)
 
 DEFAULT_ACTOR = "valig~glassdoor-jobs-scraper"
-
-_HTML_RE = re.compile(r"<[^>]+>")
-_WS_RE = re.compile(r"\s+")
-
-
-def strip_html(text: str | None) -> str:
-    """Remove HTML tags, collapse whitespace, and clean up punctuation spacing."""
-    if not text:
-        return ""
-    text = _HTML_RE.sub(" ", text)
-    text = re.sub(r"\s+([.,!?:;])", r"\1", text)
-    text = _WS_RE.sub(" ", text).strip()
-    return text
 
 
 class GlassdoorApifyValigScraper(ApifyScraper):
@@ -60,9 +47,7 @@ class GlassdoorApifyValigScraper(ApifyScraper):
 
             loc_raw = raw.get("location")
             if isinstance(loc_raw, dict):
-                location = str(
-                    cast(dict[str, Any], loc_raw).get("name") or ""
-                ).strip()
+                location = str(cast(dict[str, Any], loc_raw).get("name") or "").strip()
             else:
                 location = str(loc_raw or "").strip()
 
