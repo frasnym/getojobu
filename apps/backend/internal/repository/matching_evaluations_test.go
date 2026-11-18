@@ -184,8 +184,13 @@ func TestFlipStatus(t *testing.T) {
 	assert.Equal(t, string(constants.MatchingStatusQueued), status)
 
 	otherUserJobID := uuid.New()
+	var otherJobID int64
+	err = pool.QueryRow(ctx, `INSERT INTO jobs (slug, source, title, company, location, updated_by_type, updated_by_id)
+		VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
+		"meval-other-job-"+seed.UserID.String(), "linkedin", "Engineer", "Acme", "Jakarta", "user", "seed").Scan(&otherJobID)
+	require.NoError(t, err)
 	_, err = pool.Exec(ctx, `INSERT INTO user_jobs (id, user_id, job_id) VALUES ($1, $2, $3)`,
-		otherUserJobID, seed.UserID, seed.JobID)
+		otherUserJobID, seed.UserID, otherJobID)
 	require.NoError(t, err)
 	successID := uuid.New()
 	_, err = pool.Exec(ctx, `INSERT INTO matching_evaluations (id, user_job_id, scoring_config_id, evaluation_status)
