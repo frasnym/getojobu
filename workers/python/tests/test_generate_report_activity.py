@@ -15,7 +15,6 @@ from models.report import MatchReportOutput
 @pytest.mark.asyncio
 async def test_generate_report_activity_success():
     fake_report = MatchReportOutput(
-        job_title="Senior Backend Engineer",
         summary="Excellent backend match",
         strengths=["Go", "PostgreSQL"],
         gaps=[],
@@ -40,8 +39,8 @@ async def test_generate_report_activity_success():
         }
     )
 
-    assert res["job_title"] == "Senior Backend Engineer"
     assert res["summary"] == "Excellent backend match"
+    assert res["metadata"]["recommendation_policy_version"] == "deterministic-v1"
     mock_container.usecase.generate_report.generate.assert_awaited_once()
 
 

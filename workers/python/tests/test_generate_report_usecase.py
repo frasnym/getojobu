@@ -11,7 +11,6 @@ from usecase.generate_report.service import GenerateReport
 @pytest.mark.asyncio
 async def test_generate_report_success() -> None:
     fake_llm_response = {
-        "job_title": "Senior Backend Engineer",
         "summary": "Strong match for the position.",
         "strengths": ["Deep Golang experience", "Distributed systems"],
         "gaps": [
@@ -25,7 +24,6 @@ async def test_generate_report_success() -> None:
         "cv_improvements": ["Highlight Kafka throughput metrics"],
         "learning_recommendations": ["AWS CDK basics"],
         "interview_preparation": ["System design concurrency patterns"],
-        "recommendation_policy_version": "deterministic-v1",
     }
 
     mock_llm = AsyncMock()
@@ -42,23 +40,52 @@ async def test_generate_report_success() -> None:
     )
 
     assert isinstance(result, MatchReportOutput)
-    assert result.job_title == "Senior Backend Engineer"
     assert result.summary == "Strong match for the position."
     assert len(result.strengths) == 2
     assert len(result.gaps) == 1
     assert result.gaps[0].requirement == "Kubernetes"
     assert result.gaps[0].status == "not_found_in_cv"
-    assert result.recommendation_policy_version == "deterministic-v1"
     assert result.metadata["model"] is None
     assert result.metadata["prompt_version"] == "generate-report-v1"
+    assert result.metadata["recommendation_policy_version"] == "deterministic-v1"
     assert not hasattr(result, "provider")
     assert not hasattr(result, "model")
+
+
+@pytest.mark.asyncio
+async def test_generate_report_metadata_is_worker_owned() -> None:
+    mock_llm = AsyncMock()
+    mock_llm.generate_match_report.return_value = {
+        "summary": "Strong match for the position.",
+        "experience_assessment": "Relevant backend experience.",
+        "metadata": {
+            "model": "llm-chosen",
+            "prompt_version": "llm-chosen",
+            "recommendation_policy_version": "llm-chosen",
+        },
+    }
+    service = GenerateReport(llm=mock_llm, model="worker-model")
+
+    result = await service.generate(
+        candidate_profile={"skills": ["golang"]},
+        job_profile={"title": "Senior Backend Engineer"},
+        evaluation_results={"evaluations": []},
+        overall_score=85.0,
+        eligibility_status="eligible",
+        recommendation_label="worth_applying",
+    )
+
+    assert result.metadata == {
+        "model": "worker-model",
+        "prompt_version": "generate-report-v1",
+        "recommendation_policy_version": "deterministic-v1",
+    }
 
 
 def test_match_report_extraction_schema_excludes_metadata() -> None:
     schema = MatchReportExtraction.model_json_schema()
     props = schema["properties"]
-    assert "job_title" in props
+    assert "job_title" not in props
     assert "summary" in props
     assert "strengths" in props
     assert "gaps" in props
@@ -105,9 +132,7 @@ async def test_generate_report_missing_inputs() -> None:
 async def test_generate_report_invalid_schema() -> None:
     mock_llm = AsyncMock()
     # Missing required 'summary'
-    mock_llm.generate_match_report.return_value = {
-        "job_title": "Backend Dev",
-    }
+    mock_llm.generate_match_report.return_value = {}
     service = GenerateReport(llm=mock_llm)
 
     with pytest.raises(ValidationError):

@@ -21,8 +21,7 @@ async def test_generate_report_workflow_unit_success():
         executed_activities.append((act.__name__, input_data))
         if act.__name__ == "generate_report_activity":
             return {
-                "job_title": "Senior Go Engineer",
-                "executive_summary": "Strong fit for the role.",
+                "summary": "Strong fit for the role.",
                 "strengths": ["Deep Go expertise"],
                 "gaps": [],
                 "application_readiness": "ready",
@@ -43,7 +42,7 @@ async def test_generate_report_workflow_unit_success():
     assert res["workflow"] == "GenerateReportWorkflow"
     assert res["evaluation_id"] == "eval-unit-123"
     assert res["report_status"] == "success"
-    assert res["report"]["job_title"] == "Senior Go Engineer"
+    assert res["report"]["summary"] == "Strong fit for the role."
     assert res["report_error"] is None
 
     assert len(executed_activities) == 3
@@ -111,8 +110,7 @@ async def test_generate_report_workflow_temporal_env_success():
         @activity.defn(name="generate_report_activity")
         async def fake_generate_report(input: dict[str, Any]) -> dict[str, Any]:
             return {
-                "job_title": "Senior Go Engineer",
-                "executive_summary": "Strong fit for the role.",
+                "summary": "Strong fit for the role.",
                 "strengths": ["Deep Go expertise"],
                 "gaps": [],
                 "application_readiness": "ready",
@@ -148,6 +146,6 @@ async def test_generate_report_workflow_temporal_env_success():
             assert result["workflow"] == "GenerateReportWorkflow"
             assert result["evaluation_id"] == "eval-gen-123"
             assert result["report_status"] == "success"
-            assert result["report"]["job_title"] == "Senior Go Engineer"
+            assert result["report"]["summary"] == "Strong fit for the role."
             assert result["report_error"] is None
             assert report_status_updates == ["pending", "success"]

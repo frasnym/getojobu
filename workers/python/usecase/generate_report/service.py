@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Protocol
 
-from models.report import MatchReportOutput
+from models.report import RECOMMENDATION_POLICY_VERSION, MatchReportOutput
 
 
 class ReportLLMClient(Protocol):
@@ -68,10 +68,11 @@ class GenerateReport:
             prompt_version=self._prompt_version,
         )
 
-        # Ensure metadata fields are populated
-        raw_output.setdefault("recommendation_policy_version", "deterministic-v1")
-        raw_output.setdefault(
-            "metadata", {"model": self._model, "prompt_version": self._prompt_version}
-        )
+        # Metadata is worker-owned; never trust values from the LLM output.
+        raw_output["metadata"] = {
+            "model": self._model,
+            "prompt_version": self._prompt_version,
+            "recommendation_policy_version": RECOMMENDATION_POLICY_VERSION,
+        }
 
         return MatchReportOutput.model_validate(raw_output)

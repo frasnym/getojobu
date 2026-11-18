@@ -168,7 +168,6 @@ async def test_match_job_workflow_execution():
         @activity.defn(name="generate_report_activity")
         async def fake_generate_report(input: dict[str, Any]) -> dict[str, Any]:
             return {
-                "job_title": "Go Engineer",
                 "summary": "Great match",
                 "strengths": ["Go"],
                 "gaps": [],
@@ -176,7 +175,9 @@ async def test_match_job_workflow_execution():
                 "cv_improvements": [],
                 "learning_recommendations": [],
                 "interview_preparation": [],
-                "recommendation_policy_version": "deterministic-v1",
+                "metadata": {
+                    "recommendation_policy_version": "deterministic-v1",
+                },
             }
 
         @activity.defn(name="update_report_status_activity")
@@ -216,7 +217,7 @@ async def test_match_job_workflow_execution():
             # Verify report status updates transition through pending then success
             assert report_status_updates == ["pending", "success"]
             assert result["report_status"] == "success"
-            assert result["report"]["job_title"] == "Go Engineer"
+            assert result["report"]["summary"] == "Great match"
 
 
 @pytest.mark.asyncio
@@ -378,7 +379,6 @@ async def test_match_job_workflow_unit_success():
             }
         elif name == "generate_report_activity":
             return {
-                "job_title": "Go Engineer",
                 "summary": "Great match",
                 "strengths": ["Go"],
                 "gaps": [],
@@ -408,7 +408,7 @@ async def test_match_job_workflow_unit_success():
     assert res["status"] == "success"
     assert res["evaluation_id"] == "eval-unit-1"
     assert res["report_status"] == "success"
-    assert res["report"]["job_title"] == "Go Engineer"
+    assert res["report"]["summary"] == "Great match"
     assert res["report_error"] is None
 
     activity_names = [a[0] for a in executed_activities]

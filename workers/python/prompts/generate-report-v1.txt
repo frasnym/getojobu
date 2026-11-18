@@ -28,9 +28,8 @@ Generate a clear, honest, and actionable job compatibility report.
 
 ## 1. Overall assessment
 
-In `job_title` and `summary`:
-- Output the formal job title in `job_title`.
-- In `summary`, write an executive summary synthesizing the candidate's alignment with the role, incorporating the authoritative compatibility score ({{overall_score}}), recommendation ({{recommendation_label}}), and eligibility status ({{eligibility_status}}). Note: score, recommendation, and eligibility status are stored separately as database fields; do not generate separate JSON keys for them.
+In `summary`:
+- Write an executive summary synthesizing the candidate's alignment with the role, incorporating the authoritative compatibility score ({{overall_score}}), recommendation ({{recommendation_label}}), and eligibility status ({{eligibility_status}}). Note: score, recommendation, and eligibility status are stored separately as database fields; do not generate separate JSON keys for them.
 
 ## 2. Strengths
 

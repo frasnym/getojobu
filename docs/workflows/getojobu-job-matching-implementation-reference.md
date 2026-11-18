@@ -1352,7 +1352,6 @@ Never:
 Return valid JSON matching the application's report schema.
 
 Include:
-- job_title
 - overall_score
 - recommendation
 - eligibility_status
@@ -1371,7 +1370,6 @@ Keep explanations concise, specific, and useful to the candidate.
 
 ``` json
 {
-  "job_title": "Senior Backend Engineer",
   "overall_score": 85.75,
   "recommendation": "worth_applying",
   "eligibility_status": "eligible",

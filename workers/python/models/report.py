@@ -10,6 +10,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
+RECOMMENDATION_POLICY_VERSION = "deterministic-v1"
+
 
 class ReportGap(BaseModel):
     """Assessment of a skill or qualification gap with suggestions."""
@@ -22,7 +24,6 @@ class ReportGap(BaseModel):
 class MatchReportExtraction(BaseModel):
     """Pure LLM structured output for Step 4 Match Report Generation."""
 
-    job_title: str = Field(..., min_length=1)
     summary: str = Field(..., min_length=1)
     strengths: list[str] = Field(default_factory=list[str])
     gaps: list[ReportGap] = Field(default_factory=list[ReportGap])
@@ -33,12 +34,16 @@ class MatchReportExtraction(BaseModel):
 
 
 class MatchReportOutput(MatchReportExtraction):
-    """Full candidate-facing match report output including policy and prompt metadata.
+    """Full candidate-facing match report output including worker-owned metadata.
 
-    prompt_version lives on metadata; do not duplicate it as a top-level field.
+    model, prompt_version, and recommendation_policy_version live on metadata;
+    do not duplicate them as top-level fields.
     """
 
-    recommendation_policy_version: str = Field(default="deterministic-v1")
     metadata: dict[str, Any] = Field(
-        default_factory=lambda: {"model": None, "prompt_version": "generate-report-v1"}
+        default_factory=lambda: {
+            "model": None,
+            "prompt_version": "generate-report-v1",
+            "recommendation_policy_version": RECOMMENDATION_POLICY_VERSION,
+        }
     )
