@@ -17,6 +17,7 @@ import (
 	ucMatching "github.com/frasnym/getojobu/apps/backend/internal/usecase/matching"
 	ucUserJobs "github.com/frasnym/getojobu/apps/backend/internal/usecase/user_jobs"
 	ucUsers "github.com/frasnym/getojobu/apps/backend/internal/usecase/users"
+	"github.com/frasnym/getojobu/apps/backend/internal/utils"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/constants"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/ctxval"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/httpx"
@@ -304,16 +305,7 @@ func (h *handler) GetEvaluation(w http.ResponseWriter, r *http.Request) error {
 	// and report_data before exposing them to clients. Internal Go usecases
 	// still read the raw fields from the DB.
 	for _, field := range []*json.RawMessage{&evalWithJob.Evaluation.EvaluationData, &evalWithJob.Evaluation.ReportData} {
-		if len(*field) > 0 {
-			var data map[string]any
-			if err := json.Unmarshal(*field, &data); err == nil {
-				delete(data, "metadata")
-				stripped, err := json.Marshal(data)
-				if err == nil {
-					*field = stripped
-				}
-			}
-		}
+		*field = utils.StripJSONKeys(*field, "metadata")
 	}
 
 	return httpx.RespondJSON(w, r, http.StatusOK, dto.NewEvaluationResponse(evalWithJob.Evaluation, evalWithJob.Job))

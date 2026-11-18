@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/frasnym/getojobu/apps/backend/internal/models"
+	"github.com/frasnym/getojobu/apps/backend/internal/utils"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/constants"
 )
 
@@ -162,9 +163,11 @@ func (s *matchingService) TriggerCompatibilityBulk(
 			targetUserIDs = users
 		}
 
-		// Parse job profile from AnalyzeResult to extract family
+		// Parse job profile from AnalyzeResult to extract family. Service
+		// metadata (model/prompt_version) stays in jobs.analyze_result but
+		// must not flow into the match workflow.
 		var rawJobProfile map[string]interface{}
-		if err := json.Unmarshal(job.AnalyzeResult, &rawJobProfile); err != nil {
+		if err := json.Unmarshal(utils.StripJSONKeys(job.AnalyzeResult, "metadata"), &rawJobProfile); err != nil {
 			errStr := fmt.Sprintf("parse job analyze_result: %s", err.Error())
 			summaries = append(summaries, &models.MatchingEvaluationSummary{
 				Slug:  item.Slug,
@@ -178,10 +181,6 @@ func (s *matchingService) TriggerCompatibilityBulk(
 		rawJobProfile["title"] = job.Title
 		rawJobProfile["company"] = job.Company
 		rawJobProfile["location"] = job.Location
-		// Strip service metadata (model/prompt_version) from what is sent to
-		// Temporal — it is stored in jobs.analyze_result.metadata but should
-		// not flow into the match workflow.
-		delete(rawJobProfile, "metadata")
 		family, _ := rawJobProfile["family"].(string)
 		if family == "" {
 			family = "other"
@@ -342,16 +341,11 @@ func (s *matchingService) TriggerCompatibilityBulk(
 
 			var configMap map[string]interface{}
 			configBytes, _ := json.Marshal(scoringConfig)
-			_ = json.Unmarshal(configBytes, &configMap)
 			// Strip scoring-config row metadata from what is sent to Temporal —
 			// the worker only needs family and categories, and the row's id,
 			// version, is_active flag, and timestamps are not part of the
 			// evaluation contract.
-			delete(configMap, "id")
-			delete(configMap, "version")
-			delete(configMap, "is_active")
-			delete(configMap, "created_at")
-			delete(configMap, "updated_at")
+			_ = json.Unmarshal(utils.StripJSONKeys(configBytes, "id", "version", "is_active", "created_at", "updated_at"), &configMap)
 
 			wfInput := MatchJobWorkflowInput{
 				EvaluationID:     evalRecord.ID.String(),

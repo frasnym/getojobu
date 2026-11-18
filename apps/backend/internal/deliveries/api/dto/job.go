@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/frasnym/getojobu/apps/backend/internal/models"
+	"github.com/frasnym/getojobu/apps/backend/internal/utils"
 )
 
 // JobResponse is a shared job listing as returned by the API. It carries no
@@ -58,7 +59,7 @@ func NewJobResponse(job *models.Job, isOwned *bool) JobResponse {
 		ID:             job.ID,
 		Slug:           job.Slug,
 		Status:         job.Status,
-		AnalyzeResult:  job.AnalyzeResult,
+		AnalyzeResult:  utils.StripJSONKeys(job.AnalyzeResult, "metadata"),
 		FailureMessage: job.FailureMessage,
 		ExternalID:     job.ExternalID,
 		SourceURL:      job.SourceURL,

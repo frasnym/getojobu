@@ -634,9 +634,10 @@ func TestGetEvaluation_includesJob(t *testing.T) {
 			ReportData:       []byte(`{"summary":"good","metadata":{"prompt":"v1"}}`),
 		},
 		Job: &models.Job{
-			ID:    648,
-			Slug:  "job-slug",
-			Title: "Platform Engineer",
+			ID:            648,
+			Slug:          "job-slug",
+			Title:         "Platform Engineer",
+			AnalyzeResult: json.RawMessage(`{"family":"technology","metadata":{"model":"test","prompt_version":"extract-job-v1"}}`),
 		},
 	}
 
@@ -666,6 +667,9 @@ func TestGetEvaluation_includesJob(t *testing.T) {
 	job := data["job"].(map[string]interface{})
 	assert.EqualValues(t, 648, job["id"])
 	assert.Equal(t, "job-slug", job["slug"])
+	analyzeResult := job["analyze_result"].(map[string]interface{})
+	assert.Equal(t, "technology", analyzeResult["family"])
+	assert.Nil(t, analyzeResult["metadata"])
 
 	evalObj := data["evaluation"].(map[string]interface{})
 	assert.Equal(t, evalID.String(), evalObj["id"])

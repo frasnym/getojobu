@@ -46,6 +46,31 @@ func TestJobResponse_omitsOwnershipForAnonymous(t *testing.T) {
 	assert.EqualValues(t, 648, keys["id"])
 }
 
+func TestJobResponse_stripsAnalyzeResultMetadata(t *testing.T) {
+	job := sampleJob()
+	job.AnalyzeResult = json.RawMessage(`{"family":"technology","metadata":{"model":"gpt-x","prompt_version":"extract-job-v1"}}`)
+
+	keys := marshalKeys(t, NewJobResponse(job, nil))
+	analyzeResult, ok := keys["analyze_result"].(map[string]any)
+	require.True(t, ok, "analyze_result must be an object")
+	assert.Equal(t, "technology", analyzeResult["family"])
+	assert.NotContains(t, analyzeResult, "metadata")
+
+	var stored map[string]any
+	require.NoError(t, json.Unmarshal(job.AnalyzeResult, &stored))
+	assert.Contains(t, stored, "metadata")
+}
+
+func TestJobResponse_keepsAnalyzeResultWithoutMetadata(t *testing.T) {
+	job := sampleJob()
+	job.AnalyzeResult = json.RawMessage(`{"family":"technology"}`)
+
+	keys := marshalKeys(t, NewJobResponse(job, nil))
+	analyzeResult, ok := keys["analyze_result"].(map[string]any)
+	require.True(t, ok, "analyze_result must be an object")
+	assert.Equal(t, "technology", analyzeResult["family"])
+}
+
 func TestJobResponse_includesOwnershipFlagWhenKnown(t *testing.T) {
 	owned := false
 	keys := marshalKeys(t, NewJobResponse(sampleJob(), &owned))
