@@ -111,9 +111,5 @@ class GenerateResumeWorkflow:
                 start_to_close_timeout=timedelta(seconds=30),
                 retry_policy=RETRY_POLICY,
             )
-            return {
-                "workflow": "GenerateResumeWorkflow",
-                "evaluation_id": evaluation_id,
-                "resume_status": "failed",
-                "resume_error": message,
-            }
+            # A failed generation must end the workflow as failed, not completed.
+            raise
