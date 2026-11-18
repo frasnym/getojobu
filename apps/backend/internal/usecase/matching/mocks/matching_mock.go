@@ -177,6 +177,21 @@ func (mr *MockMatchingMockRecorder) TriggerCompatibilityBulk(ctx, items, caller 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TriggerCompatibilityBulk", reflect.TypeOf((*MockMatching)(nil).TriggerCompatibilityBulk), ctx, items, caller)
 }
 
+// TriggerEvaluations mocks base method.
+func (m *MockMatching) TriggerEvaluations(ctx context.Context, items []models.TriggerEvaluationItem, caller *models.Principal) ([]*models.MatchingEvaluationSummary, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "TriggerEvaluations", ctx, items, caller)
+	ret0, _ := ret[0].([]*models.MatchingEvaluationSummary)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// TriggerEvaluations indicates an expected call of TriggerEvaluations.
+func (mr *MockMatchingMockRecorder) TriggerEvaluations(ctx, items, caller any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TriggerEvaluations", reflect.TypeOf((*MockMatching)(nil).TriggerEvaluations), ctx, items, caller)
+}
+
 // UpdateEvaluation mocks base method.
 func (m *MockMatching) UpdateEvaluation(ctx context.Context, id uuid.UUID, req matching.UpdateEvaluationRequest) (*models.MatchingEvaluation, error) {
 	m.ctrl.T.Helper()
