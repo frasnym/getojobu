@@ -86,18 +86,36 @@ export function JobCard({
 						)}
 					</div>
 
-					<h3 className="text-lg font-bold tracking-tight text-foreground group-hover:text-primary transition-colors">
-						{isClickable ? (
-							<span className="group-hover:text-primary transition-colors">{job.title}</span>
-						) : canOpenDetail ? (
-							<Link href={targetHref} className="focus:outline-none">
-								<span className="absolute inset-0" aria-hidden="true" />
-								{job.title}
-							</Link>
-						) : (
-							<span>{job.title}</span>
+					<div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+						<h3 className="text-lg font-bold tracking-tight text-foreground group-hover:text-primary transition-colors">
+							{isClickable ? (
+								<span className="group-hover:text-primary transition-colors">{job.title}</span>
+							) : canOpenDetail ? (
+								<Link href={targetHref} className="focus:outline-none">
+									<span className="absolute inset-0" aria-hidden="true" />
+									{job.title}
+								</Link>
+							) : (
+								<span>{job.title}</span>
+							)}
+						</h3>
+						{/* z-10 keeps this above the title link's absolute overlay. */}
+						{onHideToggle && userJob.id && (
+							<button
+								type="button"
+								onClick={(e) => {
+									e.stopPropagation();
+									onHideToggle(userJob.id, !userJob.is_hidden);
+								}}
+								className="relative z-10 inline-flex items-center gap-1 rounded-lg border border-border/60 bg-card px-2 py-1 text-xs font-medium text-foreground transition-colors hover:bg-secondary focus:outline-none focus:ring-2 focus:ring-ring"
+								aria-label={userJob.is_hidden ? "Unhide job" : "Hide job"}
+								title={userJob.is_hidden ? "Unhide job" : "Hide job"}
+							>
+								{userJob.is_hidden ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+								<span>{userJob.is_hidden ? "Unhide" : "Hide"}</span>
+							</button>
 						)}
-					</h3>
+					</div>
 
 					<div className="flex flex-wrap items-center gap-5 text-xs text-muted-foreground pt-1.5">
 						<span className="flex items-center gap-1">
@@ -116,40 +134,14 @@ export function JobCard({
 					</div>
 				</div>
 
-				{/* Actions */}
-				<div className="flex shrink-0 items-center sm:flex-col sm:items-end justify-between pt-2 sm:pt-0">
-					<div className="flex items-center gap-2">
-						{onHideToggle && userJob.id && (
-							<button
-								type="button"
-								onClick={(e) => {
-									e.stopPropagation();
-									onHideToggle(userJob.id, !userJob.is_hidden);
-								}}
-								className="inline-flex items-center gap-1 rounded-lg border border-border/60 bg-card px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-secondary transition-colors focus:outline-none focus:ring-2 focus:ring-ring"
-								aria-label={userJob.is_hidden ? "Unhide job" : "Hide job"}
-							>
-								{userJob.is_hidden ? (
-									<>
-										<EyeOff className="h-3.5 w-3.5" />
-										<span>Unhide</span>
-									</>
-								) : (
-									<>
-										<Eye className="h-3.5 w-3.5" />
-										<span>Hide</span>
-									</>
-								)}
-							</button>
-						)}
-						{canOpenDetail && (
-							<div className="flex items-center gap-1 text-xs font-medium text-muted-foreground group-hover:text-foreground group-hover:translate-x-0.5 transition-all">
-								<span>Details</span>
-								<ArrowRight className="h-3.5 w-3.5" />
-							</div>
-						)}
+				{canOpenDetail && (
+					<div className="flex shrink-0 justify-end pt-2 sm:pt-0">
+						<div className="flex items-center gap-1 text-xs font-medium text-muted-foreground group-hover:text-foreground group-hover:translate-x-0.5 transition-all">
+							<span>Details</span>
+							<ArrowRight className="h-3.5 w-3.5" />
+						</div>
 					</div>
-				</div>
+				)}
 			</div>
 
 			{(job.status || userJob.evaluation || selectable) && (

@@ -38,14 +38,23 @@ describe("JobCard component", () => {
 
   it("renders a Hide button when job is not hidden", () => {
     render(<JobCard userJob={{ ...mockUserJob, is_hidden: false }} onHideToggle={vi.fn()} />);
-    expect(screen.getByRole("button", { name: /Hide job/i })).toBeInTheDocument();
-    expect(screen.getByText("Hide")).toBeInTheDocument();
+    const button = screen.getByRole("button", { name: /Hide job/i });
+    expect(button).toBeInTheDocument();
+    expect(button).toHaveAttribute("title", "Hide job");
   });
 
   it("renders an Unhide button when job is hidden", () => {
     render(<JobCard userJob={{ ...mockUserJob, is_hidden: true }} onHideToggle={vi.fn()} />);
-    expect(screen.getByRole("button", { name: /Unhide job/i })).toBeInTheDocument();
-    expect(screen.getByText("Unhide")).toBeInTheDocument();
+    const button = screen.getByRole("button", { name: /Unhide job/i });
+    expect(button).toBeInTheDocument();
+    expect(button).toHaveAttribute("title", "Unhide job");
+  });
+
+  it("places the Hide button immediately after the job title", () => {
+    render(<JobCard userJob={mockUserJob} onHideToggle={vi.fn()} />);
+    const button = screen.getByRole("button", { name: /Hide job/i });
+    expect(button.previousElementSibling?.tagName).toBe("H3");
+    expect(button.previousElementSibling).toHaveTextContent("Senior Go Engineer");
   });
 
   it("calls onHideToggle with user_job_id and toggled state when clicked", () => {
