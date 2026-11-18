@@ -459,7 +459,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Queue job description analysis workflows in Temporal for multiple jobs. Jobs must have status 'new', 'queued', or 'failed' (with force=true).",
+                "description": "Queue job description analysis workflows in Temporal for multiple jobs. Jobs must have status 'new', 'queued', or 'failed' (with force=true). Per-item failures are returned in \"failed\" and do not stop the remaining jobs.",
                 "consumes": [
                     "application/json"
                 ],
@@ -2653,6 +2653,17 @@ const docTemplate = `{
                 }
             }
         },
+        "jobs.bulkQueueAnalyzeFailure": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string"
+                },
+                "slug": {
+                    "type": "string"
+                }
+            }
+        },
         "jobs.bulkQueueAnalyzeItemRequest": {
             "type": "object",
             "properties": {
@@ -2667,6 +2678,12 @@ const docTemplate = `{
         "jobs.bulkQueueAnalyzeResponse": {
             "type": "object",
             "properties": {
+                "failed": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/jobs.bulkQueueAnalyzeFailure"
+                    }
+                },
                 "workflow_ids": {
                     "type": "array",
                     "items": {

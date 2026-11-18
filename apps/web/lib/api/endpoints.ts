@@ -110,12 +110,15 @@ export async function getJobBySlug(slug: string, token?: string | null): Promise
 export async function retryJobAnalysis(
   slug: string,
   token?: string | null
-): Promise<{ workflow_ids: string[] }> {
-  return apiClient<{ workflow_ids: string[] }>("/v1/jobs/bulk-queue-analyze", {
-    method: "POST",
-    token,
-    body: JSON.stringify([{ slug, force: true }]),
-  });
+): Promise<{ workflow_ids: string[]; failed?: { slug: string; error: string }[] }> {
+  return apiClient<{ workflow_ids: string[]; failed?: { slug: string; error: string }[] }>(
+    "/v1/jobs/bulk-queue-analyze",
+    {
+      method: "POST",
+      token,
+      body: JSON.stringify([{ slug, force: true }]),
+    }
+  );
 }
 
 export async function triggerJobCompatibility(

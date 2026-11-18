@@ -244,12 +244,24 @@ func (s *matchingService) TriggerCompatibilityBulk(
 			if err == nil && latestEval != nil {
 				switch constants.MatchingEvaluationStatus(latestEval.EvaluationStatus) {
 				case constants.MatchingStatusQueued, constants.MatchingStatusQueuedRetry, constants.MatchingStatusPending:
-					errStr := fmt.Sprintf("evaluation is already in progress with status %s", latestEval.EvaluationStatus)
-					summaries = append(summaries, &models.MatchingEvaluationSummary{
-						Slug:  item.Slug,
-						Error: &errStr,
-					})
-					continue
+					if !item.Force {
+						errStr := fmt.Sprintf("evaluation is already in progress with status %s", latestEval.EvaluationStatus)
+						summaries = append(summaries, &models.MatchingEvaluationSummary{
+							Slug:  item.Slug,
+							Error: &errStr,
+						})
+						continue
+					}
+					if time.Since(latestEval.UpdatedAt) <= 30*time.Minute {
+						errStr := fmt.Sprintf("evaluation has been in progress for less than 30 minutes (status %s)", latestEval.EvaluationStatus)
+						summaries = append(summaries, &models.MatchingEvaluationSummary{
+							Slug:  item.Slug,
+							Error: &errStr,
+						})
+						continue
+					}
+					// Stale in-progress record: reuse it, like a failed retry.
+					evalRecord = latestEval
 
 				case constants.MatchingStatusSuccess:
 					if !item.Force {

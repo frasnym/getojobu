@@ -102,10 +102,10 @@ func (mr *MockJobMockRecorder) List(ctx, limit, offset, userID any) *gomock.Call
 }
 
 // QueueAnalysisBulk mocks base method.
-func (m *MockJob) QueueAnalysisBulk(ctx context.Context, items []models.QueueAnalysisItem, caller *models.Principal) ([]string, error) {
+func (m *MockJob) QueueAnalysisBulk(ctx context.Context, items []models.QueueAnalysisItem, caller *models.Principal) (models.QueueAnalysisBulkResult, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "QueueAnalysisBulk", ctx, items, caller)
-	ret0, _ := ret[0].([]string)
+	ret0, _ := ret[0].(models.QueueAnalysisBulkResult)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

@@ -115,6 +115,18 @@ type QueueAnalysisItem struct {
 	Force bool   `json:"force"`
 }
 
+// QueueAnalysisFailure is one job skipped during a bulk queue analyze request.
+type QueueAnalysisFailure struct {
+	Slug  string `json:"slug"`
+	Error string `json:"error"`
+}
+
+// QueueAnalysisBulkResult holds the per-item outcomes of a bulk queue analyze request.
+type QueueAnalysisBulkResult struct {
+	WorkflowIDs []string               `json:"workflow_ids"`
+	Failed      []QueueAnalysisFailure `json:"failed,omitempty"`
+}
+
 // JobAnalyzeWorkflowInput is the payload sent to Temporal JobAnalyzeWorkflow.
 type JobAnalyzeWorkflowInput struct {
 	JobDescription string `json:"job_description"`

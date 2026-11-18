@@ -348,6 +348,40 @@ async def test_queue_analysis_bulk():
 
 
 @pytest.mark.asyncio
+async def test_queue_analysis_uses_failed_field_from_api():
+    fake_client = MagicMock()
+
+    async def fake_post(path: str, json: Any) -> Any:
+        assert path == "/v1/jobs/bulk-queue-analyze"
+        assert [item["slug"] for item in json] == ["job-1", "job-2"]
+        return {
+            "workflow_ids": ["job-analyze-2"],
+            "failed": [
+                {"slug": "job-1", "error": 'job "job-1" has no description to analyze'}
+            ],
+        }
+
+    async def fake_aclose() -> None:
+        pass
+
+    fake_client.post.side_effect = fake_post
+    fake_client.aclose.side_effect = fake_aclose
+
+    with patch(
+        "deliveries.consumer.activities.job_scrape.NewGetojobuAPI",
+        return_value=fake_client,
+    ):
+        input_data = {
+            "user_ids": ["admin"],
+            "search_id": "scan-1",
+            "created_job_slugs": ["job-1", "job-2"],
+        }
+        res = await queue_analysis(input_data)
+        assert res["started"] == 1
+        assert res["failed"] == ["job-1"]
+
+
+@pytest.mark.asyncio
 async def test_ingest_jobs_omits_slugs_without_description():
     fake_client = MagicMock()
 

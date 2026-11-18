@@ -26,7 +26,7 @@ def scrape_jobs(
   - `description` contains the plain text or markdown of the job requirements and responsibilities.
 
 > [!IMPORTANT]
-> Because `JobAnalyzeWorkflow` and the Go backend reject jobs with empty descriptions (`has no description to analyze`), `fetch_description=True` must be explicitly passed to `jobspy.scrape_jobs()`.
+> Because `JobAnalyzeWorkflow` and the Go backend skip jobs with empty descriptions (`has no description to analyze`), `fetch_description=True` must be explicitly passed to `jobspy.scrape_jobs()`.
 
 ---
 
@@ -120,4 +120,4 @@ Example captured from Glassdoor for `Systems Automation Engineer I @ RoviSys` in
 3. **`ingest_jobs`:**
    Sends the enriched payload to Go backend `POST /v1/jobs/bulk`.
 4. **`queue_analysis`:**
-   Sends newly created slugs with non-empty descriptions to `POST /v1/jobs/bulk-queue-analyze`. Jobs without descriptions must not be queued because the Go backend rejects them with `invalid status transition: job "..." has no description to analyze`.
+   Sends newly created slugs with non-empty descriptions to `POST /v1/jobs/bulk-queue-analyze`. The endpoint processes every item: successful workflows come back in `workflow_ids`, and each skipped job comes back in `failed` with its slug and reason (for example, no description, already queued, or an invalid status). A skipped job does not stop the remaining jobs.

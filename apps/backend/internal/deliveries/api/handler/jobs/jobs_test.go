@@ -685,7 +685,7 @@ func TestBulkQueueAnalyzeJob_success(t *testing.T) {
 			{Slug: "job-1", Force: false},
 			{Slug: "job-2", Force: true},
 		}, gomock.Any()).
-		Return([]string{"job-analyze-1", "job-analyze-2"}, nil)
+		Return(models.QueueAnalysisBulkResult{WorkflowIDs: []string{"job-analyze-1", "job-analyze-2"}}, nil)
 
 	body := strings.NewReader(`[{"slug":"job-1","force":false},{"slug":"job-2","force":true}]`)
 	req := httptest.NewRequest(http.MethodPost, "/jobs/bulk-queue-analyze", body)
@@ -701,6 +701,40 @@ func TestBulkQueueAnalyzeJob_success(t *testing.T) {
 	require.Len(t, resp.Data.WorkflowIDs, 2)
 	assert.Equal(t, "job-analyze-1", resp.Data.WorkflowIDs[0])
 	assert.Equal(t, "job-analyze-2", resp.Data.WorkflowIDs[1])
+}
+
+func TestBulkQueueAnalyzeJob_partial_failure(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	h, mockJob, _ := newHandlerWithMock(ctrl)
+
+	mockJob.EXPECT().
+		QueueAnalysisBulk(gomock.Any(), []models.QueueAnalysisItem{
+			{Slug: "job-no-desc", Force: true},
+			{Slug: "job-ok", Force: true},
+		}, gomock.Any()).
+		Return(models.QueueAnalysisBulkResult{
+			WorkflowIDs: []string{"job-analyze-2"},
+			Failed: []models.QueueAnalysisFailure{
+				{Slug: "job-no-desc", Error: `job "job-no-desc" has no description to analyze`},
+			},
+		}, nil)
+
+	body := strings.NewReader(`[{"slug":"job-no-desc","force":true},{"slug":"job-ok","force":true}]`)
+	req := httptest.NewRequest(http.MethodPost, "/jobs/bulk-queue-analyze", body)
+	req = req.WithContext(ctxval.ContextWithPrincipal(req.Context(), principalCtx("cron", "cron-scrape")))
+	w := httptest.NewRecorder()
+
+	httpx.HandlerFunc(h.BulkQueueAnalyzeJob).ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusAccepted, w.Code)
+	var resp httpx.Response[bulkQueueAnalyzeResponse]
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+	require.True(t, resp.Success)
+	assert.Equal(t, []string{"job-analyze-2"}, resp.Data.WorkflowIDs)
+	require.Len(t, resp.Data.Failed, 1)
+	assert.Equal(t, "job-no-desc", resp.Data.Failed[0].Slug)
+	assert.Equal(t, `job "job-no-desc" has no description to analyze`, resp.Data.Failed[0].Error)
 }
 
 func TestBulkQueueAnalyzeJob_empty_array(t *testing.T) {
@@ -754,7 +788,7 @@ func TestBulkQueueAnalyzeJob_not_found(t *testing.T) {
 
 	mockJob.EXPECT().
 		QueueAnalysisBulk(gomock.Any(), gomock.Any(), gomock.Any()).
-		Return(nil, constants.ErrNotFound)
+		Return(models.QueueAnalysisBulkResult{}, constants.ErrNotFound)
 
 	body := strings.NewReader(`[{"slug":"job-missing","force":false}]`)
 	req := httptest.NewRequest(http.MethodPost, "/jobs/bulk-queue-analyze", body)
@@ -773,7 +807,7 @@ func TestBulkQueueAnalyzeJob_invalid_transition(t *testing.T) {
 
 	mockJob.EXPECT().
 		QueueAnalysisBulk(gomock.Any(), gomock.Any(), gomock.Any()).
-		Return(nil, fmt.Errorf("%w: job is failed, force must be true", constants.ErrInvalidTransition))
+		Return(models.QueueAnalysisBulkResult{}, fmt.Errorf("%w: job is failed, force must be true", constants.ErrInvalidTransition))
 
 	body := strings.NewReader(`[{"slug":"job-failed","force":false}]`)
 	req := httptest.NewRequest(http.MethodPost, "/jobs/bulk-queue-analyze", body)

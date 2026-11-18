@@ -45,9 +45,16 @@ type bulkQueueAnalyzeItemRequest struct {
 // bulkQueueAnalyzeRequest is the array payload for POST /v1/jobs/bulk-queue-analyze.
 type bulkQueueAnalyzeRequest []bulkQueueAnalyzeItemRequest
 
+// bulkQueueAnalyzeFailure is one job skipped during a bulk queue analyze request.
+type bulkQueueAnalyzeFailure struct {
+	Slug  string `json:"slug"`
+	Error string `json:"error"`
+}
+
 // bulkQueueAnalyzeResponse is the response body for POST /v1/jobs/bulk-queue-analyze.
 type bulkQueueAnalyzeResponse struct {
-	WorkflowIDs []string `json:"workflow_ids"`
+	WorkflowIDs []string                  `json:"workflow_ids"`
+	Failed      []bulkQueueAnalyzeFailure `json:"failed,omitempty"`
 }
 
 // bulkAnalyzeCompatibilityItemRequest is one item in the POST /v1/jobs/bulk-analyze-compatibility request.

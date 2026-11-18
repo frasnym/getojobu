@@ -247,6 +247,13 @@ definitions:
           $ref: '#/definitions/jobs.createJobRequest'
         type: array
     type: object
+  jobs.bulkQueueAnalyzeFailure:
+    properties:
+      error:
+        type: string
+      slug:
+        type: string
+    type: object
   jobs.bulkQueueAnalyzeItemRequest:
     properties:
       force:
@@ -256,6 +263,10 @@ definitions:
     type: object
   jobs.bulkQueueAnalyzeResponse:
     properties:
+      failed:
+        items:
+          $ref: '#/definitions/jobs.bulkQueueAnalyzeFailure'
+        type: array
       workflow_ids:
         items:
           type: string
@@ -1134,6 +1145,7 @@ paths:
       - application/json
       description: Queue job description analysis workflows in Temporal for multiple
         jobs. Jobs must have status 'new', 'queued', or 'failed' (with force=true).
+        Per-item failures are returned in "failed" and do not stop the remaining jobs.
       parameters:
       - description: Jobs to queue for analysis
         in: body

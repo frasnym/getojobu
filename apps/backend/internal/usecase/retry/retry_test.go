@@ -2,7 +2,6 @@ package retry_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 
 	"github.com/google/uuid"
@@ -46,7 +45,7 @@ func TestFailedJobsRequeuesEachWithForce(t *testing.T) {
 	d.repo.EXPECT().ListFailedJobs(gomock.Any(), ucRetry.MaxFailedJobs).Return([]string{"job-a", "job-b"}, nil)
 	for _, slug := range []string{"job-a", "job-b"} {
 		d.jobs.EXPECT().QueueAnalysisBulk(gomock.Any(), []models.QueueAnalysisItem{{Slug: slug, Force: true}}, caller).
-			Return([]string{"job-analyze-1"}, nil)
+			Return(models.QueueAnalysisBulkResult{WorkflowIDs: []string{"job-analyze-1"}}, nil)
 	}
 
 	result, err := d.svc.FailedJobs(context.Background(), caller)
@@ -57,8 +56,10 @@ func TestFailedJobsRequeuesEachWithForce(t *testing.T) {
 func TestFailedJobsContinuesWhenOneFails(t *testing.T) {
 	d := newDeps(t)
 	d.repo.EXPECT().ListFailedJobs(gomock.Any(), ucRetry.MaxFailedJobs).Return([]string{"job-a", "job-b"}, nil)
-	d.jobs.EXPECT().QueueAnalysisBulk(gomock.Any(), gomock.Any(), caller).Return(nil, errors.New("no description"))
-	d.jobs.EXPECT().QueueAnalysisBulk(gomock.Any(), gomock.Any(), caller).Return([]string{"job-analyze-2"}, nil)
+	d.jobs.EXPECT().QueueAnalysisBulk(gomock.Any(), gomock.Any(), caller).
+		Return(models.QueueAnalysisBulkResult{Failed: []models.QueueAnalysisFailure{{Slug: "job-a", Error: "no description"}}}, nil)
+	d.jobs.EXPECT().QueueAnalysisBulk(gomock.Any(), gomock.Any(), caller).
+		Return(models.QueueAnalysisBulkResult{WorkflowIDs: []string{"job-analyze-2"}}, nil)
 
 	result, err := d.svc.FailedJobs(context.Background(), caller)
 	require.NoError(t, err)

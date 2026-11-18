@@ -55,12 +55,12 @@ func (s *retryService) FailedJobs(ctx context.Context, caller *models.Principal)
 	}
 
 	for _, slug := range slugs {
-		ids, err := s.jobs.QueueAnalysisBulk(ctx, []models.QueueAnalysisItem{{Slug: slug, Force: true}}, caller)
+		res, err := s.jobs.QueueAnalysisBulk(ctx, []models.QueueAnalysisItem{{Slug: slug, Force: true}}, caller)
 		if err != nil {
 			logging.Warn(ctx, "retry failed job analyze", "slug", slug, "error", err)
 			continue
 		}
-		result.Requeued += len(ids)
+		result.Requeued += len(res.WorkflowIDs)
 	}
 
 	return result, nil

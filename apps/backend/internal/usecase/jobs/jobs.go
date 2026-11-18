@@ -25,7 +25,8 @@ type Job interface {
 	// current → next transition is not permitted.
 	UpdateStatus(ctx context.Context, slug, status string, analyzeResult, failureMessage *string, updatedByType, updatedByID string) (*models.Job, error)
 	// QueueAnalysisBulk validates each job and queues its JobAnalyzeWorkflow in Temporal.
-	QueueAnalysisBulk(ctx context.Context, items []models.QueueAnalysisItem, caller *models.Principal) ([]string, error)
+	// Per-item failures are returned in the result instead of aborting the batch.
+	QueueAnalysisBulk(ctx context.Context, items []models.QueueAnalysisItem, caller *models.Principal) (models.QueueAnalysisBulkResult, error)
 	// StartJobScrape starts JobScrapeWorkflows in Temporal for the normalized
 	// search targets derived from user preferences, returning the workflow ids.
 	StartJobScrape(ctx context.Context, params models.ScrapeJobsParams) ([]string, error)

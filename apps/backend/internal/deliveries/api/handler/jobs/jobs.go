@@ -206,7 +206,7 @@ func (h *handler) BulkCreateJob(w http.ResponseWriter, r *http.Request) error {
 
 // @Tags jobs
 // @Summary Bulk queue job analysis
-// @Description Queue job description analysis workflows in Temporal for multiple jobs. Jobs must have status 'new', 'queued', or 'failed' (with force=true).
+// @Description Queue job description analysis workflows in Temporal for multiple jobs. Jobs must have status 'new', 'queued', or 'failed' (with force=true). Per-item failures are returned in "failed" and do not stop the remaining jobs.
 // @Accept json
 // @Produce json
 // @Param jobs body bulkQueueAnalyzeRequest true "Jobs to queue for analysis"
@@ -245,7 +245,7 @@ func (h *handler) BulkQueueAnalyzeJob(w http.ResponseWriter, r *http.Request) er
 		}
 	}
 
-	workflowIDs, err := h.ucJobs.QueueAnalysisBulk(ctx, items, p)
+	result, err := h.ucJobs.QueueAnalysisBulk(ctx, items, p)
 	if err != nil {
 		logging.Error(ctx, "bulk queue analyze failed", err,
 			"job_count", len(items), "actor_type", p.ActorType, "actor_id", p.ActorID)
@@ -258,8 +258,14 @@ func (h *handler) BulkQueueAnalyzeJob(w http.ResponseWriter, r *http.Request) er
 		return err
 	}
 
+	failed := make([]bulkQueueAnalyzeFailure, len(result.Failed))
+	for i, f := range result.Failed {
+		failed[i] = bulkQueueAnalyzeFailure{Slug: f.Slug, Error: f.Error}
+	}
+
 	return httpx.RespondJSON(w, r, http.StatusAccepted, bulkQueueAnalyzeResponse{
-		WorkflowIDs: workflowIDs,
+		WorkflowIDs: result.WorkflowIDs,
+		Failed:      failed,
 	})
 }
 

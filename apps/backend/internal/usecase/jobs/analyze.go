@@ -17,22 +17,23 @@ func GenerateWorkflowID(jobID int64, _ bool) string {
 }
 
 // QueueAnalysisBulk validates each job listing and starts its analysis workflow in Temporal.
-// Allowed job statuses: "new" (force=false or true) and "failed" (force=true only).
-// Clerk callers may only queue jobs they own.
-func (s *jobService) QueueAnalysisBulk(ctx context.Context, items []models.QueueAnalysisItem, caller *models.Principal) ([]string, error) {
-	if len(items) == 0 {
-		return nil, nil
+// Allowed job statuses: "new", "failed" (force=true), "queued" and "queued_retry"
+// (force=true, updated_at > 30m), and "analyze_pending" (force=true, updated_at >
+// 30m, workflow not running). Clerk callers may only queue jobs they own. A failure
+// on one item is recorded in Failed and does not stop the remaining items.
+func (s *jobService) QueueAnalysisBulk(ctx context.Context, items []models.QueueAnalysisItem, caller *models.Principal) (models.QueueAnalysisBulkResult, error) {
+	result := models.QueueAnalysisBulkResult{
+		WorkflowIDs: make([]string, 0, len(items)),
 	}
-
-	workflowIDs := make([]string, 0, len(items))
 	for _, item := range items {
 		id, err := s.queueAnalysis(ctx, item.Slug, item.Force, caller)
 		if err != nil {
-			return nil, err
+			result.Failed = append(result.Failed, models.QueueAnalysisFailure{Slug: item.Slug, Error: err.Error()})
+			continue
 		}
-		workflowIDs = append(workflowIDs, id)
+		result.WorkflowIDs = append(result.WorkflowIDs, id)
 	}
-	return workflowIDs, nil
+	return result, nil
 }
 
 func (s *jobService) queueAnalysis(ctx context.Context, slug string, force bool, caller *models.Principal) (string, error) {
@@ -60,14 +61,14 @@ func (s *jobService) queueAnalysis(ctx context.Context, slug string, force bool,
 	}
 
 	if job.Description == nil || strings.TrimSpace(*job.Description) == "" {
-		return "", fmt.Errorf("%w: job %q has no description to analyze", constants.ErrInvalidTransition, job.Slug)
+		return "", fmt.Errorf("job %q %w", job.Slug, constants.ErrNoDescription)
 	}
 
 	if s.workflows == nil {
 		return "", fmt.Errorf("workflows repository not configured")
 	}
 
-	// Pre-condition: status must be new, queued (force=true), queued_retry (force=true), failed (force=true), or analyze_pending (force=true, updated_at > 30m, workflow not running).
+	// Pre-condition: status must be new, queued or queued_retry (force=true, updated_at > 30m), failed (force=true), or analyze_pending (force=true, updated_at > 30m, workflow not running).
 	// When queueing jobs, update status to queued. When retrying failed or stale jobs, update status to queued_retry before queueing.
 	switch constants.JobStatus(job.Status) {
 	case constants.StatusNew:
@@ -76,7 +77,10 @@ func (s *jobService) queueAnalysis(ctx context.Context, slug string, force bool,
 		}
 	case constants.StatusQueued, constants.StatusQueuedRetry:
 		if !force {
-			return "", fmt.Errorf("%w: job %q is already queued for analysis", constants.ErrInvalidTransition, job.Slug)
+			return "", fmt.Errorf("job %q %w", job.Slug, constants.ErrAlreadyQueued)
+		}
+		if time.Since(job.UpdatedAt) <= 30*time.Minute {
+			return "", fmt.Errorf("%w: job %q has been queued for less than 30 minutes", constants.ErrInvalidTransition, job.Slug)
 		}
 		if _, err := s.repo.UpdateStatus(ctx, job.Slug, string(constants.StatusQueuedRetry), nil, nil, actorType, actorID); err != nil {
 			return "", fmt.Errorf("update job status to queued_retry: %w", err)

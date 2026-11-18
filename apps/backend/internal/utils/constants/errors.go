@@ -26,6 +26,14 @@ var ErrInvalidRequest = errors.New("invalid request")
 // not permitted by the transition validator. The HTTP layer maps this to 422.
 var ErrInvalidTransition = errors.New("invalid status transition")
 
+// ErrNoDescription is returned when a job has no description to analyze.
+// This is a data problem, not an invalid status transition.
+var ErrNoDescription = errors.New("has no description to analyze")
+
+// ErrAlreadyQueued is returned when a job is already queued for analysis and
+// the caller did not request a retry. The job is already in the desired state.
+var ErrAlreadyQueued = errors.New("is already queued for analysis")
+
 // ErrNoActiveConnections is returned when no transaction is stored in context.
 var ErrNoActiveConnections = errors.New("no active connections")
 

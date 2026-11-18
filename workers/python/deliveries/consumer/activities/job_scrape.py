@@ -540,7 +540,7 @@ async def queue_analysis(input_data: dict[str, Any]) -> dict[str, Any]:
     """Start JobAnalyzeWorkflow for each newly created job via the Go API.
 
     POST /v1/jobs/bulk-queue-analyze accepts an array of [{"slug": s, "force": True}]
-    and returns {"workflow_ids": [...]}.
+    and returns {"workflow_ids": [...], "failed": [{"slug": s, "error": msg}]}.
     """
     user_ids = parse_user_ids(input_data.get("user_ids"))
 
@@ -569,18 +569,35 @@ async def queue_analysis(input_data: dict[str, Any]) -> dict[str, Any]:
             try:
                 resp = await client.post("/v1/jobs/bulk-queue-analyze", json=payload)
                 workflow_ids: list[str] = []
+                chunk_failed: list[str] = []
+                reported_failed = False
                 if isinstance(resp, dict):
                     resp_dict = cast(dict[str, Any], resp)
                     raw_ids = resp_dict.get("workflow_ids")
                     if isinstance(raw_ids, list):
                         workflow_ids = cast(list[str], raw_ids)
+                    raw_failed = resp_dict.get("failed")
+                    if isinstance(raw_failed, list):
+                        reported_failed = True
+                        for item in raw_failed:
+                            if not isinstance(item, dict):
+                                continue
+                            slug = item.get("slug")
+                            if isinstance(slug, str):
+                                chunk_failed.append(slug)
+                                logger.warning(
+                                    "skipping job that cannot be queued for analysis",
+                                    user_ids=user_ids,
+                                    scan_id=search_id,
+                                    slug=slug,
+                                    error=item.get("error", ""),
+                                )
 
-                # Count started workflows
-                chunk_started = len(workflow_ids)
-                started += chunk_started
-                if chunk_started < len(chunk):
-                    # Slugs beyond the returned count are recorded as failed
-                    failed.extend(chunk[chunk_started:])
+                started += len(workflow_ids)
+                if not reported_failed and len(workflow_ids) < len(chunk):
+                    # Older responses did not report per-item failures.
+                    chunk_failed.extend(chunk[len(workflow_ids) :])
+                failed.extend(chunk_failed)
             except Exception as e:  # noqa: BLE001
                 logger.warning(
                     "bulk queue analyze chunk failed, retrying items individually",
