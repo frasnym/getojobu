@@ -66,6 +66,8 @@ export interface UserJobEvaluation {
   report_status?: string;
   resume_status?: string;
   resume_failure_message?: string;
+  cover_letter_status?: string;
+  cover_letter_failure_message?: string;
 }
 
 export interface UserJob {

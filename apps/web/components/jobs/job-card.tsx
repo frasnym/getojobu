@@ -164,6 +164,11 @@ export function JobCard({
 								label="Resume"
 								message={userJob.evaluation.resume_failure_message}
 							/>
+							<EvaluationStatusTag
+								status={userJob.evaluation.cover_letter_status}
+								label="Cover Letter"
+								message={userJob.evaluation.cover_letter_failure_message}
+							/>
 						</>
 					)}
 					{retryLabel && onRetry && (

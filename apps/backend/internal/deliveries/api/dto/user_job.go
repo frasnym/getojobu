@@ -17,6 +17,7 @@ type UserJobEvaluationResponse struct {
 	RecommendationLabel *string   `json:"recommendation_label,omitempty"`
 	ReportStatus        *string   `json:"report_status,omitempty"`
 	ResumeStatus        *string   `json:"resume_status,omitempty"`
+	CoverLetterStatus   *string   `json:"cover_letter_status,omitempty"`
 }
 
 // UserJobResponse is a user's link to a shared job listing. The root identity is
@@ -45,6 +46,7 @@ func NewUserJobResponse(row *models.UserJobWithJob) UserJobResponse {
 			RecommendationLabel: row.Evaluation.RecommendationLabel,
 			ReportStatus:        row.Evaluation.ReportStatus,
 			ResumeStatus:        row.Evaluation.ResumeStatus,
+			CoverLetterStatus:   row.Evaluation.CoverLetterStatus,
 		}
 	}
 

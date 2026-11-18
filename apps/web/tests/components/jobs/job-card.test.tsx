@@ -127,6 +127,54 @@ describe("JobCard evaluation tags", () => {
     expect(resumeTag).toHaveTextContent("Resume");
   });
 
+  it("renders a Cover Letter tag colored by cover_letter_status", () => {
+    const jobWithCoverLetter: UserJob = {
+      ...mockUserJob,
+      evaluation: {
+        ...baseEvaluation,
+        cover_letter_status: "success",
+      },
+    };
+    render(<JobCard userJob={jobWithCoverLetter} />);
+    const coverLetterTag = screen.getAllByTestId("evaluation-status-tag")[4];
+    expect(coverLetterTag).toHaveClass("bg-emerald-500/10 text-emerald-600");
+    expect(coverLetterTag).toHaveTextContent("Cover Letter");
+  });
+
+  it("omits the Cover Letter tag when cover_letter_status is undefined", () => {
+    const jobWithoutCoverLetter: UserJob = {
+      ...mockUserJob,
+      evaluation: {
+        ...baseEvaluation,
+        cover_letter_status: undefined,
+      },
+    };
+    render(<JobCard userJob={jobWithoutCoverLetter} />);
+    const tags = screen.getAllByTestId("evaluation-status-tag");
+    expect(tags).toHaveLength(4);
+    expect(screen.queryByText("Cover Letter")).not.toBeInTheDocument();
+  });
+
+  it("renders the cover letter failure message as a tooltip on the failed Cover Letter tag", () => {
+    const coverLetterFailedJob: UserJob = {
+      ...mockUserJob,
+      evaluation: {
+        id: "eval-1",
+        evaluation_status: "success",
+        cover_letter_status: "failed",
+        cover_letter_failure_message: "letter must contain between 1 and 5 paragraphs",
+      },
+    };
+    render(<JobCard userJob={coverLetterFailedJob} />);
+    const coverLetterTag = screen.getAllByTestId("evaluation-status-tag").find(
+      (tag) => tag.textContent === "Cover Letter"
+    );
+    expect(coverLetterTag).toHaveAttribute(
+      "title",
+      "letter must contain between 1 and 5 paragraphs"
+    );
+  });
+
   it("omits a tag when its status is undefined", () => {
     render(
       <JobCard
