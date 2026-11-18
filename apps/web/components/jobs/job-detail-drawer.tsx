@@ -27,6 +27,7 @@ import {
 	Sparkles,
 	Eye,
 	EyeOff,
+	RefreshCw,
 } from "lucide-react";
 
 interface JobDetailDrawerProps {
@@ -178,14 +179,28 @@ export function JobDetailDrawer({
 						)}
 						<EligibilityTag status={fetchedEvaluation?.evaluation.eligibility_status} />
 						<RecommendationTag label={fetchedEvaluation?.evaluation.recommendation_label} />
-						<button
-							type="button"
-							onClick={onClose}
-							className="ml-auto rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-							aria-label="Close job details"
-						>
-							<X className="h-5 w-5" />
-						</button>
+						<div className="ml-auto flex items-center gap-1">
+							{userJobId && (
+								<button
+									type="button"
+									onClick={refreshEvaluation}
+									disabled={fetchingEvaluation}
+									className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors disabled:opacity-50"
+									aria-label="Refresh evaluation"
+									title="Refresh evaluation"
+								>
+									<RefreshCw className={`h-5 w-5 ${fetchingEvaluation ? "animate-spin" : ""}`} />
+								</button>
+							)}
+							<button
+								type="button"
+								onClick={onClose}
+								className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+								aria-label="Close job details"
+							>
+								<X className="h-5 w-5" />
+							</button>
+						</div>
 					</div>
 
 					<div className="flex flex-wrap items-center gap-x-3 gap-y-2">

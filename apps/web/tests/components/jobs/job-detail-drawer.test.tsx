@@ -127,6 +127,37 @@ describe("JobDetailDrawer component", () => {
     });
   });
 
+  it("re-fetches the evaluation when the refresh button is clicked", async () => {
+    const evalSpy = vi.spyOn(endpoints, "getUserJobEvaluation").mockResolvedValue({
+      id: "eval-123",
+      user_job_id: "uj-456",
+      evaluation: {
+        id: "eval-123",
+        user_job_id: "uj-456",
+        evaluation_status: "success",
+      },
+    });
+    render(
+      <JobDetailDrawer
+        job={mockJob}
+        userJobId="uj-456"
+        isOpen={true}
+        onClose={() => {}}
+      />
+    );
+
+    await waitFor(() => {
+      expect(evalSpy).toHaveBeenCalled();
+    });
+    const callsBeforeClick = evalSpy.mock.calls.length;
+
+    fireEvent.click(screen.getByRole("button", { name: /refresh evaluation/i }));
+
+    await waitFor(() => {
+      expect(evalSpy.mock.calls.length).toBeGreaterThan(callsBeforeClick);
+    });
+  });
+
   it("shows the same job status tag as the list, with the real status label and blue pending color", async () => {
     const pendingJob: Job = { ...mockJob, status: "analyze_pending" };
     vi.spyOn(endpoints, "getUserJobEvaluation").mockResolvedValue({
