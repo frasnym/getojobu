@@ -169,3 +169,30 @@ export interface ApiResponse<T = any> {
   meta: ApiMeta;
   error?: ApiErrorPayload | null;
 }
+
+// Public account payload for GET/PATCH/POST /v1/me. Email, role, and timestamps
+// are read-only; the profile fields below are the self-editable subset.
+export interface AccountUser {
+  id: string;
+  email: string | null;
+  full_name: string | null;
+  headline: string | null;
+  phone: string | null;
+  portfolio_url: string | null;
+  linkedin_url: string | null;
+  github_url: string | null;
+  role: "user" | "admin";
+  onboarding_completed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// PATCH /v1/me requires all six keys; null clears the corresponding field.
+export interface UpdateAccountInput {
+  full_name: string | null;
+  headline: string | null;
+  phone: string | null;
+  portfolio_url: string | null;
+  linkedin_url: string | null;
+  github_url: string | null;
+}

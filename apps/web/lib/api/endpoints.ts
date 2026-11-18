@@ -5,6 +5,8 @@ import {
   DownloadResumeResponse,
   EvaluationSummary,
   EvaluationDetail,
+  AccountUser,
+  UpdateAccountInput,
 } from "./types";
 
 export async function getJobs(
@@ -192,4 +194,26 @@ export async function retryResumeGeneration(
     throw new Error(item.error);
   }
   return item;
+}
+
+export async function getMe(token?: string | null): Promise<AccountUser> {
+  return apiClient<AccountUser>("/v1/me", { token });
+}
+
+export async function updateMe(
+  input: UpdateAccountInput,
+  token?: string | null
+): Promise<AccountUser> {
+  return apiClient<AccountUser>("/v1/me", {
+    method: "PATCH",
+    token,
+    body: JSON.stringify(input),
+  });
+}
+
+export async function deactivateMe(token?: string | null): Promise<AccountUser> {
+  return apiClient<AccountUser>("/v1/me/deactivate", {
+    method: "POST",
+    token,
+  });
 }

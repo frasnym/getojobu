@@ -24,6 +24,7 @@ describe("Navbar component", () => {
     expect(screen.getByText("getojobu")).toBeInTheDocument();
     expect(screen.getByText("My Jobs")).toBeInTheDocument();
     expect(screen.getByText("Explore Jobs")).toBeInTheDocument();
+    expect(screen.getByText("Settings")).toBeInTheDocument();
     expect(screen.getByTestId("clerk-user-button")).toBeInTheDocument();
   });
 

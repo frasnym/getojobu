@@ -59,7 +59,7 @@ Use UUIDs for `users.id`, as already assumed by the career and billing data mode
 | `id`                      | `UUID`        |       No | Internal primary key                           |
 | `clerk_user_id`           | `TEXT`        |       No | Unique Clerk user identifier                   |
 | `email`                   | `TEXT`        |      Yes | Email snapshot synchronized from Clerk         |
-| `full_name`               | `TEXT`        |      Yes | Full name snapshot synchronized from Clerk     |
+| `full_name`               | `TEXT`        |      Yes | Seeded from Clerk on `user.created`, then locally editable by the user via `PATCH /v1/me` |
 | `role`                    | `user_role`   |       No | Application role; defaults to `user`           |
 | `onboarding_completed_at` | `TIMESTAMPTZ` |      Yes | When the required career profile was completed |
 | `created_at`              | `TIMESTAMPTZ` |       No | Local record creation time                     |
@@ -101,7 +101,7 @@ CREATE TRIGGER trg_users_updated_at
 
 ### Field decisions
 
-- `email` and `full_name` are local snapshots synchronized from Clerk. Clerk remains authoritative for authentication and verified email status.
+- `email` is a local snapshot synchronized from Clerk; Clerk remains authoritative for authentication and verified email status. `full_name` is seeded from Clerk only on `user.created` and is thereafter owned by the user, editable through `PATCH /v1/me`. A later Clerk `user.updated` event must not overwrite a local `full_name` edit.
 - Store only `full_name`; do not split it into `first_name` and `last_name` in the global user record. Name conventions vary. Collect application-specific first and last names only when a particular job application form requires them.
 - Do not store `display_name` or `image_url`.
 - Do not persist `timezone` initially. The frontend can detect the browser timezone and pass it to the API when date/time presentation or scheduling requires it.
@@ -156,11 +156,13 @@ Use Clerk webhooks to synchronize identity changes into the application database
 
 | Clerk event    | Local behavior                                                                        |
 | -------------- | ------------------------------------------------------------------------------------- |
-| `user.created` | Create local user with default role `user`; synchronize available email and full name |
-| `user.updated` | Synchronize email and full name snapshots                                             |
+| `user.created` | Create local user with default role `user`; seed email and full name from Clerk (`full_name` is seeded only here) |
+| `user.updated` | Synchronize the email snapshot only; never overwrite the locally editable `full_name` |
 | `user.deleted` | Start the account deletion/deactivation policy                                        |
 
 Webhook processing must be idempotent because Clerk may retry delivery.
+
+The existing `user.updated` webhook handler is broken and must be fixed to sync email only so it cannot overwrite a local `full_name` edit made through `PATCH /v1/me`. That fix is tracked separately; do not change webhook code as part of the `/v1/me` work.
 
 ### Registration flow
 

@@ -17,6 +17,7 @@ type Users interface {
 	FindByID(ctx context.Context, id string) (*models.User, error)
 	Create(ctx context.Context, clerkUserID string, email, fullName string, role models.Role) (*models.User, error)
 	Update(ctx context.Context, id string, email, fullName string) (*models.User, error)
+	UpdateProfile(ctx context.Context, id string, p models.UserProfileInput) (*models.User, error)
 	SoftDelete(ctx context.Context, id string) (*models.User, error)
 }
 
@@ -32,7 +33,7 @@ func NewUsersRepository(db database.DB) Users {
 func (r *usersRepository) FindByClerkUserID(ctx context.Context, clerkUserID string) (*models.User, error) {
 	query := `
 		SELECT id, clerk_user_id, email, full_name, role, onboarding_completed_at, deleted_at,
-		       headline, phone, portfolio_url, linkedin_url, github_url
+		       headline, phone, portfolio_url, linkedin_url, github_url, created_at, updated_at
 		FROM users
 		WHERE clerk_user_id = $1
 	`
@@ -52,6 +53,8 @@ func (r *usersRepository) FindByClerkUserID(ctx context.Context, clerkUserID str
 		&u.PortfolioURL,
 		&u.LinkedInURL,
 		&u.GitHubURL,
+		&u.CreatedAt,
+		&u.UpdatedAt,
 	); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, constants.ErrUserNotFound
@@ -66,7 +69,7 @@ func (r *usersRepository) FindByClerkUserID(ctx context.Context, clerkUserID str
 func (r *usersRepository) FindByID(ctx context.Context, id string) (*models.User, error) {
 	query := `
 		SELECT id, clerk_user_id, email, full_name, role, onboarding_completed_at, deleted_at,
-		       headline, phone, portfolio_url, linkedin_url, github_url
+		       headline, phone, portfolio_url, linkedin_url, github_url, created_at, updated_at
 		FROM users
 		WHERE id = $1
 	`
@@ -86,6 +89,8 @@ func (r *usersRepository) FindByID(ctx context.Context, id string) (*models.User
 		&u.PortfolioURL,
 		&u.LinkedInURL,
 		&u.GitHubURL,
+		&u.CreatedAt,
+		&u.UpdatedAt,
 	); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, constants.ErrUserNotFound
@@ -103,7 +108,7 @@ func (r *usersRepository) Create(ctx context.Context, clerkUserID string, email,
 		INSERT INTO users (clerk_user_id, email, full_name, role)
 		VALUES ($1, $2, $3, $4)
 		RETURNING id, clerk_user_id, email, full_name, role, onboarding_completed_at, deleted_at,
-		          headline, phone, portfolio_url, linkedin_url, github_url
+		          headline, phone, portfolio_url, linkedin_url, github_url, created_at, updated_at
 	`
 	row := r.db.QueryRow(ctx, query, clerkUserID, email, fullName, role)
 
@@ -121,6 +126,8 @@ func (r *usersRepository) Create(ctx context.Context, clerkUserID string, email,
 		&u.PortfolioURL,
 		&u.LinkedInURL,
 		&u.GitHubURL,
+		&u.CreatedAt,
+		&u.UpdatedAt,
 	); err != nil {
 		return nil, fmt.Errorf("create user: %w", err)
 	}
@@ -135,7 +142,7 @@ func (r *usersRepository) Update(ctx context.Context, id string, email, fullName
 		SET email = $2, full_name = $3, updated_at = NOW()
 		WHERE id = $1
 		RETURNING id, clerk_user_id, email, full_name, role, onboarding_completed_at, deleted_at,
-		          headline, phone, portfolio_url, linkedin_url, github_url
+		          headline, phone, portfolio_url, linkedin_url, github_url, created_at, updated_at
 	`
 	row := r.db.QueryRow(ctx, query, id, email, fullName)
 
@@ -153,8 +160,44 @@ func (r *usersRepository) Update(ctx context.Context, id string, email, fullName
 		&u.PortfolioURL,
 		&u.LinkedInURL,
 		&u.GitHubURL,
+		&u.CreatedAt,
+		&u.UpdatedAt,
 	); err != nil {
 		return nil, fmt.Errorf("update user: %w", err)
+	}
+	return &u, nil
+}
+
+// UpdateProfile replaces the six self-editable profile fields on a local
+// user. A nil field clears the corresponding column.
+func (r *usersRepository) UpdateProfile(ctx context.Context, id string, p models.UserProfileInput) (*models.User, error) {
+	query := `
+		UPDATE users
+		SET full_name = $2, headline = $3, phone = $4, portfolio_url = $5, linkedin_url = $6, github_url = $7, updated_at = NOW()
+		WHERE id = $1
+		RETURNING id, clerk_user_id, email, full_name, role, onboarding_completed_at, deleted_at,
+		          headline, phone, portfolio_url, linkedin_url, github_url, created_at, updated_at
+	`
+	row := r.db.QueryRow(ctx, query, id, p.FullName, p.Headline, p.Phone, p.PortfolioURL, p.LinkedInURL, p.GitHubURL)
+
+	var u models.User
+	if err := row.Scan(
+		&u.ID,
+		&u.ClerkUserID,
+		&u.Email,
+		&u.FullName,
+		&u.Role,
+		&u.OnboardingCompletedAt,
+		&u.DeletedAt,
+		&u.Headline,
+		&u.Phone,
+		&u.PortfolioURL,
+		&u.LinkedInURL,
+		&u.GitHubURL,
+		&u.CreatedAt,
+		&u.UpdatedAt,
+	); err != nil {
+		return nil, fmt.Errorf("update user profile: %w", err)
 	}
 	return &u, nil
 }
@@ -169,7 +212,7 @@ func (r *usersRepository) SoftDelete(ctx context.Context, id string) (*models.Us
 		SET deleted_at = NOW(), updated_at = NOW()
 		WHERE id = $1
 		RETURNING id, clerk_user_id, email, full_name, role, onboarding_completed_at, deleted_at,
-		          headline, phone, portfolio_url, linkedin_url, github_url
+		          headline, phone, portfolio_url, linkedin_url, github_url, created_at, updated_at
 	`
 	row := r.db.QueryRow(ctx, query, id)
 
@@ -187,6 +230,8 @@ func (r *usersRepository) SoftDelete(ctx context.Context, id string) (*models.Us
 		&u.PortfolioURL,
 		&u.LinkedInURL,
 		&u.GitHubURL,
+		&u.CreatedAt,
+		&u.UpdatedAt,
 	); err != nil {
 		return nil, fmt.Errorf("soft delete user: %w", err)
 	}

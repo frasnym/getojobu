@@ -30,6 +30,9 @@ func (stubUserUC) Create(context.Context, string, string, string, models.Role) (
 func (stubUserUC) Update(context.Context, string, string, string) (*models.User, error) {
 	return nil, nil
 }
+func (stubUserUC) UpdateProfile(context.Context, string, models.UserProfileInput) (*models.User, error) {
+	return nil, nil
+}
 func (stubUserUC) SoftDelete(context.Context, string) (*models.User, error) {
 	return nil, nil
 }

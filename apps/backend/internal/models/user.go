@@ -24,4 +24,17 @@ type User struct {
 	PortfolioURL          *string    `json:"portfolio_url,omitempty"`
 	LinkedInURL           *string    `json:"linkedin_url,omitempty"`
 	GitHubURL             *string    `json:"github_url,omitempty"`
+	CreatedAt             time.Time  `json:"created_at"`
+	UpdatedAt             time.Time  `json:"updated_at"`
+}
+
+// UserProfileInput holds the profile fields a user may edit on their own
+// account. Pointer fields allow a caller to clear a value with null.
+type UserProfileInput struct {
+	FullName     *string `json:"full_name"`
+	Headline     *string `json:"headline"`
+	Phone        *string `json:"phone"`
+	PortfolioURL *string `json:"portfolio_url"`
+	LinkedInURL  *string `json:"linkedin_url"`
+	GitHubURL    *string `json:"github_url"`
 }

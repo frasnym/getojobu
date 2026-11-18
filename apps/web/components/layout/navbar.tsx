@@ -4,7 +4,7 @@ import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { UserButton } from "@clerk/nextjs";
-import { Briefcase, Sparkles, Compass } from "lucide-react";
+import { Briefcase, Sparkles, Compass, Settings } from "lucide-react";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 
 export function Navbar() {
@@ -12,6 +12,7 @@ export function Navbar() {
 
   const isUserJobsActive = pathname?.startsWith("/user-jobs");
   const isJobsActive = pathname === "/jobs" || (pathname?.startsWith("/jobs") && !isUserJobsActive);
+  const isSettingsActive = pathname?.startsWith("/settings");
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -50,6 +51,18 @@ export function Navbar() {
             >
               <Compass className="h-3.5 w-3.5 text-sky-500" />
               <span>Explore Jobs</span>
+            </Link>
+
+            <Link
+              href="/settings"
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors ${
+                isSettingsActive
+                  ? "bg-secondary text-foreground font-semibold"
+                  : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
+              }`}
+            >
+              <Settings className="h-3.5 w-3.5 text-muted-foreground" />
+              <span>Settings</span>
             </Link>
           </nav>
         </div>

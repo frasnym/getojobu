@@ -17,6 +17,7 @@ type User interface {
 	FindByID(ctx context.Context, id string) (*models.User, error)
 	Create(ctx context.Context, clerkUserID string, email, fullName string, role models.Role) (*models.User, error)
 	Update(ctx context.Context, id string, email, fullName string) (*models.User, error)
+	UpdateProfile(ctx context.Context, id string, p models.UserProfileInput) (*models.User, error)
 	SoftDelete(ctx context.Context, id string) (*models.User, error)
 }
 
@@ -71,6 +72,11 @@ func (s *userService) Create(ctx context.Context, clerkUserID string, email, ful
 // Update modifies an existing local user's email and full name.
 func (s *userService) Update(ctx context.Context, id string, email, fullName string) (*models.User, error) {
 	return s.repo.Update(ctx, id, email, fullName)
+}
+
+// UpdateProfile updates the self-editable profile fields on the user's own record.
+func (s *userService) UpdateProfile(ctx context.Context, id string, p models.UserProfileInput) (*models.User, error) {
+	return s.repo.UpdateProfile(ctx, id, p)
 }
 
 // SoftDelete marks a local user as deactivated by setting deleted_at.

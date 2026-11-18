@@ -9,6 +9,7 @@ vi.mock("@clerk/nextjs", () => ({
     isLoaded: true,
     isSignedIn: true,
     userId: "user_test_123",
+    signOut: vi.fn().mockResolvedValue(undefined),
   }),
   UserButton: () =>
     React.createElement("div", { "data-testid": "clerk-user-button" }, "UserButton"),

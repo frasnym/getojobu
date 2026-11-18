@@ -30,10 +30,13 @@ Machine-to-machine callers (for example, a trusted cron or an existing VPS autom
 ```text
 GET    /v1/me
 PATCH  /v1/me
+POST   /v1/me/deactivate
 GET    /v1/me/skills
 PUT    /v1/me/skills
 GET    /v1/me/skill-gaps
 ```
+
+`PATCH /v1/me` requires all six editable fields (`full_name`, `headline`, `phone`, `portfolio_url`, `linkedin_url`, `github_url`) on every request; `null` clears a field. The internal user ID is always taken from the verified Clerk principal, never from the request body or query string. `email`, `role`, `onboarding_completed_at`, and timestamps are read-only in this API.
 
 ### Job discovery and review
 

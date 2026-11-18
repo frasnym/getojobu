@@ -21,7 +21,6 @@ import (
 type MockUsers struct {
 	ctrl     *gomock.Controller
 	recorder *MockUsersMockRecorder
-	isgomock struct{}
 }
 
 // MockUsersMockRecorder is the mock recorder for MockUsers.
@@ -114,4 +113,19 @@ func (m *MockUsers) Update(ctx context.Context, id, email, fullName string) (*mo
 func (mr *MockUsersMockRecorder) Update(ctx, id, email, fullName any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockUsers)(nil).Update), ctx, id, email, fullName)
+}
+
+// UpdateProfile mocks base method.
+func (m *MockUsers) UpdateProfile(ctx context.Context, id string, p models.UserProfileInput) (*models.User, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateProfile", ctx, id, p)
+	ret0, _ := ret[0].(*models.User)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// UpdateProfile indicates an expected call of UpdateProfile.
+func (mr *MockUsersMockRecorder) UpdateProfile(ctx, id, p any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateProfile", reflect.TypeOf((*MockUsers)(nil).UpdateProfile), ctx, id, p)
 }

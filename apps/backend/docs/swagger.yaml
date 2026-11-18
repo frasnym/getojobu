@@ -531,6 +531,33 @@ definitions:
       user_job_id:
         type: string
     type: object
+  models.MeResponse:
+    properties:
+      created_at:
+        type: string
+      email:
+        type: string
+      full_name:
+        type: string
+      github_url:
+        type: string
+      headline:
+        type: string
+      id:
+        type: string
+      linkedin_url:
+        type: string
+      onboarding_completed_at:
+        type: string
+      phone:
+        type: string
+      portfolio_url:
+        type: string
+      role:
+        $ref: '#/definitions/models.Role'
+      updated_at:
+        type: string
+    type: object
   models.Project:
     properties:
       achievements:
@@ -574,6 +601,14 @@ definitions:
       resumes:
         type: integer
     type: object
+  models.Role:
+    enum:
+    - user
+    - admin
+    type: string
+    x-enum-varnames:
+    - RoleUser
+    - RoleAdmin
   models.ScoringConfig:
     properties:
       categories:
@@ -615,6 +650,21 @@ definitions:
         type: array
       is_active:
         type: boolean
+    type: object
+  models.UserProfileInput:
+    properties:
+      full_name:
+        type: string
+      github_url:
+        type: string
+      headline:
+        type: string
+      linkedin_url:
+        type: string
+      phone:
+        type: string
+      portfolio_url:
+        type: string
     type: object
   models.UserSkill:
     properties:
@@ -1545,6 +1595,89 @@ paths:
       summary: Bulk queue resume generation
       tags:
       - matching
+  /v1/me:
+    get:
+      consumes:
+      - application/json
+      description: Return the authenticated user's account details. The internal id
+        comes from the verified Clerk principal, never from the request.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.MeResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpx.Error'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpx.Error'
+      security:
+      - ApiKeyAuth: []
+      summary: Get current user
+      tags:
+      - me
+    patch:
+      consumes:
+      - application/json
+      description: Replace the six editable account fields. All six are required;
+        null clears a field. Email, role, and internal fields are read-only.
+      parameters:
+      - description: Editable account fields
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/models.UserProfileInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.MeResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpx.Error'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpx.Error'
+      security:
+      - ApiKeyAuth: []
+      summary: Update current user
+      tags:
+      - me
+  /v1/me/deactivate:
+    post:
+      consumes:
+      - application/json
+      description: Soft-delete the authenticated user's own account by setting deleted_at.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.MeResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpx.Error'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpx.Error'
+      security:
+      - ApiKeyAuth: []
+      summary: Deactivate current user
+      tags:
+      - me
   /v1/projects:
     get:
       description: List all projects for the authenticated user

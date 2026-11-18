@@ -57,6 +57,10 @@ func (m *mockUserService) Update(ctx context.Context, id string, email, fullName
 	return nil, m.updateErr
 }
 
+func (m *mockUserService) UpdateProfile(ctx context.Context, id string, p models.UserProfileInput) (*models.User, error) {
+	return nil, nil
+}
+
 func (m *mockUserService) SoftDelete(ctx context.Context, id string) (*models.User, error) {
 	m.deleteCalled = true
 	m.lastDeleteID = id

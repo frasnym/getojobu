@@ -9,6 +9,7 @@ import (
 	"github.com/frasnym/getojobu/apps/backend/internal/deliveries/api/handler/experiences"
 	"github.com/frasnym/getojobu/apps/backend/internal/deliveries/api/handler/jobs"
 	"github.com/frasnym/getojobu/apps/backend/internal/deliveries/api/handler/matching"
+	"github.com/frasnym/getojobu/apps/backend/internal/deliveries/api/handler/me"
 	"github.com/frasnym/getojobu/apps/backend/internal/deliveries/api/handler/projects"
 	"github.com/frasnym/getojobu/apps/backend/internal/deliveries/api/handler/retry"
 	scoringConfigs "github.com/frasnym/getojobu/apps/backend/internal/deliveries/api/handler/scoringconfigs"
@@ -52,6 +53,9 @@ func (h *handler) Route(rt *httpx.Router) {
 
 	// Clerk webhook under /v1/webhooks group.
 	webhook.NewHandler(h.contract).Route(v1.Group("/webhooks"))
+
+	// Current-user account routes (Clerk auth only).
+	me.NewHandler(h.contract).Route(v1.Group("/me"))
 
 	// Experience routes (CRU only; no DELETE).
 	experiences.NewHandler(h.contract).Route(v1.Group("/experiences"))
