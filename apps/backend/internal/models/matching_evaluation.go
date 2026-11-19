@@ -123,13 +123,6 @@ type MatchingEvaluationSummary struct {
 	Error             *string    `json:"error,omitempty"`
 }
 
-// BulkAnalyzeCompatibilityItem holds input for a single compatibility evaluation in a batch.
-type BulkAnalyzeCompatibilityItem struct {
-	Slug       string `json:"slug"`
-	Force      bool   `json:"force"`
-	FailedOnly bool   `json:"failed_only,omitempty"`
-}
-
 // CreateEvaluationItem holds input for inserting one evaluation per resolved
 // user of a job slug. UserIDs is optional and applies to machine callers.
 type CreateEvaluationItem struct {

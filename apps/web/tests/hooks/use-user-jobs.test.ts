@@ -239,7 +239,7 @@ describe("useUserJobs hook and filterUserJobs", () => {
     });
   });
 
-  it("retryJob re-runs compatibility when only the report failed", async () => {
+  it("retryJob retries only the report when the report failed", async () => {
     const reportFailedJob: UserJob = {
       ...mockUserJobs[0],
       evaluation: { id: "eval-1", evaluation_status: "success", report_status: "failed" },
@@ -255,8 +255,8 @@ describe("useUserJobs hook and filterUserJobs", () => {
         hasPrev: false,
       },
     });
-    const compatSpy = vi
-      .spyOn(endpoints, "triggerJobCompatibility")
+    const reportSpy = vi
+      .spyOn(endpoints, "retryReport")
       .mockResolvedValue({} as never);
 
     const { result } = renderHook(() => useUserJobs());
@@ -269,10 +269,45 @@ describe("useUserJobs hook and filterUserJobs", () => {
       await result.current.retryJob(reportFailedJob.id);
     });
 
-    expect(compatSpy).toHaveBeenCalledWith("go-stripe", true, "test-token");
+    expect(reportSpy).toHaveBeenCalledWith("eval-1", "test-token");
     await waitFor(() => {
       expect(result.current.jobs[0].evaluation?.report_status).toBe("queued_retry");
     });
+  });
+
+  it("retryJob leaves report status alone when report retry is forbidden", async () => {
+    const reportFailedJob: UserJob = {
+      ...mockUserJobs[0],
+      evaluation: { id: "eval-1", evaluation_status: "success", report_status: "failed" },
+    };
+    vi.spyOn(endpoints, "getUserJobs").mockResolvedValue({
+      data: [reportFailedJob],
+      pagination: {
+        page: 1,
+        limit: 10,
+        totalItems: 1,
+        totalPages: 1,
+        hasNext: false,
+        hasPrev: false,
+      },
+    });
+    vi.spyOn(endpoints, "retryReport").mockRejectedValue(
+      Object.assign(new Error("access denied"), { status: 403 })
+    );
+
+    const { result } = renderHook(() => useUserJobs());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    await expect(
+      act(async () => {
+        await result.current.retryJob(reportFailedJob.id);
+      })
+    ).rejects.toThrow("You do not have permission to retry this report.");
+
+    expect(result.current.jobs[0].evaluation?.report_status).toBe("failed");
   });
 
   it("retryJob queues resume generation when the resume failed", async () => {

@@ -54,7 +54,7 @@ func (r *retryRepository) ListFailedJobs(ctx context.Context, limit int) ([]stri
 // workflow status, oldest updated_at first.
 func (r *retryRepository) ListFailedMatchingEvaluations(ctx context.Context, limit int) ([]models.FailedMatchingEvaluation, error) {
 	rows, err := r.DB().Query(ctx, `
-		SELECT me.id, j.slug, me.evaluation_status,
+		SELECT me.id, j.slug, uj.user_id, me.evaluation_status,
 		       me.report_status, me.resume_status, me.cover_letter_status
 		FROM matching_evaluations me
 		JOIN user_jobs uj ON uj.id = me.user_job_id
@@ -80,6 +80,7 @@ func (r *retryRepository) ListFailedMatchingEvaluations(ctx context.Context, lim
 		if err := rows.Scan(
 			&eval.ID,
 			&eval.Slug,
+			&eval.UserID,
 			&eval.EvaluationStatus,
 			&eval.ReportStatus,
 			&eval.ResumeStatus,

@@ -151,18 +151,56 @@ export async function triggerJobCompatibility(
   force: boolean = false,
   token?: string | null
 ): Promise<EvaluationSummary> {
-  const result = await apiClient<EvaluationSummary[]>(
-    "/v1/jobs/bulk-analyze-compatibility",
+  const created = await apiClient<Array<EvaluationSummary & { error?: string | null }>>(
+    "/v1/jobs/evaluation",
     {
       method: "POST",
       token,
-      body: JSON.stringify([{ slug, force }]),
+      body: JSON.stringify([{ slug }]),
     }
   );
-  if (Array.isArray(result) && result[0]) {
-    return result[0];
+  const ids = (Array.isArray(created) ? created : [])
+    .filter((item) => item?.id && !item.error)
+    .map((item) => ({ id: item.id }));
+  if (ids.length === 0) {
+    throw new Error("No evaluation was created for this job");
   }
-  throw new Error("Empty response from bulk-analyze-compatibility");
+
+  const result = await apiClient<Array<EvaluationSummary & { error?: string | null }>>(
+    "/v1/matching-evaluations/bulk-generate-evaluation",
+    {
+      method: "POST",
+      token,
+      body: JSON.stringify(ids),
+    }
+  );
+  const triggered = Array.isArray(result) ? result.find((item) => item && !item.error) : undefined;
+  if (!triggered) {
+    throw new Error("Empty response from bulk-generate-evaluation");
+  }
+  return triggered;
+}
+
+/** Re-queue report generation for one evaluation. Clerk callers must own it (403 otherwise). */
+export async function retryReport(
+  evaluationId: string,
+  token?: string | null
+): Promise<EvaluationSummary> {
+  const result = await apiClient<Array<EvaluationSummary & { error?: string | null }>>(
+    `/v1/matching-evaluations/${evaluationId}/retry-report`,
+    {
+      method: "POST",
+      token,
+    }
+  );
+  const item = Array.isArray(result) ? result[0] : undefined;
+  if (!item) {
+    throw new Error("Empty response from retry-report");
+  }
+  if (item.error) {
+    throw new Error(item.error);
+  }
+  return item;
 }
 
 export async function getResumeDownloadUrl(

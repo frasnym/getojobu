@@ -94,54 +94,6 @@ func CalculateScores(
 	return overallScore, eligibility, recommendation, nil
 }
 
-// TriggerCompatibilityBulk is a temporary shim for callers that have not yet
-// moved to the insert and trigger steps. It inserts each job's evaluations at
-// "new" and then starts their workflows. Force and FailedOnly no longer apply.
-func (s *matchingService) TriggerCompatibilityBulk(
-	ctx context.Context,
-	items []models.BulkAnalyzeCompatibilityItem,
-	caller *models.Principal,
-) ([]*models.MatchingEvaluationSummary, error) {
-	createItems := make([]models.CreateEvaluationItem, 0, len(items))
-	for _, item := range items {
-		createItems = append(createItems, models.CreateEvaluationItem{Slug: item.Slug})
-	}
-
-	created, err := s.CreateEvaluations(ctx, createItems, caller)
-	if err != nil {
-		return nil, err
-	}
-
-	triggerItems := make([]models.TriggerEvaluationItem, 0, len(created))
-	for _, summary := range created {
-		if summary == nil || summary.ID == nil || summary.Error != nil {
-			continue
-		}
-		triggerItems = append(triggerItems, models.TriggerEvaluationItem{ID: *summary.ID})
-	}
-
-	triggered, err := s.TriggerEvaluations(ctx, triggerItems, caller)
-	if err != nil {
-		return nil, err
-	}
-
-	// Keep the insert-step errors in the response so callers still see one
-	// result per input item that could not be inserted.
-	summaries := make([]*models.MatchingEvaluationSummary, 0, len(items))
-	triggerIdx := 0
-	for _, summary := range created {
-		if summary != nil && summary.Error != nil {
-			summaries = append(summaries, summary)
-			continue
-		}
-		if triggerIdx < len(triggered) {
-			summaries = append(summaries, triggered[triggerIdx])
-			triggerIdx++
-		}
-	}
-	return summaries, nil
-}
-
 func (s *matchingService) UpdateEvaluation(
 	ctx context.Context,
 	id uuid.UUID,

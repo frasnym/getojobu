@@ -116,7 +116,11 @@ class GetojobuAPI(Protocol):
         self, items: list[dict[str, Any]]
     ) -> list[dict[str, Any]]: ...
 
-    async def trigger_bulk_analyze_compatibility(
+    async def create_evaluations(
+        self, items: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]: ...
+
+    async def trigger_evaluations(
         self, items: list[dict[str, Any]]
     ) -> list[dict[str, Any]]: ...
 
@@ -392,18 +396,26 @@ class _getojobuAPI:
             )
         return unwrapped
 
-    async def trigger_bulk_analyze_compatibility(
+    async def create_evaluations(
+        self, items: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
+        response = await self._client.post("/v1/jobs/evaluation", json=items)
+        self._check_response(response, operation="create evaluations")
+        raw = response.json()
+        unwrapped = self._unwrap_response(raw, operation="create evaluations")
+        if isinstance(unwrapped, list):
+            return cast("list[dict[str, Any]]", unwrapped)
+        return []
+
+    async def trigger_evaluations(
         self, items: list[dict[str, Any]]
     ) -> list[dict[str, Any]]:
         response = await self._client.post(
-            "/v1/jobs/bulk-analyze-compatibility",
-            json=items,
+            "/v1/matching-evaluations/bulk-generate-evaluation", json=items
         )
-        self._check_response(response, operation="trigger bulk analyze compatibility")
+        self._check_response(response, operation="trigger evaluations")
         raw = response.json()
-        unwrapped = self._unwrap_response(
-            raw, operation="trigger bulk analyze compatibility"
-        )
+        unwrapped = self._unwrap_response(raw, operation="trigger evaluations")
         if isinstance(unwrapped, list):
             return cast("list[dict[str, Any]]", unwrapped)
         return []

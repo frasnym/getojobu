@@ -177,21 +177,6 @@ func (mr *MockMatchingMockRecorder) RetryReport(ctx, id, caller any) *gomock.Cal
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RetryReport", reflect.TypeOf((*MockMatching)(nil).RetryReport), ctx, id, caller)
 }
 
-// TriggerCompatibilityBulk mocks base method.
-func (m *MockMatching) TriggerCompatibilityBulk(ctx context.Context, items []models.BulkAnalyzeCompatibilityItem, caller *models.Principal) ([]*models.MatchingEvaluationSummary, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "TriggerCompatibilityBulk", ctx, items, caller)
-	ret0, _ := ret[0].([]*models.MatchingEvaluationSummary)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// TriggerCompatibilityBulk indicates an expected call of TriggerCompatibilityBulk.
-func (mr *MockMatchingMockRecorder) TriggerCompatibilityBulk(ctx, items, caller any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TriggerCompatibilityBulk", reflect.TypeOf((*MockMatching)(nil).TriggerCompatibilityBulk), ctx, items, caller)
-}
-
 // TriggerEvaluations mocks base method.
 func (m *MockMatching) TriggerEvaluations(ctx context.Context, items []models.TriggerEvaluationItem, caller *models.Principal) ([]*models.MatchingEvaluationSummary, error) {
 	m.ctrl.T.Helper()

@@ -401,13 +401,13 @@ async def test_patch_matching_evaluation_with_provider_and_model_success():
 
 
 @pytest.mark.asyncio
-async def test_trigger_bulk_analyze_compatibility_success():
+async def test_create_evaluations_posts_to_insert_endpoint():
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.headers["authorization"] == "Bearer secret-key"
-        assert request.url.path == "/v1/jobs/bulk-analyze-compatibility"
+        assert request.url.path == "/v1/jobs/evaluation"
         assert request.method == "POST"
         payload = json.loads(request.content.decode("utf-8"))
-        assert payload == [{"slug": "test-slug", "force": False}]
+        assert payload == [{"slug": "test-slug"}]
         return httpx.Response(
             202,
             json={
@@ -416,7 +416,7 @@ async def test_trigger_bulk_analyze_compatibility_success():
                     {
                         "slug": "test-slug",
                         "id": "11111111-2222-3333-4444-555555555555",
-                        "status": "new",
+                        "evaluation_status": "new",
                     }
                 ],
                 "error": None,
@@ -426,12 +426,44 @@ async def test_trigger_bulk_analyze_compatibility_success():
     api = NewGetojobuAPI(base_url="http://testserver", api_key="secret-key")
     api._client = _mock_transport(handler)
 
-    res = await api.trigger_bulk_analyze_compatibility(
-        [{"slug": "test-slug", "force": False}]
-    )
+    res = await api.create_evaluations([{"slug": "test-slug"}])
     assert isinstance(res, list)
     assert len(res) == 1
-    assert res[0]["status"] == "new"
+    assert res[0]["evaluation_status"] == "new"
+    await api.aclose()
+
+
+@pytest.mark.asyncio
+async def test_trigger_evaluations_posts_to_trigger_endpoint():
+    eval_id = "11111111-2222-3333-4444-555555555555"
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.headers["authorization"] == "Bearer secret-key"
+        assert request.url.path == "/v1/matching-evaluations/bulk-generate-evaluation"
+        assert request.method == "POST"
+        payload = json.loads(request.content.decode("utf-8"))
+        assert payload == [{"id": eval_id}]
+        return httpx.Response(
+            202,
+            json={
+                "success": True,
+                "data": [
+                    {
+                        "id": eval_id,
+                        "evaluation_status": "queued",
+                    }
+                ],
+                "error": None,
+            },
+        )
+
+    api = NewGetojobuAPI(base_url="http://testserver", api_key="secret-key")
+    api._client = _mock_transport(handler)
+
+    res = await api.trigger_evaluations([{"id": eval_id}])
+    assert isinstance(res, list)
+    assert len(res) == 1
+    assert res[0]["evaluation_status"] == "queued"
     await api.aclose()
 
 

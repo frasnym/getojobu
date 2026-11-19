@@ -7,6 +7,7 @@ import {
   setUserJobHideStatus,
   setUserJobsHideStatus,
   triggerJobCompatibility,
+  retryReport,
   retryResumeGeneration,
 } from "@/lib/api/endpoints";
 import { StatusFilter } from "./use-jobs";
@@ -361,10 +362,17 @@ export function useUserJobs(explicitToken?: string | null) {
         return;
       }
 
-      // Report generation runs inside the match workflow, so re-run
-      // compatibility with force to queue a fresh evaluation and report.
+      // Retry just the report. A non-owner gets 403; surface it clearly and
+      // leave the local report status unchanged.
       if (target.evaluation?.report_status === "failed") {
-        await triggerJobCompatibility(target.job.slug, true, token);
+        try {
+          await retryReport(target.evaluation.id, token);
+        } catch (err) {
+          if ((err as { status?: number })?.status === 403) {
+            throw new Error("You do not have permission to retry this report.");
+          }
+          throw err;
+        }
         setUserJobs((prev) =>
           prev.map((uj) =>
             uj.id === userJobId && uj.evaluation
