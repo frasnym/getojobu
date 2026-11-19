@@ -23,14 +23,18 @@ func (s *matchingService) GetEvaluation(ctx context.Context, id uuid.UUID) (*mod
 		return nil, err
 	}
 
-	var candidate, job map[string]interface{}
+	var candidate, job, results map[string]interface{}
 	_ = json.Unmarshal(eval.CandidateProfileData, &candidate)
 	_ = json.Unmarshal(eval.JobProfileData, &job)
+	_ = json.Unmarshal(eval.EvaluationData, &results)
 	if candidate == nil {
 		candidate = map[string]interface{}{}
 	}
 	if job == nil {
 		job = map[string]interface{}{}
+	}
+	if results == nil {
+		results = map[string]interface{}{}
 	}
 
 	configBytes, _ := json.Marshal(config)
@@ -41,9 +45,14 @@ func (s *matchingService) GetEvaluation(ctx context.Context, id uuid.UUID) (*mod
 	}
 
 	return &models.GetEvaluationResponse{
-		EvaluationStatus: eval.EvaluationStatus,
-		CandidateProfile: candidate,
-		JobProfile:       job,
-		EvaluationConfig: configMap,
+		EvaluationStatus:    eval.EvaluationStatus,
+		ReportStatus:        utils.PtrStringOrEmpty(eval.ReportStatus),
+		CandidateProfile:    candidate,
+		JobProfile:          job,
+		EvaluationResults:   results,
+		EvaluationConfig:    configMap,
+		OverallScore:        utils.PtrFloatOrZero(eval.OverallScore),
+		EligibilityStatus:   utils.PtrStringOrEmpty(eval.EligibilityStatus),
+		RecommendationLabel: utils.PtrStringOrEmpty(eval.RecommendationLabel),
 	}, nil
 }

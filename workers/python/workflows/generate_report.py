@@ -13,6 +13,7 @@ from temporalio.common import RetryPolicy
 
 with workflow.unsafe.imports_passed_through():
     from deliveries.consumer.activities.report_generation import (
+        fetch_report_input_activity,
         generate_report_activity,
         update_report_status_activity,
     )
@@ -34,12 +35,6 @@ class GenerateReportWorkflow:
         Input:
             {
                 "evaluation_id": str,
-                "candidate_profile": dict,
-                "job_profile": dict,
-                "evaluation_results": dict,
-                "overall_score": float,
-                "eligibility_status": str,
-                "recommendation_label": str,
             }
         """
         raw_eval_id = input.get("evaluation_id")
@@ -47,35 +42,26 @@ class GenerateReportWorkflow:
             raise ValueError("evaluation_id is required")
         evaluation_id: str = raw_eval_id
 
-        raw_candidate = input.get("candidate_profile")
-        candidate_profile: dict[str, Any] = (
-            cast(dict[str, Any], raw_candidate)
-            if isinstance(raw_candidate, dict)
-            else {}
+        fetched: dict[str, Any] = await workflow.execute_activity(
+            fetch_report_input_activity,
+            {"evaluation_id": evaluation_id},
+            start_to_close_timeout=timedelta(seconds=30),
+            retry_policy=DEFAULT_RETRY_POLICY,
         )
+        if fetched.get("status") == "skipped":
+            return {
+                "workflow": "GenerateReportWorkflow",
+                "evaluation_id": evaluation_id,
+                "report_status": "skipped",
+                "report_error": "evaluation report is not queued",
+            }
 
-        raw_job = input.get("job_profile")
-        job_profile: dict[str, Any] = (
-            cast(dict[str, Any], raw_job)
-            if isinstance(raw_job, dict)
-            else {}
-        )
-
-        raw_eval_results = input.get("evaluation_results")
-        evaluation_results: dict[str, Any] = (
-            cast(dict[str, Any], raw_eval_results)
-            if isinstance(raw_eval_results, dict)
-            else {}
-        )
-
-        raw_score = input.get("overall_score")
-        overall_score: float = float(raw_score) if raw_score is not None else 0.0
-
-        raw_eligibility = input.get("eligibility_status")
-        eligibility_status: str = str(raw_eligibility) if raw_eligibility is not None else "eligible"
-
-        raw_rec = input.get("recommendation_label")
-        recommendation_label: str = str(raw_rec) if raw_rec is not None else "worth_applying"
+        candidate_profile = cast(dict[str, Any], fetched["candidate_profile"])
+        job_profile = cast(dict[str, Any], fetched["job_profile"])
+        evaluation_results = cast(dict[str, Any], fetched["evaluation_results"])
+        overall_score: float = float(fetched["overall_score"])
+        eligibility_status: str = str(fetched["eligibility_status"])
+        recommendation_label: str = str(fetched["recommendation_label"])
 
         # Step 1: Mark report pending
         pending_input: dict[str, Any] = {

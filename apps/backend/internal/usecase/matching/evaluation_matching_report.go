@@ -141,34 +141,9 @@ func (s *matchingService) BulkQueueGenerateReport(
 		}
 		eval = updated
 
-		// Prepare workflow input
-		var candidateMap, jobMap, evalResults map[string]interface{}
-		_ = json.Unmarshal(eval.CandidateProfileData, &candidateMap)
-		_ = json.Unmarshal(eval.JobProfileData, &jobMap)
-		_ = json.Unmarshal(eval.EvaluationData, &evalResults)
-
-		var overallScore float64
-		if eval.OverallScore != nil {
-			overallScore = *eval.OverallScore
-		}
-		var eligStatus string
-		if eval.EligibilityStatus != nil {
-			eligStatus = *eval.EligibilityStatus
-		}
-		var recLabel string
-		if eval.RecommendationLabel != nil {
-			recLabel = *eval.RecommendationLabel
-		}
-
+		// The worker reloads the stored snapshots and report fields by ID.
 		wfInput := map[string]interface{}{
-			"evaluation_id":        eval.ID.String(),
-			"candidate_profile":    candidateMap,
-			"job_profile":          jobMap,
-			"evaluation_results":   evalResults,
-			"overall_score":        overallScore,
-			"eligibility_status":   eligStatus,
-			"recommendation_label": recLabel,
-			"report_status":        queueStatus,
+			"evaluation_id": eval.ID.String(),
 		}
 
 		workflowID := fmt.Sprintf("report-gen-%s", eval.ID.String())

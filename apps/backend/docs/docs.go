@@ -2263,6 +2263,12 @@ const docTemplate = `{
                         "description": "Filter by resume status",
                         "name": "resume_status",
                         "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by cover letter status",
+                        "name": "cover_letter_status",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -3314,7 +3320,14 @@ const docTemplate = `{
                     "type": "object",
                     "additionalProperties": true
                 },
+                "eligibility_status": {
+                    "type": "string"
+                },
                 "evaluation_config": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "evaluation_results": {
                     "type": "object",
                     "additionalProperties": true
                 },
@@ -3324,6 +3337,15 @@ const docTemplate = `{
                 "job_profile": {
                     "type": "object",
                     "additionalProperties": true
+                },
+                "overall_score": {
+                    "type": "number"
+                },
+                "recommendation_label": {
+                    "type": "string"
+                },
+                "report_status": {
+                    "type": "string"
                 }
             }
         },

@@ -14,10 +14,15 @@ import (
 
 // GetEvaluationResponse is the worker-facing payload for MatchJobWorkflow.
 type GetEvaluationResponse struct {
-	EvaluationStatus string                 `json:"evaluation_status"`
-	CandidateProfile map[string]interface{} `json:"candidate_profile"`
-	JobProfile       map[string]interface{} `json:"job_profile"`
-	EvaluationConfig map[string]interface{} `json:"evaluation_config"`
+	EvaluationStatus    string                 `json:"evaluation_status"`
+	ReportStatus        string                 `json:"report_status"`
+	CandidateProfile    map[string]interface{} `json:"candidate_profile"`
+	JobProfile          map[string]interface{} `json:"job_profile"`
+	EvaluationResults   map[string]interface{} `json:"evaluation_results"`
+	EvaluationConfig    map[string]interface{} `json:"evaluation_config"`
+	OverallScore        float64                `json:"overall_score"`
+	EligibilityStatus   string                 `json:"eligibility_status"`
+	RecommendationLabel string                 `json:"recommendation_label"`
 }
 
 // CategoryEvidence links candidate evidence to job requirements.

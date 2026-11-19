@@ -548,7 +548,12 @@ definitions:
       candidate_profile:
         additionalProperties: true
         type: object
+      eligibility_status:
+        type: string
       evaluation_config:
+        additionalProperties: true
+        type: object
+      evaluation_results:
         additionalProperties: true
         type: object
       evaluation_status:
@@ -556,6 +561,12 @@ definitions:
       job_profile:
         additionalProperties: true
         type: object
+      overall_score:
+        type: number
+      recommendation_label:
+        type: string
+      report_status:
+        type: string
     type: object
   models.MandatoryRequirementAssessment:
     properties:
@@ -2306,6 +2317,10 @@ paths:
       - description: Filter by resume status
         in: query
         name: resume_status
+        type: string
+      - description: Filter by cover letter status
+        in: query
+        name: cover_letter_status
         type: string
       produces:
       - application/json

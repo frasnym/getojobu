@@ -44,6 +44,7 @@ from deliveries.consumer.activities.job_scrape import (
     scrape_scan,
 )
 from deliveries.consumer.activities.report_generation import (
+    fetch_report_input_activity,
     generate_report_activity,
     init_report_generation_container,
     update_report_status_activity,
@@ -141,6 +142,7 @@ async def run() -> int:
                 evaluate_match_activity,
                 fetch_match_input_activity,
                 update_evaluation_status_activity,
+                fetch_report_input_activity,
                 generate_report_activity,
                 update_report_status_activity,
                 generate_resume_activity,

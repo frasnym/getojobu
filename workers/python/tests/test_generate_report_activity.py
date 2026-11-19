@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from deliveries.consumer.activities.report_generation import (
+    fetch_report_input_activity,
     generate_report_activity,
     init_report_generation_container,
     update_report_status_activity,
@@ -25,7 +26,9 @@ async def test_generate_report_activity_success():
     )
 
     mock_container = MagicMock()
-    mock_container.usecase.generate_report.generate = AsyncMock(return_value=fake_report)
+    mock_container.usecase.generate_report.generate = AsyncMock(
+        return_value=fake_report
+    )
     init_report_generation_container(mock_container)
 
     res = await generate_report_activity(
@@ -130,3 +133,47 @@ async def test_update_report_status_activity_failure():
         report_data=None,
         report_failure_message="LLM timeout",
     )
+
+
+@pytest.mark.asyncio
+async def test_fetch_report_input_activity_ready():
+    mock_container = MagicMock()
+    mock_container.repository.getojobu_api.get_evaluation = AsyncMock(
+        return_value={
+            "report_status": "queued_retry",
+            "candidate_profile": {"skills": ["go"]},
+            "job_profile": {"title": "Senior Backend Engineer"},
+            "evaluation_results": {"evaluations": []},
+            "overall_score": 88.5,
+            "eligibility_status": "eligible",
+            "recommendation_label": "worth_applying",
+        }
+    )
+    init_report_generation_container(mock_container)
+
+    res = await fetch_report_input_activity({"evaluation_id": "eval-1"})
+
+    assert res["status"] == "ready"
+    assert res["overall_score"] == 88.5
+    mock_container.repository.getojobu_api.get_evaluation.assert_awaited_once_with(
+        "eval-1"
+    )
+
+
+@pytest.mark.asyncio
+async def test_fetch_report_input_activity_skips_other_statuses():
+    mock_container = MagicMock()
+    mock_container.repository.getojobu_api.get_evaluation = AsyncMock(
+        return_value={"report_status": "success"}
+    )
+    init_report_generation_container(mock_container)
+
+    res = await fetch_report_input_activity({"evaluation_id": "eval-1"})
+
+    assert res == {"status": "skipped", "report_status": "success"}
+
+
+@pytest.mark.asyncio
+async def test_fetch_report_input_activity_requires_evaluation_id():
+    with pytest.raises(ValueError, match="evaluation_id is required"):
+        await fetch_report_input_activity({})

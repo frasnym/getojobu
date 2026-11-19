@@ -19,6 +19,17 @@ async def test_generate_report_workflow_unit_success():
 
     async def fake_execute_activity(act, input_data, **kwargs):
         executed_activities.append((act.__name__, input_data))
+        if act.__name__ == "fetch_report_input_activity":
+            return {
+                "status": "ready",
+                "report_status": "queued",
+                "candidate_profile": {"skills": ["go"]},
+                "job_profile": {"title": "Senior Go Engineer"},
+                "evaluation_results": {"evaluations": []},
+                "overall_score": 92.0,
+                "eligibility_status": "eligible",
+                "recommendation_label": "strong_match",
+            }
         if act.__name__ == "generate_report_activity":
             return {
                 "summary": "Strong fit for the role.",
@@ -28,16 +39,11 @@ async def test_generate_report_workflow_unit_success():
             }
         return {"report_status": input_data.get("report_status")}
 
-    with patch("workflows.generate_report.workflow.execute_activity", side_effect=fake_execute_activity):
-        res = await wf.run({
-            "evaluation_id": "eval-unit-123",
-            "candidate_profile": {"skills": ["go"]},
-            "job_profile": {"title": "Senior Go Engineer"},
-            "evaluation_results": {"evaluations": []},
-            "overall_score": 92.0,
-            "eligibility_status": "eligible",
-            "recommendation_label": "strong_match",
-        })
+    with patch(
+        "workflows.generate_report.workflow.execute_activity",
+        side_effect=fake_execute_activity,
+    ):
+        res = await wf.run({"evaluation_id": "eval-unit-123"})
 
     assert res["workflow"] == "GenerateReportWorkflow"
     assert res["evaluation_id"] == "eval-unit-123"
@@ -45,11 +51,15 @@ async def test_generate_report_workflow_unit_success():
     assert res["report"]["summary"] == "Strong fit for the role."
     assert res["report_error"] is None
 
-    assert len(executed_activities) == 3
-    assert executed_activities[0] == ("update_report_status_activity", {"evaluation_id": "eval-unit-123", "report_status": "pending"})
-    assert executed_activities[1][0] == "generate_report_activity"
-    assert executed_activities[2][0] == "update_report_status_activity"
-    assert executed_activities[2][1]["report_status"] == "success"
+    assert len(executed_activities) == 4
+    assert executed_activities[0][0] == "fetch_report_input_activity"
+    assert executed_activities[1] == (
+        "update_report_status_activity",
+        {"evaluation_id": "eval-unit-123", "report_status": "pending"},
+    )
+    assert executed_activities[2][0] == "generate_report_activity"
+    assert executed_activities[3][0] == "update_report_status_activity"
+    assert executed_activities[3][1]["report_status"] == "success"
 
 
 @pytest.mark.asyncio
@@ -60,18 +70,26 @@ async def test_generate_report_workflow_unit_failure():
 
     async def fake_execute_activity(act, input_data, **kwargs):
         executed_activities.append((act.__name__, input_data))
+        if act.__name__ == "fetch_report_input_activity":
+            return {
+                "status": "ready",
+                "report_status": "queued_retry",
+                "candidate_profile": {"skills": ["go"]},
+                "job_profile": {"title": "Senior Go Engineer"},
+                "evaluation_results": {"evaluations": []},
+                "overall_score": 75.0,
+                "eligibility_status": "eligible",
+                "recommendation_label": "worth_applying",
+            }
         if act.__name__ == "generate_report_activity":
             raise RuntimeError("LLM rate limit reached")
         return {"report_status": input_data.get("report_status")}
 
-    with patch("workflows.generate_report.workflow.execute_activity", side_effect=fake_execute_activity):
-        res = await wf.run({
-            "evaluation_id": "eval-unit-fail",
-            "candidate_profile": {"skills": ["go"]},
-            "job_profile": {"title": "Senior Go Engineer"},
-            "evaluation_results": {},
-            "overall_score": 75.0,
-        })
+    with patch(
+        "workflows.generate_report.workflow.execute_activity",
+        side_effect=fake_execute_activity,
+    ):
+        res = await wf.run({"evaluation_id": "eval-unit-fail"})
 
     assert res["workflow"] == "GenerateReportWorkflow"
     assert res["evaluation_id"] == "eval-unit-fail"
@@ -79,12 +97,16 @@ async def test_generate_report_workflow_unit_failure():
     assert res["report"] is None
     assert "rate limit" in res["report_error"]
 
-    assert len(executed_activities) == 3
-    assert executed_activities[0] == ("update_report_status_activity", {"evaluation_id": "eval-unit-fail", "report_status": "pending"})
-    assert executed_activities[1][0] == "generate_report_activity"
-    assert executed_activities[2][0] == "update_report_status_activity"
-    assert executed_activities[2][1]["report_status"] == "failed"
-    assert "rate limit" in executed_activities[2][1]["report_failure_message"]
+    assert len(executed_activities) == 4
+    assert executed_activities[0][0] == "fetch_report_input_activity"
+    assert executed_activities[1] == (
+        "update_report_status_activity",
+        {"evaluation_id": "eval-unit-fail", "report_status": "pending"},
+    )
+    assert executed_activities[2][0] == "generate_report_activity"
+    assert executed_activities[3][0] == "update_report_status_activity"
+    assert executed_activities[3][1]["report_status"] == "failed"
+    assert "rate limit" in executed_activities[3][1]["report_failure_message"]
 
 
 @pytest.mark.asyncio
@@ -107,6 +129,19 @@ async def test_generate_report_workflow_temporal_env_success():
 
         report_status_updates = []
 
+        @activity.defn(name="fetch_report_input_activity")
+        async def fake_fetch_report_input(input: dict[str, Any]) -> dict[str, Any]:
+            return {
+                "status": "ready",
+                "report_status": "queued",
+                "candidate_profile": {"skills": ["go"]},
+                "job_profile": {"title": "Senior Go Engineer"},
+                "evaluation_results": {"evaluations": []},
+                "overall_score": 92.0,
+                "eligibility_status": "eligible",
+                "recommendation_label": "strong_match",
+            }
+
         @activity.defn(name="generate_report_activity")
         async def fake_generate_report(input: dict[str, Any]) -> dict[str, Any]:
             return {
@@ -125,19 +160,15 @@ async def test_generate_report_workflow_temporal_env_success():
             env.client,
             task_queue=task_queue,
             workflows=[GenerateReportWorkflow],
-            activities=[fake_generate_report, fake_update_report_status],
+            activities=[
+                fake_fetch_report_input,
+                fake_generate_report,
+                fake_update_report_status,
+            ],
         ):
             handle = await env.client.start_workflow(
                 GenerateReportWorkflow.run,
-                {
-                    "evaluation_id": "eval-gen-123",
-                    "candidate_profile": {"skills": ["go"]},
-                    "job_profile": {"title": "Senior Go Engineer"},
-                    "evaluation_results": {"evaluations": []},
-                    "overall_score": 92.0,
-                    "eligibility_status": "eligible",
-                    "recommendation_label": "strong_match",
-                },
+                {"evaluation_id": "eval-gen-123"},
                 id="test-gen-report-wf-1",
                 task_queue=task_queue,
             )
