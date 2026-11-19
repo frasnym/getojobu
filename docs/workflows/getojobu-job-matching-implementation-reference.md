@@ -427,6 +427,8 @@ For each requirement, preserve the original wording and provide:
 - An importance level.
 - A short source excerpt.
 
+For `source_excerpt`, use a short distinguishing phrase of at most 15 words from the JD. Do not copy the entire requirement wording.
+
 Use these importance levels:
 - required: clearly mandatory.
 - preferred: explicitly desirable but not mandatory.
