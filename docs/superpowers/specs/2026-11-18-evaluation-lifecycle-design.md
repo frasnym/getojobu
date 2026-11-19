@@ -51,7 +51,7 @@ This design splits the call into an insert step and a trigger step, adds an expl
 - A `queued` row with no workflow started.
 - Two evaluation rows for the same user/job.
 - A `success` row flipped back to a retryable state.
-- A machine caller retrying an evaluation belonging to another tenant by supplying an ID.
+- A Clerk caller retrying another tenant's evaluation by ID. Machine API keys are trusted callers; scoping them per tenant is out of scope for this design and recorded as an accepted risk in §11.
 - Losing report/resume/cover-letter artifacts when a failed evaluation is retried.
 
 ## 7. Constraints from the repository
