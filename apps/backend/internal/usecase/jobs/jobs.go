@@ -5,6 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
+
+	"github.com/google/uuid"
 
 	"github.com/frasnym/getojobu/apps/backend/internal/contract/repository"
 	"github.com/frasnym/getojobu/apps/backend/internal/models"
@@ -23,13 +26,17 @@ type Job interface {
 	// analyzeResult and failureMessage are optional (nil = keep existing value).
 	// Returns ErrNotFound when slug is unknown, ErrInvalidTransition when the
 	// current → next transition is not permitted.
-	UpdateStatus(ctx context.Context, slug, status string, analyzeResult, failureMessage *string, updatedByType, updatedByID string) (*models.Job, error)
+	UpdateStatus(ctx context.Context, params models.UpdateJobParams) (*models.Job, error)
 	// QueueAnalysisBulk validates each job and queues its JobAnalyzeWorkflow in Temporal.
 	// Per-item failures are returned in the result instead of aborting the batch.
 	QueueAnalysisBulk(ctx context.Context, items []models.QueueAnalysisItem, caller *models.Principal) (models.QueueAnalysisBulkResult, error)
 	// StartJobScrape starts JobScrapeWorkflows in Temporal for the normalized
 	// search targets derived from user preferences, returning the workflow ids.
 	StartJobScrape(ctx context.Context, params models.ScrapeJobsParams) ([]string, error)
+	// CreateManual inserts a private job owned by the calling user.
+	CreateManual(ctx context.Context, userID string, params models.CreateManualJobParams) (*models.CreateJobResult, error)
+	// ScrapeURL creates a scrape_pending skeleton job and dispatches the URL scrape workflow.
+	ScrapeURL(ctx context.Context, userID string, params models.ScrapeURLParams) (*models.CreateJobResult, error)
 }
 
 type jobService struct {
@@ -83,6 +90,106 @@ func (s *jobService) Create(ctx context.Context, params models.CreateJobParams) 
 	}
 	if err := s.tx.Transact(ctx, operation); err != nil {
 		return nil, fmt.Errorf("create job: %w", err)
+	}
+	return result, nil
+}
+
+// CreateManual inserts a private job owned by the calling user and links it to
+// them. The slug is prefixed with the user's first eight UUID characters so
+// manual jobs cannot collide with scraped listings or with other users.
+func (s *jobService) CreateManual(ctx context.Context, userID string, params models.CreateManualJobParams) (*models.CreateJobResult, error) {
+	if strings.TrimSpace(params.Title) == "" {
+		return nil, fmt.Errorf("title is required")
+	}
+	if strings.TrimSpace(params.Company) == "" {
+		return nil, fmt.Errorf("company is required")
+	}
+	if strings.TrimSpace(params.Location) == "" {
+		return nil, fmt.Errorf("location is required")
+	}
+
+	ownerID, err := uuid.Parse(userID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid user id: %w", err)
+	}
+
+	return s.Create(ctx, models.CreateJobParams{
+		Slug:           models.BuildManualJobSlug(userID, params.Title, params.Company, params.Location),
+		Source:         "manual",
+		OwnerID:        &ownerID,
+		SourceURL:      params.SourceURL,
+		ApplyURL:       params.ApplyURL,
+		Title:          params.Title,
+		Company:        params.Company,
+		Location:       params.Location,
+		Description:    params.Description,
+		PostedDate:     params.PostedDate,
+		IsRemote:       params.IsRemote,
+		VisaRelocation: params.VisaRelocation,
+		UpdatedByType:  "user",
+		UpdatedByID:    userID,
+		UserIDs:        []string{userID},
+	})
+}
+
+// ScrapeURL creates a skeleton job at scrape_new and queues the scrape
+// workflow. The worker sets scrape_pending. If the workflow cannot be started,
+// the job is marked scrape_failed so the user can retry.
+func (s *jobService) ScrapeURL(ctx context.Context, userID string, params models.ScrapeURLParams) (*models.CreateJobResult, error) {
+	if strings.TrimSpace(params.SourceURL) == "" {
+		return nil, fmt.Errorf("source_url is required")
+	}
+
+	ownerID, err := uuid.Parse(userID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid user id: %w", err)
+	}
+
+	slugPrefix := userID
+	if len(userID) >= 8 {
+		slugPrefix = userID[:8]
+	}
+	slug := fmt.Sprintf("m-%s-scrape-%d", slugPrefix, time.Now().UnixNano())
+
+	// The API only creates the skeleton and queues work. The worker moves it
+	// from scrape_new to scrape_pending when it starts the URL fetch.
+	result, err := s.Create(ctx, models.CreateJobParams{
+		Slug:          slug,
+		Source:        "user_scrape",
+		Status:        string(constants.StatusScrapeNew),
+		OwnerID:       &ownerID,
+		SourceURL:     &params.SourceURL,
+		Title:         "Pending scrape",
+		Company:       "unknown",
+		Location:      "unknown",
+		UpdatedByType: "user",
+		UpdatedByID:   userID,
+		UserIDs:       []string{userID},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("create scrape job: %w", err)
+	}
+
+	_, err = s.workflows.StartUserJobScrape(ctx, models.UserJobScrapeWorkflowInput{
+		JobID:     result.Job.ID,
+		Slug:      result.Job.Slug,
+		SourceURL: params.SourceURL,
+		UserID:    userID,
+		OwnerID:   userID,
+	})
+	if err != nil {
+		message := fmt.Sprintf("scrape dispatch failed: %v", err)
+		if _, updateErr := s.UpdateStatus(ctx, models.UpdateJobParams{
+			Slug:           result.Job.Slug,
+			Status:         string(constants.StatusScrapeFailed),
+			FailureMessage: &message,
+			UpdatedByType:  "user",
+			UpdatedByID:    userID,
+		}); updateErr != nil {
+			return nil, fmt.Errorf("mark scrape failed after dispatch error: %w", updateErr)
+		}
+		result.Job.Status = string(constants.StatusScrapeFailed)
+		result.Job.FailureMessage = &message
 	}
 	return result, nil
 }
@@ -184,8 +291,8 @@ func (s *jobService) List(ctx context.Context, limit, offset int, userID string)
 // in the handler or the repository. Returns ErrNotFound when slug is unknown
 // and ErrInvalidTransition (wrapping the validator's error) when the transition
 // is not permitted.
-func (s *jobService) UpdateStatus(ctx context.Context, slug, status string, analyzeResult, failureMessage *string, updatedByType, updatedByID string) (*models.Job, error) {
-	existingRes, err := s.repo.GetBySlug(ctx, slug, "")
+func (s *jobService) UpdateStatus(ctx context.Context, params models.UpdateJobParams) (*models.Job, error) {
+	existingRes, err := s.repo.GetBySlug(ctx, params.Slug, "")
 	if err != nil {
 		if errors.Is(err, constants.ErrNotFound) {
 			return nil, constants.ErrNotFound
@@ -196,20 +303,35 @@ func (s *jobService) UpdateStatus(ctx context.Context, slug, status string, anal
 
 	if err := constants.ValidateJobStatusTransition(
 		constants.JobStatus(existing.Status),
-		constants.JobStatus(status),
+		constants.JobStatus(params.Status),
 	); err != nil {
 		return nil, fmt.Errorf("%w: %s", constants.ErrInvalidTransition, err.Error())
 	}
 
-	if constants.JobStatus(status) == constants.StatusFailed && failureMessage != nil && existing.FailureMessage != nil && strings.TrimSpace(*existing.FailureMessage) != "" {
-		combined := fmt.Sprintf("%s\n%s", *existing.FailureMessage, *failureMessage)
+	if constants.JobStatus(params.Status) == constants.StatusFailed && params.FailureMessage != nil && existing.FailureMessage != nil && strings.TrimSpace(*existing.FailureMessage) != "" {
+		combined := fmt.Sprintf("%s\n%s", *existing.FailureMessage, *params.FailureMessage)
 		if len(combined) > 4000 {
 			combined = combined[len(combined)-4000:]
 		}
-		failureMessage = &combined
+		params.FailureMessage = &combined
 	}
 
-	job, err := s.repo.UpdateStatus(ctx, slug, status, analyzeResult, failureMessage, updatedByType, updatedByID)
+	// Extended fields are meaningful only for the scrape callback. For every
+	// other transition they are cleared so existing rows are left untouched.
+	if constants.JobStatus(existing.Status) != constants.StatusScrapePending {
+		params.NewSlug = nil
+		params.Title = nil
+		params.Company = nil
+		params.Location = nil
+		params.Description = nil
+		params.SourceURL = nil
+		params.ApplyURL = nil
+		params.PostedDate = nil
+		params.IsRemote = nil
+		params.VisaRelocation = nil
+	}
+
+	job, err := s.repo.UpdateStatus(ctx, params)
 	if err != nil {
 		if errors.Is(err, constants.ErrNotFound) {
 			return nil, constants.ErrNotFound

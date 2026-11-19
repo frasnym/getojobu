@@ -4,12 +4,13 @@ package models
 type LimiterJobType string
 
 const (
-	LimiterJobTypeScrape      LimiterJobType = "scrape"
-	LimiterJobTypeAnalyze     LimiterJobType = "analyze"
-	LimiterJobTypeMatch       LimiterJobType = "match"
-	LimiterJobTypeReport      LimiterJobType = "report"
-	LimiterJobTypeResume      LimiterJobType = "resume"
-	LimiterJobTypeCoverLetter LimiterJobType = "cover_letter"
+	LimiterJobTypeScrape        LimiterJobType = "scrape"
+	LimiterJobTypeAnalyze       LimiterJobType = "analyze"
+	LimiterJobTypeMatch         LimiterJobType = "match"
+	LimiterJobTypeReport        LimiterJobType = "report"
+	LimiterJobTypeResume        LimiterJobType = "resume"
+	LimiterJobTypeCoverLetter   LimiterJobType = "cover_letter"
+	LimiterJobTypeUserJobScrape LimiterJobType = "user_job_scrape"
 )
 
 // LimiterWorkItem represents a work item enqueued into ConcurrencyLimiter.

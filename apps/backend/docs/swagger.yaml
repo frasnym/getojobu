@@ -51,6 +51,8 @@ definitions:
         type: string
       slug:
         type: string
+      source:
+        type: string
       source_url:
         type: string
       status:
@@ -305,14 +307,60 @@ definitions:
       visa_relocation:
         type: boolean
     type: object
+  jobs.createManualJobRequest:
+    properties:
+      apply_url:
+        type: string
+      company:
+        type: string
+      description:
+        type: string
+      is_remote:
+        type: boolean
+      location:
+        type: string
+      posted_date:
+        type: string
+      source_url:
+        type: string
+      title:
+        type: string
+      visa_relocation:
+        type: boolean
+    type: object
+  jobs.scrapeURLRequest:
+    properties:
+      source_url:
+        type: string
+    type: object
   jobs.updateJobRequest:
     properties:
       analyze_result:
         type: string
+      apply_url:
+        type: string
+      company:
+        type: string
+      description:
+        type: string
       failure_message:
+        type: string
+      is_remote:
+        type: boolean
+      location:
+        type: string
+      posted_date:
+        type: string
+      slug:
+        type: string
+      source_url:
         type: string
       status:
         type: string
+      title:
+        type: string
+      visa_relocation:
+        type: boolean
     type: object
   matching.bulkGenerateCoverLetterItemRequest:
     properties:
@@ -1183,6 +1231,39 @@ paths:
       summary: Bulk queue job analysis
       tags:
       - jobs
+  /v1/jobs/manual:
+    post:
+      consumes:
+      - application/json
+      description: Create a private job from user-supplied fields. Only the owning
+        Clerk user can see it.
+      parameters:
+      - description: Manual job data
+        in: body
+        name: job
+        required: true
+        schema:
+          $ref: '#/definitions/jobs.createManualJobRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dto.CreateJobResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpx.Error'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpx.Error'
+      security:
+      - ApiKeyAuth: []
+      summary: Create manual job
+      tags:
+      - jobs
   /v1/jobs/scrape:
     post:
       consumes:
@@ -1213,6 +1294,39 @@ paths:
       security:
       - ApiKeyAuth: []
       summary: Queue a job scrape scan
+      tags:
+      - jobs
+  /v1/jobs/scrape-url:
+    post:
+      consumes:
+      - application/json
+      description: Create a private job from a URL. The job starts at scrape_pending
+        and is filled in by the scrape workflow.
+      parameters:
+      - description: Job URL
+        in: body
+        name: job
+        required: true
+        schema:
+          $ref: '#/definitions/jobs.scrapeURLRequest'
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            $ref: '#/definitions/dto.CreateJobResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpx.Error'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpx.Error'
+      security:
+      - ApiKeyAuth: []
+      summary: Scrape job from URL
       tags:
       - jobs
   /v1/maintenance/retry-failed-jobs:

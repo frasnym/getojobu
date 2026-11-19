@@ -53,6 +53,14 @@ from deliveries.consumer.activities.resume_generation import (
     update_resume_status_activity,
     upload_resume_activity,
 )
+from deliveries.consumer.activities.user_job_scrape import (
+    fetch_and_extract_job,
+    init_user_job_scrape_container,
+    mark_scrape_failed,
+    mark_scrape_pending,
+    queue_scraped_job_analysis,
+    update_scraped_job,
+)
 from utils.logging import BUILD_VERSION, configure, get_logger
 from utils.telemetry import setup_otel
 from utils.temporal import connect as temporal_connect
@@ -63,6 +71,7 @@ from workflows.generate_resume import GenerateResumeWorkflow
 from workflows.job_analyze import JobAnalyzeWorkflow
 from workflows.job_scrape import JobScrapeWorkflow
 from workflows.match_job import MatchJobWorkflow
+from workflows.user_job_scrape import UserJobScrapeWorkflow
 
 logger = get_logger("worker.main")
 
@@ -112,6 +121,7 @@ async def run() -> int:
     init_report_generation_container(contract)
     init_resume_generation_container(contract)
     init_job_scrape_container(contract)
+    init_user_job_scrape_container(contract)
 
     activity_executor = ThreadPoolExecutor(max_workers=10)
 
@@ -152,8 +162,18 @@ async def run() -> int:
         job_scrape_worker = Worker(
             temporal_client.client,
             task_queue=cfg.temporal.task_queue_job_scrape,
-            activities=[scrape_scan, enrich_jobs, ingest_jobs, queue_analysis],
-            workflows=[JobScrapeWorkflow],
+            activities=[
+                scrape_scan,
+                enrich_jobs,
+                ingest_jobs,
+                queue_analysis,
+                fetch_and_extract_job,
+                update_scraped_job,
+                queue_scraped_job_analysis,
+                mark_scrape_failed,
+                mark_scrape_pending,
+            ],
+            workflows=[JobScrapeWorkflow, UserJobScrapeWorkflow],
             activity_executor=activity_executor,
             graceful_shutdown_timeout=graceful_timeout,
             build_id=BUILD_VERSION,

@@ -21,6 +21,7 @@ type JobResponse struct {
 	Status         string          `json:"status"`
 	AnalyzeResult  json.RawMessage `json:"analyze_result,omitempty" swaggertype:"object"`
 	FailureMessage *string         `json:"failure_message,omitempty"`
+	Source         string          `json:"source"`
 	ExternalID     *string         `json:"external_id,omitempty"`
 	SourceURL      *string         `json:"source_url,omitempty"`
 	ApplyURL       *string         `json:"apply_url,omitempty"`
@@ -61,6 +62,7 @@ func NewJobResponse(job *models.Job, isOwned *bool) JobResponse {
 		Status:         job.Status,
 		AnalyzeResult:  utils.StripJSONKeys(job.AnalyzeResult, "metadata"),
 		FailureMessage: job.FailureMessage,
+		Source:         job.Source,
 		ExternalID:     job.ExternalID,
 		SourceURL:      job.SourceURL,
 		ApplyURL:       job.ApplyURL,

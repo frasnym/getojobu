@@ -92,6 +92,7 @@ def test_queue_status_query(limiter):
         "report": 2,
         "resume": 2,
         "cover_letter": 2,
+        "user_job_scrape": 2,
     }
 
 
@@ -180,6 +181,14 @@ def test_report_capacity_2(limiter):
     assert len(limiter.active) == 2
     assert len(limiter.queue) == 1
     assert limiter.queue[0].item_id == "rep-3"
+
+
+def test_user_job_scrape_mappings():
+    from workflows.concurrency_limiter import LIMITS, QUEUE_BY_TYPE, WORKFLOW_BY_TYPE
+
+    assert LIMITS["user_job_scrape"] == 2
+    assert QUEUE_BY_TYPE["user_job_scrape"] == "job-scrape"
+    assert WORKFLOW_BY_TYPE["user_job_scrape"] == "UserJobScrapeWorkflow"
 
 
 def test_report_mappings():

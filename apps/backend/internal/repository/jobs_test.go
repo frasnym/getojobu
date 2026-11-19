@@ -9,6 +9,7 @@ import (
 	"github.com/frasnym/getojobu/apps/backend/internal/models"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/constants"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/database"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -224,6 +225,97 @@ func TestList_isOwned_flag(t *testing.T) {
 	}
 }
 
+func TestJobs_owner_visibility(t *testing.T) {
+	db := testJobDB(t)
+	repo := NewJobsRepository(database.NewPG(db))
+	ctx := context.Background()
+
+	userA := uuid.NewString()
+	userB := uuid.NewString()
+	for i, id := range []string{userA, userB} {
+		_, err := db.Exec(ctx,
+			"INSERT INTO users (id, clerk_user_id, email, full_name, role) VALUES ($1, $2, $3, $4, 'user')",
+			id, "clerk_vis_"+id[:8], "vis"+string(rune('a'+i))+"@test.com", "Visibility Test")
+		require.NoError(t, err)
+	}
+
+	sharedSlug := "visibility-shared-" + uuid.NewString()[:8]
+	privateASlug := "m-" + userA[:8] + "-visibility-private-" + uuid.NewString()[:8]
+	privateBSlug := "m-" + userB[:8] + "-visibility-private-" + uuid.NewString()[:8]
+	t.Cleanup(func() {
+		_, _ = db.Exec(ctx, "DELETE FROM jobs WHERE slug = ANY($1)", []string{sharedSlug, privateASlug, privateBSlug})
+		_, _ = db.Exec(ctx, "DELETE FROM users WHERE id = ANY($1)", []string{userA, userB})
+	})
+
+	ownerA, err := uuid.Parse(userA)
+	require.NoError(t, err)
+	ownerB, err := uuid.Parse(userB)
+	require.NoError(t, err)
+
+	for _, tc := range []struct {
+		slug  string
+		owner *uuid.UUID
+	}{
+		{sharedSlug, nil},
+		{privateASlug, &ownerA},
+		{privateBSlug, &ownerB},
+	} {
+		_, err := repo.Create(ctx, models.CreateJobParams{
+			Slug:          tc.slug,
+			Source:        "manual",
+			Title:         "Visibility Test",
+			Company:       "Acme",
+			Location:      "Berlin",
+			OwnerID:       tc.owner,
+			UpdatedByType: "user",
+			UpdatedByID:   userA,
+		})
+		require.NoError(t, err)
+	}
+
+	got, err := repo.GetBySlug(ctx, privateASlug, userA)
+	require.NoError(t, err)
+	assert.Equal(t, privateASlug, got.Job.Slug)
+
+	_, err = repo.GetBySlug(ctx, privateASlug, userB)
+	assert.ErrorIs(t, err, constants.ErrNotFound)
+
+	got, err = repo.GetBySlug(ctx, privateASlug, "")
+	require.NoError(t, err)
+	assert.Equal(t, privateASlug, got.Job.Slug)
+
+	got, err = repo.GetBySlug(ctx, sharedSlug, userB)
+	require.NoError(t, err)
+	assert.Equal(t, sharedSlug, got.Job.Slug)
+
+	for _, tc := range []struct {
+		name       string
+		userID     string
+		wantSlugs  []string
+		rejectSlug string
+	}{
+		{"user A", userA, []string{sharedSlug, privateASlug}, privateBSlug},
+		{"user B", userB, []string{sharedSlug, privateBSlug}, privateASlug},
+		{"machine caller", "", []string{sharedSlug, privateASlug, privateBSlug}, ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			jobs, total, err := repo.List(ctx, 1000, 0, tc.userID)
+			require.NoError(t, err)
+			assert.GreaterOrEqual(t, total, len(tc.wantSlugs))
+			slugs := make(map[string]bool, len(jobs))
+			for _, j := range jobs {
+				slugs[j.Job.Slug] = true
+			}
+			for _, want := range tc.wantSlugs {
+				assert.True(t, slugs[want], "expected %q in list", want)
+			}
+			if tc.rejectSlug != "" {
+				assert.False(t, slugs[tc.rejectSlug], "unexpected %q in list", tc.rejectSlug)
+			}
+		})
+	}
+}
+
 func TestUpdateStatus_success(t *testing.T) {
 	db := testJobDB(t)
 	repo := NewJobsRepository(database.NewPG(db))
@@ -241,7 +333,7 @@ func TestUpdateStatus_success(t *testing.T) {
 	require.NoError(t, err)
 
 	resultJSON := `{"skills":["Go"]}`
-	got, err := repo.UpdateStatus(context.Background(), slug, "analyzed", &resultJSON, nil, "worker", "getojobu-worker")
+	got, err := repo.UpdateStatus(context.Background(), models.UpdateJobParams{Slug: slug, Status: "analyzed", AnalyzeResult: &resultJSON, FailureMessage: nil, UpdatedByType: "worker", UpdatedByID: "getojobu-worker"})
 	require.NoError(t, err)
 	assert.Equal(t, slug, got.Slug)
 	assert.Equal(t, "analyzed", got.Status)
@@ -249,11 +341,36 @@ func TestUpdateStatus_success(t *testing.T) {
 	assert.Equal(t, resultJSON, string(got.AnalyzeResult))
 }
 
+func TestUpdateStatus_scrape_fields(t *testing.T) {
+	db := testJobDB(t)
+	repo := NewJobsRepository(database.NewPG(db))
+	ctx := context.Background()
+
+	slug := "m-abcdef12-scrape-" + uuid.NewString()[:8]
+	newSlug := "m-abcdef12-senior-engineer-acme-berlin-" + uuid.NewString()[:8]
+	title := "Senior Engineer"
+	_, err := repo.Create(ctx, models.CreateJobParams{
+		Slug: slug, Source: "user_scrape", Status: "scrape_pending",
+		Title: "Pending scrape", Company: "unknown", Location: "unknown",
+		UpdatedByType: "user", UpdatedByID: "abcdef12-3456-7890-abcd-ef1234567890",
+	})
+	require.NoError(t, err)
+	t.Cleanup(func() { _, _ = db.Exec(ctx, "DELETE FROM jobs WHERE slug = ANY($1)", []string{slug, newSlug}) })
+
+	got, err := repo.UpdateStatus(ctx, models.UpdateJobParams{
+		Slug: slug, Status: "new", NewSlug: &newSlug, Title: &title,
+		UpdatedByType: "worker", UpdatedByID: "scrape",
+	})
+	require.NoError(t, err)
+	assert.Equal(t, newSlug, got.Slug)
+	assert.Equal(t, title, got.Title)
+}
+
 func TestUpdateStatus_not_found(t *testing.T) {
 	db := testJobDB(t)
 	repo := NewJobsRepository(database.NewPG(db))
 
-	_, err := repo.UpdateStatus(context.Background(), "non-existent-slug", "analyze_pending", nil, nil, "worker", "getojobu-worker")
+	_, err := repo.UpdateStatus(context.Background(), models.UpdateJobParams{Slug: "non-existent-slug", Status: "analyze_pending", AnalyzeResult: nil, FailureMessage: nil, UpdatedByType: "worker", UpdatedByID: "getojobu-worker"})
 	require.Error(t, err)
 	assert.True(t, errors.Is(err, constants.ErrNotFound))
 }

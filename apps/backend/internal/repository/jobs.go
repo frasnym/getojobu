@@ -32,7 +32,7 @@ type Jobs interface {
 	// UpdateStatus transitions the job to a new status and optionally persists
 	// analyzeResult (JSONB) and/or failureMessage. Returns constants.ErrNotFound
 	// when no row with the given slug exists.
-	UpdateStatus(ctx context.Context, slug, status string, analyzeResult, failureMessage *string, updatedByType, updatedByID string) (*models.Job, error)
+	UpdateStatus(ctx context.Context, params models.UpdateJobParams) (*models.Job, error)
 }
 
 type jobsRepository struct {
@@ -59,26 +59,28 @@ func (r *jobsRepository) Create(ctx context.Context, params models.CreateJobPara
 
 	query := `
 		INSERT INTO jobs (
-			slug, source, external_id, source_url, apply_url,
+			slug, status, source, external_id, source_url, apply_url,
 			title, company, location, description, posted_date,
 			is_remote, visa_relocation,
-			updated_by_type, updated_by_id
+			updated_by_type, updated_by_id, owner_id
 		) VALUES (
-			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14
+			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+			$11, $12, $13, $14, $15, $16
 		)
 		ON CONFLICT (slug) DO NOTHING
 		RETURNING id, slug, status, analyze_result, failure_message,
 			source, external_id, source_url, apply_url,
 			title, company, location, description, posted_date,
 			is_remote, visa_relocation,
-			created_at, updated_at, updated_by_type, updated_by_id
+			created_at, updated_at, updated_by_type, updated_by_id, owner_id
 	`
 	row := tx.QueryRow(ctx, query,
-		params.Slug, params.Source, params.ExternalID, params.SourceURL, params.ApplyURL,
+		params.Slug, statusOrNew(params.Status),
+		params.Source, params.ExternalID, params.SourceURL, params.ApplyURL,
 		params.Title, params.Company, params.Location, params.Description,
 		utils.TimeOrNil(params.PostedDate),
 		params.IsRemote, params.VisaRelocation,
-		ut, uid,
+		ut, uid, params.OwnerID,
 	)
 
 	job, err := scanJob(row)
@@ -106,7 +108,7 @@ func (r *jobsRepository) GetBySlug(ctx context.Context, slug string, userID stri
 				source, external_id, source_url, apply_url,
 				title, company, location, description, posted_date,
 				is_remote, visa_relocation,
-				created_at, updated_at, updated_by_type, updated_by_id
+				created_at, updated_at, updated_by_type, updated_by_id, owner_id
 			FROM jobs
 			WHERE slug = $1
 		`
@@ -125,11 +127,11 @@ func (r *jobsRepository) GetBySlug(ctx context.Context, slug string, userID stri
 			j.source, j.external_id, j.source_url, j.apply_url,
 			j.title, j.company, j.location, j.description, j.posted_date,
 			j.is_remote, j.visa_relocation,
-			j.created_at, j.updated_at, j.updated_by_type, j.updated_by_id,
+			j.created_at, j.updated_at, j.updated_by_type, j.updated_by_id, j.owner_id,
 			uj.id AS user_job_id
 		FROM jobs j
 		LEFT JOIN user_jobs uj ON j.id = uj.job_id AND uj.user_id = $2
-		WHERE j.slug = $1
+		WHERE j.slug = $1 AND (j.owner_id IS NULL OR j.owner_id = $2)
 	`
 	row := r.QueryRow(ctx, query, slug, userID)
 
@@ -149,7 +151,7 @@ func (r *jobsRepository) getBySlug(ctx context.Context, tx pgx.Tx, slug string) 
 			source, external_id, source_url, apply_url,
 			title, company, location, description, posted_date,
 			is_remote, visa_relocation,
-			created_at, updated_at, updated_by_type, updated_by_id
+			created_at, updated_at, updated_by_type, updated_by_id, owner_id
 		FROM jobs
 		WHERE slug = $1
 	`
@@ -201,34 +203,36 @@ func (r *jobsRepository) BulkCreate(ctx context.Context, params models.BulkCreat
 
 		for i, j := range chunk {
 			ut, uid := actorTypeID(j.UpdatedByType, j.UpdatedByID)
-			offset := i * 14
+			offset := i * 16
 			valuesPlaceholders = append(valuesPlaceholders, fmt.Sprintf(
-				"($%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d)",
+				"($%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d)",
 				offset+1, offset+2, offset+3, offset+4, offset+5, offset+6, offset+7,
-				offset+8, offset+9, offset+10, offset+11, offset+12, offset+13, offset+14,
+				offset+8, offset+9, offset+10, offset+11, offset+12, offset+13,
+				offset+14, offset+15, offset+16,
 			))
 			args = append(args,
-				j.Slug, j.Source, j.ExternalID, j.SourceURL, j.ApplyURL,
+				j.Slug, statusOrNew(j.Status),
+				j.Source, j.ExternalID, j.SourceURL, j.ApplyURL,
 				j.Title, j.Company, j.Location, j.Description,
 				utils.TimeOrNil(j.PostedDate),
 				j.IsRemote, j.VisaRelocation,
-				ut, uid,
+				ut, uid, j.OwnerID,
 			)
 		}
 
 		insertQuery := fmt.Sprintf(`
 			INSERT INTO jobs (
-				slug, source, external_id, source_url, apply_url,
+				slug, status, source, external_id, source_url, apply_url,
 				title, company, location, description, posted_date,
 				is_remote, visa_relocation,
-				updated_by_type, updated_by_id
+				updated_by_type, updated_by_id, owner_id
 			) VALUES %s
 			ON CONFLICT (slug) DO NOTHING
 			RETURNING id, slug, status, analyze_result, failure_message,
 				source, external_id, source_url, apply_url,
 				title, company, location, description, posted_date,
 				is_remote, visa_relocation,
-				created_at, updated_at, updated_by_type, updated_by_id
+				created_at, updated_at, updated_by_type, updated_by_id, owner_id
 		`, strings.Join(valuesPlaceholders, ", "))
 
 		rows, err := tx.Query(ctx, insertQuery, args...)
@@ -261,7 +265,7 @@ func (r *jobsRepository) BulkCreate(ctx context.Context, params models.BulkCreat
 					source, external_id, source_url, apply_url,
 					title, company, location, description, posted_date,
 					is_remote, visa_relocation,
-					created_at, updated_at, updated_by_type, updated_by_id
+					created_at, updated_at, updated_by_type, updated_by_id, owner_id
 				FROM jobs
 				WHERE slug = ANY($1)
 			`
@@ -302,33 +306,36 @@ func (r *jobsRepository) BulkCreate(ctx context.Context, params models.BulkCreat
 // caller's link for each job. When it is empty (machine callers with no user
 // context), no join is performed and every row is returned with IsOwned=false.
 func (r *jobsRepository) List(ctx context.Context, limit, offset int, userID string) (jobs []*models.JobWithOwnership, total int, err error) {
-	if err := r.QueryRow(ctx, `SELECT COUNT(*) FROM jobs`).Scan(&total); err != nil {
-		return nil, 0, fmt.Errorf("count jobs: %w", err)
-	}
-
 	var query string
 	var args []any
 	if userID != "" {
+		if err := r.QueryRow(ctx, `SELECT COUNT(*) FROM jobs WHERE owner_id IS NULL OR owner_id = $1`, userID).Scan(&total); err != nil {
+			return nil, 0, fmt.Errorf("count jobs: %w", err)
+		}
 		query = `
 			SELECT j.id, j.slug, j.status, j.analyze_result, j.failure_message,
 				j.source, j.external_id, j.source_url, j.apply_url,
 				j.title, j.company, j.location, j.description, j.posted_date,
 				j.is_remote, j.visa_relocation,
-				j.created_at, j.updated_at, j.updated_by_type, j.updated_by_id,
+				j.created_at, j.updated_at, j.updated_by_type, j.updated_by_id, j.owner_id,
 				uj.id AS user_job_id
 			FROM jobs j
 			LEFT JOIN user_jobs uj ON j.id = uj.job_id AND uj.user_id = $1
+			WHERE j.owner_id IS NULL OR j.owner_id = $1
 			ORDER BY j.created_at DESC
 			LIMIT $2 OFFSET $3
 		`
 		args = []any{userID, limit, offset}
 	} else {
+		if err := r.QueryRow(ctx, `SELECT COUNT(*) FROM jobs`).Scan(&total); err != nil {
+			return nil, 0, fmt.Errorf("count jobs: %w", err)
+		}
 		query = `
 			SELECT id, slug, status, analyze_result, failure_message,
 				source, external_id, source_url, apply_url,
 				title, company, location, description, posted_date,
 				is_remote, visa_relocation,
-				created_at, updated_at, updated_by_type, updated_by_id,
+				created_at, updated_at, updated_by_type, updated_by_id, owner_id,
 				NULL::uuid AS user_job_id
 			FROM jobs
 			ORDER BY created_at DESC
@@ -362,6 +369,7 @@ func scanJobWithOwnership(row pgx.Row) (*models.JobWithOwnership, error) {
 		isRemote       sql.NullBool
 		visaRelocation sql.NullBool
 		userJobID      *uuid.UUID
+		ownerID        *uuid.UUID
 	)
 
 	err := row.Scan(
@@ -369,9 +377,12 @@ func scanJobWithOwnership(row pgx.Row) (*models.JobWithOwnership, error) {
 		&j.Source, &externalID, &sourceURL, &applyURL,
 		&j.Title, &j.Company, &j.Location, &description,
 		&postedDate, &isRemote, &visaRelocation,
-		&j.CreatedAt, &j.UpdatedAt, &j.UpdatedByType, &j.UpdatedByID,
+		&j.CreatedAt, &j.UpdatedAt, &j.UpdatedByType, &j.UpdatedByID, &ownerID,
 		&userJobID,
 	)
+	if err == nil {
+		j.OwnerID = ownerID
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -413,14 +424,14 @@ func scanJobsWithOwnership(rows pgx.Rows) ([]*models.JobWithOwnership, error) {
 // never restricts on status, so any status can be set by the usecase after it
 // validates the transition. Returns constants.ErrNotFound when the slug does
 // not exist.
-func (r *jobsRepository) UpdateStatus(ctx context.Context, slug, status string, analyzeResult, failureMessage *string, updatedByType, updatedByID string) (job *models.Job, err error) {
+func (r *jobsRepository) UpdateStatus(ctx context.Context, params models.UpdateJobParams) (job *models.Job, err error) {
 	tx, err := r.StartTrx(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("update status start trx: %w", err)
 	}
 	defer r.Committer(ctx, tx, &err)
 
-	ut, uid := actorTypeID(updatedByType, updatedByID)
+	ut, uid := actorTypeID(params.UpdatedByType, params.UpdatedByID)
 
 	query := `
 		UPDATE jobs
@@ -430,15 +441,34 @@ func (r *jobsRepository) UpdateStatus(ctx context.Context, slug, status string, 
 			failure_message = COALESCE($4, failure_message),
 			updated_at      = NOW(),
 			updated_by_type = $5,
-			updated_by_id   = $6
+			updated_by_id   = $6,
+			slug            = COALESCE($7, slug),
+			title           = COALESCE($8, title),
+			company         = COALESCE($9, company),
+			location        = COALESCE($10, location),
+			description     = COALESCE($11, description),
+			source_url      = COALESCE($12, source_url),
+			apply_url       = COALESCE($13, apply_url),
+			posted_date     = COALESCE($14, posted_date),
+			is_remote       = COALESCE($15, is_remote),
+			visa_relocation = COALESCE($16, visa_relocation)
 		WHERE slug = $1
 		RETURNING id, slug, status, analyze_result, failure_message,
 			source, external_id, source_url, apply_url,
 			title, company, location, description, posted_date,
 			is_remote, visa_relocation,
-			created_at, updated_at, updated_by_type, updated_by_id
+			created_at, updated_at, updated_by_type, updated_by_id, owner_id
 	`
-	row := tx.QueryRow(ctx, query, slug, status, analyzeResult, failureMessage, ut, uid)
+	var postedDate any
+	if params.PostedDate != nil {
+		postedDate = *params.PostedDate
+	}
+	row := tx.QueryRow(ctx, query,
+		params.Slug, params.Status, params.AnalyzeResult, params.FailureMessage,
+		ut, uid, params.NewSlug, params.Title, params.Company, params.Location,
+		params.Description, params.SourceURL, params.ApplyURL, postedDate,
+		params.IsRemote, params.VisaRelocation,
+	)
 
 	job, err = scanJob(row)
 	if err != nil {
@@ -456,17 +486,19 @@ func scanJob(row pgx.Row) (*models.Job, error) {
 	var externalID, sourceURL, applyURL, description, failureMessage sql.NullString
 	var postedDate sql.NullTime
 	var isRemote, visaRelocation sql.NullBool
+	var ownerID *uuid.UUID
 
 	err := row.Scan(
 		&j.ID, &j.Slug, &j.Status, &j.AnalyzeResult, &failureMessage,
 		&j.Source, &externalID, &sourceURL, &applyURL,
 		&j.Title, &j.Company, &j.Location, &description,
 		&postedDate, &isRemote, &visaRelocation,
-		&j.CreatedAt, &j.UpdatedAt, &j.UpdatedByType, &j.UpdatedByID,
+		&j.CreatedAt, &j.UpdatedAt, &j.UpdatedByType, &j.UpdatedByID, &ownerID,
 	)
 	if err != nil {
 		return nil, err
 	}
+	j.OwnerID = ownerID
 	j.ExternalID = utils.NullStringPtr(externalID)
 	j.SourceURL = utils.NullStringPtr(sourceURL)
 	j.ApplyURL = utils.NullStringPtr(applyURL)
@@ -492,6 +524,14 @@ func scanJobs(rows pgx.Rows) ([]*models.Job, error) {
 		return nil, fmt.Errorf("iterate jobs: %w", err)
 	}
 	return jobs, nil
+}
+
+// statusOrNew maps an empty status to the jobs table default.
+func statusOrNew(status string) string {
+	if status == "" {
+		return "new"
+	}
+	return status
 }
 
 // actorTypeID returns the (actor_type, actor_id) pair for audit attribution,

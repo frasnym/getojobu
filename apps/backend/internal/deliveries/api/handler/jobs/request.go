@@ -34,6 +34,16 @@ type updateJobRequest struct {
 	Status         *string `json:"status,omitempty"`
 	AnalyzeResult  *string `json:"analyze_result,omitempty"`
 	FailureMessage *string `json:"failure_message,omitempty"`
+	Title          *string `json:"title,omitempty"`
+	Company        *string `json:"company,omitempty"`
+	Location       *string `json:"location,omitempty"`
+	Description    *string `json:"description,omitempty"`
+	SourceURL      *string `json:"source_url,omitempty"`
+	ApplyURL       *string `json:"apply_url,omitempty"`
+	PostedDate     *string `json:"posted_date,omitempty"`
+	IsRemote       *bool   `json:"is_remote,omitempty"`
+	VisaRelocation *bool   `json:"visa_relocation,omitempty"`
+	Slug           *string `json:"slug,omitempty"`
 }
 
 // bulkQueueAnalyzeItemRequest is one item in the POST /v1/jobs/bulk-queue-analyze request.

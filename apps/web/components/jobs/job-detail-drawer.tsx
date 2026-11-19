@@ -392,6 +392,27 @@ export function JobDetailDrawer({
 								</div>
 							</div>
 
+							{(job.source === "manual" || job.source === "user_scrape" || job.source_url) && (
+								<div className="flex flex-wrap items-center gap-3 rounded-xl border border-border/60 bg-card p-4 text-xs text-muted-foreground">
+									<StatusTag
+										label={job.source === "manual" ? "Manual" : job.source === "user_scrape" ? "Scraped" : job.source || "Board"}
+										tone="info"
+										testId="job-source-tag"
+									/>
+									{job.source_url && (
+										<a
+											href={job.source_url}
+											target="_blank"
+											rel="noreferrer"
+											className="inline-flex items-center gap-1 underline"
+										>
+											<ExternalLink className="h-3.5 w-3.5" />
+											Source listing
+										</a>
+									)}
+								</div>
+							)}
+
 							{/* Role Description */}
 							<div className="rounded-xl border border-border/60 bg-card p-6 sm:p-8">
 								<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between pb-6 mb-6 border-b border-border/40 gap-4">

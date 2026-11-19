@@ -16,6 +16,7 @@ from usecase.generate_report.service import GenerateReport
 from usecase.generate_resume.llm_client import OpenAIResumeClient
 from usecase.generate_resume.service import GenerateResume
 from usecase.scraper.service import ScraperService
+from usecase.user_job_scrape.service import ScrapeLLMClient, UserJobScrape
 
 
 class UsecaseContract:
@@ -27,8 +28,10 @@ class UsecaseContract:
         generate_report: GenerateReport | None = None,
         generate_resume: GenerateResume | None = None,
         scraper: ScraperService | None = None,
+        user_job_scrape: UserJobScrape | None = None,
     ) -> None:
         self.analyze_job = analyze_job
+        self.user_job_scrape = user_job_scrape
         self.evaluate_match = evaluate_match
         self.generate_cover_letter = generate_cover_letter
         self.generate_report = generate_report
@@ -88,4 +91,9 @@ def new(
         generate_report=GenerateReport(llm=report_llm, model=omni_model),
         generate_resume=GenerateResume(llm=resume_llm),
         scraper=scraper_service,
+        user_job_scrape=UserJobScrape(
+            llm=ScrapeLLMClient(
+                api_key=omni_api_key, base_url=omni_base_url, model=omni_model or ""
+            )
+        ),
     )

@@ -72,7 +72,10 @@ func (s *jobService) queueAnalysis(ctx context.Context, slug string, force bool,
 	// When queueing jobs, update status to queued. When retrying failed or stale jobs, update status to queued_retry before queueing.
 	switch constants.JobStatus(job.Status) {
 	case constants.StatusNew:
-		if _, err := s.repo.UpdateStatus(ctx, job.Slug, string(constants.StatusQueued), nil, nil, actorType, actorID); err != nil {
+		if _, err := s.repo.UpdateStatus(ctx, models.UpdateJobParams{
+			Slug: job.Slug, Status: string(constants.StatusQueued),
+			UpdatedByType: actorType, UpdatedByID: actorID,
+		}); err != nil {
 			return "", fmt.Errorf("update job status to queued: %w", err)
 		}
 	case constants.StatusQueued, constants.StatusQueuedRetry:
@@ -82,14 +85,20 @@ func (s *jobService) queueAnalysis(ctx context.Context, slug string, force bool,
 		if time.Since(job.UpdatedAt) <= 30*time.Minute {
 			return "", fmt.Errorf("%w: job %q has been queued for less than 30 minutes", constants.ErrInvalidTransition, job.Slug)
 		}
-		if _, err := s.repo.UpdateStatus(ctx, job.Slug, string(constants.StatusQueuedRetry), nil, nil, actorType, actorID); err != nil {
+		if _, err := s.repo.UpdateStatus(ctx, models.UpdateJobParams{
+			Slug: job.Slug, Status: string(constants.StatusQueuedRetry),
+			UpdatedByType: actorType, UpdatedByID: actorID,
+		}); err != nil {
 			return "", fmt.Errorf("update job status to queued_retry: %w", err)
 		}
 	case constants.StatusFailed:
 		if !force {
 			return "", fmt.Errorf("%w: job %q is failed, force must be true to re-analyze", constants.ErrInvalidTransition, job.Slug)
 		}
-		if _, err := s.repo.UpdateStatus(ctx, job.Slug, string(constants.StatusQueuedRetry), nil, nil, actorType, actorID); err != nil {
+		if _, err := s.repo.UpdateStatus(ctx, models.UpdateJobParams{
+			Slug: job.Slug, Status: string(constants.StatusQueuedRetry),
+			UpdatedByType: actorType, UpdatedByID: actorID,
+		}); err != nil {
 			return "", fmt.Errorf("update job status to queued_retry: %w", err)
 		}
 	case constants.StatusAnalyzePending:
@@ -109,7 +118,10 @@ func (s *jobService) queueAnalysis(ctx context.Context, slug string, force bool,
 		if running {
 			return "", fmt.Errorf("%w: job %q analysis workflow is currently running", constants.ErrInvalidTransition, job.Slug)
 		}
-		if _, err := s.repo.UpdateStatus(ctx, job.Slug, string(constants.StatusQueuedRetry), nil, nil, actorType, actorID); err != nil {
+		if _, err := s.repo.UpdateStatus(ctx, models.UpdateJobParams{
+			Slug: job.Slug, Status: string(constants.StatusQueuedRetry),
+			UpdatedByType: actorType, UpdatedByID: actorID,
+		}); err != nil {
 			return "", fmt.Errorf("update job status to queued_retry: %w", err)
 		}
 	default:

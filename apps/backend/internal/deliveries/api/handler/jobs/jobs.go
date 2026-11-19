@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/frasnym/getojobu/apps/backend/internal/config"
 	"github.com/frasnym/getojobu/apps/backend/internal/contract"
@@ -47,6 +48,8 @@ func (h *handler) Route(g *httpx.Router) {
 	g.GET("", h.ListJobs, auth.ValidClerkOrAPIKey)
 	g.POST("", h.CreateJob, auth.ValidClerkOrAPIKey)
 	g.POST("/bulk", h.BulkCreateJob, auth.ValidClerkOrAPIKey)
+	g.POST("/manual", h.CreateManualJob, auth.ValidClerkSession)
+	g.POST("/scrape-url", h.ScrapeURL, auth.ValidClerkSession)
 	g.POST("/bulk-queue-analyze", h.BulkQueueAnalyzeJob, auth.ValidClerkOrAPIKey)
 	g.POST("/bulk-analyze-compatibility", h.BulkAnalyzeCompatibility, auth.ValidClerkOrAPIKey)
 	g.POST("/scrape", h.ScrapeJobs, apiKey.ValidAPIKey)
@@ -432,9 +435,49 @@ func (h *handler) UpdateJob(w http.ResponseWriter, r *http.Request) error {
 		return httpx.Envelope(httpx.CodeInvalidRequest, "status is required", "")
 	}
 
+	// Clerk callers may only update jobs they can see. Machine callers keep
+	// full access so the Python worker can update private jobs.
+	if p.ActorType == "" {
+		if _, err := h.ucJobs.GetBySlug(ctx, slug, p.ID); err != nil {
+			if errors.Is(err, constants.ErrNotFound) {
+				return httpx.Envelope(httpx.CodeNotFound, "job not found", "")
+			}
+			return err
+		}
+	}
+
 	actorType, actorID := p.AuditActor()
 
-	job, err := h.ucJobs.UpdateStatus(ctx, slug, *req.Status, req.AnalyzeResult, req.FailureMessage, actorType, actorID)
+	var postedDate *time.Time
+	if req.PostedDate != nil && *req.PostedDate != "" {
+		parsed, err := time.Parse("2006-01-02", *req.PostedDate)
+		if err != nil {
+			parsed, err = time.Parse(time.RFC3339Nano, *req.PostedDate)
+			if err != nil {
+				return httpx.Envelope(httpx.CodeInvalidRequest, "posted_date must be in YYYY-MM-DD or RFC3339 format", "")
+			}
+		}
+		postedDate = &parsed
+	}
+
+	job, err := h.ucJobs.UpdateStatus(ctx, models.UpdateJobParams{
+		Slug:           slug,
+		Status:         *req.Status,
+		AnalyzeResult:  req.AnalyzeResult,
+		FailureMessage: req.FailureMessage,
+		NewSlug:        req.Slug,
+		Title:          req.Title,
+		Company:        req.Company,
+		Location:       req.Location,
+		Description:    req.Description,
+		SourceURL:      req.SourceURL,
+		ApplyURL:       req.ApplyURL,
+		PostedDate:     postedDate,
+		IsRemote:       req.IsRemote,
+		VisaRelocation: req.VisaRelocation,
+		UpdatedByType:  actorType,
+		UpdatedByID:    actorID,
+	})
 	if err != nil {
 		logging.Error(ctx, "update job status failed", err,
 			"slug", slug, "status", *req.Status, "actor_type", p.ActorType, "actor_id", p.ActorID)

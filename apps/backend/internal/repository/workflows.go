@@ -25,6 +25,7 @@ type WorkflowClient interface {
 // Workflows defines operations for triggering Temporal workflows.
 type Workflows interface {
 	StartLimiterWorkItem(ctx context.Context, itemID string, itemType models.LimiterJobType, input interface{}) (string, error)
+	StartUserJobScrape(ctx context.Context, input models.UserJobScrapeWorkflowInput) (string, error)
 	IsWorkflowRunning(ctx context.Context, workflowID string) (bool, error)
 }
 
@@ -78,6 +79,14 @@ func (r *workflowsRepository) StartLimiterWorkItem(ctx context.Context, itemID s
 	}
 
 	return itemID, nil
+}
+
+// StartUserJobScrape enqueues a user-supplied URL scrape through the existing
+// concurrency limiter. The limiter dispatches UserJobScrapeWorkflow to the
+// job-scrape queue; starting it directly on job-limit would never be polled.
+func (r *workflowsRepository) StartUserJobScrape(ctx context.Context, input models.UserJobScrapeWorkflowInput) (string, error) {
+	itemID := "user-job-scrape-" + input.Slug
+	return r.StartLimiterWorkItem(ctx, itemID, models.LimiterJobTypeUserJobScrape, input)
 }
 
 // IsWorkflowRunning checks whether the specified workflow execution is currently running.
