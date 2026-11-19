@@ -24,6 +24,8 @@ func TestValidateJobStatusTransition(t *testing.T) {
 			{"analyze_pending_to_failed", StatusAnalyzePending, StatusFailed},
 			{"analyze_pending_to_queued_retry", StatusAnalyzePending, StatusQueuedRetry},
 			{"failed_to_queued_retry", StatusFailed, StatusQueuedRetry},
+			{"new_to_scrape_pending", StatusNew, StatusScrapePending},
+			{"new_to_scrape_failed", StatusNew, StatusScrapeFailed},
 			{"scrape_pending_to_new", StatusScrapePending, StatusNew},
 			{"scrape_pending_to_scrape_failed", StatusScrapePending, StatusScrapeFailed},
 			{"scrape_failed_to_scrape_pending", StatusScrapeFailed, StatusScrapePending},

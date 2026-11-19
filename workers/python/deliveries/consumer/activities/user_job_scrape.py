@@ -218,6 +218,15 @@ async def queue_scraped_job_analysis(input_data: dict[str, Any]) -> dict[str, An
 
 
 @activity.defn
+async def mark_scrape_pending(input_data: dict[str, Any]) -> dict[str, Any]:
+    slug = input_data.get("slug")
+    if not isinstance(slug, str) or not slug:
+        raise ValueError("slug is required")
+    result = await _api().patch_job_status(slug, "scrape_pending")
+    return {"status": "scrape_pending", "job": result}
+
+
+@activity.defn
 async def mark_scrape_failed(input_data: dict[str, Any]) -> dict[str, Any]:
     slug = input_data.get("slug")
     message = input_data.get("failure_message")

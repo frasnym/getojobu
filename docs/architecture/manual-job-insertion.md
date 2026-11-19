@@ -15,7 +15,7 @@ The URL scrape is a Temporal workflow on the Python worker. The Go API only crea
 ## API endpoints
 
 - `POST /v1/jobs/manual` — Clerk-authenticated. Body: `title`, `company`, `location` (required), plus optional `description`, `source_url`, `apply_url`, `posted_date`, `is_remote`, `visa_relocation`. Returns `201` with `CreateJobResponse`.
-- `POST /v1/jobs/scrape-url` — Clerk-authenticated. Body: `source_url` (an `http(s)` URL). Returns `202` with a skeleton job at `scrape_pending`.
+- `POST /v1/jobs/scrape-url` — Clerk-authenticated. Body: `source_url` (an `http(s)` URL). Returns `202` with a skeleton job at the default `new` status; the worker moves it to `scrape_pending`.
 - `PATCH /v1/jobs/{slug}` — extended with optional job fields and a new `slug` value for the scrape callback. The Go usecase applies these fields only when the current status is `scrape_pending`.
 
 `JobResponse` now includes `source` so the frontend can badge manual and user-scraped jobs.
@@ -24,11 +24,11 @@ The URL scrape is a Temporal workflow on the Python worker. The Go API only crea
 
 Manual entry: handler resolves the Clerk principal, validates fields, and calls the jobs usecase `CreateManual`. That method builds the prefixed slug, sets `source = manual` and `owner_id`, then calls the jobs usecase `Create`, which inserts the row and the `user_jobs` link in one transaction.
 
-URL scrape: the jobs usecase `ScrapeURL` creates a skeleton job at `scrape_pending` with `source = user_scrape`, the user's `owner_id`, and the original URL, then calls `Workflows.StartUserJobScrape`. That wrapper enqueues a `LimiterWorkItem` of type `user_job_scrape` with a stable item ID `user-job-scrape-{slug}`. The concurrency limiter maps the type to `UserJobScrapeWorkflow` on the `job-scrape` queue, where the workflow and its activities are registered. Starting the workflow directly on the `job-limit` queue would not work: that queue only polls the limiter workflow.
+URL scrape: the jobs usecase `ScrapeURL` creates a skeleton job at the default `new` status with `source = user_scrape`, the user's `owner_id`, and the original URL, then calls `Workflows.StartUserJobScrape`. That wrapper enqueues a `LimiterWorkItem` of type `user_job_scrape` with a stable item ID `user-job-scrape-{slug}`. The concurrency limiter maps the type to `UserJobScrapeWorkflow` on the `job-scrape` queue, where the workflow and its activities are registered. Starting the workflow directly on the `job-limit` queue would not work: that queue only polls the limiter workflow.
 
-The Python workflow runs `fetch_and_extract_job` (HTTP fetch, HTML-to-text, LLM extraction), `update_scraped_job` (regenerate the prefixed slug and PATCH the skeleton to `new` with the extracted fields), then `queue_scraped_job_analysis` (POST `/v1/jobs/bulk-queue-analyze`). On failure it calls `mark_scrape_failed` to record `scrape_failed` and a failure message. Activity retries: 2 for fetch, 3 for API calls. Timeouts: 60s for fetch plus LLM, 30s for API calls.
+The Python workflow first calls `mark_scrape_pending` (PATCH `new → scrape_pending`), then `fetch_and_extract_job` (HTTP fetch, HTML-to-text, LLM extraction), `update_scraped_job` (regenerate the prefixed slug and PATCH the skeleton to `new` with the extracted fields), then `queue_scraped_job_analysis` (POST `/v1/jobs/bulk-queue-analyze`). On failure it calls `mark_scrape_failed` to record `scrape_failed` and a failure message. Activity retries: 2 for fetch, 3 for API calls. Timeouts: 60s for fetch plus LLM, 30s for API calls.
 
-If the workflow cannot be enqueued, the skeleton job remains at `scrape_pending` and can be retried. A `scrape_failed` job can be retried from the My Jobs page, which submits the same URL and creates a fresh skeleton.
+If the workflow cannot be enqueued, the API marks the skeleton job `scrape_failed` so the UI offers a retry. A `scrape_failed` job can be retried from the My Jobs page, which submits the same URL and creates a fresh skeleton.
 
 ## Visibility model
 
@@ -37,13 +37,14 @@ Clerk callers get `WHERE owner_id IS NULL OR owner_id = :current_user_id` on `Ge
 ## Status state machine
 
 ```
-                 scrape succeeded
-scrape_pending ──────────────────► new ──► queued ──► analyze_pending ──► analyzed
-      │                                                     │
-      │ scrape failed                                       ├──► failed ──► queued_retry
-      ▼                                                     └──► queued_retry
-scrape_failed ── retry ──► scrape_pending                         │
-                                                                  └──► analyze_pending
+                 worker starts scrape
+new ─────────────────────────────► scrape_pending ──scrape succeeded──► new ──► queued ──► analyze_pending ──► analyzed
+ │                                      │                                                    │
+ │ dispatch/setup failure               │ scrape failed                                     ├──► failed ──► queued_retry
+ ▼                                      ▼                                                    └──► queued_retry
+scrape_failed ◄──────────────────────────┘
+      │
+      └── retry ──► scrape_pending
 ```
 
-All transitions are validated by `ValidateJobStatusTransition`. The only new paths are `scrape_pending → new`, `scrape_pending → scrape_failed`, and `scrape_failed → scrape_pending`.
+All transitions are validated by `ValidateJobStatusTransition`. The new paths are `new → scrape_pending`, `new → scrape_failed`, `scrape_pending → new`, `scrape_pending → scrape_failed`, and `scrape_failed → scrape_pending`.

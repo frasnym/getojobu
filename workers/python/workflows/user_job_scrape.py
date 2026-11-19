@@ -19,6 +19,7 @@ with workflow.unsafe.imports_passed_through():
     from deliveries.consumer.activities.user_job_scrape import (
         fetch_and_extract_job,
         mark_scrape_failed,
+        mark_scrape_pending,
         queue_scraped_job_analysis,
         update_scraped_job,
     )
@@ -37,6 +38,15 @@ class UserJobScrapeWorkflow:
         source_url = str(input.get("source_url") or "")
 
         try:
+            # The API creates the skeleton at "new"; the worker owns the
+            # transition into the scrape pipeline.
+            await workflow.execute_activity(
+                mark_scrape_pending,
+                {"slug": slug},
+                start_to_close_timeout=timedelta(seconds=30),
+                retry_policy=API_RETRY,
+            )
+
             extracted: dict[str, Any] = await workflow.execute_activity(
                 fetch_and_extract_job,
                 {"source_url": source_url},

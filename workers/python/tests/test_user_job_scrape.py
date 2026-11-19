@@ -9,6 +9,8 @@ import pytest
 from deliveries.consumer.activities.user_job_scrape import (
     fetch_and_extract_job,
     init_user_job_scrape_container,
+    mark_scrape_failed,
+    mark_scrape_pending,
     queue_scraped_job_analysis,
     update_scraped_job,
 )
@@ -214,6 +216,21 @@ async def test_queue_scraped_job_analysis():
 
 
 @pytest.mark.asyncio
+async def test_mark_scrape_pending():
+    api = MagicMock()
+    api.patch_job_status = AsyncMock(return_value={"status": "scrape_pending"})
+    container = MagicMock()
+    container.repository.api = api
+    init_user_job_scrape_container(container)
+
+    result = await mark_scrape_pending({"slug": "m-abcdef12-scrape-1"})
+    api.patch_job_status.assert_awaited_once_with(
+        "m-abcdef12-scrape-1", "scrape_pending"
+    )
+    assert result["status"] == "scrape_pending"
+
+
+@pytest.mark.asyncio
 async def test_workflow_sequence():
     calls: list[str] = []
 
@@ -241,6 +258,7 @@ async def test_workflow_sequence():
         )
 
     assert calls == [
+        "mark_scrape_pending",
         "fetch_and_extract_job",
         "update_scraped_job",
         "queue_scraped_job_analysis",
@@ -255,6 +273,8 @@ async def test_workflow_failure_uses_current_slug():
     async def fake_activity(activity, payload, **_kwargs):
         name = getattr(activity, "__name__", "")
         calls.append((name, payload))
+        if name == "mark_scrape_pending":
+            return {"status": "scrape_pending"}
         if name == "fetch_and_extract_job":
             return {"title": "Senior Engineer"}
         if name == "update_scraped_job":

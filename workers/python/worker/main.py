@@ -57,6 +57,7 @@ from deliveries.consumer.activities.user_job_scrape import (
     fetch_and_extract_job,
     init_user_job_scrape_container,
     mark_scrape_failed,
+    mark_scrape_pending,
     queue_scraped_job_analysis,
     update_scraped_job,
 )
@@ -170,6 +171,7 @@ async def run() -> int:
                 update_scraped_job,
                 queue_scraped_job_analysis,
                 mark_scrape_failed,
+                mark_scrape_pending,
             ],
             workflows=[JobScrapeWorkflow, UserJobScrapeWorkflow],
             activity_executor=activity_executor,

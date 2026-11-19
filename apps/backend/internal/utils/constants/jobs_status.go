@@ -29,6 +29,8 @@ const (
 //	analyze_pending → analyzed
 //	analyze_pending → failed
 //	failed          → queued_retry    (retry)
+//	new             → scrape_pending  (worker starts URL scrape)
+//	new             → scrape_failed   (dispatch/setup failure before scrape)
 //	scrape_pending  → new             (scrape succeeded)
 //	scrape_pending  → scrape_failed   (scrape failed)
 //	scrape_failed   → scrape_pending  (retry scrape)
@@ -42,7 +44,7 @@ func ValidateJobStatusTransition(current, next JobStatus) error {
 
 	switch current {
 	case StatusNew:
-		if next == StatusQueued {
+		if next == StatusQueued || next == StatusScrapePending || next == StatusScrapeFailed {
 			return nil
 		}
 		return fmt.Errorf(

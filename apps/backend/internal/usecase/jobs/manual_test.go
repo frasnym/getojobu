@@ -89,7 +89,7 @@ func TestScrapeURL(t *testing.T) {
 		repo.EXPECT().Create(gomock.Any(), gomock.Any()).DoAndReturn(
 			func(_ context.Context, got models.CreateJobParams) (*models.CreateJobResult, error) {
 				assert.Equal(t, "user_scrape", got.Source)
-				assert.Equal(t, "scrape_pending", got.Status)
+				assert.Empty(t, got.Status, "API leaves status to the database default (new); worker sets scrape_pending")
 				require.NotNil(t, got.OwnerID)
 				assert.Equal(t, userID, got.OwnerID.String())
 				assert.Equal(t, sourceURL, *got.SourceURL)
@@ -138,7 +138,7 @@ func TestScrapeURL(t *testing.T) {
 		workflows.EXPECT().StartUserJobScrape(gomock.Any(), gomock.Any()).
 			Return("", errors.New("temporal unavailable"))
 		repo.EXPECT().GetBySlug(gomock.Any(), "m-abcdef12-scrape-1", "").Return(
-			&models.JobWithOwnership{Job: &models.Job{ID: 7, Slug: "m-abcdef12-scrape-1", Status: "scrape_pending"}}, nil,
+			&models.JobWithOwnership{Job: &models.Job{ID: 7, Slug: "m-abcdef12-scrape-1", Status: "new"}}, nil,
 		)
 		repo.EXPECT().UpdateStatus(gomock.Any(), gomock.Any()).DoAndReturn(
 			func(_ context.Context, p models.UpdateJobParams) (*models.Job, error) {
