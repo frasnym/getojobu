@@ -11,7 +11,7 @@ import { PaginationControls } from "@/components/jobs/pagination-controls";
 import { JobDetailDrawer } from "@/components/jobs/job-detail-drawer";
 import { ReportTab } from "@/components/jobs/job-report-header";
 import { JobStatus, UserJob } from "@/lib/api/types";
-import { Sparkles, Briefcase, Compass, RefreshCw, CheckSquare, Eye, EyeOff, X, Plus } from "lucide-react";
+import { Sparkles, Briefcase, Compass, RefreshCw, CheckSquare, Eye, EyeOff, Plus } from "lucide-react";
 
 export default function UserJobsPage() {
 	const { getToken } = useAuth();
@@ -79,8 +79,6 @@ export default function UserJobsPage() {
 			return next;
 		});
 	}, [allVisibleChecked, visibleIds]);
-
-	const clearChecks = useCallback(() => setCheckedIds(new Set()), []);
 
 	const runBulkHide = useCallback(
 		async (isHidden: boolean) => {
@@ -304,12 +302,21 @@ export default function UserJobsPage() {
 					<div className="flex items-center gap-2">
 						<button
 							type="button"
-							onClick={clearChecks}
+							onClick={() => toggleCheckAll()}
 							disabled={bulkBusy}
 							className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-secondary disabled:opacity-50 disabled:pointer-events-none transition-colors"
 						>
-							<X className="h-3.5 w-3.5" />
-							<span>Clear selection</span>
+							{allVisibleChecked ? (
+								<>
+									<CheckSquare className="h-3.5 w-3.5" />
+									<span>Select none</span>
+								</>
+							) : (
+								<>
+									<CheckSquare className="h-3.5 w-3.5" />
+									<span>Select all</span>
+								</>
+							)}
 						</button>
 						<button
 							type="button"
@@ -328,24 +335,6 @@ export default function UserJobsPage() {
 								<EyeOff className="h-3.5 w-3.5" />
 							)}
 							<span>{bulkBusy ? "Hiding..." : "Hide selected"}</span>
-						</button>
-						<button
-							type="button"
-							onClick={() => toggleCheckAll()}
-							disabled={bulkBusy}
-							className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-secondary disabled:opacity-50 disabled:pointer-events-none transition-colors"
-						>
-							{allVisibleChecked ? (
-								<>
-									<CheckSquare className="h-3.5 w-3.5" />
-									<span>Select none</span>
-								</>
-							) : (
-								<>
-									<CheckSquare className="h-3.5 w-3.5" />
-									<span>Select all</span>
-								</>
-							)}
 						</button>
 					</div>
 				</div>
