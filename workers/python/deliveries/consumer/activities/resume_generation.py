@@ -31,6 +31,39 @@ def init_resume_generation_container(
 
 
 @activity.defn
+async def fetch_resume_input_activity(input: dict[str, Any]) -> dict[str, Any]:
+    """Fetch the stored resume input and gate the workflow on resume status."""
+    container = init_resume_generation_container()
+
+    evaluation_id = input.get("evaluation_id")
+    if not evaluation_id or not isinstance(evaluation_id, str):
+        raise ValueError("evaluation_id is required")
+
+    evaluation = await container.repository.getojobu_api.get_evaluation(evaluation_id)
+    status = evaluation.get("resume_status")
+    if status not in ("queued", "queued_retry"):
+        return {"status": "skipped", "resume_status": status}
+
+    result: dict[str, Any] = {
+        "status": "ready",
+        "resume_status": status,
+        "job_id": evaluation.get("job_id"),
+        "user_id": evaluation.get("user_id"),
+        "overall_score": float(evaluation.get("overall_score") or 0),
+        "eligibility_status": str(evaluation.get("eligibility_status") or "eligible"),
+        "recommendation_label": str(
+            evaluation.get("recommendation_label") or "worth_applying"
+        ),
+    }
+    for name in ("candidate_profile", "job_profile", "evaluation_results", "facts"):
+        value = evaluation.get(name)
+        if not isinstance(value, dict) or not value:
+            raise ValueError(f"{name} is required")
+        result[name] = cast(dict[str, Any], value)
+    return result
+
+
+@activity.defn
 async def generate_resume_activity(input: dict[str, Any]) -> dict[str, Any]:
     container = init_resume_generation_container()
     for name in ("candidate_profile", "job_profile", "evaluation_results", "facts"):
@@ -108,9 +141,7 @@ async def update_resume_status_activity(input: dict[str, Any]) -> dict[str, Any]
         raise ValueError("resume_status is required")
     raw_artifacts = input.get("resume_artifacts")
     artifacts: dict[str, Any] = (
-        cast(dict[str, Any], raw_artifacts)
-        if isinstance(raw_artifacts, dict)
-        else {}
+        cast(dict[str, Any], raw_artifacts) if isinstance(raw_artifacts, dict) else {}
     )
     raw_fail_msg = input.get("resume_failure_message")
     fail_msg = str(raw_fail_msg) if raw_fail_msg is not None else None

@@ -26,6 +26,7 @@ from deliveries.consumer.activities.analyze_job import (
     init_analyze_job_container,
 )
 from deliveries.consumer.activities.cover_letter_generation import (
+    fetch_cover_letter_input_activity,
     generate_cover_letter_activity,
     init_cover_letter_generation_container,
     update_cover_letter_status_activity,
@@ -50,6 +51,7 @@ from deliveries.consumer.activities.report_generation import (
     update_report_status_activity,
 )
 from deliveries.consumer.activities.resume_generation import (
+    fetch_resume_input_activity,
     generate_resume_activity,
     init_resume_generation_container,
     update_resume_status_activity,
@@ -145,9 +147,11 @@ async def run() -> int:
                 fetch_report_input_activity,
                 generate_report_activity,
                 update_report_status_activity,
+                fetch_resume_input_activity,
                 generate_resume_activity,
                 upload_resume_activity,
                 update_resume_status_activity,
+                fetch_cover_letter_input_activity,
                 generate_cover_letter_activity,
                 update_cover_letter_status_activity,
             ],

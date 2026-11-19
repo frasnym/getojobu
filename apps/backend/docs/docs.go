@@ -2454,6 +2454,60 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/users/bulk-refresh-profile": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Recompose and cache candidate profile and facts for the given users. Accessible only via machine API key.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "users"
+                ],
+                "summary": "Bulk refresh user profile cache",
+                "parameters": [
+                    {
+                        "description": "User IDs to refresh",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/profilecache.bulkRefreshProfileRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/models.RefreshProfileResult"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpx.Error"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/httpx.Error"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/webhooks/clerk": {
             "post": {
                 "description": "Receives Clerk user lifecycle events (created, updated, deleted)",
@@ -3334,6 +3388,13 @@ const docTemplate = `{
                 "evaluation_status": {
                     "type": "string"
                 },
+                "facts": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "job_id": {
+                    "type": "integer"
+                },
                 "job_profile": {
                     "type": "object",
                     "additionalProperties": true
@@ -3345,6 +3406,12 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "report_status": {
+                    "type": "string"
+                },
+                "resume_status": {
+                    "type": "string"
+                },
+                "user_id": {
                     "type": "string"
                 }
             }
@@ -3510,6 +3577,17 @@ const docTemplate = `{
                 }
             }
         },
+        "models.RefreshProfileResult": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "string"
+                }
+            }
+        },
         "models.RetryJobsResult": {
             "type": "object",
             "properties": {
@@ -3657,6 +3735,17 @@ const docTemplate = `{
                 },
                 "userID": {
                     "type": "string"
+                }
+            }
+        },
+        "profilecache.bulkRefreshProfileRequest": {
+            "type": "object",
+            "properties": {
+                "user_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 }
             }
         },

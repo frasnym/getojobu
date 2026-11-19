@@ -112,14 +112,12 @@ func TestBulkQueueGenerateResume(t *testing.T) {
 		userID := uuid.New()
 		failedStatus := string(constants.ResumeStatusFailed)
 		eval := &models.MatchingEvaluation{
-			ID:                   evalID,
-			UserJobID:            userJobID,
-			EvaluationStatus:     string(constants.MatchingStatusSuccess),
-			RecommendationLabel:  &strongRec,
-			CandidateProfileData: json.RawMessage(`{"skills":["Go"],"experience":[]}`),
-			JobProfileData:       json.RawMessage(`{"title":"Senior Engineer"}`),
-			EvaluationData:       json.RawMessage(`{"summary":"Great fit"}`),
-			ResumeStatus:         &failedStatus,
+			ID:                  evalID,
+			UserJobID:           userJobID,
+			EvaluationStatus:    string(constants.MatchingStatusSuccess),
+			RecommendationLabel: &strongRec,
+			EvaluationData:      json.RawMessage(`{"summary":"Great fit"}`),
+			ResumeStatus:        &failedStatus,
 		}
 
 		evalRepo.EXPECT().GetByID(ctx, evalID).Return(eval, nil)
@@ -140,8 +138,6 @@ func TestBulkQueueGenerateResume(t *testing.T) {
 			Email:                 &email,
 			OnboardingCompletedAt: &now,
 		}, nil)
-		eduRepo.EXPECT().ListByUser(ctx, userID.String()).Return([]*models.UserEducation{}, nil)
-		expRepo.EXPECT().ListByUser(ctx, userID.String()).Return([]*models.Experience{}, nil)
 		evalRepo.EXPECT().UpdateResume(ctx, evalID, models.UpdateMatchingEvaluationResumeParams{
 			ResumeStatus: string(constants.ResumeStatusQueuedRetry),
 		}).Return(eval, nil)
@@ -179,13 +175,11 @@ func TestBulkQueueGenerateResume(t *testing.T) {
 		userID := uuid.New()
 		lowRec := string(constants.RecommendationLowMatch)
 		eval := &models.MatchingEvaluation{
-			ID:                   evalID,
-			UserJobID:            userJobID,
-			EvaluationStatus:     string(constants.MatchingStatusSuccess),
-			RecommendationLabel:  &lowRec,
-			CandidateProfileData: json.RawMessage(`{"skills":["Go"],"experience":[]}`),
-			JobProfileData:       json.RawMessage(`{"title":"Senior Engineer"}`),
-			EvaluationData:       json.RawMessage(`{"summary":"Great fit"}`),
+			ID:                  evalID,
+			UserJobID:           userJobID,
+			EvaluationStatus:    string(constants.MatchingStatusSuccess),
+			RecommendationLabel: &lowRec,
+			EvaluationData:      json.RawMessage(`{"summary":"Great fit"}`),
 		}
 
 		evalRepo.EXPECT().GetByID(ctx, evalID).Return(eval, nil)
@@ -206,8 +200,6 @@ func TestBulkQueueGenerateResume(t *testing.T) {
 			Email:                 &email,
 			OnboardingCompletedAt: &now,
 		}, nil)
-		eduRepo.EXPECT().ListByUser(ctx, userID.String()).Return([]*models.UserEducation{}, nil)
-		expRepo.EXPECT().ListByUser(ctx, userID.String()).Return([]*models.Experience{}, nil)
 		evalRepo.EXPECT().UpdateResume(ctx, evalID, models.UpdateMatchingEvaluationResumeParams{
 			ResumeStatus: string(constants.ResumeStatusQueued),
 		}).Return(eval, nil)
@@ -292,13 +284,11 @@ func TestBulkQueueGenerateResume(t *testing.T) {
 		userJobID := uuid.New()
 		userID := uuid.New()
 		eval := &models.MatchingEvaluation{
-			ID:                   evalID,
-			UserJobID:            userJobID,
-			EvaluationStatus:     string(constants.MatchingStatusSuccess),
-			RecommendationLabel:  &strongRec,
-			CandidateProfileData: json.RawMessage(`{"skills":["Go"],"experience":[]}`),
-			JobProfileData:       json.RawMessage(`{"title":"Senior Engineer"}`),
-			EvaluationData:       json.RawMessage(`{"summary":"Great fit"}`),
+			ID:                  evalID,
+			UserJobID:           userJobID,
+			EvaluationStatus:    string(constants.MatchingStatusSuccess),
+			RecommendationLabel: &strongRec,
+			EvaluationData:      json.RawMessage(`{"summary":"Great fit"}`),
 		}
 
 		evalRepo.EXPECT().GetByID(ctx, evalID).Return(eval, nil)
@@ -314,8 +304,6 @@ func TestBulkQueueGenerateResume(t *testing.T) {
 			Email:                 &email,
 			OnboardingCompletedAt: &now,
 		}, nil)
-		eduRepo.EXPECT().ListByUser(ctx, userID.String()).Return([]*models.UserEducation{}, nil)
-		expRepo.EXPECT().ListByUser(ctx, userID.String()).Return([]*models.Experience{}, nil)
 		evalRepo.EXPECT().UpdateResume(ctx, evalID, models.UpdateMatchingEvaluationResumeParams{
 			ResumeStatus: string(constants.ResumeStatusQueued),
 		}).Return(eval, nil)
@@ -354,15 +342,13 @@ func TestBulkQueueGenerateResume_ForceQueuedGuard(t *testing.T) {
 	queuedEval := func(id, userJobID uuid.UUID, status string, age time.Duration) *models.MatchingEvaluation {
 		resumeStatus := status
 		return &models.MatchingEvaluation{
-			ID:                   id,
-			UserJobID:            userJobID,
-			EvaluationStatus:     string(constants.MatchingStatusSuccess),
-			RecommendationLabel:  &rec,
-			ResumeStatus:         &resumeStatus,
-			CandidateProfileData: json.RawMessage(`{"skills":["Go"],"experience":[]}`),
-			JobProfileData:       json.RawMessage(`{"title":"Senior Engineer"}`),
-			EvaluationData:       json.RawMessage(`{"summary":"Great fit"}`),
-			UpdatedAt:            time.Now().Add(-age),
+			ID:                  id,
+			UserJobID:           userJobID,
+			EvaluationStatus:    string(constants.MatchingStatusSuccess),
+			RecommendationLabel: &rec,
+			ResumeStatus:        &resumeStatus,
+			EvaluationData:      json.RawMessage(`{"summary":"Great fit"}`),
+			UpdatedAt:           time.Now().Add(-age),
 		}
 	}
 
@@ -593,11 +579,10 @@ func TestDownloadResume(t *testing.T) {
 		// Real job analysis payloads have no "title" field; the position comes
 		// from the jobs table, not from job_profile_data.
 		eval := &models.MatchingEvaluation{
-			ID:             evalID,
-			UserJobID:      userJobID,
-			ResumeStatus:   &statusSuccess,
-			ResumePDFKey:   &pdfKey,
-			JobProfileData: json.RawMessage(`{"family":"technology","seniority":"senior"}`),
+			ID:           evalID,
+			UserJobID:    userJobID,
+			ResumeStatus: &statusSuccess,
+			ResumePDFKey: &pdfKey,
 		}
 		evalRepo.EXPECT().GetByID(ctx, evalID).Return(eval, nil)
 		userJobsRepo.EXPECT().GetByID(ctx, userJobID).Return(&models.UserJob{
@@ -625,11 +610,10 @@ func TestDownloadResume(t *testing.T) {
 
 	t.Run("falls back to Resume.pdf when name and title are missing", func(t *testing.T) {
 		eval := &models.MatchingEvaluation{
-			ID:             evalID,
-			UserJobID:      userJobID,
-			ResumeStatus:   &statusSuccess,
-			ResumePDFKey:   &pdfKey,
-			JobProfileData: json.RawMessage(`{}`),
+			ID:           evalID,
+			UserJobID:    userJobID,
+			ResumeStatus: &statusSuccess,
+			ResumePDFKey: &pdfKey,
 		}
 		evalRepo.EXPECT().GetByID(ctx, evalID).Return(eval, nil)
 		userJobsRepo.EXPECT().GetByID(ctx, userJobID).Return(&models.UserJob{
@@ -654,11 +638,10 @@ func TestDownloadResume(t *testing.T) {
 
 	t.Run("uses name and Resume when only job title is missing", func(t *testing.T) {
 		eval := &models.MatchingEvaluation{
-			ID:             evalID,
-			UserJobID:      userJobID,
-			ResumeStatus:   &statusSuccess,
-			ResumePDFKey:   &pdfKey,
-			JobProfileData: json.RawMessage(`{"family":"technology"}`),
+			ID:           evalID,
+			UserJobID:    userJobID,
+			ResumeStatus: &statusSuccess,
+			ResumePDFKey: &pdfKey,
 		}
 		evalRepo.EXPECT().GetByID(ctx, evalID).Return(eval, nil)
 		userJobsRepo.EXPECT().GetByID(ctx, userJobID).Return(&models.UserJob{

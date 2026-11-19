@@ -19,6 +19,7 @@ type Users interface {
 	Update(ctx context.Context, id string, email, fullName string) (*models.User, error)
 	UpdateProfile(ctx context.Context, id string, p models.UserProfileInput) (*models.User, error)
 	SoftDelete(ctx context.Context, id string) (*models.User, error)
+	UpdateProfileCache(ctx context.Context, id string, profileData, factsData []byte) error
 }
 
 type usersRepository struct {
@@ -33,7 +34,7 @@ func NewUsersRepository(db database.DB) Users {
 func (r *usersRepository) FindByClerkUserID(ctx context.Context, clerkUserID string) (*models.User, error) {
 	query := `
 		SELECT id, clerk_user_id, email, full_name, role, onboarding_completed_at, deleted_at,
-		       headline, phone, portfolio_url, linkedin_url, github_url, created_at, updated_at
+		       headline, phone, portfolio_url, linkedin_url, github_url, profile_data, facts_data, created_at, updated_at
 		FROM users
 		WHERE clerk_user_id = $1
 	`
@@ -53,6 +54,8 @@ func (r *usersRepository) FindByClerkUserID(ctx context.Context, clerkUserID str
 		&u.PortfolioURL,
 		&u.LinkedInURL,
 		&u.GitHubURL,
+		&u.ProfileData,
+		&u.FactsData,
 		&u.CreatedAt,
 		&u.UpdatedAt,
 	); err != nil {
@@ -69,7 +72,7 @@ func (r *usersRepository) FindByClerkUserID(ctx context.Context, clerkUserID str
 func (r *usersRepository) FindByID(ctx context.Context, id string) (*models.User, error) {
 	query := `
 		SELECT id, clerk_user_id, email, full_name, role, onboarding_completed_at, deleted_at,
-		       headline, phone, portfolio_url, linkedin_url, github_url, created_at, updated_at
+		       headline, phone, portfolio_url, linkedin_url, github_url, profile_data, facts_data, created_at, updated_at
 		FROM users
 		WHERE id = $1
 	`
@@ -89,6 +92,8 @@ func (r *usersRepository) FindByID(ctx context.Context, id string) (*models.User
 		&u.PortfolioURL,
 		&u.LinkedInURL,
 		&u.GitHubURL,
+		&u.ProfileData,
+		&u.FactsData,
 		&u.CreatedAt,
 		&u.UpdatedAt,
 	); err != nil {
@@ -108,7 +113,7 @@ func (r *usersRepository) Create(ctx context.Context, clerkUserID string, email,
 		INSERT INTO users (clerk_user_id, email, full_name, role)
 		VALUES ($1, $2, $3, $4)
 		RETURNING id, clerk_user_id, email, full_name, role, onboarding_completed_at, deleted_at,
-		          headline, phone, portfolio_url, linkedin_url, github_url, created_at, updated_at
+		          headline, phone, portfolio_url, linkedin_url, github_url, profile_data, facts_data, created_at, updated_at
 	`
 	row := r.db.QueryRow(ctx, query, clerkUserID, email, fullName, role)
 
@@ -126,6 +131,8 @@ func (r *usersRepository) Create(ctx context.Context, clerkUserID string, email,
 		&u.PortfolioURL,
 		&u.LinkedInURL,
 		&u.GitHubURL,
+		&u.ProfileData,
+		&u.FactsData,
 		&u.CreatedAt,
 		&u.UpdatedAt,
 	); err != nil {
@@ -142,7 +149,7 @@ func (r *usersRepository) Update(ctx context.Context, id string, email, fullName
 		SET email = $2, full_name = $3, updated_at = NOW()
 		WHERE id = $1
 		RETURNING id, clerk_user_id, email, full_name, role, onboarding_completed_at, deleted_at,
-		          headline, phone, portfolio_url, linkedin_url, github_url, created_at, updated_at
+		          headline, phone, portfolio_url, linkedin_url, github_url, profile_data, facts_data, created_at, updated_at
 	`
 	row := r.db.QueryRow(ctx, query, id, email, fullName)
 
@@ -160,6 +167,8 @@ func (r *usersRepository) Update(ctx context.Context, id string, email, fullName
 		&u.PortfolioURL,
 		&u.LinkedInURL,
 		&u.GitHubURL,
+		&u.ProfileData,
+		&u.FactsData,
 		&u.CreatedAt,
 		&u.UpdatedAt,
 	); err != nil {
@@ -176,7 +185,7 @@ func (r *usersRepository) UpdateProfile(ctx context.Context, id string, p models
 		SET full_name = $2, headline = $3, phone = $4, portfolio_url = $5, linkedin_url = $6, github_url = $7, updated_at = NOW()
 		WHERE id = $1
 		RETURNING id, clerk_user_id, email, full_name, role, onboarding_completed_at, deleted_at,
-		          headline, phone, portfolio_url, linkedin_url, github_url, created_at, updated_at
+		          headline, phone, portfolio_url, linkedin_url, github_url, profile_data, facts_data, created_at, updated_at
 	`
 	row := r.db.QueryRow(ctx, query, id, p.FullName, p.Headline, p.Phone, p.PortfolioURL, p.LinkedInURL, p.GitHubURL)
 
@@ -194,6 +203,8 @@ func (r *usersRepository) UpdateProfile(ctx context.Context, id string, p models
 		&u.PortfolioURL,
 		&u.LinkedInURL,
 		&u.GitHubURL,
+		&u.ProfileData,
+		&u.FactsData,
 		&u.CreatedAt,
 		&u.UpdatedAt,
 	); err != nil {
@@ -212,7 +223,7 @@ func (r *usersRepository) SoftDelete(ctx context.Context, id string) (*models.Us
 		SET deleted_at = NOW(), updated_at = NOW()
 		WHERE id = $1
 		RETURNING id, clerk_user_id, email, full_name, role, onboarding_completed_at, deleted_at,
-		          headline, phone, portfolio_url, linkedin_url, github_url, created_at, updated_at
+		          headline, phone, portfolio_url, linkedin_url, github_url, profile_data, facts_data, created_at, updated_at
 	`
 	row := r.db.QueryRow(ctx, query, id)
 
@@ -230,10 +241,28 @@ func (r *usersRepository) SoftDelete(ctx context.Context, id string) (*models.Us
 		&u.PortfolioURL,
 		&u.LinkedInURL,
 		&u.GitHubURL,
+		&u.ProfileData,
+		&u.FactsData,
 		&u.CreatedAt,
 		&u.UpdatedAt,
 	); err != nil {
 		return nil, fmt.Errorf("soft delete user: %w", err)
 	}
 	return &u, nil
+}
+
+// UpdateProfileCache stores the composed profile and facts for a user. The
+// refresh endpoint calls this after recomputing from the source tables.
+func (r *usersRepository) UpdateProfileCache(ctx context.Context, id string, profileData, factsData []byte) error {
+	query := `
+		UPDATE users
+		SET profile_data = $2, facts_data = $3, updated_at = NOW()
+		WHERE id = $1
+		RETURNING id
+	`
+	var updatedID string
+	if err := r.db.QueryRow(ctx, query, id, profileData, factsData).Scan(&updatedID); err != nil {
+		return fmt.Errorf("update profile cache: %w", err)
+	}
+	return nil
 }

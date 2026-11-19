@@ -59,23 +59,23 @@ func (r *matchingEvaluationsRepository) Create(ctx context.Context, eval *models
 	query := `
 		INSERT INTO matching_evaluations (
 			user_job_id, evaluation_status,
-			candidate_profile_data, job_profile_data, scoring_config_id,
+			scoring_config_id,
 			evaluation_data, overall_score, eligibility_status,
 			recommendation_label, failure_message,
 			report_data, report_status, report_failure_message,
 			created_at, updated_at
 		) VALUES (
 			$1, $2,
-			$3, $4, $5,
-			$6, $7, $8,
-			$9, $10,
-			$11, $12, $13,
-			$14, $15
+			$3,
+			$4, $5, $6,
+			$7, $8,
+			$9, $10, $11,
+			$12, $13
 		)
 		ON CONFLICT (user_job_id) DO UPDATE SET user_job_id = EXCLUDED.user_job_id
 		RETURNING
 			id, user_job_id, evaluation_status,
-			candidate_profile_data, job_profile_data, scoring_config_id,
+			scoring_config_id,
 			evaluation_data, overall_score, eligibility_status,
 			recommendation_label, failure_message,
 			report_data, report_status, report_failure_message,
@@ -88,8 +88,6 @@ func (r *matchingEvaluationsRepository) Create(ctx context.Context, eval *models
 	err = tx.QueryRow(ctx, query,
 		eval.UserJobID,
 		eval.EvaluationStatus,
-		eval.CandidateProfileData,
-		eval.JobProfileData,
 		eval.ScoringConfigID,
 		eval.EvaluationData,
 		eval.OverallScore,
@@ -105,8 +103,6 @@ func (r *matchingEvaluationsRepository) Create(ctx context.Context, eval *models
 		&result.ID,
 		&result.UserJobID,
 		&result.EvaluationStatus,
-		&result.CandidateProfileData,
-		&result.JobProfileData,
 		&result.ScoringConfigID,
 		&result.EvaluationData,
 		&result.OverallScore,
@@ -137,7 +133,7 @@ func (r *matchingEvaluationsRepository) GetByID(ctx context.Context, id uuid.UUI
 	query := `
 		SELECT
 			id, user_job_id, evaluation_status,
-			candidate_profile_data, job_profile_data, scoring_config_id,
+			scoring_config_id,
 			evaluation_data, overall_score, eligibility_status,
 			recommendation_label, failure_message,
 			report_data, report_status, report_failure_message,
@@ -153,8 +149,6 @@ func (r *matchingEvaluationsRepository) GetByID(ctx context.Context, id uuid.UUI
 		&eval.ID,
 		&eval.UserJobID,
 		&eval.EvaluationStatus,
-		&eval.CandidateProfileData,
-		&eval.JobProfileData,
 		&eval.ScoringConfigID,
 		&eval.EvaluationData,
 		&eval.OverallScore,
@@ -189,7 +183,7 @@ func (r *matchingEvaluationsRepository) GetLatestByUserAndJob(ctx context.Contex
 	query := `
 		SELECT
 			me.id, me.user_job_id, me.evaluation_status,
-			me.candidate_profile_data, me.job_profile_data, me.scoring_config_id,
+			me.scoring_config_id,
 			me.evaluation_data, me.overall_score, me.eligibility_status,
 			me.recommendation_label, me.failure_message,
 			me.report_data, me.report_status, me.report_failure_message,
@@ -208,8 +202,6 @@ func (r *matchingEvaluationsRepository) GetLatestByUserAndJob(ctx context.Contex
 		&eval.ID,
 		&eval.UserJobID,
 		&eval.EvaluationStatus,
-		&eval.CandidateProfileData,
-		&eval.JobProfileData,
 		&eval.ScoringConfigID,
 		&eval.EvaluationData,
 		&eval.OverallScore,
@@ -246,7 +238,7 @@ func (r *matchingEvaluationsRepository) GetLatestByUserJobID(ctx context.Context
 	query := `
 		SELECT
 			me.id, me.user_job_id, me.evaluation_status,
-			me.candidate_profile_data, me.job_profile_data, me.scoring_config_id,
+			me.scoring_config_id,
 			me.evaluation_data, me.overall_score, me.eligibility_status,
 			me.recommendation_label, me.failure_message,
 			me.report_data, me.report_status, me.report_failure_message,
@@ -283,8 +275,6 @@ func (r *matchingEvaluationsRepository) GetLatestByUserJobID(ctx context.Context
 		&eval.ID,
 		&eval.UserJobID,
 		&eval.EvaluationStatus,
-		&eval.CandidateProfileData,
-		&eval.JobProfileData,
 		&eval.ScoringConfigID,
 		&eval.EvaluationData,
 		&eval.OverallScore,
@@ -356,7 +346,7 @@ func (r *matchingEvaluationsRepository) Update(
 		WHERE id = $1 AND ($9 = '' OR evaluation_status = $9)
 		RETURNING
 			id, user_job_id, evaluation_status,
-			candidate_profile_data, job_profile_data, scoring_config_id,
+			scoring_config_id,
 			evaluation_data, overall_score, eligibility_status,
 			recommendation_label, failure_message,
 			report_data, report_status, report_failure_message,
@@ -380,8 +370,6 @@ func (r *matchingEvaluationsRepository) Update(
 		&eval.ID,
 		&eval.UserJobID,
 		&eval.EvaluationStatus,
-		&eval.CandidateProfileData,
-		&eval.JobProfileData,
 		&eval.ScoringConfigID,
 		&eval.EvaluationData,
 		&eval.OverallScore,
@@ -433,7 +421,7 @@ func (r *matchingEvaluationsRepository) UpdateReport(
 		WHERE id = $1
 		RETURNING
 			id, user_job_id, evaluation_status,
-			candidate_profile_data, job_profile_data, scoring_config_id,
+			scoring_config_id,
 			evaluation_data, overall_score, eligibility_status,
 			recommendation_label, failure_message,
 			report_data, report_status, report_failure_message,
@@ -452,8 +440,6 @@ func (r *matchingEvaluationsRepository) UpdateReport(
 		&eval.ID,
 		&eval.UserJobID,
 		&eval.EvaluationStatus,
-		&eval.CandidateProfileData,
-		&eval.JobProfileData,
 		&eval.ScoringConfigID,
 		&eval.EvaluationData,
 		&eval.OverallScore,
@@ -506,7 +492,7 @@ func (r *matchingEvaluationsRepository) UpdateResume(
 		WHERE id = $1
 		RETURNING
 			id, user_job_id, evaluation_status,
-			candidate_profile_data, job_profile_data, scoring_config_id,
+			scoring_config_id,
 			evaluation_data, overall_score, eligibility_status,
 			recommendation_label, failure_message,
 			report_data, report_status, report_failure_message,
@@ -524,7 +510,7 @@ func (r *matchingEvaluationsRepository) UpdateResume(
 		params.ResumeJSONKey,
 	).Scan(
 		&eval.ID, &eval.UserJobID, &eval.EvaluationStatus,
-		&eval.CandidateProfileData, &eval.JobProfileData, &eval.ScoringConfigID,
+		&eval.ScoringConfigID,
 		&eval.EvaluationData, &eval.OverallScore, &eval.EligibilityStatus,
 		&eval.RecommendationLabel, &eval.FailureMessage,
 		&eval.ReportData, &eval.ReportStatus, &eval.ReportFailureMessage,
@@ -564,7 +550,7 @@ func (r *matchingEvaluationsRepository) UpdateCoverLetter(
 		WHERE id = $1
 		RETURNING
 			id, user_job_id, evaluation_status,
-			candidate_profile_data, job_profile_data, scoring_config_id,
+			scoring_config_id,
 			evaluation_data, overall_score, eligibility_status,
 			recommendation_label, failure_message,
 			report_data, report_status, report_failure_message,
@@ -581,7 +567,7 @@ func (r *matchingEvaluationsRepository) UpdateCoverLetter(
 		params.CoverLetterFailureMessage,
 	).Scan(
 		&eval.ID, &eval.UserJobID, &eval.EvaluationStatus,
-		&eval.CandidateProfileData, &eval.JobProfileData, &eval.ScoringConfigID,
+		&eval.ScoringConfigID,
 		&eval.EvaluationData, &eval.OverallScore, &eval.EligibilityStatus,
 		&eval.RecommendationLabel, &eval.FailureMessage,
 		&eval.ReportData, &eval.ReportStatus, &eval.ReportFailureMessage,

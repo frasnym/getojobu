@@ -10,6 +10,7 @@ from temporalio.common import RetryPolicy
 
 with workflow.unsafe.imports_passed_through():
     from deliveries.consumer.activities.cover_letter_generation import (
+        fetch_cover_letter_input_activity,
         generate_cover_letter_activity,
         update_cover_letter_status_activity,
     )
@@ -32,6 +33,26 @@ class GenerateCoverLetterWorkflow:
         evaluation_id = input.get("evaluation_id")
         if not isinstance(evaluation_id, str) or not evaluation_id:
             raise ValueError("evaluation_id is required")
+
+        fetched: dict[str, Any] = await workflow.execute_activity(
+            fetch_cover_letter_input_activity,
+            {"evaluation_id": evaluation_id},
+            start_to_close_timeout=timedelta(seconds=30),
+            retry_policy=RETRY_POLICY,
+        )
+        if fetched.get("status") == "skipped":
+            return {
+                "workflow": "GenerateCoverLetterWorkflow",
+                "evaluation_id": evaluation_id,
+                "cover_letter_status": "skipped",
+            }
+
+        letter_input: dict[str, Any] = {
+            key: value
+            for key, value in fetched.items()
+            if key not in ("status", "cover_letter_status")
+        }
+        letter_input["variant"] = input.get("variant")
         pending_payload: dict[str, Any] = {
             "evaluation_id": evaluation_id,
             "cover_letter_status": STATUS_PENDING,
@@ -45,7 +66,7 @@ class GenerateCoverLetterWorkflow:
         try:
             content: dict[str, Any] = await workflow.execute_activity(
                 generate_cover_letter_activity,
-                input,
+                letter_input,
                 start_to_close_timeout=timedelta(minutes=5),
                 retry_policy=RETRY_POLICY,
             )

@@ -10,6 +10,7 @@ from temporalio.common import RetryPolicy
 
 with workflow.unsafe.imports_passed_through():
     from deliveries.consumer.activities.resume_generation import (
+        fetch_resume_input_activity,
         generate_resume_activity,
         update_resume_status_activity,
         upload_resume_activity,
@@ -52,6 +53,25 @@ class GenerateResumeWorkflow:
         evaluation_id = input.get("evaluation_id")
         if not isinstance(evaluation_id, str) or not evaluation_id:
             raise ValueError("evaluation_id is required")
+
+        fetched: dict[str, Any] = await workflow.execute_activity(
+            fetch_resume_input_activity,
+            {"evaluation_id": evaluation_id},
+            start_to_close_timeout=timedelta(seconds=30),
+            retry_policy=RETRY_POLICY,
+        )
+        if fetched.get("status") == "skipped":
+            return {
+                "workflow": "GenerateResumeWorkflow",
+                "evaluation_id": evaluation_id,
+                "resume_status": "skipped",
+            }
+
+        resume_input: dict[str, Any] = {
+            key: value
+            for key, value in fetched.items()
+            if key not in ("status", "resume_status", "job_id", "user_id")
+        }
         pending_payload: dict[str, Any] = {
             "evaluation_id": evaluation_id,
             "resume_status": "pending",
@@ -65,14 +85,14 @@ class GenerateResumeWorkflow:
         try:
             generated: dict[str, Any] = await workflow.execute_activity(
                 generate_resume_activity,
-                input,
+                resume_input,
                 start_to_close_timeout=timedelta(minutes=5),
                 retry_policy=RETRY_POLICY,
             )
             upload_payload: dict[str, Any] = {
                 "evaluation_id": evaluation_id,
-                "job_id": input.get("job_id"),
-                "user_id": input.get("user_id"),
+                "job_id": fetched.get("job_id"),
+                "user_id": fetched.get("user_id"),
                 **generated,
             }
             artifacts: dict[str, Any] = await workflow.execute_activity(

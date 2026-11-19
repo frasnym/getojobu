@@ -2,7 +2,6 @@ package matching_test
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"testing"
 
@@ -59,14 +58,6 @@ func TestCreateEvaluations(t *testing.T) {
 		Categories: []models.CategoryConfig{{Name: "technical_skills", Weight: 1.0}},
 	}
 
-	// expectCandidate registers the profile-composition reads that run for each
-	// resolved user before the evaluation is inserted.
-	expectCandidate := func(uid string) {
-		expRepo.EXPECT().ListByUser(ctx, uid).Return([]*models.Experience{}, nil)
-		projRepo.EXPECT().ListByUser(ctx, uid).Return([]*models.Project{}, nil)
-		projSkillsRepo.EXPECT().ListSkillsByUser(ctx, uid).Return([]*models.UserSkill{}, nil)
-	}
-
 	t.Run("job not found", func(t *testing.T) {
 		jobsRepo.EXPECT().GetBySlug(ctx, slug, "").Return(nil, constants.ErrNotFound)
 
@@ -118,8 +109,6 @@ func TestCreateEvaluations(t *testing.T) {
 		userJobsRepo.EXPECT().IsOwned(ctx, userID.String(), job.ID).Return(true, nil).Times(2)
 		scoringConfigsRepo.EXPECT().GetActiveByFamily(ctx, "technology").Return(scoringConfig, nil).Times(2)
 		userJobsRepo.EXPECT().GetByUserAndJob(ctx, userID.String(), job.ID).Return(userJob, nil).Times(2)
-		expectCandidate(userID.String())
-		expectCandidate(userID.String())
 
 		existing := &models.MatchingEvaluation{ID: uuid.New(), UserJobID: userJob.ID, EvaluationStatus: string(constants.MatchingStatusNew)}
 		gomock.InOrder(
@@ -142,7 +131,6 @@ func TestCreateEvaluations(t *testing.T) {
 		userJobsRepo.EXPECT().IsOwned(ctx, userID.String(), job.ID).Return(true, nil)
 		scoringConfigsRepo.EXPECT().GetActiveByFamily(ctx, "technology").Return(scoringConfig, nil)
 		userJobsRepo.EXPECT().GetByUserAndJob(ctx, userID.String(), job.ID).Return(userJob, nil)
-		expectCandidate(userID.String())
 
 		successID := uuid.New()
 		existing := &models.MatchingEvaluation{ID: successID, UserJobID: userJob.ID, EvaluationStatus: string(constants.MatchingStatusSuccess)}
@@ -160,56 +148,6 @@ func TestCreateEvaluations(t *testing.T) {
 		assert.Equal(t, string(constants.MatchingStatusSuccess), res[0].EvaluationStatus)
 	})
 
-	t.Run("stored job_profile_data is derived", func(t *testing.T) {
-		jobsRepo.EXPECT().GetBySlug(ctx, slug, "").Return(&models.JobWithOwnership{Job: job}, nil)
-		userJobsRepo.EXPECT().IsOwned(ctx, userID.String(), job.ID).Return(true, nil)
-		scoringConfigsRepo.EXPECT().GetActiveByFamily(ctx, "technology").Return(scoringConfig, nil)
-		userJobsRepo.EXPECT().GetByUserAndJob(ctx, userID.String(), job.ID).Return(userJob, nil)
-		expectCandidate(userID.String())
-
-		var stored map[string]interface{}
-		evalRepo.EXPECT().Create(ctx, gomock.Any()).DoAndReturn(
-			func(_ context.Context, eval *models.MatchingEvaluation) (*models.MatchingEvaluation, error) {
-				require.NoError(t, json.Unmarshal(eval.JobProfileData, &stored))
-				return &models.MatchingEvaluation{ID: uuid.New(), UserJobID: userJob.ID, EvaluationStatus: string(constants.MatchingStatusNew)}, nil
-			})
-
-		res, err := service.CreateEvaluations(ctx, []models.CreateEvaluationItem{{Slug: slug}}, &models.Principal{ID: userID.String()})
-		require.NoError(t, err)
-		require.Len(t, res, 1)
-		assert.Nil(t, res[0].Error)
-
-		_, hasMetadata := stored["metadata"]
-		assert.False(t, hasMetadata, "metadata must be stripped from the stored job profile")
-		assert.Equal(t, "Backend Engineer", stored["title"])
-		assert.Equal(t, "Acme", stored["company"])
-		assert.Equal(t, "Remote", stored["location"])
-		assert.Equal(t, "technology", stored["family"])
-	})
-
-	t.Run("defaults family to other when absent", func(t *testing.T) {
-		noFamily := *job
-		noFamily.AnalyzeResult = []byte(`{"skills":["go"]}`)
-		jobsRepo.EXPECT().GetBySlug(ctx, slug, "").Return(&models.JobWithOwnership{Job: &noFamily}, nil)
-		userJobsRepo.EXPECT().IsOwned(ctx, userID.String(), job.ID).Return(true, nil)
-		scoringConfigsRepo.EXPECT().GetActiveByFamily(ctx, "other").Return(scoringConfig, nil)
-		userJobsRepo.EXPECT().GetByUserAndJob(ctx, userID.String(), job.ID).Return(userJob, nil)
-		expectCandidate(userID.String())
-
-		var stored map[string]interface{}
-		evalRepo.EXPECT().Create(ctx, gomock.Any()).DoAndReturn(
-			func(_ context.Context, eval *models.MatchingEvaluation) (*models.MatchingEvaluation, error) {
-				require.NoError(t, json.Unmarshal(eval.JobProfileData, &stored))
-				return &models.MatchingEvaluation{ID: uuid.New(), UserJobID: userJob.ID, EvaluationStatus: string(constants.MatchingStatusNew)}, nil
-			})
-
-		res, err := service.CreateEvaluations(ctx, []models.CreateEvaluationItem{{Slug: slug}}, &models.Principal{ID: userID.String()})
-		require.NoError(t, err)
-		require.Len(t, res, 1)
-		assert.Nil(t, res[0].Error)
-		assert.Equal(t, "other", stored["family"])
-	})
-
 	t.Run("falls back to technology scoring config", func(t *testing.T) {
 		otherFamily := *job
 		otherFamily.AnalyzeResult = []byte(`{"family":"finance"}`)
@@ -220,7 +158,6 @@ func TestCreateEvaluations(t *testing.T) {
 			scoringConfigsRepo.EXPECT().GetActiveByFamily(ctx, "technology").Return(scoringConfig, nil),
 		)
 		userJobsRepo.EXPECT().GetByUserAndJob(ctx, userID.String(), job.ID).Return(userJob, nil)
-		expectCandidate(userID.String())
 
 		evalRepo.EXPECT().Create(ctx, gomock.Any()).Return(
 			&models.MatchingEvaluation{ID: uuid.New(), UserJobID: userJob.ID, EvaluationStatus: string(constants.MatchingStatusNew)}, nil)

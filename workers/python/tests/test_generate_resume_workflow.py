@@ -64,6 +64,20 @@ async def test_generate_resume_workflow_failure_does_not_complete() -> None:
     fail_payloads: list[dict[str, Any]] = []
 
     async def fake_execute_activity(act, input_data, **kwargs):  # type: ignore[no-untyped-def]
+        if act.__name__ == "fetch_resume_input_activity":
+            return {
+                "status": "ready",
+                "resume_status": "queued",
+                "job_id": "job-1",
+                "user_id": "user-1",
+                "candidate_profile": {"skills": ["go"]},
+                "job_profile": {"title": "Go Engineer"},
+                "evaluation_results": {"evaluations": []},
+                "facts": {"name": "A"},
+                "overall_score": 90.0,
+                "eligibility_status": "eligible",
+                "recommendation_label": "strong_match",
+            }
         if act.__name__ == "update_resume_status_activity":
             written_statuses.append(input_data["resume_status"])
             if input_data["resume_status"] == "failed":
@@ -98,6 +112,20 @@ async def test_generate_resume_workflow_success_completes() -> None:
     wf = GenerateResumeWorkflow()
 
     async def fake_execute_activity(act, input_data, **kwargs):  # type: ignore[no-untyped-def]
+        if act.__name__ == "fetch_resume_input_activity":
+            return {
+                "status": "ready",
+                "resume_status": "queued",
+                "job_id": "job-1",
+                "user_id": "user-1",
+                "candidate_profile": {"skills": ["go"]},
+                "job_profile": {"title": "Go Engineer"},
+                "evaluation_results": {"evaluations": []},
+                "facts": {"name": "A"},
+                "overall_score": 90.0,
+                "eligibility_status": "eligible",
+                "recommendation_label": "strong_match",
+            }
         if act.__name__ == "generate_resume_activity":
             return {"pdf_base64": "aGVsbG8=", "resume": {"name": "A"}}
         if act.__name__ == "upload_resume_activity":

@@ -2,7 +2,6 @@ package matching
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -10,44 +9,19 @@ import (
 	"github.com/frasnym/getojobu/apps/backend/internal/utils"
 )
 
-// resumeInputData is the snapshot the resume worker needs. Both the queue
-// step and the worker-facing GET build it through buildResumeInput so they
-// use the same profile and facts.
-type resumeInputData struct {
-	CandidateProfile    map[string]interface{}
-	JobProfile          map[string]interface{}
-	EvaluationResults   map[string]interface{}
-	Facts               map[string]interface{}
-	OverallScore        float64
-	EligibilityStatus   string
-	RecommendationLabel string
-	JobID               int64
-	UserID              string
-}
-
-func (s *matchingService) buildResumeInput(
+// composeFacts builds the contact/role/education summary the resume and cover
+// letter workers need. It also attaches raw education rows to a copy of the
+// candidate profile. Both the worker GET and the refresh endpoint use it, so
+// cached data has the same shape as the previous enqueue payload.
+func (s *matchingService) composeFacts(
 	ctx context.Context,
-	eval *models.MatchingEvaluation,
-	userJob *models.UserJob,
 	user *models.User,
-) (*resumeInputData, error) {
-	var candidate, job, evidence map[string]interface{}
-	_ = json.Unmarshal(eval.CandidateProfileData, &candidate)
-	_ = json.Unmarshal(eval.JobProfileData, &job)
-	_ = json.Unmarshal(eval.EvaluationData, &evidence)
+	candidate map[string]interface{},
+) (map[string]interface{}, map[string]interface{}) {
 	if candidate == nil {
 		candidate = map[string]interface{}{}
 	}
-	if job == nil {
-		job = map[string]interface{}{}
-	}
-	if evidence == nil {
-		evidence = map[string]interface{}{}
-	}
 
-	// Assemble education from user_educations table (pre-formatted lines for
-	// all educations — keep the payload small, no raw DB rows in facts; the
-	// full array is mirrored into candidate_profile.educations).
 	var educationLine string
 	var eduRows []*models.UserEducation
 	if s.eduRepo != nil {
@@ -77,7 +51,6 @@ func (s *matchingService) buildResumeInput(
 		}
 	}
 
-	// Assemble roles with stable IDs from user_experiences table
 	var roles []map[string]interface{}
 	if s.expRepo != nil {
 		exps, err := s.expRepo.ListByUser(ctx, user.ID)
@@ -123,9 +96,11 @@ func (s *matchingService) buildResumeInput(
 		}
 	}
 
-	// The worker finds education data alongside the rest of the candidate
-	// profile, not only inside facts.
-	candidate["educations"] = eduRows
+	enriched := make(map[string]interface{}, len(candidate)+1)
+	for key, value := range candidate {
+		enriched[key] = value
+	}
+	enriched["educations"] = eduRows
 
 	facts := map[string]interface{}{
 		"name":      utils.PtrStringOrEmpty(user.FullName),
@@ -139,16 +114,5 @@ func (s *matchingService) buildResumeInput(
 		"contact":   strings.Join(contactParts, " | "),
 		"roles":     roles,
 	}
-
-	return &resumeInputData{
-		CandidateProfile:    candidate,
-		JobProfile:          job,
-		EvaluationResults:   evidence,
-		Facts:               facts,
-		OverallScore:        utils.PtrFloatOrZero(eval.OverallScore),
-		EligibilityStatus:   utils.PtrStringOrEmpty(eval.EligibilityStatus),
-		RecommendationLabel: utils.PtrStringOrEmpty(eval.RecommendationLabel),
-		JobID:               userJob.JobID,
-		UserID:              userJob.UserID.String(),
-	}, nil
+	return facts, enriched
 }

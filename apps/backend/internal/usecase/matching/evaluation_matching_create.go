@@ -2,13 +2,11 @@ package matching
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
 	"github.com/google/uuid"
 
 	"github.com/frasnym/getojobu/apps/backend/internal/models"
-	"github.com/frasnym/getojobu/apps/backend/internal/utils"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/constants"
 )
 
@@ -82,11 +80,8 @@ func (s *matchingService) CreateEvaluations(
 			targetUserIDs = users
 		}
 
-		// Build the derived job profile: strip service metadata, default the
-		// family, and copy title/company/location from the shared jobs table.
-		// This is what gets stored and later sent to Temporal by the trigger.
-		var rawJobProfile map[string]interface{}
-		if err := json.Unmarshal(utils.StripJSONKeys(job.AnalyzeResult, "metadata"), &rawJobProfile); err != nil {
+		jobProfile, err := deriveJobProfile(job)
+		if err != nil {
 			errStr := fmt.Sprintf("parse job analyze_result: %s", err.Error())
 			summaries = append(summaries, &models.MatchingEvaluationSummary{
 				Slug:  item.Slug,
@@ -94,35 +89,7 @@ func (s *matchingService) CreateEvaluations(
 			})
 			continue
 		}
-		if rawJobProfile == nil {
-			// json.Unmarshal("null", &m) succeeds but leaves m nil, so the
-			// assignments below would panic. A non-object analyze_result cannot
-			// produce a usable job profile.
-			errStr := fmt.Sprintf("job %q analyze_result is not a JSON object", item.Slug)
-			summaries = append(summaries, &models.MatchingEvaluationSummary{
-				Slug:  item.Slug,
-				Error: &errStr,
-			})
-			continue
-		}
-		rawJobProfile["title"] = job.Title
-		rawJobProfile["company"] = job.Company
-		rawJobProfile["location"] = job.Location
-		family, _ := rawJobProfile["family"].(string)
-		if family == "" {
-			family = "other"
-			rawJobProfile["family"] = family
-		}
-
-		derivedJobProfile, err := json.Marshal(rawJobProfile)
-		if err != nil {
-			errStr := fmt.Sprintf("marshal job profile: %s", err.Error())
-			summaries = append(summaries, &models.MatchingEvaluationSummary{
-				Slug:  item.Slug,
-				Error: &errStr,
-			})
-			continue
-		}
+		family, _ := jobProfile["family"].(string)
 
 		scoringConfig, err := s.scoringConfigsRepo.GetActiveByFamily(ctx, family)
 		if err != nil {
@@ -160,31 +127,10 @@ func (s *matchingService) CreateEvaluations(
 				continue
 			}
 
-			candidateProfile, err := s.composeCandidateProfile(ctx, userIDStr)
-			if err != nil {
-				errStr := fmt.Sprintf("compose candidate profile: %s", err.Error())
-				summaries = append(summaries, &models.MatchingEvaluationSummary{
-					Slug:  item.Slug,
-					Error: &errStr,
-				})
-				continue
-			}
-			candidateJSON, err := json.Marshal(candidateProfile)
-			if err != nil {
-				errStr := fmt.Sprintf("marshal candidate profile: %s", err.Error())
-				summaries = append(summaries, &models.MatchingEvaluationSummary{
-					Slug:  item.Slug,
-					Error: &errStr,
-				})
-				continue
-			}
-
 			newRecord := &models.MatchingEvaluation{
-				UserJobID:            userJob.ID,
-				EvaluationStatus:     string(constants.MatchingStatusNew),
-				CandidateProfileData: candidateJSON,
-				JobProfileData:       derivedJobProfile,
-				ScoringConfigID:      scoringConfig.ID,
+				UserJobID:        userJob.ID,
+				EvaluationStatus: string(constants.MatchingStatusNew),
+				ScoringConfigID:  scoringConfig.ID,
 			}
 
 			eval, err := s.evalRepo.Create(ctx, newRecord)

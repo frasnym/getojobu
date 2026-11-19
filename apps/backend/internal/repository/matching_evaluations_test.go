@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"encoding/json"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -122,29 +121,23 @@ func TestCreate(t *testing.T) {
 	ctx := context.Background()
 
 	got, err := repo.Create(ctx, &models.MatchingEvaluation{
-		UserJobID:            seed.UserJobID,
-		EvaluationStatus:     string(constants.MatchingStatusNew),
-		ScoringConfigID:      seed.ScoringConfigID,
-		CandidateProfileData: json.RawMessage(`{"candidate":"v1"}`),
-		JobProfileData:       json.RawMessage(`{"job":"v1"}`),
+		UserJobID:        seed.UserJobID,
+		EvaluationStatus: string(constants.MatchingStatusNew),
+		ScoringConfigID:  seed.ScoringConfigID,
 	})
 	require.NoError(t, err)
 	require.NotEqual(t, uuid.Nil, got.ID)
 	assert.Equal(t, string(constants.MatchingStatusNew), got.EvaluationStatus)
-	assert.JSONEq(t, `{"candidate":"v1"}`, string(got.CandidateProfileData))
 
 	// A second call for the same user_job must not insert or overwrite anything.
 	got2, err := repo.Create(ctx, &models.MatchingEvaluation{
-		UserJobID:            seed.UserJobID,
-		EvaluationStatus:     string(constants.MatchingStatusFailed),
-		ScoringConfigID:      seed.ScoringConfigID,
-		CandidateProfileData: json.RawMessage(`{"candidate":"v2"}`),
-		JobProfileData:       json.RawMessage(`{"job":"v2"}`),
+		UserJobID:        seed.UserJobID,
+		EvaluationStatus: string(constants.MatchingStatusFailed),
+		ScoringConfigID:  seed.ScoringConfigID,
 	})
 	require.NoError(t, err)
 	assert.Equal(t, got.ID, got2.ID)
 	assert.Equal(t, string(constants.MatchingStatusNew), got2.EvaluationStatus)
-	assert.JSONEq(t, `{"candidate":"v1"}`, string(got2.CandidateProfileData))
 	assert.True(t, got.CreatedAt.Equal(got2.CreatedAt), "created_at must be unchanged on conflict")
 	assert.True(t, got.UpdatedAt.Equal(got2.UpdatedAt), "updated_at must be unchanged on conflict")
 
@@ -153,16 +146,13 @@ func TestCreate(t *testing.T) {
 	require.NoError(t, err)
 
 	got3, err := repo.Create(ctx, &models.MatchingEvaluation{
-		UserJobID:            seed.UserJobID,
-		EvaluationStatus:     string(constants.MatchingStatusNew),
-		ScoringConfigID:      seed.ScoringConfigID,
-		CandidateProfileData: json.RawMessage(`{"candidate":"v3"}`),
-		JobProfileData:       json.RawMessage(`{"job":"v3"}`),
+		UserJobID:        seed.UserJobID,
+		EvaluationStatus: string(constants.MatchingStatusNew),
+		ScoringConfigID:  seed.ScoringConfigID,
 	})
 	require.NoError(t, err)
 	assert.Equal(t, got.ID, got3.ID)
 	assert.Equal(t, string(constants.MatchingStatusSuccess), got3.EvaluationStatus)
-	assert.JSONEq(t, `{"candidate":"v1"}`, string(got3.CandidateProfileData))
 	assert.True(t, got.CreatedAt.Equal(got3.CreatedAt), "created_at must be unchanged on conflict")
 	assert.True(t, got.UpdatedAt.Equal(got3.UpdatedAt), "updated_at must be unchanged on conflict")
 }

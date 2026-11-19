@@ -10,10 +10,9 @@ import (
 	"github.com/frasnym/getojobu/apps/backend/internal/utils"
 )
 
-// GetEvaluation returns the stored input for the evaluation workflows. The
-// snapshots come from the evaluation row so retries use the same data as the
-// original queue; the resume facts and config are composed by the same helper
-// the queue step uses.
+// GetEvaluation returns the worker-facing snapshot for an evaluation. The
+// candidate profile and facts come from the user cache (composed once when
+// missing); the job profile is derived from the shared jobs table.
 func (s *matchingService) GetEvaluation(ctx context.Context, id uuid.UUID) (*models.GetEvaluationResponse, error) {
 	eval, err := s.evalRepo.GetByID(ctx, id)
 	if err != nil {
@@ -31,10 +30,48 @@ func (s *matchingService) GetEvaluation(ctx context.Context, id uuid.UUID) (*mod
 	if err != nil {
 		return nil, err
 	}
-
-	resumeInput, err := s.buildResumeInput(ctx, eval, userJob, user)
+	job, err := s.jobsRepo.GetByID(ctx, userJob.JobID)
 	if err != nil {
 		return nil, err
+	}
+
+	var candidate, facts map[string]interface{}
+	if len(user.ProfileData) > 0 {
+		_ = json.Unmarshal(user.ProfileData, &candidate)
+	}
+	if len(user.FactsData) > 0 {
+		_ = json.Unmarshal(user.FactsData, &facts)
+	}
+	if candidate == nil || facts == nil {
+		if candidate == nil {
+			candidate, err = s.composeCandidateProfile(ctx, user.ID)
+			if err != nil {
+				return nil, err
+			}
+		}
+		facts, candidate = s.composeFacts(ctx, user, candidate)
+		profileJSON, _ := json.Marshal(candidate)
+		factsJSON, _ := json.Marshal(facts)
+		if err := s.usersRepo.UpdateProfileCache(ctx, user.ID, profileJSON, factsJSON); err != nil {
+			return nil, err
+		}
+	}
+	if candidate == nil {
+		candidate = map[string]interface{}{}
+	}
+	if facts == nil {
+		facts = map[string]interface{}{}
+	}
+
+	jobProfile, err := deriveJobProfile(job)
+	if err != nil {
+		return nil, err
+	}
+
+	var evidence map[string]interface{}
+	_ = json.Unmarshal(eval.EvaluationData, &evidence)
+	if evidence == nil {
+		evidence = map[string]interface{}{}
 	}
 
 	configBytes, _ := json.Marshal(config)
@@ -48,15 +85,15 @@ func (s *matchingService) GetEvaluation(ctx context.Context, id uuid.UUID) (*mod
 		EvaluationStatus:    eval.EvaluationStatus,
 		ReportStatus:        utils.PtrStringOrEmpty(eval.ReportStatus),
 		ResumeStatus:        utils.PtrStringOrEmpty(eval.ResumeStatus),
-		CandidateProfile:    resumeInput.CandidateProfile,
-		JobProfile:          resumeInput.JobProfile,
-		EvaluationResults:   resumeInput.EvaluationResults,
+		CandidateProfile:    candidate,
+		JobProfile:          jobProfile,
+		EvaluationResults:   evidence,
 		EvaluationConfig:    configMap,
-		Facts:               resumeInput.Facts,
-		OverallScore:        resumeInput.OverallScore,
-		EligibilityStatus:   resumeInput.EligibilityStatus,
-		RecommendationLabel: resumeInput.RecommendationLabel,
-		JobID:               resumeInput.JobID,
-		UserID:              resumeInput.UserID,
+		Facts:               facts,
+		OverallScore:        utils.PtrFloatOrZero(eval.OverallScore),
+		EligibilityStatus:   utils.PtrStringOrEmpty(eval.EligibilityStatus),
+		RecommendationLabel: utils.PtrStringOrEmpty(eval.RecommendationLabel),
+		JobID:               userJob.JobID,
+		UserID:              userJob.UserID.String(),
 	}, nil
 }

@@ -200,7 +200,10 @@ func (s *matchingService) QueueCoverLetter(
 		return nil, fmt.Errorf("%w: onboarding is incomplete", constants.ErrInvalidRequest)
 	}
 
-	input := buildCoverLetterWorkflowInput(eval, userJob, user, req.Variant)
+	input := map[string]interface{}{
+		"evaluation_id": id.String(),
+		"variant":       req.Variant,
+	}
 
 	queueStatus := "queued"
 	if currentStatus != "" {
@@ -233,81 +236,4 @@ func (s *matchingService) QueueCoverLetter(
 		CoverLetterStatus: eval.CoverLetterStatus,
 		CreatedAt:         &eval.CreatedAt,
 	}, nil
-}
-
-// buildCoverLetterWorkflowInput mirrors the resume generation payload and adds
-// the chosen variant. All I/O stays in the usecase; the workflow receives a
-// plain, self-contained map.
-func buildCoverLetterWorkflowInput(
-	eval *models.MatchingEvaluation,
-	userJob *models.UserJob,
-	user *models.User,
-	variant string,
-) map[string]interface{} {
-	var candidate, job, evidence map[string]interface{}
-	_ = json.Unmarshal(eval.CandidateProfileData, &candidate)
-	_ = json.Unmarshal(eval.JobProfileData, &job)
-	_ = json.Unmarshal(eval.EvaluationData, &evidence)
-	if candidate == nil {
-		candidate = map[string]interface{}{}
-	}
-	if job == nil {
-		job = map[string]interface{}{}
-	}
-	if evidence == nil {
-		evidence = map[string]interface{}{}
-	}
-
-	var roles []map[string]interface{}
-	if rawExps, ok := candidate["experience"].([]interface{}); ok {
-		for idx, rawExp := range rawExps {
-			if expMap, ok := rawExp.(map[string]interface{}); ok {
-				roles = append(roles, map[string]interface{}{
-					"id":      fmt.Sprintf("exp-%d", idx+1),
-					"company": expMap["company"],
-					"role":    expMap["role"],
-					"period":  expMap["period"],
-				})
-			}
-		}
-	}
-
-	var contactParts []string
-	for _, value := range []*string{user.FullName, user.Phone, user.Email, user.LinkedInURL, user.GitHubURL} {
-		if value != nil && strings.TrimSpace(*value) != "" {
-			contactParts = append(contactParts, *value)
-		}
-	}
-
-	education := ""
-	if value, ok := candidate["education"].(string); ok {
-		education = value
-	}
-
-	facts := map[string]interface{}{
-		"name":      utils.PtrStringOrEmpty(user.FullName),
-		"headline":  utils.PtrStringOrEmpty(user.Headline),
-		"phone":     utils.PtrStringOrEmpty(user.Phone),
-		"email":     utils.PtrStringOrEmpty(user.Email),
-		"linkedin":  utils.PtrStringOrEmpty(user.LinkedInURL),
-		"github":    utils.PtrStringOrEmpty(user.GitHubURL),
-		"portfolio": utils.PtrStringOrEmpty(user.PortfolioURL),
-		"education": education,
-		"contact":   strings.Join(contactParts, " | "),
-		"roles":     roles,
-	}
-
-	return map[string]interface{}{
-		"evaluation_id":        eval.ID.String(),
-		"job_id":               userJob.JobID,
-		"user_id":              userJob.UserID.String(),
-		"candidate_profile":    candidate,
-		"facts":                facts,
-		"job_profile":          job,
-		"evaluation_results":   evidence,
-		"overall_score":        utils.PtrFloatOrZero(eval.OverallScore),
-		"eligibility_status":   utils.PtrStringOrEmpty(eval.EligibilityStatus),
-		"recommendation_label": utils.PtrStringOrEmpty(eval.RecommendationLabel),
-		"variant":              variant,
-	}
 }

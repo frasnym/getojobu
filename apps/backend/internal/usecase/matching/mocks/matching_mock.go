@@ -177,6 +177,21 @@ func (mr *MockMatchingMockRecorder) QueueCoverLetter(ctx, id, req, caller any) *
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueueCoverLetter", reflect.TypeOf((*MockMatching)(nil).QueueCoverLetter), ctx, id, req, caller)
 }
 
+// RefreshProfileCache mocks base method.
+func (m *MockMatching) RefreshProfileCache(ctx context.Context, userIDs []uuid.UUID) ([]*models.RefreshProfileResult, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RefreshProfileCache", ctx, userIDs)
+	ret0, _ := ret[0].([]*models.RefreshProfileResult)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// RefreshProfileCache indicates an expected call of RefreshProfileCache.
+func (mr *MockMatchingMockRecorder) RefreshProfileCache(ctx, userIDs any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RefreshProfileCache", reflect.TypeOf((*MockMatching)(nil).RefreshProfileCache), ctx, userIDs)
+}
+
 // TriggerEvaluations mocks base method.
 func (m *MockMatching) TriggerEvaluations(ctx context.Context, items []models.TriggerEvaluationItem, caller *models.Principal) ([]*models.MatchingEvaluationSummary, error) {
 	m.ctrl.T.Helper()

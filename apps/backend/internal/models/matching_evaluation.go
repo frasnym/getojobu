@@ -75,8 +75,6 @@ type MatchingEvaluation struct {
 	ID                        uuid.UUID
 	UserJobID                 uuid.UUID
 	EvaluationStatus          string
-	CandidateProfileData      json.RawMessage
-	JobProfileData            json.RawMessage
 	ScoringConfigID           uuid.UUID
 	EvaluationData            json.RawMessage
 	OverallScore              *float64

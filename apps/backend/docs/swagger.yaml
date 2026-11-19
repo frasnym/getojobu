@@ -558,6 +558,11 @@ definitions:
         type: object
       evaluation_status:
         type: string
+      facts:
+        additionalProperties: true
+        type: object
+      job_id:
+        type: integer
       job_profile:
         additionalProperties: true
         type: object
@@ -566,6 +571,10 @@ definitions:
       recommendation_label:
         type: string
       report_status:
+        type: string
+      resume_status:
+        type: string
+      user_id:
         type: string
     type: object
   models.MandatoryRequirementAssessment:
@@ -674,6 +683,13 @@ definitions:
       userID:
         type: string
     type: object
+  models.RefreshProfileResult:
+    properties:
+      error:
+        type: string
+      user_id:
+        type: string
+    type: object
   models.RetryJobsResult:
     properties:
       requeued:
@@ -771,6 +787,13 @@ definitions:
         type: string
       userID:
         type: string
+    type: object
+  profilecache.bulkRefreshProfileRequest:
+    properties:
+      user_ids:
+        items:
+          type: string
+        type: array
     type: object
   projects.createProjectRequest:
     properties:
@@ -2448,6 +2471,41 @@ paths:
       summary: Bulk toggle hide status on user jobs
       tags:
       - user-jobs
+  /v1/users/bulk-refresh-profile:
+    post:
+      consumes:
+      - application/json
+      description: Recompose and cache candidate profile and facts for the given users.
+        Accessible only via machine API key.
+      parameters:
+      - description: User IDs to refresh
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/profilecache.bulkRefreshProfileRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.RefreshProfileResult'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpx.Error'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpx.Error'
+      security:
+      - ApiKeyAuth: []
+      summary: Bulk refresh user profile cache
+      tags:
+      - users
   /v1/webhooks/clerk:
     post:
       consumes:

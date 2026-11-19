@@ -29,6 +29,37 @@ def init_cover_letter_generation_container(
 
 
 @activity.defn
+async def fetch_cover_letter_input_activity(input: dict[str, Any]) -> dict[str, Any]:
+    """Fetch the stored cover-letter input and gate on cover_letter_status."""
+    container = init_cover_letter_generation_container()
+
+    evaluation_id = input.get("evaluation_id")
+    if not evaluation_id or not isinstance(evaluation_id, str):
+        raise ValueError("evaluation_id is required")
+
+    evaluation = await container.repository.getojobu_api.get_evaluation(evaluation_id)
+    status = evaluation.get("cover_letter_status")
+    if status not in ("queued", "queued_retry"):
+        return {"status": "skipped", "cover_letter_status": status}
+
+    result: dict[str, Any] = {
+        "status": "ready",
+        "cover_letter_status": status,
+        "overall_score": float(evaluation.get("overall_score") or 0),
+        "eligibility_status": str(evaluation.get("eligibility_status") or "eligible"),
+        "recommendation_label": str(
+            evaluation.get("recommendation_label") or "worth_applying"
+        ),
+    }
+    for name in ("candidate_profile", "job_profile", "evaluation_results", "facts"):
+        value = evaluation.get(name)
+        if not isinstance(value, dict) or not value:
+            raise ValueError(f"{name} is required")
+        result[name] = cast(dict[str, Any], value)
+    return result
+
+
+@activity.defn
 async def generate_cover_letter_activity(input: dict[str, Any]) -> dict[str, Any]:
     container = init_cover_letter_generation_container()
     for name in ("candidate_profile", "job_profile", "evaluation_results", "facts"):

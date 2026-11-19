@@ -58,20 +58,18 @@ func storedEvaluation(id, userJobID, scoringConfigID uuid.UUID, status string) *
 	resumeStatus := string(constants.ResumeStatusSuccess)
 	coverStatus := string(constants.CoverLetterStatusSuccess)
 	return &models.MatchingEvaluation{
-		ID:                   id,
-		UserJobID:            userJobID,
-		EvaluationStatus:     status,
-		CandidateProfileData: []byte(`{"years_experience":5,"skills":["go"]}`),
-		JobProfileData:       []byte(`{"family":"technology","title":"Backend Engineer"}`),
-		ScoringConfigID:      scoringConfigID,
-		EvaluationData:       json.RawMessage(`{"old":true}`),
-		FailureMessage:       strPtr("previous timeout"),
-		ReportStatus:         &reportStatus,
-		ReportData:           json.RawMessage(`{"report":"kept"}`),
-		ResumeStatus:         &resumeStatus,
-		ResumePDFKey:         strPtr("resume/key.pdf"),
-		CoverLetterStatus:    &coverStatus,
-		CoverLetterContent:   json.RawMessage(`{"text":"kept"}`),
+		ID:                 id,
+		UserJobID:          userJobID,
+		EvaluationStatus:   status,
+		ScoringConfigID:    scoringConfigID,
+		EvaluationData:     json.RawMessage(`{"old":true}`),
+		FailureMessage:     strPtr("previous timeout"),
+		ReportStatus:       &reportStatus,
+		ReportData:         json.RawMessage(`{"report":"kept"}`),
+		ResumeStatus:       &resumeStatus,
+		ResumePDFKey:       strPtr("resume/key.pdf"),
+		CoverLetterStatus:  &coverStatus,
+		CoverLetterContent: json.RawMessage(`{"text":"kept"}`),
 	}
 }
 

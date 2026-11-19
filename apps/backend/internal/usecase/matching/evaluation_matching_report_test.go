@@ -138,12 +138,10 @@ func TestBulkQueueGenerateReport(t *testing.T) {
 
 	t.Run("success marks pending and starts limiter workflow", func(t *testing.T) {
 		eval := &models.MatchingEvaluation{
-			ID:                   evalID,
-			UserJobID:            uuid.New(),
-			EvaluationStatus:     string(constants.MatchingStatusSuccess),
-			CandidateProfileData: json.RawMessage(`{"skills":["go"]}`),
-			JobProfileData:       json.RawMessage(`{"title":"Go Dev"}`),
-			EvaluationData:       json.RawMessage(`{"evaluations":[]}`),
+			ID:               evalID,
+			UserJobID:        uuid.New(),
+			EvaluationStatus: string(constants.MatchingStatusSuccess),
+			EvaluationData:   json.RawMessage(`{"evaluations":[]}`),
 		}
 
 		queueStatus := string(constants.ReportStatusQueued)
@@ -168,13 +166,11 @@ func TestBulkQueueGenerateReport(t *testing.T) {
 	t.Run("success marks queued_retry when retrying report", func(t *testing.T) {
 		failedStatus := string(constants.ReportStatusFailed)
 		eval := &models.MatchingEvaluation{
-			ID:                   evalID,
-			UserJobID:            uuid.New(),
-			EvaluationStatus:     string(constants.MatchingStatusSuccess),
-			CandidateProfileData: json.RawMessage(`{"skills":["go"]}`),
-			JobProfileData:       json.RawMessage(`{"title":"Go Dev"}`),
-			EvaluationData:       json.RawMessage(`{"evaluations":[]}`),
-			ReportStatus:         &failedStatus,
+			ID:               evalID,
+			UserJobID:        uuid.New(),
+			EvaluationStatus: string(constants.MatchingStatusSuccess),
+			EvaluationData:   json.RawMessage(`{"evaluations":[]}`),
+			ReportStatus:     &failedStatus,
 		}
 
 		queueRetryStatus := string(constants.ReportStatusQueuedRetry)
@@ -198,12 +194,10 @@ func TestBulkQueueGenerateReport(t *testing.T) {
 
 	t.Run("marks failed in DB when limiter fails to start", func(t *testing.T) {
 		eval := &models.MatchingEvaluation{
-			ID:                   evalID,
-			UserJobID:            uuid.New(),
-			EvaluationStatus:     string(constants.MatchingStatusSuccess),
-			CandidateProfileData: json.RawMessage(`{}`),
-			JobProfileData:       json.RawMessage(`{}`),
-			EvaluationData:       json.RawMessage(`{}`),
+			ID:               evalID,
+			UserJobID:        uuid.New(),
+			EvaluationStatus: string(constants.MatchingStatusSuccess),
+			EvaluationData:   json.RawMessage(`{}`),
 		}
 
 		queueStatus := string(constants.ReportStatusQueued)
@@ -241,13 +235,11 @@ func TestBulkQueueGenerateReport(t *testing.T) {
 		ownerID := uuid.New()
 		failedStatus := string(constants.ReportStatusFailed)
 		eval := &models.MatchingEvaluation{
-			ID:                   evalID,
-			UserJobID:            userJobID,
-			EvaluationStatus:     string(constants.MatchingStatusSuccess),
-			CandidateProfileData: json.RawMessage(`{"skills":["go"]}`),
-			JobProfileData:       json.RawMessage(`{"title":"Go Dev"}`),
-			EvaluationData:       json.RawMessage(`{"evaluations":[]}`),
-			ReportStatus:         &failedStatus,
+			ID:               evalID,
+			UserJobID:        userJobID,
+			EvaluationStatus: string(constants.MatchingStatusSuccess),
+			EvaluationData:   json.RawMessage(`{"evaluations":[]}`),
+			ReportStatus:     &failedStatus,
 		}
 		queueRetryStatus := string(constants.ReportStatusQueuedRetry)
 		updatedEval := *eval
@@ -323,12 +315,10 @@ func TestBulkQueueGenerateReport(t *testing.T) {
 
 	t.Run("api key caller skips the ownership check", func(t *testing.T) {
 		eval := &models.MatchingEvaluation{
-			ID:                   evalID,
-			UserJobID:            uuid.New(),
-			EvaluationStatus:     string(constants.MatchingStatusSuccess),
-			CandidateProfileData: json.RawMessage(`{}`),
-			JobProfileData:       json.RawMessage(`{}`),
-			EvaluationData:       json.RawMessage(`{}`),
+			ID:               evalID,
+			UserJobID:        uuid.New(),
+			EvaluationStatus: string(constants.MatchingStatusSuccess),
+			EvaluationData:   json.RawMessage(`{}`),
 		}
 		queueStatus := string(constants.ReportStatusQueued)
 		updatedEval := *eval
@@ -369,14 +359,12 @@ func TestBulkQueueGenerateReport_ForceQueuedGuard(t *testing.T) {
 	queuedEval := func(id uuid.UUID, status constants.ReportStatus, age time.Duration) *models.MatchingEvaluation {
 		reportStatus := string(status)
 		return &models.MatchingEvaluation{
-			ID:                   id,
-			UserJobID:            uuid.New(),
-			EvaluationStatus:     string(constants.MatchingStatusSuccess),
-			ReportStatus:         &reportStatus,
-			CandidateProfileData: json.RawMessage(`{"skills":["go"]}`),
-			JobProfileData:       json.RawMessage(`{"title":"Go Dev"}`),
-			EvaluationData:       json.RawMessage(`{"evaluations":[]}`),
-			UpdatedAt:            time.Now().Add(-age),
+			ID:               id,
+			UserJobID:        uuid.New(),
+			EvaluationStatus: string(constants.MatchingStatusSuccess),
+			ReportStatus:     &reportStatus,
+			EvaluationData:   json.RawMessage(`{"evaluations":[]}`),
+			UpdatedAt:        time.Now().Add(-age),
 		}
 	}
 

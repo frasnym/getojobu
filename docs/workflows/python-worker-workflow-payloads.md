@@ -12,27 +12,8 @@ Source of truth is `workers/python/workflows/*.py` plus the activity validators 
 | MatchJobWorkflow            | job-evaluation | `evaluation_id`             | yes      | No             | —      | Evaluation row updated with status, result, and metadata.                     |
 | GenerateReportWorkflow      | job-evaluation | `evaluation_id`             | yes      | No             | —      | Report row marked pending, success, or failed.                                |
 | GenerateResumeWorkflow      | job-evaluation | `evaluation_id`             | yes      | No             | —      | Required by the generate and status activities.                               |
-| GenerateResumeWorkflow      | job-evaluation | `candidate_profile`         | yes      | Yes            | [ ]    | CV input to the resume LLM.                                                   |
-| GenerateResumeWorkflow      | job-evaluation | `job_profile`               | yes      | Yes            | [ ]    | CV input to the resume LLM.                                                   |
-| GenerateResumeWorkflow      | job-evaluation | `evaluation_results`        | yes      | Yes            | [ ]    | Match findings used for tailoring.                                            |
-| GenerateResumeWorkflow      | job-evaluation | `facts`                     | yes      | Yes            | [ ]    | Structured facts used for tailoring.                                          |
-| GenerateResumeWorkflow      | job-evaluation | `template_name`             | no       | No             | —      | Read by the Python activity but never set by the Go caller, so always absent. |
-| GenerateResumeWorkflow      | job-evaluation | `overall_score`             | no       | No             | —      | Optional, forwarded to the LLM.                                               |
-| GenerateResumeWorkflow      | job-evaluation | `eligibility_status`        | no       | No             | —      | Optional, forwarded to the LLM.                                               |
-| GenerateResumeWorkflow      | job-evaluation | `recommendation_label`      | no       | No             | —      | Optional, forwarded to the LLM.                                               |
-| GenerateResumeWorkflow      | job-evaluation | `job_id`                    | no       | No             | —      | Optional R2 object-key prefix for the uploaded PDF and JSON.                  |
-| GenerateResumeWorkflow      | job-evaluation | `user_id`                   | no       | No             | —      | Optional R2 object-key prefix for the uploaded PDF and JSON.                  |
 | GenerateCoverLetterWorkflow | job-evaluation | `evaluation_id`             | yes      | No             | —      | Required by the generate and status activities.                               |
-| GenerateCoverLetterWorkflow | job-evaluation | `job_id`                    | no       | No             | —      | Sent by the Go caller; the Python worker does not read it.                    |
-| GenerateCoverLetterWorkflow | job-evaluation | `user_id`                   | no       | No             | —      | Sent by the Go caller; the Python worker does not read it.                    |
-| GenerateCoverLetterWorkflow | job-evaluation | `candidate_profile`         | yes      | Yes            | [ ]    | Letter input to the LLM.                                                      |
-| GenerateCoverLetterWorkflow | job-evaluation | `job_profile`               | yes      | Yes            | [ ]    | Letter input to the LLM.                                                      |
-| GenerateCoverLetterWorkflow | job-evaluation | `evaluation_results`        | yes      | Yes            | [ ]    | Match findings referenced in the letter.                                      |
-| GenerateCoverLetterWorkflow | job-evaluation | `facts`                     | yes      | Yes            | [ ]    | Structured facts referenced in the letter.                                    |
 | GenerateCoverLetterWorkflow | job-evaluation | `variant`                   | yes      | No             | —      | Letter variant, for example `short`.                                          |
-| GenerateCoverLetterWorkflow | job-evaluation | `overall_score`             | no       | No             | —      | Optional, forwarded to the LLM.                                               |
-| GenerateCoverLetterWorkflow | job-evaluation | `eligibility_status`        | no       | No             | —      | Optional, forwarded to the LLM.                                               |
-| GenerateCoverLetterWorkflow | job-evaluation | `recommendation_label`      | no       | No             | —      | Optional, forwarded to the LLM.                                               |
 | JobScrapeWorkflow           | job-scrape     | `board`                     | yes      | No             | —      | Source board name; must be non-empty.                                         |
 | JobScrapeWorkflow           | job-scrape     | `keyword`                   | no       | No             | —      | Search term for the board query.                                              |
 | JobScrapeWorkflow           | job-scrape     | `location`                  | no       | No             | —      | Search location for the board query.                                          |
@@ -54,14 +35,14 @@ Source of truth is `workers/python/workflows/*.py` plus the activity validators 
 
 ## Migration notes
 
-- `candidate_profile`, `job_profile`, and `evaluation_results` are stored as JSONB columns `candidate_profile_data`, `job_profile_data`, and `evaluation_data` on the matching evaluation row. Worker-auth `GET /v1/matching-evaluations/{id}` now returns all three plus `evaluation_status`, `report_status`, `evaluation_config`, and the score fields.
-- `evaluation_config` is resolved from `scoring_config_id` on the evaluation row, so MatchJobWorkflow uses the exact config version from queue time.
-- `facts` is not stored as one column. The Go service composes it from the user profile (name, contact, headline, education, roles), so the remaining resume/cover-letter migration still needs it in a GET response.
-- MatchJobWorkflow now calls `fetch_match_input_activity` first and skips unless `evaluation_status` is `queued` or `queued_retry`. `TriggerEvaluations` flips the row before enqueueing so the worker sees the right status.
-- GenerateReportWorkflow now calls `fetch_report_input_activity` first and skips unless `report_status` is `queued` or `queued_retry`. `BulkQueueGenerateReport` already flipped the row before enqueueing.
+- `candidate_profile` and `facts` are cached on `users.profile_data` and `users.facts_data`. Worker-auth `POST /v1/users/bulk-refresh-profile` recomposes and stores them for up to 100 user IDs. `GetEvaluation` composes once when either column is NULL, then uses the cache. Workflows always get the current profile, not a per-evaluation snapshot.
+- `job_profile` is derived from the shared jobs row (`analyze_result` plus title/company/location) on every GET. It is not cached per user because it belongs to the job.
+- `evaluation_config` is resolved from `scoring_config_id` on the evaluation row.
+- `matching_evaluations.candidate_profile_data` and `job_profile_data` were dropped in migration `000020_user_profile_cache.sql`. `evaluation_data` and `scoring_config_id` remain.
+- Each generation workflow calls a fetch activity first and skips unless its status is `queued` or `queued_retry`: `evaluation_status` (match), `report_status` (report), `resume_status` (resume), `cover_letter_status` (cover letter). Go flips the status before enqueueing.
 - `job_description` was removed from the workflow input and from `AnalyzeJob.analyze()`, which now takes only `slug`. The usecase calls `get_job(slug)` and uses the stored job description; the Go caller still validates that a description exists before queueing.
 
-`job_id` and `user_id` are already IDs, so keep them in the payload. For MatchJobWorkflow and GenerateReportWorkflow the payload is now just `evaluation_id`. The remaining small scalars and routing keys (`variant`, `template_name`, board/scan fields, limiter fields) stay as-is.
+The only generation payload keys left are `evaluation_id`, plus `variant` for cover letters. `slug` remains for job analysis; board/scan fields and limiter fields stay as-is.
 
 ## Migration checklist
 
@@ -81,7 +62,11 @@ Source of truth is `workers/python/workflows/*.py` plus the activity validators 
 | [x]  | API    | Extend `GetEvaluationResponse` with `report_status`, `evaluation_results`, and the score fields; regenerate Swagger.                                          |
 | [x]  | Go     | Enqueue only `evaluation_id` for report generation; the stored snapshots are loaded by the worker.                                                            |
 | [x]  | Python | Add `fetch_report_input_activity` and gate `GenerateReportWorkflow` on `report_status`.                                                                       |
-| [ ]  | Python | Migrate the remaining resume/cover-letter big payloads; that GET response still needs `facts`.                                                                |
+| [x]  | API    | Add worker-auth `POST /v1/users/bulk-refresh-profile` and `RefreshProfileCache` usecase.                                                                      |
+| [x]  | Go     | Add `users.profile_data` and `users.facts_data`; compose on cache miss in `GetEvaluation`.                                                                    |
+| [x]  | Go     | Drop `matching_evaluations.candidate_profile_data` and `job_profile_data`; derive the job profile from the jobs row.                                          |
+| [x]  | Python | Add `fetch_resume_input_activity` and `fetch_cover_letter_input_activity`; gate workflows on their status.                                                   |
+| [x]  | Python | Remove dead `template_name` read from resume generation.                                                                                                      |
 | [x]  | Tests  | Update Python activity and workflow tests to feed only IDs and assert the API fetch.                                                                           |
 | [x]  | Tests  | Update Go usecase tests to assert the new workflow input shape and enqueue order.                                                                              |
 | [ ]  | Tests  | Add an API handler test for the new GET endpoint, including authorization.                                                                                     |

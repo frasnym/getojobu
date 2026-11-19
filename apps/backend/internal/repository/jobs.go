@@ -28,6 +28,7 @@ type Jobs interface {
 	Create(ctx context.Context, params models.CreateJobParams) (*models.CreateJobResult, error)
 	BulkCreate(ctx context.Context, params models.BulkCreateJobParams) ([]*models.CreateJobResult, error)
 	GetBySlug(ctx context.Context, slug string, userID string) (*models.JobWithOwnership, error)
+	GetByID(ctx context.Context, id int64) (*models.Job, error)
 	List(ctx context.Context, limit, offset int, userID string) ([]*models.JobWithOwnership, int, error)
 	// UpdateStatus transitions the job to a new status and optionally persists
 	// analyzeResult (JSONB) and/or failureMessage. Returns constants.ErrNotFound
@@ -143,6 +144,27 @@ func (r *jobsRepository) GetBySlug(ctx context.Context, slug string, userID stri
 		return nil, fmt.Errorf("get job by slug with ownership: %w", err)
 	}
 	return res, nil
+}
+
+// GetByID returns a job by its internal id, without user ownership filters.
+func (r *jobsRepository) GetByID(ctx context.Context, id int64) (*models.Job, error) {
+	query := `
+		SELECT id, slug, status, analyze_result, failure_message,
+			source, external_id, source_url, apply_url,
+			title, company, location, description, posted_date,
+			is_remote, visa_relocation,
+			created_at, updated_at, updated_by_type, updated_by_id, owner_id
+		FROM jobs
+		WHERE id = $1
+	`
+	job, err := scanJob(r.QueryRow(ctx, query, id))
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) || errors.Is(err, pgx.ErrNoRows) {
+			return nil, constants.ErrNotFound
+		}
+		return nil, fmt.Errorf("get job by id: %w", err)
+	}
+	return job, nil
 }
 
 func (r *jobsRepository) getBySlug(ctx context.Context, tx pgx.Tx, slug string) (*models.Job, error) {

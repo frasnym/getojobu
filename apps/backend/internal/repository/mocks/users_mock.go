@@ -129,3 +129,17 @@ func (mr *MockUsersMockRecorder) UpdateProfile(ctx, id, p any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateProfile", reflect.TypeOf((*MockUsers)(nil).UpdateProfile), ctx, id, p)
 }
+
+// UpdateProfileCache mocks base method.
+func (m *MockUsers) UpdateProfileCache(ctx context.Context, id string, profileData, factsData []byte) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateProfileCache", ctx, id, profileData, factsData)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpdateProfileCache indicates an expected call of UpdateProfileCache.
+func (mr *MockUsersMockRecorder) UpdateProfileCache(ctx, id, profileData, factsData any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateProfileCache", reflect.TypeOf((*MockUsers)(nil).UpdateProfileCache), ctx, id, profileData, factsData)
+}

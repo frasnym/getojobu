@@ -22,6 +22,7 @@ type Matching interface {
 	DownloadResume(ctx context.Context, id uuid.UUID, caller *models.Principal) (*models.DownloadResumeResponse, error)
 	GetEvaluationByUserJobID(ctx context.Context, userID uuid.UUID, userJobID uuid.UUID) (*models.EvaluationWithJob, error)
 	GetEvaluation(ctx context.Context, id uuid.UUID) (*models.GetEvaluationResponse, error)
+	RefreshProfileCache(ctx context.Context, userIDs []uuid.UUID) ([]*models.RefreshProfileResult, error)
 	QueueCoverLetter(ctx context.Context, id uuid.UUID, req QueueCoverLetterRequest, caller *models.Principal) (*models.MatchingEvaluationSummary, error)
 	BulkQueueCoverLetter(ctx context.Context, items []models.BulkGenerateCoverLetterItem, caller *models.Principal) ([]*models.MatchingEvaluationSummary, error)
 	UpdateEvaluationCoverLetter(ctx context.Context, id uuid.UUID, req UpdateEvaluationCoverLetterRequest) (*models.MatchingEvaluation, error)

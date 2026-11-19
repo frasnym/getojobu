@@ -43,6 +43,11 @@ def _input(variant: str = "short") -> dict[str, Any]:
     }
 
 
+def _workflow_input(variant: str = "short") -> dict[str, Any]:
+    """Workflow payload: only the ID and variant; the rest comes from GET."""
+    return {"evaluation_id": "eval-123", "variant": variant}
+
+
 async def _run_workflow(
     *,
     generate_impl: Any,
@@ -67,6 +72,21 @@ async def _run_workflow(
     async with env:
         task_queue = "test-generate-cover-letter-queue"
 
+        @activity.defn(name="fetch_cover_letter_input_activity")
+        async def fake_fetch(input: dict[str, Any]) -> dict[str, Any]:
+            data = _input()
+            return {
+                "status": "ready",
+                "cover_letter_status": "queued",
+                "candidate_profile": data["candidate_profile"],
+                "job_profile": data["job_profile"],
+                "evaluation_results": data["evaluation_results"],
+                "facts": data["facts"],
+                "overall_score": data["overall_score"],
+                "eligibility_status": data["eligibility_status"],
+                "recommendation_label": data["recommendation_label"],
+            }
+
         @activity.defn(name="generate_cover_letter_activity")
         async def fake_generate(input: dict[str, Any]) -> dict[str, Any]:
             generate_inputs.append(input)
@@ -86,7 +106,7 @@ async def _run_workflow(
             env.client,
             task_queue=task_queue,
             workflows=[GenerateCoverLetterWorkflow],
-            activities=[fake_generate, fake_update_status, fake_upload],
+            activities=[fake_fetch, fake_generate, fake_update_status, fake_upload],
         ):
             handle = await env.client.start_workflow(
                 GenerateCoverLetterWorkflow.run,
@@ -108,7 +128,7 @@ async def test_workflow_success_writes_content() -> None:
 
     result, status_updates, _generate_inputs, upload_calls = await _run_workflow(
         generate_impl=generate_impl,
-        wf_input=_input(),
+        wf_input=_workflow_input(),
         wf_id="test-cover-letter-success",
     )
 
@@ -139,7 +159,7 @@ async def test_workflow_failure_uses_fixed_message() -> None:
 
     result, status_updates, _generate_inputs, upload_calls = await _run_workflow(
         generate_impl=generate_impl,
-        wf_input=_input(),
+        wf_input=_workflow_input(),
         wf_id="test-cover-letter-failure",
     )
 
@@ -161,7 +181,7 @@ async def test_workflow_passes_variant_to_activity() -> None:
 
     _result, _status_updates, generate_inputs, _upload_calls = await _run_workflow(
         generate_impl=generate_impl,
-        wf_input=_input(variant="full"),
+        wf_input=_workflow_input(variant="full"),
         wf_id="test-cover-letter-variant",
     )
 
@@ -286,3 +306,51 @@ async def test_patch_matching_evaluation_cover_letter_sends_payload() -> None:
     assert res["id"] == eval_id
     assert res["cover_letter_status"] == "success"
     await api.aclose()
+
+
+@pytest.mark.asyncio
+async def test_fetch_cover_letter_input_activity_ready() -> None:
+    from deliveries.consumer.activities.cover_letter_generation import (
+        fetch_cover_letter_input_activity,
+        init_cover_letter_generation_container,
+    )
+
+    data = _input()
+    container = MagicMock()
+    container.repository.getojobu_api.get_evaluation = AsyncMock(
+        return_value={
+            "cover_letter_status": "queued_retry",
+            "candidate_profile": data["candidate_profile"],
+            "job_profile": data["job_profile"],
+            "evaluation_results": data["evaluation_results"],
+            "facts": data["facts"],
+            "overall_score": data["overall_score"],
+            "eligibility_status": data["eligibility_status"],
+            "recommendation_label": data["recommendation_label"],
+        }
+    )
+    init_cover_letter_generation_container(container)
+
+    res = await fetch_cover_letter_input_activity({"evaluation_id": "eval-123"})
+
+    assert res["status"] == "ready"
+    assert res["facts"]["name"] == "Alex"
+    container.repository.getojobu_api.get_evaluation.assert_awaited_once_with("eval-123")
+
+
+@pytest.mark.asyncio
+async def test_fetch_cover_letter_input_activity_skips_other_statuses() -> None:
+    from deliveries.consumer.activities.cover_letter_generation import (
+        fetch_cover_letter_input_activity,
+        init_cover_letter_generation_container,
+    )
+
+    container = MagicMock()
+    container.repository.getojobu_api.get_evaluation = AsyncMock(
+        return_value={"cover_letter_status": "success"}
+    )
+    init_cover_letter_generation_container(container)
+
+    res = await fetch_cover_letter_input_activity({"evaluation_id": "eval-123"})
+
+    assert res == {"status": "skipped", "cover_letter_status": "success"}

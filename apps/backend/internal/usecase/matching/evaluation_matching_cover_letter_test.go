@@ -55,13 +55,11 @@ func newCoverLetterDeps(t *testing.T) *coverLetterDeps {
 func successfulEvaluation(id, userJobID uuid.UUID) *models.MatchingEvaluation {
 	rec := string(constants.RecommendationStrongMatch)
 	return &models.MatchingEvaluation{
-		ID:                   id,
-		UserJobID:            userJobID,
-		EvaluationStatus:     string(constants.MatchingStatusSuccess),
-		RecommendationLabel:  &rec,
-		CandidateProfileData: json.RawMessage(`{"skills":["Go"]}`),
-		JobProfileData:       json.RawMessage(`{"title":"Software Engineer"}`),
-		EvaluationData:       json.RawMessage(`{"summary":"Strong match"}`),
+		ID:                  id,
+		UserJobID:           userJobID,
+		EvaluationStatus:    string(constants.MatchingStatusSuccess),
+		RecommendationLabel: &rec,
+		EvaluationData:      json.RawMessage(`{"summary":"Strong match"}`),
 	}
 }
 

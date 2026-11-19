@@ -10,6 +10,7 @@ import (
 	"github.com/frasnym/getojobu/apps/backend/internal/deliveries/api/handler/jobs"
 	"github.com/frasnym/getojobu/apps/backend/internal/deliveries/api/handler/matching"
 	"github.com/frasnym/getojobu/apps/backend/internal/deliveries/api/handler/me"
+	profilecache "github.com/frasnym/getojobu/apps/backend/internal/deliveries/api/handler/profilecache"
 	"github.com/frasnym/getojobu/apps/backend/internal/deliveries/api/handler/projects"
 	"github.com/frasnym/getojobu/apps/backend/internal/deliveries/api/handler/retry"
 	scoringConfigs "github.com/frasnym/getojobu/apps/backend/internal/deliveries/api/handler/scoringconfigs"
@@ -74,6 +75,9 @@ func (h *handler) Route(rt *httpx.Router) {
 
 	// Matching routes (evaluation updates).
 	matching.NewHandler(h.contract).Route(v1.Group("/matching-evaluations"))
+
+	// Profile cache refresh (machine API key only).
+	profilecache.NewHandler(h.contract).Route(v1.Group("/users"))
 
 	// Failed-workflow retry sweep (machine API key only).
 	retry.NewHandler(h.contract).Route(v1.Group("/maintenance"))

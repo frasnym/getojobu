@@ -286,3 +286,53 @@ async def test_upload_resume_activity_builds_correct_keys() -> None:
         body=pdf_bytes,
         content_type="application/pdf",
     )
+
+
+@pytest.mark.asyncio
+async def test_fetch_resume_input_activity_ready():
+    from deliveries.consumer.activities.resume_generation import (
+        fetch_resume_input_activity,
+        init_resume_generation_container,
+    )
+
+    container = MagicMock()
+    container.repository.getojobu_api.get_evaluation = AsyncMock(
+        return_value={
+            "resume_status": "queued_retry",
+            "job_id": 42,
+            "user_id": "user-1",
+            "candidate_profile": {"skills": ["go"]},
+            "job_profile": {"title": "Go Engineer"},
+            "evaluation_results": {"evaluations": []},
+            "facts": {"name": "Alex", "roles": []},
+            "overall_score": 88.0,
+            "eligibility_status": "eligible",
+            "recommendation_label": "worth_applying",
+        }
+    )
+    init_resume_generation_container(container)
+
+    res = await fetch_resume_input_activity({"evaluation_id": "eval-1"})
+
+    assert res["status"] == "ready"
+    assert res["job_id"] == 42
+    assert res["facts"]["name"] == "Alex"
+    container.repository.getojobu_api.get_evaluation.assert_awaited_once_with("eval-1")
+
+
+@pytest.mark.asyncio
+async def test_fetch_resume_input_activity_skips_other_statuses():
+    from deliveries.consumer.activities.resume_generation import (
+        fetch_resume_input_activity,
+        init_resume_generation_container,
+    )
+
+    container = MagicMock()
+    container.repository.getojobu_api.get_evaluation = AsyncMock(
+        return_value={"resume_status": "success"}
+    )
+    init_resume_generation_container(container)
+
+    res = await fetch_resume_input_activity({"evaluation_id": "eval-1"})
+
+    assert res == {"status": "skipped", "resume_status": "success"}
