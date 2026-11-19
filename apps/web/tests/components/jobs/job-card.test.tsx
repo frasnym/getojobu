@@ -31,6 +31,17 @@ describe("JobCard component", () => {
     expect(screen.getByText("Remote")).toBeInTheDocument();
   });
 
+  it("spins the icon on the scrape pending tag", () => {
+    const scrapePending = {
+      ...mockUserJob,
+      job: { ...mockUserJob.job, status: "scrape_pending" as const },
+    };
+    render(<JobCard userJob={scrapePending} />);
+    const tag = screen.getByTestId("scrape-pending-tag");
+    expect(tag).toHaveTextContent("Scraping...");
+    expect(tag.querySelector(".lucide-clock.animate-spin")).not.toBeNull();
+  });
+
   it("renders the details trigger", () => {
     render(<JobCard userJob={mockUserJob} />);
     expect(screen.getByText(/Details/i)).toBeInTheDocument();
@@ -99,14 +110,14 @@ describe("JobCard evaluation tags", () => {
     render(<JobCard userJob={evaluatedJob({ evaluation_status: "pending" })} />);
     const tags = screen.getAllByTestId("evaluation-status-tag");
     expect(tags[1]).toHaveClass("bg-sky-500/10 text-sky-600");
-    expect(tags[1].querySelector(".lucide-clock")).not.toBeNull();
+    expect(tags[1].querySelector(".lucide-clock.animate-spin")).not.toBeNull();
   });
 
   it("renders a sky Evaluation tag with a clock icon when evaluation_status is queued", () => {
     render(<JobCard userJob={evaluatedJob({ evaluation_status: "queued" })} />);
     const tags = screen.getAllByTestId("evaluation-status-tag");
     expect(tags[1]).toHaveClass("bg-sky-500/10 text-sky-600");
-    expect(tags[1].querySelector(".lucide-clock")).not.toBeNull();
+    expect(tags[1].querySelector(".lucide-clock.animate-spin")).not.toBeNull();
   });
 
   it("renders a red Evaluation tag when evaluation_status is failed", () => {

@@ -78,7 +78,7 @@ export function JobCard({
 							<StatusTag label="Scraped" tone="info" testId="scraped-source-tag" />
 						)}
 						{isScrapePending && (
-							<StatusTag label="Scraping..." tone="pending" icon={<Clock className="h-3 w-3 animate-spin" />} testId="scrape-pending-tag" />
+							<StatusTag label="Scraping..." tone="pending" icon={<Clock className="h-3 w-3" />} testId="scrape-pending-tag" />
 						)}
 						{isScrapeFailed && (
 							<StatusTag label="Scrape failed" tone="failed" testId="scrape-failed-tag" />

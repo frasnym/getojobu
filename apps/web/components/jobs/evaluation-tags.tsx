@@ -28,6 +28,15 @@ interface StatusTagProps {
 	testId?: string;
 }
 
+/** Pending tags spin their icon, matching the scrape-pending tag's animation. */
+function withPendingAnimation(icon: React.ReactNode, tone: TagTone): React.ReactNode {
+	if (tone !== "pending" || !React.isValidElement<{ className?: string }>(icon)) return icon;
+	const className = icon.props.className ?? "";
+	return React.cloneElement(icon, {
+		className: `${className} animate-spin`.trim(),
+	});
+}
+
 /** Single pill style shared by every status, eligibility, recommendation and remote tag. */
 export function StatusTag({ label, tone, icon, title, testId }: StatusTagProps) {
 	return (
@@ -36,7 +45,7 @@ export function StatusTag({ label, tone, icon, title, testId }: StatusTagProps) 
 			className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-bold capitalize ${tagToneClass[tone]}`}
 			title={title}
 		>
-			{icon}
+			{withPendingAnimation(icon, tone)}
 			{label}
 		</span>
 	);
