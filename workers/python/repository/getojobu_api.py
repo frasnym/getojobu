@@ -157,6 +157,32 @@ class _getojobuAPI:
             )
         response.raise_for_status()
 
+    @staticmethod
+    def _raise_on_summary_errors(data: object, *, operation: str) -> None:
+        """Raise when a 2xx bulk response reports an error on any item.
+
+        The insert and trigger endpoints return 202 with a per-item ``error``
+        when one item fails. ``raise_for_status`` cannot see those errors, so
+        they must be inspected explicitly or the caller silently loses them.
+        """
+        if isinstance(data, dict):
+            summaries: list[Any] = [data]
+        elif isinstance(data, list):
+            summaries = data
+        else:
+            return
+        for item in summaries:
+            if not isinstance(item, dict):
+                continue
+            error = item.get("error")
+            if not error:
+                continue
+            if isinstance(error, dict):
+                message = str(error.get("message") or error.get("code") or error)
+            else:
+                message = str(error)
+            raise RuntimeError(f"{operation} failed for item: {message}")
+
     async def get_job(self, slug: str) -> dict[str, Any]:
         response = await self._client.get(f"/v1/jobs/{slug}")
         self._check_response(response, operation=f"get job {slug!r}")
@@ -403,6 +429,7 @@ class _getojobuAPI:
         self._check_response(response, operation="create evaluations")
         raw = response.json()
         unwrapped = self._unwrap_response(raw, operation="create evaluations")
+        self._raise_on_summary_errors(unwrapped, operation="create evaluations")
         if isinstance(unwrapped, list):
             return cast("list[dict[str, Any]]", unwrapped)
         return []
@@ -416,6 +443,7 @@ class _getojobuAPI:
         self._check_response(response, operation="trigger evaluations")
         raw = response.json()
         unwrapped = self._unwrap_response(raw, operation="trigger evaluations")
+        self._raise_on_summary_errors(unwrapped, operation="trigger evaluations")
         if isinstance(unwrapped, list):
             return cast("list[dict[str, Any]]", unwrapped)
         return []

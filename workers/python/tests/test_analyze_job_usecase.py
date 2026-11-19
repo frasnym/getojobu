@@ -213,3 +213,29 @@ async def test_analyze_propagates_trigger_failure():
 
     assert fake_api.created == [{"slug": "job-1"}]
     assert fake_api.triggered == [{"id": "eval-1", "user_id": "user-1"}]
+
+
+@pytest.mark.asyncio
+async def test_analyze_fails_on_per_item_trigger_error():
+    """A 202 trigger response with a per-item error must fail the activity so
+    Temporal retries instead of leaving the evaluation orphaned at new."""
+
+    class _ErrorSummaryTriggerAPI(_FakeAPI):
+        async def trigger_evaluations(self, items: list[dict]) -> list[dict]:
+            self.triggered = items
+            return [
+                {
+                    "id": "eval-1",
+                    "evaluation_status": "new",
+                    "error": "start match job workflow: temporal unavailable",
+                }
+            ]
+
+    fake_api = _ErrorSummaryTriggerAPI()
+    llm = _FakeLLM({"family": "technology", "seniority": "senior"})
+    svc = AnalyzeJob(api=fake_api, llm=llm)
+
+    with pytest.raises(RuntimeError, match="start match job workflow"):
+        await svc.analyze(slug="job-1")
+
+    assert fake_api.triggered == [{"id": "eval-1", "user_id": "user-1"}]

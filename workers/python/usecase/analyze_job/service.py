@@ -126,7 +126,14 @@ class AnalyzeJob:
                 trigger["user_id"] = item["user_id"]
             trigger_items.append(trigger)
         if trigger_items:
-            await self._api.trigger_evaluations(trigger_items)
+            trigger_result = await self._api.trigger_evaluations(trigger_items)
+            # The trigger endpoint answers 202 even when starting a workflow
+            # failed; the failure lives in each item's `error`. Fail the
+            # activity so Temporal retries both calls instead of orphaning the
+            # evaluation at `new`.
+            for item in trigger_result:
+                if isinstance(item, dict) and item.get("error"):
+                    raise RuntimeError(f"trigger evaluations failed: {item['error']}")
 
         return analysis
 

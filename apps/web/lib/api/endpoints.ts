@@ -174,7 +174,17 @@ export async function triggerJobCompatibility(
       body: JSON.stringify(ids),
     }
   );
-  const triggered = Array.isArray(result) ? result.find((item) => item && !item.error) : undefined;
+  // A workflow can reach `pending` before the backend's conditional status
+  // flip lands. The summary then reports an error while the job is running
+  // normally, so an in-flight status is still a valid result here.
+  const inFlightStatuses = new Set(["pending", "queued", "queued_retry"]);
+  const triggered = Array.isArray(result)
+    ? result.find(
+        (item) =>
+          !!item &&
+          (!item.error || inFlightStatuses.has(item.evaluation_status))
+      )
+    : undefined;
   if (!triggered) {
     throw new Error("Empty response from bulk-generate-evaluation");
   }

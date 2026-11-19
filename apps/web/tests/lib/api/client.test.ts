@@ -137,6 +137,52 @@ describe("API endpoints", () => {
     ]);
   });
 
+  it("triggerJobCompatibility accepts an in-flight summary that carries an error", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            success: true,
+            data: [
+              {
+                id: "eval-in-flight",
+                user_job_id: "uj-001",
+                evaluation_status: "new",
+              },
+            ],
+            meta: { timestamp: "2026-11-19T12:00:00Z", requestId: "req-1" },
+            error: null,
+          }),
+          { status: 202, headers: { "Content-Type": "application/json" } }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            success: true,
+            data: [
+              {
+                id: "eval-in-flight",
+                user_job_id: "uj-001",
+                evaluation_status: "pending",
+                error: "evaluation status changed before it could be queued",
+              },
+            ],
+            meta: { timestamp: "2026-11-19T12:00:01Z", requestId: "req-2" },
+            error: null,
+          }),
+          { status: 202, headers: { "Content-Type": "application/json" } }
+        )
+      ) as any;
+    global.fetch = fetchMock;
+
+    const summary = await triggerJobCompatibility("senior-go-engineer-stripe-remote", false);
+    expect(summary.id).toBe("eval-in-flight");
+    expect(summary.evaluation_status).toBe("pending");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
   it("retryReport posts to the per-evaluation report retry endpoint", async () => {
     const fetchMock = vi.fn(async () =>
       new Response(

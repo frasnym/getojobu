@@ -22,7 +22,6 @@ type MatchingEvaluations interface {
 	CreateIfAbsent(ctx context.Context, eval *models.MatchingEvaluation) (*models.MatchingEvaluation, bool, error)
 	FlipStatus(ctx context.Context, id uuid.UUID, from string, to string) (bool, error)
 	FlipStatusWithClear(ctx context.Context, id uuid.UUID, from string, to string) (bool, error)
-	ClearEvaluationResult(ctx context.Context, id uuid.UUID) error
 	GetByID(ctx context.Context, id uuid.UUID) (*models.MatchingEvaluation, error)
 	GetLatestByUserAndJob(ctx context.Context, userID uuid.UUID, jobID int64) (*models.MatchingEvaluation, error)
 	GetLatestByUserJobID(ctx context.Context, userID uuid.UUID, userJobID uuid.UUID) (*models.EvaluationWithJob, error)
@@ -233,9 +232,9 @@ func (r *matchingEvaluationsRepository) FlipStatus(ctx context.Context, id uuid.
 	return res.RowsAffected() > 0, nil
 }
 
-// FlipStatusWithClear clears the evaluation-result columns and flips the
-// status in a single conditional update. A failed retry must never leave a row
-// without the profile bytes needed to rebuild its workflow input. Report,
+// FlipStatusWithClear clears the five evaluation-result columns and flips the
+// status in a single conditional update. The profile bytes are workflow inputs
+// and are kept intact so every later retry can rebuild its input. Report,
 // resume, and cover-letter columns are untouched.
 func (r *matchingEvaluationsRepository) FlipStatusWithClear(ctx context.Context, id uuid.UUID, from string, to string) (updated bool, err error) {
 	tx, err := r.StartTrx(ctx)
@@ -253,8 +252,6 @@ func (r *matchingEvaluationsRepository) FlipStatusWithClear(ctx context.Context,
 			eligibility_status = NULL,
 			recommendation_label = NULL,
 			failure_message = NULL,
-			candidate_profile_data = NULL,
-			job_profile_data = NULL,
 			updated_at = NOW()
 		WHERE id = $1 AND evaluation_status = $3
 	`, id, to, from)
@@ -263,35 +260,6 @@ func (r *matchingEvaluationsRepository) FlipStatusWithClear(ctx context.Context,
 	}
 
 	return res.RowsAffected() > 0, nil
-}
-
-// ClearEvaluationResult clears the evaluation-result columns of a row while
-// leaving report, resume, and cover-letter columns and statuses untouched.
-func (r *matchingEvaluationsRepository) ClearEvaluationResult(ctx context.Context, id uuid.UUID) (err error) {
-	tx, err := r.StartTrx(ctx)
-	if err != nil {
-		return fmt.Errorf("clear evaluation result start trx: %w", err)
-	}
-	defer r.Committer(ctx, tx, &err)
-
-	_, err = tx.Exec(ctx, `
-		UPDATE matching_evaluations
-		SET
-			evaluation_data = NULL,
-			overall_score = NULL,
-			eligibility_status = NULL,
-			recommendation_label = NULL,
-			failure_message = NULL,
-			candidate_profile_data = NULL,
-			job_profile_data = NULL,
-			updated_at = NOW()
-		WHERE id = $1
-	`, id)
-	if err != nil {
-		return fmt.Errorf("clear evaluation result: %w", err)
-	}
-
-	return nil
 }
 
 func (r *matchingEvaluationsRepository) GetByID(ctx context.Context, id uuid.UUID) (*models.MatchingEvaluation, error) {

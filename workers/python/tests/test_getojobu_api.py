@@ -470,6 +470,59 @@ async def test_trigger_evaluations_posts_to_trigger_endpoint():
 
 
 @pytest.mark.asyncio
+async def test_create_evaluations_raises_on_per_item_error():
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            202,
+            json={
+                "success": True,
+                "data": [
+                    {
+                        "slug": "test-slug",
+                        "error": 'job "test-slug" is not analyzed',
+                    }
+                ],
+                "error": None,
+            },
+        )
+
+    api = NewGetojobuAPI(base_url="http://testserver", api_key="secret-key")
+    api._client = _mock_transport(handler)
+
+    with pytest.raises(RuntimeError, match="is not analyzed"):
+        await api.create_evaluations([{"slug": "test-slug"}])
+    await api.aclose()
+
+
+@pytest.mark.asyncio
+async def test_trigger_evaluations_raises_on_per_item_error():
+    eval_id = "11111111-2222-3333-4444-555555555555"
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            202,
+            json={
+                "success": True,
+                "data": [
+                    {
+                        "id": eval_id,
+                        "evaluation_status": "new",
+                        "error": "start match job workflow: temporal unavailable",
+                    }
+                ],
+                "error": None,
+            },
+        )
+
+    api = NewGetojobuAPI(base_url="http://testserver", api_key="secret-key")
+    api._client = _mock_transport(handler)
+
+    with pytest.raises(RuntimeError, match="start match job workflow"):
+        await api.trigger_evaluations([{"id": eval_id}])
+    await api.aclose()
+
+
+@pytest.mark.asyncio
 async def test_patch_matching_evaluation_report_success():
     eval_id = "11111111-2222-3333-4444-555555555555"
 

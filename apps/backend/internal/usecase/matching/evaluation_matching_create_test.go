@@ -89,6 +89,19 @@ func TestCreateEvaluations(t *testing.T) {
 		assert.Contains(t, *res[0].Error, "is not analyzed")
 	})
 
+	t.Run("null analyze_result does not panic", func(t *testing.T) {
+		nullAnalyze := *job
+		nullAnalyze.AnalyzeResult = []byte(`null`)
+		jobsRepo.EXPECT().GetBySlug(ctx, slug, "").Return(&models.JobWithOwnership{Job: &nullAnalyze}, nil)
+		userJobsRepo.EXPECT().IsOwned(ctx, userID.String(), job.ID).Return(true, nil)
+
+		res, err := service.CreateEvaluations(ctx, []models.CreateEvaluationItem{{Slug: slug}}, &models.Principal{ID: userID.String()})
+		require.NoError(t, err)
+		require.Len(t, res, 1)
+		require.NotNil(t, res[0].Error, "null analyze_result must be a per-item error, not a panic")
+		assert.Contains(t, *res[0].Error, "not a JSON object")
+	})
+
 	t.Run("clerk caller does not own the job", func(t *testing.T) {
 		jobsRepo.EXPECT().GetBySlug(ctx, slug, "").Return(&models.JobWithOwnership{Job: job}, nil)
 		userJobsRepo.EXPECT().IsOwned(ctx, userID.String(), job.ID).Return(false, nil)

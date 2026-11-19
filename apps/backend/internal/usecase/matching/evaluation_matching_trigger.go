@@ -120,7 +120,7 @@ func (s *matchingService) TriggerEvaluations(
 		}
 
 		// Decode the stored profile bytes and scoring config into memory before
-		// a retry clears those columns in the same update as the status flip.
+		// starting the workflow. Profiles are inputs and survive retries.
 		var candidateMap, jobMap, configMap map[string]interface{}
 		_ = json.Unmarshal(eval.CandidateProfileData, &candidateMap)
 		_ = json.Unmarshal(eval.JobProfileData, &jobMap)
@@ -160,6 +160,20 @@ func (s *matchingService) TriggerEvaluations(
 			continue
 		}
 		if !flipped {
+			// The worker may have moved the row to pending before our
+			// conditional update landed, or a prior trigger may already have
+			// queued it. In either case the workflow is running, so report the
+			// in-flight state as a success instead of a false failure.
+			if current, getErr := s.evalRepo.GetByID(ctx, eval.ID); getErr == nil &&
+				isInFlightEvaluationStatus(constants.MatchingEvaluationStatus(current.EvaluationStatus)) {
+				summaries = append(summaries, &models.MatchingEvaluationSummary{
+					ID:               &eval.ID,
+					UserJobID:        &eval.UserJobID,
+					EvaluationStatus: current.EvaluationStatus,
+					CreatedAt:        &eval.CreatedAt,
+				})
+				continue
+			}
 			errStr := "evaluation status changed before it could be queued"
 			summaries = append(summaries, &models.MatchingEvaluationSummary{
 				ID:        &eval.ID,
@@ -178,4 +192,16 @@ func (s *matchingService) TriggerEvaluations(
 	}
 
 	return summaries, nil
+}
+
+// isInFlightEvaluationStatus reports whether a status means a workflow is
+// already running for the row, so a failed conditional status flip is not a
+// failure when the row is one of these states.
+func isInFlightEvaluationStatus(status constants.MatchingEvaluationStatus) bool {
+	switch status {
+	case constants.MatchingStatusPending, constants.MatchingStatusQueued, constants.MatchingStatusQueuedRetry:
+		return true
+	default:
+		return false
+	}
 }

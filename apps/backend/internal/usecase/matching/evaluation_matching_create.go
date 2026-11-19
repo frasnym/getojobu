@@ -106,6 +106,17 @@ func (s *matchingService) CreateEvaluations(
 			})
 			continue
 		}
+		if rawJobProfile == nil {
+			// json.Unmarshal("null", &m) succeeds but leaves m nil, so the
+			// assignments below would panic. A non-object analyze_result cannot
+			// produce a usable job profile.
+			errStr := fmt.Sprintf("job %q analyze_result is not a JSON object", item.Slug)
+			summaries = append(summaries, &models.MatchingEvaluationSummary{
+				Slug:  item.Slug,
+				Error: &errStr,
+			})
+			continue
+		}
 		rawJobProfile["title"] = job.Title
 		rawJobProfile["company"] = job.Company
 		rawJobProfile["location"] = job.Location

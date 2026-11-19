@@ -41,20 +41,6 @@ func (m *MockMatchingEvaluations) EXPECT() *MockMatchingEvaluationsMockRecorder 
 	return m.recorder
 }
 
-// ClearEvaluationResult mocks base method.
-func (m *MockMatchingEvaluations) ClearEvaluationResult(ctx context.Context, id uuid.UUID) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ClearEvaluationResult", ctx, id)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// ClearEvaluationResult indicates an expected call of ClearEvaluationResult.
-func (mr *MockMatchingEvaluationsMockRecorder) ClearEvaluationResult(ctx, id any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ClearEvaluationResult", reflect.TypeOf((*MockMatchingEvaluations)(nil).ClearEvaluationResult), ctx, id)
-}
-
 // Create mocks base method.
 func (m *MockMatchingEvaluations) Create(ctx context.Context, eval *models.MatchingEvaluation) (*models.MatchingEvaluation, error) {
 	m.ctrl.T.Helper()

@@ -147,7 +147,6 @@ func TestTriggerEvaluations(t *testing.T) {
 				}),
 			h.evalRepo.EXPECT().FlipStatusWithClear(ctx, id, string(constants.MatchingStatusFailed), string(constants.MatchingStatusQueuedRetry)).Return(true, nil),
 		)
-		h.evalRepo.EXPECT().ClearEvaluationResult(gomock.Any(), gomock.Any()).Times(0)
 		h.evalRepo.EXPECT().FlipStatus(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
 
 		res, err := h.service.TriggerEvaluations(ctx, []models.TriggerEvaluationItem{{ID: id}}, &models.Principal{ID: ownerID.String()})
@@ -158,6 +157,66 @@ func TestTriggerEvaluations(t *testing.T) {
 		assert.Equal(t, "Backend Engineer", capturedInput.JobProfile["title"])
 		assert.Equal(t, []interface{}{"go"}, capturedInput.CandidateProfile["skills"])
 		assert.Equal(t, "technology", capturedInput.EvaluationConfig["family"])
+	})
+
+	t.Run("second failure keeps profile bytes and feeds a non-empty workflow input", func(t *testing.T) {
+		h := newTriggerHarness(t)
+		ownerID, userJobID, scoringConfigID := triggerFixture()
+		id := uuid.New()
+		// After one failed retry the result columns have been cleared, but the
+		// profile bytes are inputs and must still be present for this retry.
+		eval := storedEvaluation(id, userJobID, scoringConfigID, string(constants.MatchingStatusFailed))
+		eval.EvaluationData = nil
+		eval.FailureMessage = nil
+		eval.OverallScore = nil
+		eval.EligibilityStatus = nil
+		eval.RecommendationLabel = nil
+		config := triggerScoringConfig(scoringConfigID)
+
+		var capturedInput matching.MatchJobWorkflowInput
+		gomock.InOrder(
+			h.evalRepo.EXPECT().GetByID(ctx, id).Return(eval, nil),
+			h.userJobsRepo.EXPECT().GetByID(ctx, userJobID).Return(&models.UserJob{ID: userJobID, UserID: ownerID}, nil),
+			h.scoringConfigsRepo.EXPECT().GetByID(ctx, scoringConfigID).Return(config, nil),
+			h.workflowsRepo.EXPECT().StartLimiterWorkItem(ctx, "match-job-"+id.String(), models.LimiterJobTypeMatch, gomock.Any()).
+				DoAndReturn(func(_ context.Context, _ string, _ models.LimiterJobType, input any) (string, error) {
+					capturedInput, _ = input.(matching.MatchJobWorkflowInput)
+					return "wf-id", nil
+				}),
+			h.evalRepo.EXPECT().FlipStatusWithClear(ctx, id, string(constants.MatchingStatusFailed), string(constants.MatchingStatusQueuedRetry)).Return(true, nil),
+		)
+
+		res, err := h.service.TriggerEvaluations(ctx, []models.TriggerEvaluationItem{{ID: id}}, &models.Principal{ID: ownerID.String()})
+		require.NoError(t, err)
+		require.Len(t, res, 1)
+		assert.Nil(t, res[0].Error)
+		assert.NotEmpty(t, capturedInput.CandidateProfile, "candidate profile bytes must survive a failed retry")
+		assert.NotEmpty(t, capturedInput.JobProfile, "job profile bytes must survive a failed retry")
+		assert.Equal(t, "Backend Engineer", capturedInput.JobProfile["title"])
+	})
+
+	t.Run("worker pending race is reported as an in-flight success", func(t *testing.T) {
+		h := newTriggerHarness(t)
+		ownerID, userJobID, scoringConfigID := triggerFixture()
+		id := uuid.New()
+		eval := storedEvaluation(id, userJobID, scoringConfigID, string(constants.MatchingStatusNew))
+		pendingEval := storedEvaluation(id, userJobID, scoringConfigID, string(constants.MatchingStatusPending))
+		config := triggerScoringConfig(scoringConfigID)
+
+		gomock.InOrder(
+			h.evalRepo.EXPECT().GetByID(ctx, id).Return(eval, nil),
+			h.userJobsRepo.EXPECT().GetByID(ctx, userJobID).Return(&models.UserJob{ID: userJobID, UserID: ownerID}, nil),
+			h.scoringConfigsRepo.EXPECT().GetByID(ctx, scoringConfigID).Return(config, nil),
+			h.workflowsRepo.EXPECT().StartLimiterWorkItem(ctx, "match-job-"+id.String(), models.LimiterJobTypeMatch, gomock.Any()).Return("wf-id", nil),
+			h.evalRepo.EXPECT().FlipStatus(ctx, id, string(constants.MatchingStatusNew), string(constants.MatchingStatusQueued)).Return(false, nil),
+			h.evalRepo.EXPECT().GetByID(ctx, id).Return(pendingEval, nil),
+		)
+
+		res, err := h.service.TriggerEvaluations(ctx, []models.TriggerEvaluationItem{{ID: id}}, &models.Principal{ID: ownerID.String()})
+		require.NoError(t, err)
+		require.Len(t, res, 1)
+		assert.Nil(t, res[0].Error, "an already-running workflow is not a failure")
+		assert.Equal(t, string(constants.MatchingStatusPending), res[0].EvaluationStatus)
 	})
 
 	t.Run("terminal and in-progress statuses return per-item errors and start nothing", func(t *testing.T) {
@@ -224,7 +283,6 @@ func TestTriggerEvaluations(t *testing.T) {
 		h.workflowsRepo.EXPECT().StartLimiterWorkItem(ctx, "match-job-"+id.String(), models.LimiterJobTypeMatch, gomock.Any()).Return("", errors.New("temporal down"))
 		h.evalRepo.EXPECT().FlipStatus(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
 		h.evalRepo.EXPECT().FlipStatusWithClear(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
-		h.evalRepo.EXPECT().ClearEvaluationResult(gomock.Any(), gomock.Any()).Times(0)
 
 		res, err := h.service.TriggerEvaluations(ctx, []models.TriggerEvaluationItem{{ID: id}}, &models.Principal{ID: ownerID.String()})
 		require.NoError(t, err)
