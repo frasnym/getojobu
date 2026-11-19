@@ -123,8 +123,8 @@ func TestCreateEvaluations(t *testing.T) {
 
 		existing := &models.MatchingEvaluation{ID: uuid.New(), UserJobID: userJob.ID, EvaluationStatus: string(constants.MatchingStatusNew)}
 		gomock.InOrder(
-			evalRepo.EXPECT().CreateIfAbsent(ctx, gomock.Any()).Return(existing, true, nil),
-			evalRepo.EXPECT().CreateIfAbsent(ctx, gomock.Any()).Return(existing, false, nil),
+			evalRepo.EXPECT().Create(ctx, gomock.Any()).Return(existing, nil),
+			evalRepo.EXPECT().Create(ctx, gomock.Any()).Return(existing, nil),
 		)
 
 		first, err := service.CreateEvaluations(ctx, []models.CreateEvaluationItem{{Slug: slug}}, &models.Principal{ID: userID.String()})
@@ -146,10 +146,10 @@ func TestCreateEvaluations(t *testing.T) {
 
 		successID := uuid.New()
 		existing := &models.MatchingEvaluation{ID: successID, UserJobID: userJob.ID, EvaluationStatus: string(constants.MatchingStatusSuccess)}
-		evalRepo.EXPECT().CreateIfAbsent(ctx, gomock.Any()).DoAndReturn(
-			func(_ context.Context, eval *models.MatchingEvaluation) (*models.MatchingEvaluation, bool, error) {
+		evalRepo.EXPECT().Create(ctx, gomock.Any()).DoAndReturn(
+			func(_ context.Context, eval *models.MatchingEvaluation) (*models.MatchingEvaluation, error) {
 				assert.Equal(t, string(constants.MatchingStatusNew), eval.EvaluationStatus, "insert candidate must be at new status")
-				return existing, false, nil
+				return existing, nil
 			})
 
 		res, err := service.CreateEvaluations(ctx, []models.CreateEvaluationItem{{Slug: slug}}, &models.Principal{ID: userID.String()})
@@ -168,10 +168,10 @@ func TestCreateEvaluations(t *testing.T) {
 		expectCandidate(userID.String())
 
 		var stored map[string]interface{}
-		evalRepo.EXPECT().CreateIfAbsent(ctx, gomock.Any()).DoAndReturn(
-			func(_ context.Context, eval *models.MatchingEvaluation) (*models.MatchingEvaluation, bool, error) {
+		evalRepo.EXPECT().Create(ctx, gomock.Any()).DoAndReturn(
+			func(_ context.Context, eval *models.MatchingEvaluation) (*models.MatchingEvaluation, error) {
 				require.NoError(t, json.Unmarshal(eval.JobProfileData, &stored))
-				return &models.MatchingEvaluation{ID: uuid.New(), UserJobID: userJob.ID, EvaluationStatus: string(constants.MatchingStatusNew)}, true, nil
+				return &models.MatchingEvaluation{ID: uuid.New(), UserJobID: userJob.ID, EvaluationStatus: string(constants.MatchingStatusNew)}, nil
 			})
 
 		res, err := service.CreateEvaluations(ctx, []models.CreateEvaluationItem{{Slug: slug}}, &models.Principal{ID: userID.String()})
@@ -197,10 +197,10 @@ func TestCreateEvaluations(t *testing.T) {
 		expectCandidate(userID.String())
 
 		var stored map[string]interface{}
-		evalRepo.EXPECT().CreateIfAbsent(ctx, gomock.Any()).DoAndReturn(
-			func(_ context.Context, eval *models.MatchingEvaluation) (*models.MatchingEvaluation, bool, error) {
+		evalRepo.EXPECT().Create(ctx, gomock.Any()).DoAndReturn(
+			func(_ context.Context, eval *models.MatchingEvaluation) (*models.MatchingEvaluation, error) {
 				require.NoError(t, json.Unmarshal(eval.JobProfileData, &stored))
-				return &models.MatchingEvaluation{ID: uuid.New(), UserJobID: userJob.ID, EvaluationStatus: string(constants.MatchingStatusNew)}, true, nil
+				return &models.MatchingEvaluation{ID: uuid.New(), UserJobID: userJob.ID, EvaluationStatus: string(constants.MatchingStatusNew)}, nil
 			})
 
 		res, err := service.CreateEvaluations(ctx, []models.CreateEvaluationItem{{Slug: slug}}, &models.Principal{ID: userID.String()})
@@ -222,8 +222,8 @@ func TestCreateEvaluations(t *testing.T) {
 		userJobsRepo.EXPECT().GetByUserAndJob(ctx, userID.String(), job.ID).Return(userJob, nil)
 		expectCandidate(userID.String())
 
-		evalRepo.EXPECT().CreateIfAbsent(ctx, gomock.Any()).Return(
-			&models.MatchingEvaluation{ID: uuid.New(), UserJobID: userJob.ID, EvaluationStatus: string(constants.MatchingStatusNew)}, true, nil)
+		evalRepo.EXPECT().Create(ctx, gomock.Any()).Return(
+			&models.MatchingEvaluation{ID: uuid.New(), UserJobID: userJob.ID, EvaluationStatus: string(constants.MatchingStatusNew)}, nil)
 
 		res, err := service.CreateEvaluations(ctx, []models.CreateEvaluationItem{{Slug: slug}}, &models.Principal{ID: userID.String()})
 		require.NoError(t, err)
@@ -285,12 +285,12 @@ func TestCreateEvaluations_machine_caller_resolves_linked_users(t *testing.T) {
 		userJobsRepo.EXPECT().GetUsersByJobID(ctx, job.ID).Return([]string{userA.String(), userB.String()}, nil)
 		userJobsRepo.EXPECT().GetByUserAndJob(ctx, userA.String(), job.ID).Return(jobA, nil)
 		userJobsRepo.EXPECT().GetByUserAndJob(ctx, userB.String(), job.ID).Return(jobB, nil)
-		evalRepo.EXPECT().CreateIfAbsent(ctx, gomock.Any()).DoAndReturn(
-			func(_ context.Context, eval *models.MatchingEvaluation) (*models.MatchingEvaluation, bool, error) {
+		evalRepo.EXPECT().Create(ctx, gomock.Any()).DoAndReturn(
+			func(_ context.Context, eval *models.MatchingEvaluation) (*models.MatchingEvaluation, error) {
 				if eval.UserJobID == jobA.ID {
-					return evalA, true, nil
+					return evalA, nil
 				}
-				return evalB, true, nil
+				return evalB, nil
 			}).Times(2)
 
 		res, err := service.CreateEvaluations(ctx, []models.CreateEvaluationItem{{Slug: slug}}, caller)

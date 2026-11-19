@@ -41,20 +41,19 @@ func (m *MockMatchingEvaluations) EXPECT() *MockMatchingEvaluationsMockRecorder 
 	return m.recorder
 }
 
-// CreateIfAbsent mocks base method.
-func (m *MockMatchingEvaluations) CreateIfAbsent(ctx context.Context, eval *models.MatchingEvaluation) (*models.MatchingEvaluation, bool, error) {
+// Create mocks base method.
+func (m *MockMatchingEvaluations) Create(ctx context.Context, eval *models.MatchingEvaluation) (*models.MatchingEvaluation, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CreateIfAbsent", ctx, eval)
+	ret := m.ctrl.Call(m, "Create", ctx, eval)
 	ret0, _ := ret[0].(*models.MatchingEvaluation)
-	ret1, _ := ret[1].(bool)
-	ret2, _ := ret[2].(error)
-	return ret0, ret1, ret2
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
-// CreateIfAbsent indicates an expected call of CreateIfAbsent.
-func (mr *MockMatchingEvaluationsMockRecorder) CreateIfAbsent(ctx, eval any) *gomock.Call {
+// Create indicates an expected call of Create.
+func (mr *MockMatchingEvaluationsMockRecorder) Create(ctx, eval any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateIfAbsent", reflect.TypeOf((*MockMatchingEvaluations)(nil).CreateIfAbsent), ctx, eval)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockMatchingEvaluations)(nil).Create), ctx, eval)
 }
 
 // FlipStatus mocks base method.

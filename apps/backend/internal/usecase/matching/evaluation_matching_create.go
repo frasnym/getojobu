@@ -187,7 +187,7 @@ func (s *matchingService) CreateEvaluations(
 				ScoringConfigID:      scoringConfig.ID,
 			}
 
-			eval, _, err := s.evalRepo.CreateIfAbsent(ctx, newRecord)
+			eval, err := s.evalRepo.Create(ctx, newRecord)
 			if err != nil {
 				errStr := fmt.Sprintf("create matching evaluation: %s", err.Error())
 				summaries = append(summaries, &models.MatchingEvaluationSummary{

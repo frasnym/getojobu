@@ -117,11 +117,11 @@ func mevalTestRepo(t *testing.T) (MatchingEvaluations, *pgxpool.Pool, mevalSeed)
 	return NewMatchingEvaluationsRepository(database.NewPG(pool)), pool, seed
 }
 
-func TestCreateIfAbsent(t *testing.T) {
+func TestCreate(t *testing.T) {
 	repo, pool, seed := mevalTestRepo(t)
 	ctx := context.Background()
 
-	got, created, err := repo.CreateIfAbsent(ctx, &models.MatchingEvaluation{
+	got, err := repo.Create(ctx, &models.MatchingEvaluation{
 		UserJobID:            seed.UserJobID,
 		EvaluationStatus:     string(constants.MatchingStatusNew),
 		ScoringConfigID:      seed.ScoringConfigID,
@@ -129,12 +129,12 @@ func TestCreateIfAbsent(t *testing.T) {
 		JobProfileData:       json.RawMessage(`{"job":"v1"}`),
 	})
 	require.NoError(t, err)
-	require.True(t, created, "first call must insert")
 	require.NotEqual(t, uuid.Nil, got.ID)
 	assert.Equal(t, string(constants.MatchingStatusNew), got.EvaluationStatus)
+	assert.JSONEq(t, `{"candidate":"v1"}`, string(got.CandidateProfileData))
 
 	// A second call for the same user_job must not insert or overwrite anything.
-	got2, created, err := repo.CreateIfAbsent(ctx, &models.MatchingEvaluation{
+	got2, err := repo.Create(ctx, &models.MatchingEvaluation{
 		UserJobID:            seed.UserJobID,
 		EvaluationStatus:     string(constants.MatchingStatusFailed),
 		ScoringConfigID:      seed.ScoringConfigID,
@@ -142,7 +142,6 @@ func TestCreateIfAbsent(t *testing.T) {
 		JobProfileData:       json.RawMessage(`{"job":"v2"}`),
 	})
 	require.NoError(t, err)
-	assert.False(t, created, "second call must not insert")
 	assert.Equal(t, got.ID, got2.ID)
 	assert.Equal(t, string(constants.MatchingStatusNew), got2.EvaluationStatus)
 	assert.JSONEq(t, `{"candidate":"v1"}`, string(got2.CandidateProfileData))
@@ -151,7 +150,7 @@ func TestCreateIfAbsent(t *testing.T) {
 	_, err = pool.Exec(ctx, `UPDATE matching_evaluations SET evaluation_status = 'success' WHERE id = $1`, got.ID)
 	require.NoError(t, err)
 
-	got3, created, err := repo.CreateIfAbsent(ctx, &models.MatchingEvaluation{
+	got3, err := repo.Create(ctx, &models.MatchingEvaluation{
 		UserJobID:            seed.UserJobID,
 		EvaluationStatus:     string(constants.MatchingStatusNew),
 		ScoringConfigID:      seed.ScoringConfigID,
@@ -159,7 +158,6 @@ func TestCreateIfAbsent(t *testing.T) {
 		JobProfileData:       json.RawMessage(`{"job":"v3"}`),
 	})
 	require.NoError(t, err)
-	assert.False(t, created)
 	assert.Equal(t, got.ID, got3.ID)
 	assert.Equal(t, string(constants.MatchingStatusSuccess), got3.EvaluationStatus)
 	assert.JSONEq(t, `{"candidate":"v1"}`, string(got3.CandidateProfileData))

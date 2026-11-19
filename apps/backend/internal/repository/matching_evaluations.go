@@ -18,7 +18,7 @@ import (
 
 // MatchingEvaluations is the interface for matching evaluations data access.
 type MatchingEvaluations interface {
-	CreateIfAbsent(ctx context.Context, eval *models.MatchingEvaluation) (*models.MatchingEvaluation, bool, error)
+	Create(ctx context.Context, eval *models.MatchingEvaluation) (*models.MatchingEvaluation, error)
 	FlipStatus(ctx context.Context, id uuid.UUID, from string, to string) (bool, error)
 	FlipStatusWithClear(ctx context.Context, id uuid.UUID, from string, to string) (bool, error)
 	GetByID(ctx context.Context, id uuid.UUID) (*models.MatchingEvaluation, error)
@@ -41,13 +41,13 @@ func NewMatchingEvaluationsRepository(pg *database.PG) MatchingEvaluations {
 	}
 }
 
-// CreateIfAbsent inserts an evaluation only when none exists for its user_job.
-// The bool reports whether a row was inserted; on conflict the existing row is
-// returned unchanged, whatever status or payload the caller supplied.
-func (r *matchingEvaluationsRepository) CreateIfAbsent(ctx context.Context, eval *models.MatchingEvaluation) (res *models.MatchingEvaluation, inserted bool, err error) {
+// Create inserts an evaluation only when none exists for its user_job.
+// On conflict the existing row is returned unchanged, whatever status or
+// payload the caller supplied.
+func (r *matchingEvaluationsRepository) Create(ctx context.Context, eval *models.MatchingEvaluation) (res *models.MatchingEvaluation, err error) {
 	tx, err := r.StartTrx(ctx)
 	if err != nil {
-		return nil, false, fmt.Errorf("create if absent matching evaluation start trx: %w", err)
+		return nil, fmt.Errorf("create matching evaluation start trx: %w", err)
 	}
 	defer r.Committer(ctx, tx, &err)
 
@@ -96,10 +96,10 @@ func (r *matchingEvaluationsRepository) CreateIfAbsent(ctx context.Context, eval
 		eval.UpdatedAt,
 	).Scan(&eval.ID, &eval.CreatedAt, &eval.UpdatedAt)
 	if insertErr == nil {
-		return eval, true, nil
+		return eval, nil
 	}
 	if !errors.Is(insertErr, pgx.ErrNoRows) {
-		return nil, false, fmt.Errorf("insert matching evaluation if absent: %w", insertErr)
+		return nil, fmt.Errorf("insert matching evaluation if absent: %w", insertErr)
 	}
 
 	selectQuery := `
@@ -144,12 +144,12 @@ func (r *matchingEvaluationsRepository) CreateIfAbsent(ctx context.Context, eval
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, false, constants.ErrNotFound
+			return nil, constants.ErrNotFound
 		}
-		return nil, false, fmt.Errorf("get existing matching evaluation: %w", err)
+		return nil, fmt.Errorf("get existing matching evaluation: %w", err)
 	}
 
-	return existing, false, nil
+	return existing, nil
 }
 
 // FlipStatus updates an evaluation's status only when it still matches from.
