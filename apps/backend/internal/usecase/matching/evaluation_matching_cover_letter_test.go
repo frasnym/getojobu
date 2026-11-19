@@ -223,8 +223,15 @@ func queueCoverLetterAndCaptureID(
 	ctx := context.Background()
 	eval := successfulEvaluation(evalID, userJobID)
 	eval.CoverLetterStatus = currentStatus
+	needsGuard := currentStatus != nil && (*currentStatus == "queued" || *currentStatus == "queued_retry")
+	if needsGuard {
+		eval.UpdatedAt = time.Now().Add(-45 * time.Minute)
+	}
 
 	d.evalRepo.EXPECT().GetByID(ctx, evalID).Return(eval, nil)
+	if needsGuard {
+		d.workflowsRepo.EXPECT().IsWorkflowRunning(ctx, fmt.Sprintf("cover-letter-gen-%s", evalID.String())).Return(false, nil)
+	}
 	d.userJobsRepo.EXPECT().GetByID(ctx, userJobID).Return(&models.UserJob{ID: userJobID, UserID: userID}, nil)
 	d.usersRepo.EXPECT().FindByID(ctx, userID.String()).Return(onboardedUser(userID), nil)
 	d.evalRepo.EXPECT().UpdateCoverLetter(ctx, evalID, gomock.Any()).DoAndReturn(
@@ -267,6 +274,40 @@ func TestQueueCoverLetter_WorkflowIDDeterminism(t *testing.T) {
 		got := queueCoverLetterAndCaptureID(t, d, evalID, userJobID, userID, utils.PtrString("queued"), true)
 		assert.Equal(t, deterministicID, got)
 	})
+}
+
+func TestQueueCoverLetter_ForceQueuedGuard(t *testing.T) {
+	ctx := context.Background()
+	caller := &models.Principal{ActorType: "worker", ID: "worker-1"}
+
+	for _, tc := range []struct {
+		name    string
+		age     time.Duration
+		running bool
+		want    string
+	}{
+		{name: "recent_rejected", age: 10 * time.Minute, want: "less than 30 minutes"},
+		{name: "stale_running_rejected", age: 45 * time.Minute, running: true, want: "currently running"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			d := newCoverLetterDeps(t)
+			evalID, userJobID := uuid.New(), uuid.New()
+			eval := successfulEvaluation(evalID, userJobID)
+			eval.CoverLetterStatus = utils.PtrString("queued")
+			eval.UpdatedAt = time.Now().Add(-tc.age)
+
+			d.evalRepo.EXPECT().GetByID(ctx, evalID).Return(eval, nil)
+			if tc.running {
+				d.workflowsRepo.EXPECT().IsWorkflowRunning(ctx, fmt.Sprintf("cover-letter-gen-%s", evalID.String())).Return(true, nil)
+			}
+			d.workflowsRepo.EXPECT().StartLimiterWorkItem(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
+
+			res, err := d.service.QueueCoverLetter(ctx, evalID, matching.QueueCoverLetterRequest{Variant: "short", Force: true}, caller)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tc.want)
+			assert.Nil(t, res)
+		})
+	}
 }
 
 func TestQueueCoverLetter_ForceKeepsTheSameWorkflowID(t *testing.T) {

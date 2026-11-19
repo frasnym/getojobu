@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -318,13 +319,20 @@ func TestTriggerEvaluations(t *testing.T) {
 				eval := storedEvaluation(id, userJobID, scoringConfigID, string(status))
 				config := triggerScoringConfig(scoringConfigID)
 
-				gomock.InOrder(
+				calls := []any{
 					h.evalRepo.EXPECT().GetByID(ctx, id).Return(eval, nil),
 					h.userJobsRepo.EXPECT().GetByID(ctx, userJobID).Return(&models.UserJob{ID: userJobID, UserID: ownerID}, nil),
+				}
+				if status == constants.MatchingStatusQueued || status == constants.MatchingStatusQueuedRetry {
+					eval.UpdatedAt = time.Now().Add(-45 * time.Minute)
+					calls = append(calls, h.workflowsRepo.EXPECT().IsWorkflowRunning(ctx, "match-job-"+id.String()).Return(false, nil))
+				}
+				calls = append(calls,
 					h.scoringConfigsRepo.EXPECT().GetByID(ctx, scoringConfigID).Return(config, nil),
 					h.evalRepo.EXPECT().Update(ctx, id, guardedUpdateParams(status, constants.MatchingStatusQueuedRetry)).Return(nil, nil),
 					h.workflowsRepo.EXPECT().StartLimiterWorkItem(ctx, "match-job-"+id.String(), models.LimiterJobTypeMatch, gomock.Any()).Return("wf-id", nil),
 				)
+				gomock.InOrder(calls...)
 
 				res, err := h.service.TriggerEvaluations(ctx, []models.TriggerEvaluationItem{{ID: id, Force: true}}, &models.Principal{ID: ownerID.String()})
 				require.NoError(t, err)
@@ -333,6 +341,43 @@ func TestTriggerEvaluations(t *testing.T) {
 				assert.Equal(t, string(constants.MatchingStatusQueuedRetry), res[0].EvaluationStatus)
 			})
 		}
+	})
+
+	t.Run("forced queued evaluation with recent updated_at is rejected", func(t *testing.T) {
+		h := newTriggerHarness(t)
+		ownerID, userJobID, scoringConfigID := triggerFixture()
+		id := uuid.New()
+		eval := storedEvaluation(id, userJobID, scoringConfigID, string(constants.MatchingStatusQueued))
+		eval.UpdatedAt = time.Now().Add(-10 * time.Minute)
+
+		h.evalRepo.EXPECT().GetByID(ctx, id).Return(eval, nil)
+		h.userJobsRepo.EXPECT().GetByID(ctx, userJobID).Return(&models.UserJob{ID: userJobID, UserID: ownerID}, nil)
+		h.workflowsRepo.EXPECT().StartLimiterWorkItem(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
+
+		res, err := h.service.TriggerEvaluations(ctx, []models.TriggerEvaluationItem{{ID: id, Force: true}}, &models.Principal{ID: ownerID.String()})
+		require.NoError(t, err)
+		require.Len(t, res, 1)
+		require.NotNil(t, res[0].Error)
+		assert.Contains(t, *res[0].Error, "less than 30 minutes")
+	})
+
+	t.Run("forced queued_retry evaluation with running workflow is rejected", func(t *testing.T) {
+		h := newTriggerHarness(t)
+		ownerID, userJobID, scoringConfigID := triggerFixture()
+		id := uuid.New()
+		eval := storedEvaluation(id, userJobID, scoringConfigID, string(constants.MatchingStatusQueuedRetry))
+		eval.UpdatedAt = time.Now().Add(-45 * time.Minute)
+
+		h.evalRepo.EXPECT().GetByID(ctx, id).Return(eval, nil)
+		h.userJobsRepo.EXPECT().GetByID(ctx, userJobID).Return(&models.UserJob{ID: userJobID, UserID: ownerID}, nil)
+		h.workflowsRepo.EXPECT().IsWorkflowRunning(ctx, "match-job-"+id.String()).Return(true, nil)
+		h.workflowsRepo.EXPECT().StartLimiterWorkItem(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
+
+		res, err := h.service.TriggerEvaluations(ctx, []models.TriggerEvaluationItem{{ID: id, Force: true}}, &models.Principal{ID: ownerID.String()})
+		require.NoError(t, err)
+		require.Len(t, res, 1)
+		require.NotNil(t, res[0].Error)
+		assert.Contains(t, *res[0].Error, "currently running")
 	})
 
 	t.Run("non-force new evaluation keeps the deterministic workflow ID", func(t *testing.T) {

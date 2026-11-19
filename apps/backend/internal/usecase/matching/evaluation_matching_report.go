@@ -121,6 +121,19 @@ func (s *matchingService) BulkQueueGenerateReport(
 			continue
 		}
 
+		if eval.ReportStatus != nil && (*eval.ReportStatus == string(constants.ReportStatusQueued) || *eval.ReportStatus == string(constants.ReportStatusQueuedRetry)) {
+			if err := s.requireStaleNotRunning(ctx, eval.UpdatedAt, fmt.Sprintf("report-gen-%s", eval.ID.String()), "report generation"); err != nil {
+				errStr := err.Error()
+				summaries = append(summaries, &models.MatchingEvaluationSummary{
+					ID:           &eval.ID,
+					UserJobID:    &eval.UserJobID,
+					ReportStatus: eval.ReportStatus,
+					Error:        &errStr,
+				})
+				continue
+			}
+		}
+
 		// Mark report queued (or queued_retry if previously attempted)
 		queueStatus := string(constants.ReportStatusQueued)
 		if eval.ReportStatus != nil {

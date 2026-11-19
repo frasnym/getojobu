@@ -79,6 +79,18 @@ func (s *matchingService) TriggerEvaluations(
 				})
 				continue
 			}
+			if eval.EvaluationStatus != string(constants.MatchingStatusPending) {
+				if err := s.requireStaleNotRunning(ctx, eval.UpdatedAt, fmt.Sprintf("match-job-%s", eval.ID.String()), "compatibility evaluation"); err != nil {
+					errStr := err.Error()
+					summaries = append(summaries, &models.MatchingEvaluationSummary{
+						ID:               &eval.ID,
+						UserJobID:        &eval.UserJobID,
+						EvaluationStatus: eval.EvaluationStatus,
+						Error:            &errStr,
+					})
+					continue
+				}
+			}
 			from, to = constants.MatchingEvaluationStatus(eval.EvaluationStatus), constants.MatchingStatusQueuedRetry
 		default:
 			// success (and any unknown status) is terminal and cannot be retried.

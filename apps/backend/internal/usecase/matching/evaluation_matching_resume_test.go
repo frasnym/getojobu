@@ -331,6 +331,94 @@ func TestBulkQueueGenerateResume(t *testing.T) {
 	})
 }
 
+func TestBulkQueueGenerateResume_ForceQueuedGuard(t *testing.T) {
+	ctx := context.Background()
+	caller := &models.Principal{ActorType: "worker", ID: "worker-1"}
+	rec := string(constants.RecommendationStrongMatch)
+
+	newService := func(t *testing.T) (matching.Matching, *repoMocks.MockMatchingEvaluations, *repoMocks.MockUserJobs, *repoMocks.MockUsers, *repoMocks.MockWorkflows) {
+		ctrl := gomock.NewController(t)
+		evalRepo := repoMocks.NewMockMatchingEvaluations(ctrl)
+		usersRepo := repoMocks.NewMockUsers(ctrl)
+		userJobsRepo := repoMocks.NewMockUserJobs(ctrl)
+		workflowsRepo := repoMocks.NewMockWorkflows(ctrl)
+		service := matching.NewService(&repository.Contract{
+			MatchingEvaluationsRepository: evalRepo,
+			UsersRepository:               usersRepo,
+			UserJobsRepository:            userJobsRepo,
+			WorkflowsRepository:           workflowsRepo,
+		})
+		return service, evalRepo, userJobsRepo, usersRepo, workflowsRepo
+	}
+
+	queuedEval := func(id, userJobID uuid.UUID, status string, age time.Duration) *models.MatchingEvaluation {
+		resumeStatus := status
+		return &models.MatchingEvaluation{
+			ID:                   id,
+			UserJobID:            userJobID,
+			EvaluationStatus:     string(constants.MatchingStatusSuccess),
+			RecommendationLabel:  &rec,
+			ResumeStatus:         &resumeStatus,
+			CandidateProfileData: json.RawMessage(`{"skills":["Go"],"experience":[]}`),
+			JobProfileData:       json.RawMessage(`{"title":"Senior Engineer"}`),
+			EvaluationData:       json.RawMessage(`{"summary":"Great fit"}`),
+			UpdatedAt:            time.Now().Add(-age),
+		}
+	}
+
+	for _, status := range []string{string(constants.ResumeStatusQueued), string(constants.ResumeStatusQueuedRetry)} {
+		t.Run(status+"_recent_rejected", func(t *testing.T) {
+			service, evalRepo, _, _, workflowsRepo := newService(t)
+			id, userJobID := uuid.New(), uuid.New()
+			evalRepo.EXPECT().GetByID(ctx, id).Return(queuedEval(id, userJobID, status, 10*time.Minute), nil)
+			workflowsRepo.EXPECT().StartLimiterWorkItem(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
+
+			res, err := service.BulkQueueGenerateResume(ctx, []models.BulkGenerateResumeItem{{ID: id, Force: true}}, caller)
+			require.NoError(t, err)
+			require.Len(t, res, 1)
+			require.NotNil(t, res[0].Error)
+			assert.Contains(t, *res[0].Error, "less than 30 minutes")
+		})
+
+		t.Run(status+"_stale_running_rejected", func(t *testing.T) {
+			service, evalRepo, _, _, workflowsRepo := newService(t)
+			id, userJobID := uuid.New(), uuid.New()
+			evalRepo.EXPECT().GetByID(ctx, id).Return(queuedEval(id, userJobID, status, 45*time.Minute), nil)
+			workflowsRepo.EXPECT().IsWorkflowRunning(ctx, "resume-gen-"+id.String()).Return(true, nil)
+			workflowsRepo.EXPECT().StartLimiterWorkItem(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
+
+			res, err := service.BulkQueueGenerateResume(ctx, []models.BulkGenerateResumeItem{{ID: id, Force: true}}, caller)
+			require.NoError(t, err)
+			require.Len(t, res, 1)
+			require.NotNil(t, res[0].Error)
+			assert.Contains(t, *res[0].Error, "currently running")
+		})
+
+		t.Run(status+"_stale_not_running_enqueues", func(t *testing.T) {
+			service, evalRepo, userJobsRepo, usersRepo, workflowsRepo := newService(t)
+			id, userJobID, userID := uuid.New(), uuid.New(), uuid.New()
+			eval := queuedEval(id, userJobID, status, 45*time.Minute)
+			now := time.Now()
+			name := "Jane Doe"
+			evalRepo.EXPECT().GetByID(ctx, id).Return(eval, nil)
+			workflowsRepo.EXPECT().IsWorkflowRunning(ctx, "resume-gen-"+id.String()).Return(false, nil)
+			userJobsRepo.EXPECT().GetByID(ctx, userJobID).Return(&models.UserJob{ID: userJobID, UserID: userID}, nil)
+			usersRepo.EXPECT().FindByID(ctx, userID.String()).Return(&models.User{
+				ID: userID.String(), FullName: &name, OnboardingCompletedAt: &now,
+			}, nil)
+			evalRepo.EXPECT().UpdateResume(ctx, id, models.UpdateMatchingEvaluationResumeParams{
+				ResumeStatus: string(constants.ResumeStatusQueuedRetry),
+			}).Return(eval, nil)
+			workflowsRepo.EXPECT().StartLimiterWorkItem(ctx, "resume-gen-"+id.String(), models.LimiterJobTypeResume, gomock.Any()).Return("wf-resume", nil)
+
+			res, err := service.BulkQueueGenerateResume(ctx, []models.BulkGenerateResumeItem{{ID: id, Force: true}}, caller)
+			require.NoError(t, err)
+			require.Len(t, res, 1)
+			assert.Nil(t, res[0].Error)
+		})
+	}
+}
+
 func TestUpdateEvaluationResume(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()

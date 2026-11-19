@@ -63,6 +63,11 @@ func (s *matchingService) triggerResume(
 	if eval.ResumeStatus != nil && (*eval.ResumeStatus == string(constants.ResumeStatusQueued) || *eval.ResumeStatus == string(constants.ResumeStatusQueuedRetry) || *eval.ResumeStatus == string(constants.ResumeStatusPending)) && !force {
 		return nil, fmt.Errorf("%w: resume generation already in progress", constants.ErrInvalidRequest)
 	}
+	if eval.ResumeStatus != nil && (*eval.ResumeStatus == string(constants.ResumeStatusQueued) || *eval.ResumeStatus == string(constants.ResumeStatusQueuedRetry)) {
+		if err := s.requireStaleNotRunning(ctx, eval.UpdatedAt, fmt.Sprintf("resume-gen-%s", id.String()), "resume generation"); err != nil {
+			return nil, err
+		}
+	}
 
 	userJob, err := s.userJobsRepo.GetByID(ctx, eval.UserJobID)
 	if err != nil {

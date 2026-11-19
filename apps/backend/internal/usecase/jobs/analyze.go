@@ -81,8 +81,8 @@ func (s *jobService) queueAnalysis(ctx context.Context, slug string, force bool,
 		if !force {
 			return "", fmt.Errorf("job %q %w", job.Slug, constants.ErrAlreadyQueued)
 		}
-		if time.Since(job.UpdatedAt) <= 30*time.Minute {
-			return "", fmt.Errorf("%w: job %q has been queued for less than 30 minutes", constants.ErrInvalidTransition, job.Slug)
+		if err := s.checkStaleNotRunning(ctx, job.UpdatedAt, fmt.Sprintf("job-analyze-%d", job.ID), fmt.Sprintf("job %q", job.Slug)); err != nil {
+			return "", err
 		}
 		if _, err := s.repo.UpdateStatus(ctx, models.UpdateJobParams{
 			Slug: job.Slug, Status: string(constants.StatusQueuedRetry),
@@ -104,18 +104,8 @@ func (s *jobService) queueAnalysis(ctx context.Context, slug string, force bool,
 		if !force {
 			return "", fmt.Errorf("%w: job %q is analyze_pending, force must be true to re-analyze", constants.ErrInvalidTransition, job.Slug)
 		}
-		if time.Since(job.UpdatedAt) <= 30*time.Minute {
-			return "", fmt.Errorf("%w: job %q has been pending for less than 30 minutes", constants.ErrInvalidTransition, job.Slug)
-		}
-		if s.workflows == nil {
-			return "", fmt.Errorf("workflows repository not configured")
-		}
-		running, err := s.workflows.IsWorkflowRunning(ctx, fmt.Sprintf("job-analyze-%d", job.ID))
-		if err != nil {
-			return "", fmt.Errorf("check workflow status: %w", err)
-		}
-		if running {
-			return "", fmt.Errorf("%w: job %q analysis workflow is currently running", constants.ErrInvalidTransition, job.Slug)
+		if err := s.checkStaleNotRunning(ctx, job.UpdatedAt, fmt.Sprintf("job-analyze-%d", job.ID), fmt.Sprintf("job %q", job.Slug)); err != nil {
+			return "", err
 		}
 		if _, err := s.repo.UpdateStatus(ctx, models.UpdateJobParams{
 			Slug: job.Slug, Status: string(constants.StatusQueuedRetry),
@@ -138,4 +128,21 @@ func (s *jobService) queueAnalysis(ctx context.Context, slug string, force bool,
 	}
 
 	return s.workflows.StartLimiterWorkItem(ctx, workflowID, models.LimiterJobTypeAnalyze, input)
+}
+
+// checkStaleNotRunning guards a forced re-queue: the row must have been left
+// in its in-progress state for at least 30 minutes and its workflow must have
+// finished, so a live run is never started twice.
+func (s *jobService) checkStaleNotRunning(ctx context.Context, updatedAt time.Time, workflowID, subject string) error {
+	if time.Since(updatedAt) <= 30*time.Minute {
+		return fmt.Errorf("%w: %s has been queued for less than 30 minutes", constants.ErrInvalidTransition, subject)
+	}
+	running, err := s.workflows.IsWorkflowRunning(ctx, workflowID)
+	if err != nil {
+		return fmt.Errorf("check workflow status: %w", err)
+	}
+	if running {
+		return fmt.Errorf("%w: %s workflow is currently running", constants.ErrInvalidTransition, subject)
+	}
+	return nil
 }

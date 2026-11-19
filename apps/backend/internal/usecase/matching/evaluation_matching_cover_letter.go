@@ -177,6 +177,11 @@ func (s *matchingService) QueueCoverLetter(
 		if !req.Force {
 			return nil, fmt.Errorf("%w: cover letter generation already in progress", constants.ErrInvalidRequest)
 		}
+		if currentStatus == "queued" || currentStatus == "queued_retry" {
+			if err := s.requireStaleNotRunning(ctx, eval.UpdatedAt, fmt.Sprintf("cover-letter-gen-%s", id.String()), "cover letter generation"); err != nil {
+				return nil, err
+			}
+		}
 	}
 
 	userJob, err := s.userJobsRepo.GetByID(ctx, eval.UserJobID)

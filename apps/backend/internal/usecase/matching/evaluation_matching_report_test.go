@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -348,4 +349,86 @@ func TestBulkQueueGenerateReport(t *testing.T) {
 		require.Len(t, res, 1)
 		assert.Nil(t, res[0].Error)
 	})
+}
+
+func TestBulkQueueGenerateReport_ForceQueuedGuard(t *testing.T) {
+	ctx := context.Background()
+	caller := &models.Principal{ActorType: "api_key", ID: "worker-1"}
+
+	newService := func(t *testing.T) (matching.Matching, *repoMocks.MockMatchingEvaluations, *repoMocks.MockWorkflows) {
+		ctrl := gomock.NewController(t)
+		evalRepo := repoMocks.NewMockMatchingEvaluations(ctrl)
+		workflowsRepo := repoMocks.NewMockWorkflows(ctrl)
+		service := matching.NewService(&repository.Contract{
+			MatchingEvaluationsRepository: evalRepo,
+			WorkflowsRepository:           workflowsRepo,
+		})
+		return service, evalRepo, workflowsRepo
+	}
+
+	queuedEval := func(id uuid.UUID, status constants.ReportStatus, age time.Duration) *models.MatchingEvaluation {
+		reportStatus := string(status)
+		return &models.MatchingEvaluation{
+			ID:                   id,
+			UserJobID:            uuid.New(),
+			EvaluationStatus:     string(constants.MatchingStatusSuccess),
+			ReportStatus:         &reportStatus,
+			CandidateProfileData: json.RawMessage(`{"skills":["go"]}`),
+			JobProfileData:       json.RawMessage(`{"title":"Go Dev"}`),
+			EvaluationData:       json.RawMessage(`{"evaluations":[]}`),
+			UpdatedAt:            time.Now().Add(-age),
+		}
+	}
+
+	for _, status := range []constants.ReportStatus{constants.ReportStatusQueued, constants.ReportStatusQueuedRetry} {
+		t.Run(string(status)+"_recent_rejected", func(t *testing.T) {
+			service, evalRepo, workflowsRepo := newService(t)
+			id := uuid.New()
+			eval := queuedEval(id, status, 10*time.Minute)
+			evalRepo.EXPECT().GetByID(ctx, id).Return(eval, nil)
+			workflowsRepo.EXPECT().StartLimiterWorkItem(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
+
+			res, err := service.BulkQueueGenerateReport(ctx, []models.BulkGenerateReportItem{{ID: id, Force: true}}, caller)
+			require.NoError(t, err)
+			require.Len(t, res, 1)
+			require.NotNil(t, res[0].Error)
+			assert.Contains(t, *res[0].Error, "less than 30 minutes")
+		})
+
+		t.Run(string(status)+"_stale_running_rejected", func(t *testing.T) {
+			service, evalRepo, workflowsRepo := newService(t)
+			id := uuid.New()
+			eval := queuedEval(id, status, 45*time.Minute)
+			evalRepo.EXPECT().GetByID(ctx, id).Return(eval, nil)
+			workflowsRepo.EXPECT().IsWorkflowRunning(ctx, "report-gen-"+id.String()).Return(true, nil)
+			workflowsRepo.EXPECT().StartLimiterWorkItem(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
+
+			res, err := service.BulkQueueGenerateReport(ctx, []models.BulkGenerateReportItem{{ID: id, Force: true}}, caller)
+			require.NoError(t, err)
+			require.Len(t, res, 1)
+			require.NotNil(t, res[0].Error)
+			assert.Contains(t, *res[0].Error, "currently running")
+		})
+
+		t.Run(string(status)+"_stale_not_running_enqueues", func(t *testing.T) {
+			service, evalRepo, workflowsRepo := newService(t)
+			id := uuid.New()
+			eval := queuedEval(id, status, 45*time.Minute)
+			queuedRetry := string(constants.ReportStatusQueuedRetry)
+			updatedEval := *eval
+			updatedEval.ReportStatus = &queuedRetry
+
+			evalRepo.EXPECT().GetByID(ctx, id).Return(eval, nil)
+			workflowsRepo.EXPECT().IsWorkflowRunning(ctx, "report-gen-"+id.String()).Return(false, nil)
+			evalRepo.EXPECT().UpdateReport(ctx, id, models.UpdateMatchingEvaluationReportParams{
+				ReportStatus: string(constants.ReportStatusQueuedRetry),
+			}).Return(&updatedEval, nil)
+			workflowsRepo.EXPECT().StartLimiterWorkItem(ctx, "report-gen-"+id.String(), models.LimiterJobTypeReport, gomock.Any()).Return("wf-report", nil)
+
+			res, err := service.BulkQueueGenerateReport(ctx, []models.BulkGenerateReportItem{{ID: id, Force: true}}, caller)
+			require.NoError(t, err)
+			require.Len(t, res, 1)
+			assert.Nil(t, res[0].Error)
+		})
+	}
 }
