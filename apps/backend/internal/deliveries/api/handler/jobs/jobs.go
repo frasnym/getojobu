@@ -51,7 +51,7 @@ func (h *handler) Route(g *httpx.Router) {
 	g.POST("/manual", h.CreateManualJob, auth.ValidClerkSession)
 	g.POST("/scrape-url", h.ScrapeURL, auth.ValidClerkSession)
 	g.POST("/bulk-queue-analyze", h.BulkQueueAnalyzeJob, auth.ValidClerkOrAPIKey)
-	g.POST("/bulk-analyze-compatibility", h.BulkAnalyzeCompatibility, auth.ValidClerkOrAPIKey)
+	g.POST("/evaluation", h.CreateEvaluation, auth.ValidClerkOrAPIKey)
 	g.POST("/scrape", h.ScrapeJobs, apiKey.ValidAPIKey)
 	g.GET("/{slug}", h.GetJob, auth.ValidClerkOrAPIKey)
 	g.PATCH("/{slug}", h.UpdateJob, auth.ValidClerkOrAPIKey)
@@ -534,26 +534,29 @@ func clampLimit(limit int) int {
 	return limit
 }
 
-// BulkAnalyzeCompatibility triggers candidate-job compatibility evaluation in bulk.
-// @Summary Trigger bulk compatibility evaluation
-// @Description Trigger compatibility evaluation for multiple jobs in bulk with partial results. Clerk users evaluate their own profile; machine API key callers evaluate all users associated with the job in user_jobs.
+// CreateEvaluation inserts one matching evaluation per user linked to each job
+// slug at status "new" without starting a workflow. Ownership is checked in the
+// usecase: Clerk callers are scoped to the user in their token, while API key
+// callers are trusted and evaluate all users linked to the job.
+// @Summary Create matching evaluations
+// @Description Insert one matching evaluation per user linked to each job slug at status new, without starting a workflow. Clerk callers are scoped to the user in their token; API key callers are trusted and evaluate all linked users. Per-item failures are returned in the response and do not stop the batch.
 // @Tags jobs
 // @Accept json
 // @Produce json
-// @Param jobs body bulkAnalyzeCompatibilityRequest true "Jobs to evaluate compatibility"
+// @Param items body createEvaluationRequest true "Job slugs to create evaluations for"
 // @Success 202 {array} models.MatchingEvaluationSummary
 // @Failure 400 {object} httpx.Error
 // @Failure 401 {object} httpx.Error
 // @security ApiKeyAuth
-// @Router /v1/jobs/bulk-analyze-compatibility [post]
-func (h *handler) BulkAnalyzeCompatibility(w http.ResponseWriter, r *http.Request) error {
+// @Router /v1/jobs/evaluation [post]
+func (h *handler) CreateEvaluation(w http.ResponseWriter, r *http.Request) error {
 	ctx := r.Context()
 	p := ctxval.PrincipalFromContext(ctx)
 	if p == nil {
 		return httpx.Envelope(httpx.CodeUnauthorized, "unauthenticated", "")
 	}
 
-	var req bulkAnalyzeCompatibilityRequest
+	var req createEvaluationRequest
 	if err := httpx.ParseJSON(r, &req); err != nil {
 		return err
 	}
@@ -562,16 +565,15 @@ func (h *handler) BulkAnalyzeCompatibility(w http.ResponseWriter, r *http.Reques
 		return err
 	}
 
-	items := make([]models.BulkAnalyzeCompatibilityItem, len(req))
+	items := make([]models.CreateEvaluationItem, len(req))
 	for i, item := range req {
-		items[i] = models.BulkAnalyzeCompatibilityItem{
-			Slug:  strings.TrimSpace(item.Slug),
-			Force: item.Force,
-		}
+		items[i] = models.CreateEvaluationItem{Slug: strings.TrimSpace(item.Slug)}
 	}
 
-	evals, err := h.matchingUC.TriggerCompatibilityBulk(ctx, items, p)
+	evals, err := h.matchingUC.CreateEvaluations(ctx, items, p)
 	if err != nil {
+		logging.Error(ctx, "create evaluations failed", err,
+			"item_count", len(items), "actor_type", p.ActorType, "actor_id", p.ActorID)
 		return err
 	}
 

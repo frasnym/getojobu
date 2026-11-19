@@ -123,11 +123,17 @@ type MatchingEvaluationSummary struct {
 	Error             *string    `json:"error,omitempty"`
 }
 
-// BulkAnalyzeCompatibilityItem holds input for a single compatibility evaluation in a batch.
-type BulkAnalyzeCompatibilityItem struct {
-	Slug       string `json:"slug"`
-	Force      bool   `json:"force"`
-	FailedOnly bool   `json:"failed_only,omitempty"`
+// CreateEvaluationItem holds input for inserting one evaluation for a job slug.
+// The target users are resolved from user_jobs by the usecase.
+type CreateEvaluationItem struct {
+	Slug string `json:"slug"`
+}
+
+// TriggerEvaluationItem holds input for starting the workflow behind an
+// existing evaluation.
+type TriggerEvaluationItem struct {
+	ID    uuid.UUID `json:"id"`
+	Force bool      `json:"force,omitempty"`
 }
 
 // BulkGenerateReportItem holds input for a single report generation in a batch.
@@ -151,12 +157,18 @@ type BulkGenerateCoverLetterItem struct {
 
 // UpdateMatchingEvaluationParams contains fields for updating a matching evaluation.
 type UpdateMatchingEvaluationParams struct {
-	EvaluationStatus    string
-	EvaluationData      json.RawMessage `swaggertype:"object"`
-	OverallScore        *float64
-	EligibilityStatus   *string
-	RecommendationLabel *string
-	FailureMessage      *string
+	EvaluationStatus string
+	// ExpectedEvaluationStatus limits the update to rows still at this status.
+	// Empty means no guard.
+	ExpectedEvaluationStatus string
+	// ClearEvaluationResult nulls the five evaluation-result columns in the
+	// same update. Profile bytes and report/resume/cover-letter columns are kept.
+	ClearEvaluationResult bool
+	EvaluationData        json.RawMessage `swaggertype:"object"`
+	OverallScore          *float64
+	EligibilityStatus     *string
+	RecommendationLabel   *string
+	FailureMessage        *string
 }
 
 // UpdateMatchingEvaluationReportParams contains fields for updating a report on a matching evaluation.

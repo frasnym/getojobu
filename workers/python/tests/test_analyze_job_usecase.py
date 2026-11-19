@@ -24,6 +24,8 @@ class _FakeAPI:
             "description": "We need a Senior Backend Engineer with Golang.",
         }
         self.patched = None
+        self.created = None
+        self.triggered = None
 
     async def get_job(self, slug: str) -> dict:
         return dict(self.job_data)
@@ -31,6 +33,20 @@ class _FakeAPI:
     async def patch_job_status(self, slug: str, status: str, **kwargs) -> dict:
         self.patched = {"slug": slug, "status": status, **kwargs}
         return {"slug": slug, "status": status}
+
+    async def create_evaluations(self, items: list[dict]) -> list[dict]:
+        self.created = items
+        return [
+            {
+                "id": "eval-1",
+                "slug": "job-1",
+                "evaluation_status": "new",
+            }
+        ]
+
+    async def trigger_evaluations(self, items: list[dict]) -> list[dict]:
+        self.triggered = items
+        return [{"id": "eval-1", "evaluation_status": "queued"}]
 
 
 @pytest.mark.asyncio
@@ -166,3 +182,59 @@ async def test_analyze_rejects_llm_returning_a_list():
     assert fake_api.patched is not None
     assert fake_api.patched["status"] == "failed"
     assert "instead of a JSON object" in fake_api.patched["failure_message"]
+
+
+@pytest.mark.asyncio
+async def test_analyze_inserts_then_triggers_evaluations():
+    fake_api = _FakeAPI()
+    llm = _FakeLLM({"family": "technology", "seniority": "senior"})
+    svc = AnalyzeJob(api=fake_api, llm=llm)
+
+    await svc.analyze(slug="job-1")
+
+    assert fake_api.created == [{"slug": "job-1"}]
+    assert fake_api.triggered == [{"id": "eval-1"}]
+
+
+@pytest.mark.asyncio
+async def test_analyze_propagates_trigger_failure():
+    class _FailingTriggerAPI(_FakeAPI):
+        async def trigger_evaluations(self, items: list[dict]) -> list[dict]:
+            self.triggered = items
+            raise RuntimeError("trigger unavailable")
+
+    fake_api = _FailingTriggerAPI()
+    llm = _FakeLLM({"family": "technology", "seniority": "senior"})
+    svc = AnalyzeJob(api=fake_api, llm=llm)
+
+    with pytest.raises(RuntimeError, match="trigger unavailable"):
+        await svc.analyze(slug="job-1")
+
+    assert fake_api.created == [{"slug": "job-1"}]
+    assert fake_api.triggered == [{"id": "eval-1"}]
+
+
+@pytest.mark.asyncio
+async def test_analyze_fails_on_per_item_trigger_error():
+    """A 202 trigger response with a per-item error must fail the activity so
+    Temporal retries instead of leaving the evaluation orphaned at new."""
+
+    class _ErrorSummaryTriggerAPI(_FakeAPI):
+        async def trigger_evaluations(self, items: list[dict]) -> list[dict]:
+            self.triggered = items
+            return [
+                {
+                    "id": "eval-1",
+                    "evaluation_status": "new",
+                    "error": "start match job workflow: temporal unavailable",
+                }
+            ]
+
+    fake_api = _ErrorSummaryTriggerAPI()
+    llm = _FakeLLM({"family": "technology", "seniority": "senior"})
+    svc = AnalyzeJob(api=fake_api, llm=llm)
+
+    with pytest.raises(RuntimeError, match="start match job workflow"):
+        await svc.analyze(slug="job-1")
+
+    assert fake_api.triggered == [{"id": "eval-1"}]

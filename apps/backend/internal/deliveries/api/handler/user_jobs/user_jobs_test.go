@@ -78,13 +78,12 @@ func TestListUserJobs_success(t *testing.T) {
 	rows := []*models.UserJobWithJob{
 		{
 			UserJob: &models.UserJob{
-				ID:                 ujID,
-				UserID:             uID,
-				JobID:              1,
-				IsHidden:           false,
-				LatestEvaluationID: &evalID,
-				CreatedAt:          time.Now(),
-				UpdatedAt:          time.Now(),
+				ID:        ujID,
+				UserID:    uID,
+				JobID:     1,
+				IsHidden:  false,
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
 			},
 			Job: &models.Job{ID: 1, Slug: "job-1", Title: "Engineer"},
 			Evaluation: &models.MatchingEvaluation{
@@ -117,8 +116,10 @@ func TestListUserJobs_success(t *testing.T) {
 	require.Len(t, jobs, 1)
 	assert.Equal(t, ujID.String(), jobs[0]["id"])
 	assert.Equal(t, false, jobs[0]["is_hidden"])
+	assert.NotContains(t, jobs[0], "latest_evaluation_id")
 
 	evalMap := jobs[0]["evaluation"].(map[string]interface{})
+	assert.NotContains(t, evalMap, "latest_evaluation_id")
 	assert.Equal(t, evalID.String(), evalMap["id"])
 	assert.Equal(t, "completed", evalMap["evaluation_status"])
 	assert.Equal(t, "eligible", evalMap["eligibility_status"])

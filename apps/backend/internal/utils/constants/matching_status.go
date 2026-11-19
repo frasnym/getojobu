@@ -6,6 +6,7 @@ import "fmt"
 type MatchingEvaluationStatus string
 
 const (
+	MatchingStatusNew         MatchingEvaluationStatus = "new"
 	MatchingStatusQueued      MatchingEvaluationStatus = "queued"
 	MatchingStatusQueuedRetry MatchingEvaluationStatus = "queued_retry"
 	MatchingStatusPending     MatchingEvaluationStatus = "pending"
@@ -14,14 +15,34 @@ const (
 )
 
 // ValidateMatchingStatusTransition checks whether moving from current to next is permitted.
-// Moving to "pending" is only allowed if current status is "queued" or "queued_retry".
+// "new" is insert-only; "queued" follows "new", "queued_retry" follows "failed", and
+// "pending" follows "new", "queued", or "queued_retry".
 func ValidateMatchingStatusTransition(current, next MatchingEvaluationStatus) error {
 	switch next {
-	case MatchingStatusPending:
-		if current != MatchingStatusQueued && current != MatchingStatusQueuedRetry {
+	case MatchingStatusNew:
+		return fmt.Errorf(
+			"transition from %q to %q is not allowed: %q is an initial status",
+			current, next, next,
+		)
+	case MatchingStatusQueued:
+		if current != MatchingStatusNew {
 			return fmt.Errorf(
-				"transition from %q to %q is not allowed: evaluation must be %q or %q",
-				current, next, MatchingStatusQueued, MatchingStatusQueuedRetry,
+				"transition from %q to %q is not allowed: evaluation must be %q",
+				current, next, MatchingStatusNew,
+			)
+		}
+	case MatchingStatusQueuedRetry:
+		if current != MatchingStatusFailed {
+			return fmt.Errorf(
+				"transition from %q to %q is not allowed: evaluation must be %q",
+				current, next, MatchingStatusFailed,
+			)
+		}
+	case MatchingStatusPending:
+		if current != MatchingStatusNew && current != MatchingStatusQueued && current != MatchingStatusQueuedRetry {
+			return fmt.Errorf(
+				"transition from %q to %q is not allowed: evaluation must be %q, %q, or %q",
+				current, next, MatchingStatusNew, MatchingStatusQueued, MatchingStatusQueuedRetry,
 			)
 		}
 	}

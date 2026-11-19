@@ -5,6 +5,7 @@ import {
   getResumeDownloadUrl,
   generateCoverLetter,
   triggerJobCompatibility,
+  bulkGenerateReport,
 } from "@/lib/api/endpoints";
 
 const originalFetch = global.fetch;
@@ -94,29 +95,136 @@ describe("API endpoints", () => {
     expect(download.filename).toContain(".pdf");
   });
 
-  it("triggerJobCompatibility initiates/returns evaluation summary", async () => {
+  it("triggerJobCompatibility inserts then triggers and returns the triggered summary", async () => {
+    const fetchMock = vi.fn(async () =>
+      new Response(
+        JSON.stringify({
+          success: true,
+          data: [
+            {
+              id: "eval-senior-go-engineer-stripe-remote-new",
+              user_job_id: "uj-001",
+              evaluation_status: "success",
+              overall_score: 85.0,
+              eligibility_status: "eligible",
+              recommendation_label: "strong_match",
+              report_status: "ready",
+              resume_status: "ready",
+              created_at: new Date().toISOString(),
+            },
+          ],
+          meta: { timestamp: "2026-11-15T12:00:00Z", requestId: "req-123" },
+          error: null,
+        }),
+        { status: 202, headers: { "Content-Type": "application/json" } }
+      )
+    ) as any;
+    global.fetch = fetchMock;
+
+    const summary = await triggerJobCompatibility("senior-go-engineer-stripe-remote", false);
+    expect(summary.id).toBe("eval-senior-go-engineer-stripe-remote-new");
+    expect(summary.evaluation_status).toBe("success");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock.mock.calls[0][0]).toContain("/v1/jobs/evaluation");
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual([
+      { slug: "senior-go-engineer-stripe-remote" },
+    ]);
+    expect(fetchMock.mock.calls[1][0]).toContain(
+      "/v1/matching-evaluations/bulk-generate-evaluation"
+    );
+    expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toEqual([
+      { id: "eval-senior-go-engineer-stripe-remote-new" },
+    ]);
+  });
+
+  it("triggerJobCompatibility accepts an in-flight summary that carries an error", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            success: true,
+            data: [
+              {
+                id: "eval-in-flight",
+                user_job_id: "uj-001",
+                evaluation_status: "new",
+              },
+            ],
+            meta: { timestamp: "2026-11-19T12:00:00Z", requestId: "req-1" },
+            error: null,
+          }),
+          { status: 202, headers: { "Content-Type": "application/json" } }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            success: true,
+            data: [
+              {
+                id: "eval-in-flight",
+                user_job_id: "uj-001",
+                evaluation_status: "pending",
+                error: "evaluation status changed before it could be queued",
+              },
+            ],
+            meta: { timestamp: "2026-11-19T12:00:01Z", requestId: "req-2" },
+            error: null,
+          }),
+          { status: 202, headers: { "Content-Type": "application/json" } }
+        )
+      ) as any;
+    global.fetch = fetchMock;
+
+    const summary = await triggerJobCompatibility("senior-go-engineer-stripe-remote", false);
+    expect(summary.id).toBe("eval-in-flight");
+    expect(summary.evaluation_status).toBe("pending");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("bulkGenerateReport posts forced items to the bulk report endpoint", async () => {
+    const fetchMock = vi.fn(async () =>
+      new Response(
+        JSON.stringify({
+          success: true,
+          data: [{ id: "eval-1", evaluation_status: "success", report_status: "queued_retry" }],
+          meta: { timestamp: "2026-11-15T12:00:00Z", requestId: "req-123" },
+          error: null,
+        }),
+        { status: 202, headers: { "Content-Type": "application/json" } }
+      )
+    ) as any;
+    global.fetch = fetchMock;
+
+    const summary = await bulkGenerateReport(["eval-1"]);
+    expect(summary.report_status).toBe("queued_retry");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0][0]).toContain(
+      "/v1/matching-evaluations/bulk-generate-report"
+    );
+    expect(fetchMock.mock.calls[0][1].method).toBe("POST");
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual([
+      { id: "eval-1", force: true },
+    ]);
+  });
+
+  it("bulkGenerateReport surfaces a per-item error from the 202 response", async () => {
     mockFetch({
       success: true,
       data: [
         {
-          id: "eval-senior-go-engineer-stripe-remote-new",
-          user_job_id: "uj-001",
-          evaluation_status: "success",
-          overall_score: 85.0,
-          eligibility_status: "eligible",
-          recommendation_label: "strong_match",
-          report_status: "ready",
-          resume_status: "ready",
-          created_at: new Date().toISOString(),
+          id: "eval-1",
+          error: "not authorized to generate report for this evaluation",
         },
       ],
-      meta: { timestamp: "2026-11-15T12:00:00Z", requestId: "req-123" },
+      meta: { timestamp: "2026-11-15T12:00:00Z", requestId: "req-124" },
       error: null,
-    });
+    }, 202);
 
-    const summary = await triggerJobCompatibility("senior-go-engineer-stripe-remote", false);
-    expect(summary.id).toBeDefined();
-    expect(summary.evaluation_status).toBe("success");
+    await expect(bulkGenerateReport(["eval-1"])).rejects.toThrow(
+      "not authorized to generate report for this evaluation"
+    );
   });
 
   it("unwraps canonical backend response envelope", async () => {

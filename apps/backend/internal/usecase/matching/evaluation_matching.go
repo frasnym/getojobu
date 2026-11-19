@@ -13,7 +13,8 @@ import (
 
 // Matching defines operations for candidate-job compatibility evaluation, report generation, and resume generation.
 type Matching interface {
-	TriggerCompatibilityBulk(ctx context.Context, items []models.BulkAnalyzeCompatibilityItem, caller *models.Principal) ([]*models.MatchingEvaluationSummary, error)
+	CreateEvaluations(ctx context.Context, items []models.CreateEvaluationItem, caller *models.Principal) ([]*models.MatchingEvaluationSummary, error)
+	TriggerEvaluations(ctx context.Context, items []models.TriggerEvaluationItem, caller *models.Principal) ([]*models.MatchingEvaluationSummary, error)
 	UpdateEvaluation(ctx context.Context, id uuid.UUID, req UpdateEvaluationRequest) (*models.MatchingEvaluation, error)
 	UpdateEvaluationReport(ctx context.Context, id uuid.UUID, req UpdateEvaluationReportRequest) (*models.MatchingEvaluation, error)
 	UpdateEvaluationResume(ctx context.Context, id uuid.UUID, req UpdateEvaluationResumeRequest) (*models.MatchingEvaluation, error)

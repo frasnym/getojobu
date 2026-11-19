@@ -116,7 +116,11 @@ class GetojobuAPI(Protocol):
         self, items: list[dict[str, Any]]
     ) -> list[dict[str, Any]]: ...
 
-    async def trigger_bulk_analyze_compatibility(
+    async def create_evaluations(
+        self, items: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]: ...
+
+    async def trigger_evaluations(
         self, items: list[dict[str, Any]]
     ) -> list[dict[str, Any]]: ...
 
@@ -152,6 +156,32 @@ class _getojobuAPI:
                 response_text=response.text,
             )
         response.raise_for_status()
+
+    @staticmethod
+    def _raise_on_summary_errors(data: object, *, operation: str) -> None:
+        """Raise when a 2xx bulk response reports an error on any item.
+
+        The insert and trigger endpoints return 202 with a per-item ``error``
+        when one item fails. ``raise_for_status`` cannot see those errors, so
+        they must be inspected explicitly or the caller silently loses them.
+        """
+        if isinstance(data, dict):
+            summaries: list[Any] = [data]
+        elif isinstance(data, list):
+            summaries = data
+        else:
+            return
+        for item in summaries:
+            if not isinstance(item, dict):
+                continue
+            error = item.get("error")
+            if not error:
+                continue
+            if isinstance(error, dict):
+                message = str(error.get("message") or error.get("code") or error)
+            else:
+                message = str(error)
+            raise RuntimeError(f"{operation} failed for item: {message}")
 
     async def get_job(self, slug: str) -> dict[str, Any]:
         response = await self._client.get(f"/v1/jobs/{slug}")
@@ -392,18 +422,28 @@ class _getojobuAPI:
             )
         return unwrapped
 
-    async def trigger_bulk_analyze_compatibility(
+    async def create_evaluations(
+        self, items: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
+        response = await self._client.post("/v1/jobs/evaluation", json=items)
+        self._check_response(response, operation="create evaluations")
+        raw = response.json()
+        unwrapped = self._unwrap_response(raw, operation="create evaluations")
+        self._raise_on_summary_errors(unwrapped, operation="create evaluations")
+        if isinstance(unwrapped, list):
+            return cast("list[dict[str, Any]]", unwrapped)
+        return []
+
+    async def trigger_evaluations(
         self, items: list[dict[str, Any]]
     ) -> list[dict[str, Any]]:
         response = await self._client.post(
-            "/v1/jobs/bulk-analyze-compatibility",
-            json=items,
+            "/v1/matching-evaluations/bulk-generate-evaluation", json=items
         )
-        self._check_response(response, operation="trigger bulk analyze compatibility")
+        self._check_response(response, operation="trigger evaluations")
         raw = response.json()
-        unwrapped = self._unwrap_response(
-            raw, operation="trigger bulk analyze compatibility"
-        )
+        unwrapped = self._unwrap_response(raw, operation="trigger evaluations")
+        self._raise_on_summary_errors(unwrapped, operation="trigger evaluations")
         if isinstance(unwrapped, list):
             return cast("list[dict[str, Any]]", unwrapped)
         return []

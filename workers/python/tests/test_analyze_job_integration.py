@@ -66,6 +66,8 @@ class _FakeAPI:
         self.patched = None
         self.patched_statuses = []
         self.closed = False
+        self.created = None
+        self.triggered = None
 
     async def get_job(self, slug: str) -> Any:
         if isinstance(self.job_data, dict):
@@ -92,6 +94,14 @@ class _FakeAPI:
         if status == "analyzed" and self.patch_analyzed_response is not None:
             return self.patch_analyzed_response
         return {"slug": slug, "status": status}
+
+    async def create_evaluations(self, items: list[dict]) -> list[dict]:
+        self.created = items
+        return [{"id": "eval-1", "evaluation_status": "new"}]
+
+    async def trigger_evaluations(self, items: list[dict]) -> list[dict]:
+        self.triggered = items
+        return [{"id": "eval-1", "evaluation_status": "queued"}]
 
     async def aclose(self) -> None:
         self.closed = True

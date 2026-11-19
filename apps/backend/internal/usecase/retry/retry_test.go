@@ -79,7 +79,7 @@ func TestFailedMatchingEvaluationsRequeuesEveryFailedField(t *testing.T) {
 	}
 	d.repo.EXPECT().ListFailedMatchingEvaluations(gomock.Any(), ucRetry.MaxFailedMatchingEvaluations).
 		Return([]models.FailedMatchingEvaluation{eval}, nil)
-	d.matching.EXPECT().TriggerCompatibilityBulk(gomock.Any(), []models.BulkAnalyzeCompatibilityItem{{Slug: "job-a", Force: true, FailedOnly: true}}, caller).
+	d.matching.EXPECT().TriggerEvaluations(gomock.Any(), []models.TriggerEvaluationItem{{ID: id}}, caller).
 		Return([]*models.MatchingEvaluationSummary{{}}, nil)
 	d.matching.EXPECT().BulkQueueGenerateReport(gomock.Any(), []models.BulkGenerateReportItem{{ID: id, Force: true}}, caller).
 		Return([]*models.MatchingEvaluationSummary{{}}, nil)
@@ -95,7 +95,7 @@ func TestFailedMatchingEvaluationsRequeuesEveryFailedField(t *testing.T) {
 	}, result)
 }
 
-func TestFailedMatchingEvaluationsDedupesSlugsAndSkipsOtherStatuses(t *testing.T) {
+func TestFailedMatchingEvaluationsTriggersEachFailedEvaluationWithoutSlugDedupe(t *testing.T) {
 	d := newDeps(t)
 	id1, id2 := uuid.New(), uuid.New()
 	evals := []models.FailedMatchingEvaluation{
@@ -103,14 +103,16 @@ func TestFailedMatchingEvaluationsDedupesSlugsAndSkipsOtherStatuses(t *testing.T
 		{ID: id2, Slug: "job-a", EvaluationStatus: "failed", ResumeStatus: strPtr("success")},
 	}
 	d.repo.EXPECT().ListFailedMatchingEvaluations(gomock.Any(), ucRetry.MaxFailedMatchingEvaluations).Return(evals, nil)
-	d.matching.EXPECT().TriggerCompatibilityBulk(gomock.Any(), []models.BulkAnalyzeCompatibilityItem{{Slug: "job-a", Force: true, FailedOnly: true}}, caller).
-		Return([]*models.MatchingEvaluationSummary{{}}, nil)
+	d.matching.EXPECT().TriggerEvaluations(gomock.Any(), []models.TriggerEvaluationItem{
+		{ID: id1},
+		{ID: id2},
+	}, caller).Return([]*models.MatchingEvaluationSummary{{}, {}}, nil)
 	d.matching.EXPECT().BulkQueueGenerateReport(gomock.Any(), []models.BulkGenerateReportItem{{ID: id1, Force: true}}, caller).
 		Return([]*models.MatchingEvaluationSummary{{}}, nil)
 
 	result, err := d.svc.FailedMatchingEvaluations(context.Background(), caller)
 	require.NoError(t, err)
-	assert.Equal(t, 1, result.Evaluations)
+	assert.Equal(t, 2, result.Evaluations)
 	assert.Equal(t, 1, result.Reports)
 	assert.Equal(t, 0, result.Resumes)
 	assert.Equal(t, 0, result.CoverLetters)

@@ -395,63 +395,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/v1/jobs/bulk-analyze-compatibility": {
-            "post": {
-                "security": [
-                    {
-                        "ApiKeyAuth": []
-                    }
-                ],
-                "description": "Trigger compatibility evaluation for multiple jobs in bulk with partial results. Clerk users evaluate their own profile; machine API key callers evaluate all users associated with the job in user_jobs.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "jobs"
-                ],
-                "summary": "Trigger bulk compatibility evaluation",
-                "parameters": [
-                    {
-                        "description": "Jobs to evaluate compatibility",
-                        "name": "jobs",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/jobs.bulkAnalyzeCompatibilityItemRequest"
-                            }
-                        }
-                    }
-                ],
-                "responses": {
-                    "202": {
-                        "description": "Accepted",
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/models.MatchingEvaluationSummary"
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/httpx.Error"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/httpx.Error"
-                        }
-                    }
-                }
-            }
-        },
         "/v1/jobs/bulk-queue-analyze": {
             "post": {
                 "security": [
@@ -511,6 +454,63 @@ const docTemplate = `{
                     },
                     "422": {
                         "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/httpx.Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/jobs/evaluation": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Insert one matching evaluation per user linked to each job slug at status new, without starting a workflow. Clerk callers are scoped to the user in their token; API key callers are trusted and evaluate all linked users. Per-item failures are returned in the response and do not stop the batch.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "jobs"
+                ],
+                "summary": "Create matching evaluations",
+                "parameters": [
+                    {
+                        "description": "Job slugs to create evaluations for",
+                        "name": "items",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/jobs.createEvaluationItemRequest"
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Accepted",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/models.MatchingEvaluationSummary"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpx.Error"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
                         "schema": {
                             "$ref": "#/definitions/httpx.Error"
                         }
@@ -912,6 +912,63 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/matching-evaluations/bulk-generate-evaluation": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Starts the match-job workflow for each given evaluation ID at status new or failed. Clerk callers are checked for ownership from the token; API key callers are trusted and need no per-item user. Per-item failures are returned in the response and do not stop the batch.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "matching"
+                ],
+                "summary": "Bulk generate evaluations",
+                "parameters": [
+                    {
+                        "description": "Evaluation IDs to trigger",
+                        "name": "items",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/matching.bulkGenerateEvaluationItemRequest"
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Accepted",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/models.MatchingEvaluationSummary"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpx.Error"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/httpx.Error"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/matching-evaluations/bulk-generate-report": {
             "post": {
                 "security": [
@@ -919,7 +976,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Queues match report generation for multiple evaluations in bulk. Accessible only via machine API key.",
+                "description": "Queues match report generation for multiple evaluations in bulk. Clerk callers may only generate reports for evaluations they own; worker API key callers may target any evaluation. An ownership failure is returned as a per-item error in the 202 response.",
                 "consumes": [
                     "application/json"
                 ],
@@ -2736,17 +2793,6 @@ const docTemplate = `{
                 }
             }
         },
-        "jobs.bulkAnalyzeCompatibilityItemRequest": {
-            "type": "object",
-            "properties": {
-                "force": {
-                    "type": "boolean"
-                },
-                "slug": {
-                    "type": "string"
-                }
-            }
-        },
         "jobs.bulkCreateJobRequest": {
             "type": "object",
             "properties": {
@@ -2794,6 +2840,14 @@ const docTemplate = `{
                     "items": {
                         "type": "string"
                     }
+                }
+            }
+        },
+        "jobs.createEvaluationItemRequest": {
+            "type": "object",
+            "properties": {
+                "slug": {
+                    "type": "string"
                 }
             }
         },
@@ -2936,6 +2990,17 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "variant": {
+                    "type": "string"
+                }
+            }
+        },
+        "matching.bulkGenerateEvaluationItemRequest": {
+            "type": "object",
+            "properties": {
+                "force": {
+                    "type": "boolean"
+                },
+                "id": {
                     "type": "string"
                 }
             }

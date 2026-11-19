@@ -14,12 +14,8 @@ from __future__ import annotations
 
 from typing import Any, Protocol
 
-import httpx
 from models.job_analysis import JobAnalysis, JobExtractionOutput
 from repository.getojobu_api import GetojobuAPI
-from utils.logging import get_logger
-
-logger = get_logger("usecase.analyze_job")
 
 
 class LLMClient(Protocol):
@@ -117,18 +113,24 @@ class AnalyzeJob:
                 f"failed to transition job {slug!r} to 'analyzed': API returned status {actual_status!r}"
             )
 
-        # 6. Trigger compatibility evaluation (Step 2)
-        if hasattr(self._api, "trigger_bulk_analyze_compatibility"):
-            try:
-                await self._api.trigger_bulk_analyze_compatibility(
-                    [{"slug": slug, "force": False}]
-                )
-            except (RuntimeError, httpx.HTTPError) as exc:
-                logger.warning(
-                    "trigger_bulk_analyze_compatibility_failed",
-                    slug=slug,
-                    error=str(exc),
-                )
+        # 6. Insert evaluations, then start their workflows. A failed trigger
+        # fails the activity so Temporal retries both calls; the insert step
+        # is create-if-absent, so a retry cannot duplicate evaluation rows.
+        created = await self._api.create_evaluations([{"slug": slug}])
+        trigger_items = [
+            {"id": item["id"]}
+            for item in created
+            if isinstance(item, dict) and item.get("id") and not item.get("error")
+        ]
+        if trigger_items:
+            trigger_result = await self._api.trigger_evaluations(trigger_items)
+            # The trigger endpoint answers 202 even when starting a workflow
+            # failed; the failure lives in each item's `error`. Fail the
+            # activity so Temporal retries both calls instead of orphaning the
+            # evaluation at `new`.
+            for item in trigger_result:
+                if isinstance(item, dict) and item.get("error"):
+                    raise RuntimeError(f"trigger evaluations failed: {item['error']}")
 
         return analysis
 

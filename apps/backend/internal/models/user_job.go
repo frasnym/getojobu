@@ -14,13 +14,12 @@ type UserJobLink struct {
 
 // UserJob represents a row in user_jobs linking a user to a job.
 type UserJob struct {
-	ID                 uuid.UUID
-	UserID             uuid.UUID
-	JobID              int64
-	IsHidden           bool
-	LatestEvaluationID *uuid.UUID
-	CreatedAt          time.Time
-	UpdatedAt          time.Time
+	ID        uuid.UUID
+	UserID    uuid.UUID
+	JobID     int64
+	IsHidden  bool
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }
 
 // UserJobWithJob is an internal read model coupling a user_jobs link to its

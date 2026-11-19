@@ -169,7 +169,7 @@ func (r *userJobsRepository) IsOwned(ctx context.Context, userID string, jobID i
 // GetByUserAndJob fetches the user_job row for a given user and job.
 func (r *userJobsRepository) GetByUserAndJob(ctx context.Context, userID string, jobID int64) (*models.UserJob, error) {
 	query := `
-		SELECT id, user_id, job_id, is_hidden, latest_evaluation_id, created_at, updated_at
+		SELECT id, user_id, job_id, is_hidden, created_at, updated_at
 		FROM user_jobs
 		WHERE user_id = $1 AND job_id = $2
 	`
@@ -179,7 +179,6 @@ func (r *userJobsRepository) GetByUserAndJob(ctx context.Context, userID string,
 		&uj.UserID,
 		&uj.JobID,
 		&uj.IsHidden,
-		&uj.LatestEvaluationID,
 		&uj.CreatedAt,
 		&uj.UpdatedAt,
 	)
@@ -192,7 +191,7 @@ func (r *userJobsRepository) GetByUserAndJob(ctx context.Context, userID string,
 // GetByID fetches the user_job row by id.
 func (r *userJobsRepository) GetByID(ctx context.Context, id uuid.UUID) (*models.UserJob, error) {
 	query := `
-		SELECT id, user_id, job_id, is_hidden, latest_evaluation_id, created_at, updated_at
+		SELECT id, user_id, job_id, is_hidden, created_at, updated_at
 		FROM user_jobs
 		WHERE id = $1
 	`
@@ -202,7 +201,6 @@ func (r *userJobsRepository) GetByID(ctx context.Context, id uuid.UUID) (*models
 		&uj.UserID,
 		&uj.JobID,
 		&uj.IsHidden,
-		&uj.LatestEvaluationID,
 		&uj.CreatedAt,
 		&uj.UpdatedAt,
 	)
@@ -244,7 +242,7 @@ func (r *userJobsRepository) GetUsersByJobID(ctx context.Context, jobID int64) (
 // paginated by limit and offset. When filter fields are set, they are applied as
 // parameterized SQL constraints.
 func (r *userJobsRepository) GetByUser(ctx context.Context, userID string, filter models.UserJobFilter, limit, offset int) (rows []*models.UserJobWithJob, total int, err error) {
-	// Optional count filters applied via join on jobs and latest matching evaluation.
+	// Optional count filters applied via join on jobs and matching evaluation.
 	countWhere, countArgs := whereClauses(filter)
 	countQuery := `SELECT COUNT(*) FROM user_jobs uj WHERE uj.user_id = $1`
 	if countWhere != "" {
@@ -252,7 +250,7 @@ func (r *userJobsRepository) GetByUser(ctx context.Context, userID string, filte
 			SELECT COUNT(*)
 			FROM user_jobs uj
 			JOIN jobs j ON j.id = uj.job_id
-			LEFT JOIN matching_evaluations me ON me.id = uj.latest_evaluation_id
+			LEFT JOIN matching_evaluations me ON me.user_job_id = uj.id
 			WHERE uj.user_id = $1` + countWhere
 	}
 	if err := r.QueryRow(ctx, countQuery, append([]any{userID}, countArgs...)...).Scan(&total); err != nil {
@@ -260,12 +258,13 @@ func (r *userJobsRepository) GetByUser(ctx context.Context, userID string, filte
 	}
 
 	selectCols := `
-		uj.id, uj.user_id, uj.job_id, uj.is_hidden, uj.latest_evaluation_id, uj.created_at, uj.updated_at,
+		uj.id, uj.user_id, uj.job_id, uj.is_hidden, uj.created_at, uj.updated_at,
 		j.id, j.slug, j.status, j.analyze_result, j.failure_message,
 		j.source, j.external_id, j.source_url, j.apply_url,
 		j.title, j.company, j.location, j.description, j.posted_date,
 		j.is_remote, j.visa_relocation,
 		j.created_at, j.updated_at, j.updated_by_type, j.updated_by_id,
+		me.id,
 		me.evaluation_status, me.eligibility_status, me.recommendation_label,
 		me.report_status, me.resume_status, me.cover_letter_status
 	`
@@ -282,7 +281,7 @@ func (r *userJobsRepository) GetByUser(ctx context.Context, userID string, filte
 		SELECT %s
 		FROM user_jobs uj
 		JOIN jobs j ON j.id = uj.job_id
-		LEFT JOIN matching_evaluations me ON me.id = uj.latest_evaluation_id
+		LEFT JOIN matching_evaluations me ON me.user_job_id = uj.id
 		WHERE uj.user_id = $1%s
 		ORDER BY uj.is_hidden ASC, uj.created_at DESC
 		LIMIT $%d OFFSET $%d
@@ -306,7 +305,7 @@ func scanUserJobsWithJob(rows pgx.Rows) ([]*models.UserJobWithJob, error) {
 		var (
 			uj                  models.UserJob
 			j                   models.Job
-			latestEvalID        *uuid.UUID
+			evalID              *uuid.UUID
 			evalStatus          sql.NullString
 			eligibilityStatus   sql.NullString
 			recommendationLabel sql.NullString
@@ -323,19 +322,18 @@ func scanUserJobsWithJob(rows pgx.Rows) ([]*models.UserJobWithJob, error) {
 			visaRelocation      sql.NullBool
 		)
 		err := rows.Scan(
-			&uj.ID, &uj.UserID, &uj.JobID, &uj.IsHidden, &latestEvalID, &uj.CreatedAt, &uj.UpdatedAt,
+			&uj.ID, &uj.UserID, &uj.JobID, &uj.IsHidden, &uj.CreatedAt, &uj.UpdatedAt,
 			&j.ID, &j.Slug, &j.Status, &j.AnalyzeResult, &failureMessage,
 			&j.Source, &externalID, &sourceURL, &applyURL,
 			&j.Title, &j.Company, &j.Location, &description,
 			&postedDate, &isRemote, &visaRelocation,
 			&j.CreatedAt, &j.UpdatedAt, &j.UpdatedByType, &j.UpdatedByID,
-			&evalStatus, &eligibilityStatus, &recommendationLabel,
+			&evalID, &evalStatus, &eligibilityStatus, &recommendationLabel,
 			&reportStatus, &resumeStatus, &coverLetterStatus,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("scan user job with job: %w", err)
 		}
-		uj.LatestEvaluationID = latestEvalID
 		j.ExternalID = utils.NullStringPtr(externalID)
 		j.SourceURL = utils.NullStringPtr(sourceURL)
 		j.ApplyURL = utils.NullStringPtr(applyURL)
@@ -346,9 +344,9 @@ func scanUserJobsWithJob(rows pgx.Rows) ([]*models.UserJobWithJob, error) {
 		j.VisaRelocation = utils.NullBoolPtr(visaRelocation)
 
 		var eval *models.MatchingEvaluation
-		if latestEvalID != nil && evalStatus.Valid {
+		if evalID != nil && evalStatus.Valid {
 			eval = &models.MatchingEvaluation{
-				ID:                  *latestEvalID,
+				ID:                  *evalID,
 				UserJobID:           uj.ID,
 				EvaluationStatus:    evalStatus.String,
 				EligibilityStatus:   utils.NullStringPtr(eligibilityStatus),

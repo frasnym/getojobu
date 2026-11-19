@@ -97,10 +97,12 @@ func TestBulkQueueGenerateReport(t *testing.T) {
 
 	evalRepo := repoMocks.NewMockMatchingEvaluations(ctrl)
 	workflowsRepo := repoMocks.NewMockWorkflows(ctrl)
+	userJobsRepo := repoMocks.NewMockUserJobs(ctrl)
 
 	service := matching.NewService(&repository.Contract{
 		MatchingEvaluationsRepository: evalRepo,
 		WorkflowsRepository:           workflowsRepo,
+		UserJobsRepository:            userJobsRepo,
 	})
 
 	ctx := context.Background()
@@ -231,5 +233,119 @@ func TestBulkQueueGenerateReport(t *testing.T) {
 		require.Len(t, res, 1)
 		require.NotNil(t, res[0].Error)
 		assert.Contains(t, *res[0].Error, "temporal connection error")
+	})
+
+	t.Run("clerk owner of successful evaluation gets queued_retry", func(t *testing.T) {
+		userJobID := uuid.New()
+		ownerID := uuid.New()
+		failedStatus := string(constants.ReportStatusFailed)
+		eval := &models.MatchingEvaluation{
+			ID:                   evalID,
+			UserJobID:            userJobID,
+			EvaluationStatus:     string(constants.MatchingStatusSuccess),
+			CandidateProfileData: json.RawMessage(`{"skills":["go"]}`),
+			JobProfileData:       json.RawMessage(`{"title":"Go Dev"}`),
+			EvaluationData:       json.RawMessage(`{"evaluations":[]}`),
+			ReportStatus:         &failedStatus,
+		}
+		queueRetryStatus := string(constants.ReportStatusQueuedRetry)
+		updatedEval := *eval
+		updatedEval.ReportStatus = &queueRetryStatus
+
+		gomock.InOrder(
+			evalRepo.EXPECT().GetByID(ctx, evalID).Return(eval, nil),
+			evalRepo.EXPECT().GetByID(ctx, evalID).Return(eval, nil),
+			userJobsRepo.EXPECT().GetByID(ctx, userJobID).Return(&models.UserJob{ID: userJobID, UserID: ownerID}, nil),
+			evalRepo.EXPECT().UpdateReport(ctx, evalID, models.UpdateMatchingEvaluationReportParams{
+				ReportStatus: string(constants.ReportStatusQueuedRetry),
+			}).Return(&updatedEval, nil),
+			workflowsRepo.EXPECT().StartLimiterWorkItem(ctx, gomock.Any(), models.LimiterJobTypeReport, gomock.Any()).Return("wf-report-clerk", nil),
+		)
+
+		clerkCaller := &models.Principal{ActorType: "", ID: ownerID.String()}
+		res, err := service.BulkQueueGenerateReport(ctx, []models.BulkGenerateReportItem{
+			{ID: evalID, Force: true},
+		}, clerkCaller)
+
+		require.NoError(t, err)
+		require.Len(t, res, 1)
+		require.Nil(t, res[0].Error)
+		require.NotNil(t, res[0].ReportStatus)
+		assert.Equal(t, string(constants.ReportStatusQueuedRetry), *res[0].ReportStatus)
+	})
+
+	t.Run("clerk caller who does not own the evaluation is rejected", func(t *testing.T) {
+		userJobID := uuid.New()
+		ownerID := uuid.New()
+		eval := &models.MatchingEvaluation{
+			ID:               evalID,
+			UserJobID:        userJobID,
+			EvaluationStatus: string(constants.MatchingStatusSuccess),
+		}
+
+		evalRepo.EXPECT().GetByID(ctx, evalID).Return(eval, nil).Times(2)
+		userJobsRepo.EXPECT().GetByID(ctx, userJobID).Return(&models.UserJob{ID: userJobID, UserID: ownerID}, nil)
+
+		clerkCaller := &models.Principal{ActorType: "", ID: uuid.NewString()}
+		res, err := service.BulkQueueGenerateReport(ctx, []models.BulkGenerateReportItem{
+			{ID: evalID, Force: true},
+		}, clerkCaller)
+
+		require.NoError(t, err)
+		require.Len(t, res, 1)
+		require.NotNil(t, res[0].Error)
+		assert.Contains(t, *res[0].Error, "not authorized")
+	})
+
+	t.Run("clerk owner cannot retry report when evaluation is not success", func(t *testing.T) {
+		userJobID := uuid.New()
+		ownerID := uuid.New()
+		eval := &models.MatchingEvaluation{
+			ID:               evalID,
+			UserJobID:        userJobID,
+			EvaluationStatus: string(constants.MatchingStatusFailed),
+		}
+
+		evalRepo.EXPECT().GetByID(ctx, evalID).Return(eval, nil).Times(2)
+		userJobsRepo.EXPECT().GetByID(ctx, userJobID).Return(&models.UserJob{ID: userJobID, UserID: ownerID}, nil)
+
+		clerkCaller := &models.Principal{ActorType: "", ID: ownerID.String()}
+		res, err := service.BulkQueueGenerateReport(ctx, []models.BulkGenerateReportItem{
+			{ID: evalID, Force: true},
+		}, clerkCaller)
+
+		require.NoError(t, err)
+		require.Len(t, res, 1)
+		require.NotNil(t, res[0].Error)
+		assert.Contains(t, *res[0].Error, "must be success")
+	})
+
+	t.Run("api key caller skips the ownership check", func(t *testing.T) {
+		eval := &models.MatchingEvaluation{
+			ID:                   evalID,
+			UserJobID:            uuid.New(),
+			EvaluationStatus:     string(constants.MatchingStatusSuccess),
+			CandidateProfileData: json.RawMessage(`{}`),
+			JobProfileData:       json.RawMessage(`{}`),
+			EvaluationData:       json.RawMessage(`{}`),
+		}
+		queueStatus := string(constants.ReportStatusQueued)
+		updatedEval := *eval
+		updatedEval.ReportStatus = &queueStatus
+
+		userJobsRepo.EXPECT().GetByID(gomock.Any(), gomock.Any()).Times(0)
+		evalRepo.EXPECT().GetByID(ctx, evalID).Return(eval, nil)
+		evalRepo.EXPECT().UpdateReport(ctx, evalID, models.UpdateMatchingEvaluationReportParams{
+			ReportStatus: string(constants.ReportStatusQueued),
+		}).Return(&updatedEval, nil)
+		workflowsRepo.EXPECT().StartLimiterWorkItem(ctx, gomock.Any(), models.LimiterJobTypeReport, gomock.Any()).Return("wf-report-worker", nil)
+
+		res, err := service.BulkQueueGenerateReport(ctx, []models.BulkGenerateReportItem{
+			{ID: evalID, Force: false},
+		}, caller)
+
+		require.NoError(t, err)
+		require.Len(t, res, 1)
+		assert.Nil(t, res[0].Error)
 	})
 }

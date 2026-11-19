@@ -58,8 +58,12 @@ func (h *handler) Route(g *httpx.Router) {
 	// PATCH /v1/matching-evaluations/{id}/cover-letter (strictly worker API key)
 	g.PATCH("/{id}/cover-letter", h.UpdateCoverLetter, auth.ValidAPIKey)
 
-	// POST /v1/matching-evaluations/bulk-generate-report (strictly worker API key)
-	g.POST("/bulk-generate-report", h.BulkQueueGenerateReport, auth.ValidAPIKey)
+	// POST /v1/matching-evaluations/bulk-generate-report (Clerk user session or worker API key)
+	g.POST("/bulk-generate-report", h.BulkQueueGenerateReport, auth.ValidClerkOrAPIKey)
+
+	// POST /v1/matching-evaluations/bulk-generate-evaluation (Clerk user session or worker API key)
+	g.POST("/bulk-generate-evaluation", h.BulkGenerateEvaluation, auth.ValidClerkOrAPIKey)
+
 	g.POST("/bulk-generate-resume", h.BulkQueueGenerateResume, auth.ValidClerkOrAPIKey)
 	g.POST("/bulk-generate-cover-letter", h.BulkQueueGenerateCoverLetter, auth.ValidClerkOrAPIKey)
 }
@@ -349,7 +353,7 @@ func (r bulkGenerateReportRequest) Validate() error {
 
 // BulkQueueGenerateReport queues match report generation for multiple evaluations.
 // @Summary Bulk queue match report generation
-// @Description Queues match report generation for multiple evaluations in bulk. Accessible only via machine API key.
+// @Description Queues match report generation for multiple evaluations in bulk. Clerk callers may only generate reports for evaluations they own; worker API key callers may target any evaluation. An ownership failure is returned as a per-item error in the 202 response.
 // @Tags matching
 // @Accept json
 // @Produce json
@@ -456,5 +460,52 @@ func (h *handler) BulkQueueGenerateResume(w http.ResponseWriter, r *http.Request
 		}
 		return err
 	}
+	return httpx.RespondJSON(w, r, http.StatusAccepted, summaries)
+}
+
+// BulkGenerateEvaluation starts the workflow behind each evaluation that is
+// ready to run. Clerk callers may only trigger evaluations they own; API key
+// callers are trusted and may trigger any evaluation by ID.
+// @Summary Bulk generate evaluations
+// @Description Starts the match-job workflow for each given evaluation ID at status new or failed. Clerk callers are checked for ownership from the token; API key callers are trusted and need no per-item user. Per-item failures are returned in the response and do not stop the batch.
+// @Tags matching
+// @Accept json
+// @Produce json
+// @Param items body bulkGenerateEvaluationRequest true "Evaluation IDs to trigger"
+// @Success 202 {array} models.MatchingEvaluationSummary
+// @Failure 400 {object} httpx.Error
+// @Failure 401 {object} httpx.Error
+// @security ApiKeyAuth
+// @Router /v1/matching-evaluations/bulk-generate-evaluation [post]
+func (h *handler) BulkGenerateEvaluation(w http.ResponseWriter, r *http.Request) error {
+	ctx := r.Context()
+	p := ctxval.PrincipalFromContext(ctx)
+	if p == nil {
+		return httpx.Envelope(httpx.CodeUnauthorized, "unauthorized", "")
+	}
+
+	var req bulkGenerateEvaluationRequest
+	if err := httpx.ParseJSON(r, &req); err != nil {
+		return err
+	}
+
+	if err := req.Validate(); err != nil {
+		return err
+	}
+
+	items := make([]models.TriggerEvaluationItem, len(req))
+	for i, item := range req {
+		id, _ := uuid.Parse(item.ID)
+		items[i] = models.TriggerEvaluationItem{ID: id, Force: item.Force}
+	}
+
+	summaries, err := h.matchingUC.TriggerEvaluations(ctx, items, p)
+	if err != nil {
+		if errors.Is(err, constants.ErrUnauthorized) {
+			return httpx.Envelope(httpx.CodeUnauthorized, "unauthorized", "")
+		}
+		return err
+	}
+
 	return httpx.RespondJSON(w, r, http.StatusAccepted, summaries)
 }

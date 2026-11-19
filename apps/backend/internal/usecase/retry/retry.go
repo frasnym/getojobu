@@ -74,14 +74,12 @@ func (s *retryService) FailedMatchingEvaluations(ctx context.Context, caller *mo
 		return result, fmt.Errorf("list failed matching evaluations: %w", err)
 	}
 
-	var slugs []string
-	seen := make(map[string]bool)
+	var triggerItems []models.TriggerEvaluationItem
 	var reports, resumes []uuid.UUID
 	var coverLetters []models.BulkGenerateCoverLetterItem
 	for _, eval := range evals {
-		if eval.EvaluationStatus == string(constants.MatchingStatusFailed) && eval.Slug != "" && !seen[eval.Slug] {
-			seen[eval.Slug] = true
-			slugs = append(slugs, eval.Slug)
+		if eval.EvaluationStatus == string(constants.MatchingStatusFailed) {
+			triggerItems = append(triggerItems, models.TriggerEvaluationItem{ID: eval.ID})
 		}
 		if isFailed(eval.ReportStatus) {
 			reports = append(reports, eval.ID)
@@ -98,12 +96,8 @@ func (s *retryService) FailedMatchingEvaluations(ctx context.Context, caller *mo
 		}
 	}
 
-	if len(slugs) > 0 {
-		batch := make([]models.BulkAnalyzeCompatibilityItem, 0, len(slugs))
-		for _, slug := range slugs {
-			batch = append(batch, models.BulkAnalyzeCompatibilityItem{Slug: slug, Force: true, FailedOnly: true})
-		}
-		summaries, err := s.matching.TriggerCompatibilityBulk(ctx, batch, caller)
+	if len(triggerItems) > 0 {
+		summaries, err := s.matching.TriggerEvaluations(ctx, triggerItems, caller)
 		if err != nil {
 			logging.Warn(ctx, "retry failed evaluations", "error", err)
 		} else {

@@ -39,6 +39,9 @@ func NewMatchingEvaluationsRepository(pg *database.PG) MatchingEvaluations {
 	}
 }
 
+// Create inserts an evaluation only when none exists for its user_job.
+// On conflict the existing row is returned unchanged, whatever status or
+// payload the caller supplied.
 func (r *matchingEvaluationsRepository) Create(ctx context.Context, eval *models.MatchingEvaluation) (res *models.MatchingEvaluation, err error) {
 	tx, err := r.StartTrx(ctx)
 	if err != nil {
@@ -47,7 +50,7 @@ func (r *matchingEvaluationsRepository) Create(ctx context.Context, eval *models
 	defer r.Committer(ctx, tx, &err)
 
 	if eval.EvaluationStatus == "" {
-		eval.EvaluationStatus = string(constants.MatchingStatusQueued)
+		eval.EvaluationStatus = string(constants.MatchingStatusNew)
 	}
 	now := time.Now()
 	eval.CreatedAt = now
@@ -69,9 +72,19 @@ func (r *matchingEvaluationsRepository) Create(ctx context.Context, eval *models
 			$11, $12, $13,
 			$14, $15
 		)
-		RETURNING id, created_at, updated_at
+		ON CONFLICT (user_job_id) DO UPDATE SET user_job_id = EXCLUDED.user_job_id
+		RETURNING
+			id, user_job_id, evaluation_status,
+			candidate_profile_data, job_profile_data, scoring_config_id,
+			evaluation_data, overall_score, eligibility_status,
+			recommendation_label, failure_message,
+			report_data, report_status, report_failure_message,
+			resume_status, resume_failure_message, resume_pdf_key, resume_json_key,
+			cover_letter_status, cover_letter_content, cover_letter_failure_message,
+			created_at, updated_at
 	`
 
+	result := &models.MatchingEvaluation{}
 	err = tx.QueryRow(ctx, query,
 		eval.UserJobID,
 		eval.EvaluationStatus,
@@ -88,22 +101,36 @@ func (r *matchingEvaluationsRepository) Create(ctx context.Context, eval *models
 		eval.ReportFailureMessage,
 		eval.CreatedAt,
 		eval.UpdatedAt,
-	).Scan(&eval.ID, &eval.CreatedAt, &eval.UpdatedAt)
-
+	).Scan(
+		&result.ID,
+		&result.UserJobID,
+		&result.EvaluationStatus,
+		&result.CandidateProfileData,
+		&result.JobProfileData,
+		&result.ScoringConfigID,
+		&result.EvaluationData,
+		&result.OverallScore,
+		&result.EligibilityStatus,
+		&result.RecommendationLabel,
+		&result.FailureMessage,
+		&result.ReportData,
+		&result.ReportStatus,
+		&result.ReportFailureMessage,
+		&result.ResumeStatus,
+		&result.ResumeFailureMessage,
+		&result.ResumePDFKey,
+		&result.ResumeJSONKey,
+		&result.CoverLetterStatus,
+		&result.CoverLetterContent,
+		&result.CoverLetterFailureMessage,
+		&result.CreatedAt,
+		&result.UpdatedAt,
+	)
 	if err != nil {
 		return nil, fmt.Errorf("insert matching evaluation: %w", err)
 	}
 
-	updateUserJobQuery := `
-		UPDATE user_jobs
-		SET latest_evaluation_id = $1, updated_at = NOW()
-		WHERE id = $2
-	`
-	if _, err = tx.Exec(ctx, updateUserJobQuery, eval.ID, eval.UserJobID); err != nil {
-		return nil, fmt.Errorf("update user_job latest_evaluation_id: %w", err)
-	}
-
-	return eval, nil
+	return result, nil
 }
 
 func (r *matchingEvaluationsRepository) GetByID(ctx context.Context, id uuid.UUID) (*models.MatchingEvaluation, error) {
@@ -320,13 +347,13 @@ func (r *matchingEvaluationsRepository) Update(
 		UPDATE matching_evaluations
 		SET
 			evaluation_status = COALESCE(NULLIF($2, ''), evaluation_status),
-			evaluation_data = COALESCE($3, evaluation_data),
-			overall_score = COALESCE($4, overall_score),
-			eligibility_status = COALESCE($5, eligibility_status),
-			recommendation_label = COALESCE($6, recommendation_label),
-			failure_message = COALESCE($7, failure_message),
+			evaluation_data = CASE WHEN $8 THEN NULL ELSE COALESCE($3, evaluation_data) END,
+			overall_score = CASE WHEN $8 THEN NULL ELSE COALESCE($4, overall_score) END,
+			eligibility_status = CASE WHEN $8 THEN NULL ELSE COALESCE($5, eligibility_status) END,
+			recommendation_label = CASE WHEN $8 THEN NULL ELSE COALESCE($6, recommendation_label) END,
+			failure_message = CASE WHEN $8 THEN NULL ELSE COALESCE($7, failure_message) END,
 			updated_at = NOW()
-		WHERE id = $1
+		WHERE id = $1 AND ($9 = '' OR evaluation_status = $9)
 		RETURNING
 			id, user_job_id, evaluation_status,
 			candidate_profile_data, job_profile_data, scoring_config_id,
@@ -347,6 +374,8 @@ func (r *matchingEvaluationsRepository) Update(
 		params.EligibilityStatus,
 		params.RecommendationLabel,
 		params.FailureMessage,
+		params.ClearEvaluationResult,
+		params.ExpectedEvaluationStatus,
 	).Scan(
 		&eval.ID,
 		&eval.UserJobID,
