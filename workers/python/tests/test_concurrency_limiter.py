@@ -238,7 +238,6 @@ async def test_job_analyze_workflow_has_retry_policy():
     ):
         await wf.run(
             {
-                "job_description": "Go engineer",
                 "job_id": "1",
                 "slug": "go-eng",
             }

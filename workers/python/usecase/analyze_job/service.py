@@ -42,12 +42,7 @@ class AnalyzeJob:
         self._prompt_version = prompt_version
         self._model = model
 
-    async def analyze(
-        self,
-        slug: str,
-        *,
-        job_description: str | None = None,
-    ) -> JobAnalysis:
+    async def analyze(self, slug: str) -> JobAnalysis:
         """Run the complete 5-step job analysis lifecycle for a given job slug."""
         if not slug or not slug.strip():
             raise ValueError("slug is required")
@@ -77,8 +72,7 @@ class AnalyzeJob:
                 f"failed to transition job {slug!r} to 'analyze_pending': API returned status {actual_status!r}"
             )
 
-        # Resolve job description from input or fetched job record
-        jd = job_description or job.get("description")
+        jd = job.get("description")
         if not jd or not jd.strip():
             err_msg = f"job {slug!r} has no description to analyze"
             await self._api.patch_job_status(

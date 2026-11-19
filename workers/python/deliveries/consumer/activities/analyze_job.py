@@ -44,8 +44,7 @@ async def analyze_job_activity(input: dict[str, Any]) -> dict[str, Any]:
 
     Input:
         {
-            "slug": str,             # required slug of the job listing
-            "job_description": str,  # optional (fetched from Go API if omitted)
+            "slug": str,  # required slug of the job listing
         }
 
     Output: the stored JobAnalysis as a dict.
@@ -55,8 +54,5 @@ async def analyze_job_activity(input: dict[str, Any]) -> dict[str, Any]:
     if not slug or not isinstance(slug, str):
         raise ValueError("slug is required")
 
-    analysis = await container.usecase.analyze_job.analyze(
-        slug=slug,
-        job_description=input.get("job_description"),
-    )
+    analysis = await container.usecase.analyze_job.analyze(slug=slug)
     return analysis.model_dump()

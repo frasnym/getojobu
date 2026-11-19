@@ -35,13 +35,11 @@ class JobAnalyzeWorkflow:
 
         Input:
             {
-                "job_description": str,  # required for Step 1B
-                "slug": str | None,      # optional slug of the job listing
+                "slug": str,  # slug of the job listing
             }
 
         Returns a dict with the analysis result and overall status.
         """
-        job_description = input.get("job_description")
         slug = input.get("slug")
 
         results: dict[str, Any] = {}
@@ -49,7 +47,7 @@ class JobAnalyzeWorkflow:
         # Step 1B: Analyze job description (real activity).
         step_1b = await workflow.execute_activity(
             analyze_job_activity,
-            {"job_description": job_description, "slug": slug},
+            {"slug": slug},
             start_to_close_timeout=timedelta(minutes=10),
             schedule_to_close_timeout=timedelta(minutes=15),
             retry_policy=DEFAULT_RETRY_POLICY,
