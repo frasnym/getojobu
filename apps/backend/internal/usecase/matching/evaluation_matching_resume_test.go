@@ -115,6 +115,7 @@ func TestBulkQueueGenerateResume(t *testing.T) {
 			ID:                  evalID,
 			UserJobID:           userJobID,
 			EvaluationStatus:    string(constants.MatchingStatusSuccess),
+			ReportStatus:        strPtr(string(constants.ReportStatusSuccess)),
 			RecommendationLabel: &strongRec,
 			EvaluationData:      json.RawMessage(`{"summary":"Great fit"}`),
 			ResumeStatus:        &failedStatus,
@@ -178,6 +179,7 @@ func TestBulkQueueGenerateResume(t *testing.T) {
 			ID:                  evalID,
 			UserJobID:           userJobID,
 			EvaluationStatus:    string(constants.MatchingStatusSuccess),
+			ReportStatus:        strPtr(string(constants.ReportStatusSuccess)),
 			RecommendationLabel: &lowRec,
 			EvaluationData:      json.RawMessage(`{"summary":"Great fit"}`),
 		}
@@ -220,6 +222,7 @@ func TestBulkQueueGenerateResume(t *testing.T) {
 		eval := &models.MatchingEvaluation{
 			ID:                  evalID,
 			EvaluationStatus:    string(constants.MatchingStatusSuccess),
+			ReportStatus:        strPtr(string(constants.ReportStatusSuccess)),
 			RecommendationLabel: &strongRec,
 			ResumeStatus:        &resStatus,
 		}
@@ -239,6 +242,7 @@ func TestBulkQueueGenerateResume(t *testing.T) {
 		eval := &models.MatchingEvaluation{
 			ID:                  evalID,
 			EvaluationStatus:    string(constants.MatchingStatusSuccess),
+			ReportStatus:        strPtr(string(constants.ReportStatusSuccess)),
 			RecommendationLabel: &strongRec,
 			ResumeStatus:        &resStatus,
 		}
@@ -260,6 +264,7 @@ func TestBulkQueueGenerateResume(t *testing.T) {
 			ID:                  evalID,
 			UserJobID:           userJobID,
 			EvaluationStatus:    string(constants.MatchingStatusSuccess),
+			ReportStatus:        strPtr(string(constants.ReportStatusSuccess)),
 			RecommendationLabel: &strongRec,
 		}
 		evalRepo.EXPECT().GetByID(ctx, evalID).Return(eval, nil)
@@ -287,6 +292,7 @@ func TestBulkQueueGenerateResume(t *testing.T) {
 			ID:                  evalID,
 			UserJobID:           userJobID,
 			EvaluationStatus:    string(constants.MatchingStatusSuccess),
+			ReportStatus:        strPtr(string(constants.ReportStatusSuccess)),
 			RecommendationLabel: &strongRec,
 			EvaluationData:      json.RawMessage(`{"summary":"Great fit"}`),
 		}
@@ -319,6 +325,48 @@ func TestBulkQueueGenerateResume(t *testing.T) {
 	})
 }
 
+func TestBulkQueueGenerateResume_RequiresSuccessfulReport(t *testing.T) {
+	ctx := context.Background()
+	caller := &models.Principal{ActorType: "worker", ID: "worker-1"}
+	rec := string(constants.RecommendationStrongMatch)
+
+	for _, tc := range []struct {
+		name         string
+		reportStatus *string
+		want         string
+	}{
+		{name: "missing report", reportStatus: nil, want: "report must be successful"},
+		{name: "failed report", reportStatus: strPtr(string(constants.ReportStatusFailed)), want: "report must be successful"},
+		{name: "queued report", reportStatus: strPtr(string(constants.ReportStatusQueued)), want: "report must be successful"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			evalRepo := repoMocks.NewMockMatchingEvaluations(ctrl)
+			workflowsRepo := repoMocks.NewMockWorkflows(ctrl)
+			service := matching.NewService(&repository.Contract{
+				MatchingEvaluationsRepository: evalRepo,
+				WorkflowsRepository:           workflowsRepo,
+			})
+			id := uuid.New()
+			eval := &models.MatchingEvaluation{
+				ID:                  id,
+				EvaluationStatus:    string(constants.MatchingStatusSuccess),
+				RecommendationLabel: &rec,
+				ReportStatus:        tc.reportStatus,
+			}
+
+			evalRepo.EXPECT().GetByID(ctx, id).Return(eval, nil)
+			workflowsRepo.EXPECT().StartLimiterWorkItem(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
+
+			res, err := service.BulkQueueGenerateResume(ctx, []models.BulkGenerateResumeItem{{ID: id}}, caller)
+			require.NoError(t, err)
+			require.Len(t, res, 1)
+			require.NotNil(t, res[0].Error)
+			assert.Contains(t, *res[0].Error, tc.want)
+		})
+	}
+}
+
 func TestBulkQueueGenerateResume_ForceQueuedGuard(t *testing.T) {
 	ctx := context.Background()
 	caller := &models.Principal{ActorType: "worker", ID: "worker-1"}
@@ -345,6 +393,7 @@ func TestBulkQueueGenerateResume_ForceQueuedGuard(t *testing.T) {
 			ID:                  id,
 			UserJobID:           userJobID,
 			EvaluationStatus:    string(constants.MatchingStatusSuccess),
+			ReportStatus:        strPtr(string(constants.ReportStatusSuccess)),
 			RecommendationLabel: &rec,
 			ResumeStatus:        &resumeStatus,
 			EvaluationData:      json.RawMessage(`{"summary":"Great fit"}`),

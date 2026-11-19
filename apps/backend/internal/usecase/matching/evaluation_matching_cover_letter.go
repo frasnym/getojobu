@@ -163,6 +163,12 @@ func (s *matchingService) QueueCoverLetter(
 	if eval.EvaluationStatus != string(constants.MatchingStatusSuccess) {
 		return nil, fmt.Errorf("%w: evaluation must be successful", constants.ErrInvalidRequest)
 	}
+	if eval.ReportStatus == nil || *eval.ReportStatus != string(constants.ReportStatusSuccess) {
+		return nil, fmt.Errorf("%w: report must be successful", constants.ErrInvalidRequest)
+	}
+	if eval.ResumeStatus == nil || *eval.ResumeStatus != string(constants.ResumeStatusSuccess) {
+		return nil, fmt.Errorf("%w: resume must be successful", constants.ErrInvalidRequest)
+	}
 
 	currentStatus := ""
 	if eval.CoverLetterStatus != nil {
