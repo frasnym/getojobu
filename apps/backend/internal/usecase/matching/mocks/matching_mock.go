@@ -162,6 +162,21 @@ func (mr *MockMatchingMockRecorder) QueueCoverLetter(ctx, id, req, caller any) *
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueueCoverLetter", reflect.TypeOf((*MockMatching)(nil).QueueCoverLetter), ctx, id, req, caller)
 }
 
+// RetryReport mocks base method.
+func (m *MockMatching) RetryReport(ctx context.Context, id uuid.UUID, caller *models.Principal) ([]*models.MatchingEvaluationSummary, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RetryReport", ctx, id, caller)
+	ret0, _ := ret[0].([]*models.MatchingEvaluationSummary)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// RetryReport indicates an expected call of RetryReport.
+func (mr *MockMatchingMockRecorder) RetryReport(ctx, id, caller any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RetryReport", reflect.TypeOf((*MockMatching)(nil).RetryReport), ctx, id, caller)
+}
+
 // TriggerCompatibilityBulk mocks base method.
 func (m *MockMatching) TriggerCompatibilityBulk(ctx context.Context, items []models.BulkAnalyzeCompatibilityItem, caller *models.Principal) ([]*models.MatchingEvaluationSummary, error) {
 	m.ctrl.T.Helper()

@@ -409,6 +409,7 @@ func (h *handler) BulkQueueGenerateReport(w http.ResponseWriter, r *http.Request
 // @Success 202 {array} models.MatchingEvaluationSummary
 // @Failure 400 {object} httpx.Error
 // @Failure 401 {object} httpx.Error
+// @Failure 403 {object} httpx.Error
 // @security ApiKeyAuth
 // @Router /v1/matching-evaluations/{id}/retry-report [post]
 func (h *handler) RetryReport(w http.ResponseWriter, r *http.Request) error {
@@ -423,11 +424,12 @@ func (h *handler) RetryReport(w http.ResponseWriter, r *http.Request) error {
 		return httpx.Envelope(httpx.CodeInvalidRequest, "invalid evaluation id", "")
 	}
 
-	summaries, err := h.matchingUC.BulkQueueGenerateReport(ctx, []models.BulkGenerateReportItem{
-		{ID: id, Force: true},
-	}, p)
+	summaries, err := h.matchingUC.RetryReport(ctx, id, p)
 	if err != nil {
-		if errors.Is(err, constants.ErrUnauthorized) {
+		switch {
+		case errors.Is(err, constants.ErrForbidden):
+			return httpx.Envelope(httpx.CodeForbidden, "access denied", "")
+		case errors.Is(err, constants.ErrUnauthorized):
 			return httpx.Envelope(httpx.CodeUnauthorized, "unauthorized", "")
 		}
 		return err

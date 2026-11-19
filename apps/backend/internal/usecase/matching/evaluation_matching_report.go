@@ -199,3 +199,30 @@ func (s *matchingService) BulkQueueGenerateReport(
 
 	return summaries, nil
 }
+
+// RetryReport re-queues report generation for one evaluation. Authorization
+// failures are returned as a typed ErrForbidden so the single-item handler can
+// answer 403; the bulk method keeps reporting them as per-item errors for its
+// batch and worker callers. A missing evaluation and someone else's evaluation
+// are both reported as forbidden, so a Clerk caller cannot probe evaluation
+// IDs. API-key callers keep the bulk path's existing behavior.
+func (s *matchingService) RetryReport(
+	ctx context.Context,
+	id uuid.UUID,
+	caller *models.Principal,
+) ([]*models.MatchingEvaluationSummary, error) {
+	if caller == nil {
+		return nil, constants.ErrUnauthorized
+	}
+
+	if caller.ActorType == "" {
+		owned, err := s.isEvaluationOwnedBy(ctx, id, caller.ID)
+		if err != nil || !owned {
+			return nil, constants.ErrForbidden
+		}
+	}
+
+	return s.BulkQueueGenerateReport(ctx, []models.BulkGenerateReportItem{
+		{ID: id, Force: true},
+	}, caller)
+}
