@@ -133,7 +133,7 @@ func (h *handler) CreateJob(w http.ResponseWriter, r *http.Request) error {
 
 // @Tags jobs
 // @Summary Bulk create jobs
-// @Description Create many job listings at once (max 100). Conflicting slugs are skipped.
+// @Description Create many job listings at once (max 100). Rows missing required fields or a non-empty description are skipped; the remaining rows are still created. Conflicting slugs are skipped.
 // @Accept json
 // @Produce json
 // @Param jobs body bulkCreateJobRequest true "Job listings"
@@ -165,9 +165,9 @@ func (h *handler) BulkCreateJob(w http.ResponseWriter, r *http.Request) error {
 
 	actorType, actorID := p.AuditActor()
 	params := models.BulkCreateJobParams{
-		Jobs: make([]models.CreateJobParams, len(req.Jobs)),
+		Jobs: make([]models.CreateJobParams, 0, len(req.Jobs)),
 	}
-	for i, j := range req.Jobs {
+	for _, j := range req.Jobs {
 		userIDs, err := resolveOwnerUserIDs(p, j.UserIDs)
 		if err != nil {
 			return err
@@ -175,10 +175,13 @@ func (h *handler) BulkCreateJob(w http.ResponseWriter, r *http.Request) error {
 
 		postedDate, err := j.Validate()
 		if err != nil {
-			return err
+			continue
+		}
+		if j.Description == nil || strings.TrimSpace(*j.Description) == "" {
+			continue
 		}
 
-		params.Jobs[i] = models.CreateJobParams{
+		params.Jobs = append(params.Jobs, models.CreateJobParams{
 			Slug:           models.BuildJobSlug(j.Title, j.Company, j.Location),
 			Source:         j.Source,
 			ExternalID:     j.ExternalID,
@@ -194,7 +197,11 @@ func (h *handler) BulkCreateJob(w http.ResponseWriter, r *http.Request) error {
 			UpdatedByType:  actorType,
 			UpdatedByID:    actorID,
 			UserIDs:        userIDs,
-		}
+		})
+	}
+
+	if len(params.Jobs) == 0 {
+		return httpx.RespondJSON(w, r, http.StatusOK, []models.BulkCreateJobResult{})
 	}
 
 	results, err := h.ucJobs.CreateBulk(ctx, params)

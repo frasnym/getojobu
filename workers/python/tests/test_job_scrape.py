@@ -387,9 +387,9 @@ async def test_ingest_jobs_omits_slugs_without_description():
 
     async def fake_post(path: str, json: Any) -> Any:
         assert path == "/v1/jobs/bulk"
+        # The API skips rows with no description and still inserts the rest.
         return [
             {"slug": "job-with-desc", "created": True},
-            {"slug": "job-no-desc", "created": True},
         ]
 
     async def fake_aclose() -> None:
@@ -415,7 +415,7 @@ async def test_ingest_jobs_omits_slugs_without_description():
             ],
         }
         res = await ingest_jobs(input_data)
-        assert res["inserted"] == 2
+        assert res["inserted"] == 1
         assert res["created_slugs"] == ["job-with-desc"]
 
 

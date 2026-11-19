@@ -2,6 +2,7 @@ package jobs
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -259,7 +260,7 @@ func TestBulkCreateJob_success(t *testing.T) {
 		CreateBulk(gomock.Any(), gomock.Any()).
 		Return(results, nil)
 
-	body := strings.NewReader(`{"jobs":[{"slug":"job-1","source":"linkedin","title":"Job 1","company":"Acme","location":"Jakarta","user_ids":["user_42"]},{"slug":"job-2","source":"linkedin","title":"Job 2","company":"Acme","location":"Jakarta","user_ids":["user_43"]}]}`)
+	body := strings.NewReader(`{"jobs":[{"slug":"job-1","source":"linkedin","title":"Job 1","company":"Acme","location":"Jakarta","description":"Work on Go","user_ids":["user_42"]},{"slug":"job-2","source":"linkedin","title":"Job 2","company":"Acme","location":"Jakarta","description":"Work on Go","user_ids":["user_43"]}]}`)
 	req := httptest.NewRequest(http.MethodPost, "/jobs/bulk", body)
 	req = req.WithContext(ctxval.ContextWithPrincipal(req.Context(), principalCtx("cron", "cron-scrape")))
 	w := httptest.NewRecorder()
@@ -276,6 +277,69 @@ func TestBulkCreateJob_success(t *testing.T) {
 	assert.True(t, got[0].Created)
 	assert.Equal(t, "job-2", got[1].Slug)
 	assert.False(t, got[1].Created)
+}
+
+func TestBulkCreateJob_skipsRowsWithEmptyDescription(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	h, mockJob, _ := newHandlerWithMock(ctrl)
+
+	var gotParams models.BulkCreateJobParams
+	mockJob.EXPECT().
+		CreateBulk(gomock.Any(), gomock.Any()).
+		DoAndReturn(func(_ context.Context, params models.BulkCreateJobParams) ([]models.BulkCreateJobResult, error) {
+			gotParams = params
+			return []models.BulkCreateJobResult{{Slug: "job-with-desc", Created: true}}, nil
+		})
+
+	body := strings.NewReader(`{"jobs":[
+		{"source":"linkedin","title":"Job A","company":"Acme","location":"Jakarta","description":"","user_ids":["user_42"]},
+		{"source":"linkedin","title":"Job B","company":"Acme","location":"Jakarta","description":"   ","user_ids":["user_42"]},
+		{"source":"linkedin","title":"Job C","company":"Acme","location":"Jakarta","description":"Do Go","user_ids":["user_42"]}
+	]}`)
+	req := httptest.NewRequest(http.MethodPost, "/jobs/bulk", body)
+	req = req.WithContext(ctxval.ContextWithPrincipal(req.Context(), principalCtx("cron", "cron-scrape")))
+	w := httptest.NewRecorder()
+
+	httpx.HandlerFunc(h.BulkCreateJob).ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	require.Len(t, gotParams.Jobs, 1, "only the row with a description should reach the usecase")
+	assert.Equal(t, "Job C", gotParams.Jobs[0].Title)
+	assert.Equal(t, "Do Go", *gotParams.Jobs[0].Description)
+}
+
+func TestBulkCreateJob_skipsInvalidRowAndProcessesRemaining(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	h, mockJob, _ := newHandlerWithMock(ctrl)
+
+	var gotParams models.BulkCreateJobParams
+	mockJob.EXPECT().
+		CreateBulk(gomock.Any(), gomock.Any()).
+		DoAndReturn(func(_ context.Context, params models.BulkCreateJobParams) ([]models.BulkCreateJobResult, error) {
+			gotParams = params
+			return []models.BulkCreateJobResult{
+				{Slug: "job-valid-1", Created: true},
+				{Slug: "job-valid-2", Created: true},
+			}, nil
+		})
+
+	body := strings.NewReader(`{"jobs":[
+		{"source":"linkedin","title":"Valid 1","company":"Acme","location":"Jakarta","description":"A","user_ids":["user_42"]},
+		{"source":"linkedin","title":"","company":"Acme","location":"Jakarta","description":"B","user_ids":["user_42"]},
+		{"source":"linkedin","title":"Valid 2","company":"Acme","location":"Jakarta","description":"C","user_ids":["user_42"]}
+	]}`)
+	req := httptest.NewRequest(http.MethodPost, "/jobs/bulk", body)
+	req = req.WithContext(ctxval.ContextWithPrincipal(req.Context(), principalCtx("cron", "cron-scrape")))
+	w := httptest.NewRecorder()
+
+	httpx.HandlerFunc(h.BulkCreateJob).ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	require.Len(t, gotParams.Jobs, 2, "the malformed row should be skipped, not fail the request")
+	assert.Equal(t, "Valid 1", gotParams.Jobs[0].Title)
+	assert.Equal(t, "Valid 2", gotParams.Jobs[1].Title)
 }
 
 func TestBulkCreateJob_empty(t *testing.T) {

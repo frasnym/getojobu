@@ -348,7 +348,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Create many job listings at once (max 100). Conflicting slugs are skipped.",
+                "description": "Create many job listings at once (max 100). Rows missing required fields or a non-empty description are skipped; the remaining rows are still created. Conflicting slugs are skipped.",
                 "consumes": [
                     "application/json"
                 ],
