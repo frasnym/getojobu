@@ -2,12 +2,10 @@ package matching
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 
 	"github.com/frasnym/getojobu/apps/backend/internal/models"
-	"github.com/frasnym/getojobu/apps/backend/internal/utils"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/constants"
 )
 
@@ -94,8 +92,7 @@ func (s *matchingService) TriggerEvaluations(
 			continue
 		}
 
-		scoringConfig, err := s.scoringConfigsRepo.GetByID(ctx, eval.ScoringConfigID)
-		if err != nil {
+		if _, err := s.scoringConfigsRepo.GetByID(ctx, eval.ScoringConfigID); err != nil {
 			errStr := fmt.Sprintf("get scoring config: %s", err.Error())
 			summaries = append(summaries, &models.MatchingEvaluationSummary{
 				ID:        &eval.ID,
@@ -105,33 +102,8 @@ func (s *matchingService) TriggerEvaluations(
 			continue
 		}
 
-		// Decode the stored profile bytes and scoring config into memory before
-		// starting the workflow. Profiles are inputs and survive retries.
-		var candidateMap, jobMap, configMap map[string]interface{}
-		_ = json.Unmarshal(eval.CandidateProfileData, &candidateMap)
-		_ = json.Unmarshal(eval.JobProfileData, &jobMap)
-		configBytes, _ := json.Marshal(scoringConfig)
-		_ = json.Unmarshal(utils.StripJSONKeys(configBytes, "id", "version", "is_active", "created_at", "updated_at"), &configMap)
-
-		wfInput := MatchJobWorkflowInput{
-			EvaluationID:     eval.ID.String(),
-			CandidateProfile: candidateMap,
-			JobProfile:       jobMap,
-			EvaluationConfig: configMap,
-		}
-		// The workflow ID is deterministic so repeated triggers collapse into a
-		// single limiter item.
-		workflowID := fmt.Sprintf("match-job-%s", eval.ID.String())
-		if _, err := s.workflowsRepo.StartLimiterWorkItem(ctx, workflowID, models.LimiterJobTypeMatch, wfInput); err != nil {
-			errStr := fmt.Sprintf("start match job workflow: %s", err.Error())
-			summaries = append(summaries, &models.MatchingEvaluationSummary{
-				ID:        &eval.ID,
-				UserJobID: &eval.UserJobID,
-				Error:     &errStr,
-			})
-			continue
-		}
-
+		// Flip status before enqueueing: the worker reads the row first and
+		// only processes queued/queued_retry evaluations.
 		_, err = s.evalRepo.Update(ctx, eval.ID, models.UpdateMatchingEvaluationParams{
 			EvaluationStatus:         string(to),
 			ExpectedEvaluationStatus: string(from),
@@ -149,11 +121,9 @@ func (s *matchingService) TriggerEvaluations(
 			continue
 		}
 		if err != nil {
-			// The expected-status guard did not match. The worker may have
-			// moved the row to pending before our update landed, or a prior
-			// trigger may already have queued it. In either case the workflow
-			// is running, so report the in-flight state as a success instead of
-			// a false failure.
+			// The expected-status guard did not match. A prior trigger may
+			// already have queued the row, so report the in-flight state as a
+			// success instead of a false failure.
 			if current, getErr := s.evalRepo.GetByID(ctx, eval.ID); getErr == nil &&
 				isInFlightEvaluationStatus(constants.MatchingEvaluationStatus(current.EvaluationStatus)) {
 				summaries = append(summaries, &models.MatchingEvaluationSummary{
@@ -165,6 +135,20 @@ func (s *matchingService) TriggerEvaluations(
 				continue
 			}
 			errStr := "evaluation status changed before it could be queued"
+			summaries = append(summaries, &models.MatchingEvaluationSummary{
+				ID:        &eval.ID,
+				UserJobID: &eval.UserJobID,
+				Error:     &errStr,
+			})
+			continue
+		}
+
+		wfInput := MatchJobWorkflowInput{EvaluationID: eval.ID.String()}
+		// The workflow ID is deterministic so repeated triggers collapse into a
+		// single limiter item.
+		workflowID := fmt.Sprintf("match-job-%s", eval.ID.String())
+		if _, err := s.workflowsRepo.StartLimiterWorkItem(ctx, workflowID, models.LimiterJobTypeMatch, wfInput); err != nil {
+			errStr := fmt.Sprintf("start match job workflow: %s", err.Error())
 			summaries = append(summaries, &models.MatchingEvaluationSummary{
 				ID:        &eval.ID,
 				UserJobID: &eval.UserJobID,

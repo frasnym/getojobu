@@ -627,3 +627,34 @@ async def test_bulk_generate_resume_success():
     assert len(res) == 1
     assert res[0]["id"] == eval_id
     await api.aclose()
+
+
+@pytest.mark.asyncio
+async def test_get_evaluation_unwraps_standard_success_response():
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/v1/matching-evaluations/eval-1"
+        return httpx.Response(
+            200,
+            json={
+                "success": True,
+                "data": {
+                    "evaluation_status": "queued",
+                    "candidate_profile": {"skills": ["go"]},
+                    "job_profile": {"title": "Go Engineer"},
+                    "evaluation_config": {"family": "technology"},
+                },
+                "meta": {
+                    "timestamp": "2026-11-19T00:00:00Z",
+                    "requestId": "req_123",
+                },
+                "error": None,
+            },
+        )
+
+    api = NewGetojobuAPI(base_url="http://testserver", api_key="secret-key")
+    api._client = _mock_transport(handler)
+
+    evaluation = await api.get_evaluation("eval-1")
+    assert evaluation["evaluation_status"] == "queued"
+    assert evaluation["evaluation_config"]["family"] == "technology"
+    await api.aclose()

@@ -32,6 +32,7 @@ from deliveries.consumer.activities.cover_letter_generation import (
 )
 from deliveries.consumer.activities.evaluate_match import (
     evaluate_match_activity,
+    fetch_match_input_activity,
     init_evaluate_match_container,
     update_evaluation_status_activity,
 )
@@ -138,6 +139,7 @@ async def run() -> int:
             activities=[
                 analyze_job_activity,
                 evaluate_match_activity,
+                fetch_match_input_activity,
                 update_evaluation_status_activity,
                 generate_report_activity,
                 update_report_status_activity,

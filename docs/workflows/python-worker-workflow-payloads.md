@@ -10,11 +10,7 @@ Source of truth is `workers/python/workflows/*.py` plus the activity validators 
 |---|---|---|---|---|---|---|
 | JobAnalyzeWorkflow | job-evaluation | `slug` | yes | No | — | Job slug for the Go API lookup and status transitions. |
 | MatchJobWorkflow | job-evaluation | `evaluation_id` | yes | No | — | Evaluation row updated with status, result, and metadata. |
-| MatchJobWorkflow | job-evaluation | `candidate_profile` | yes | Yes | [ ] | Candidate data passed to the LLM match activity. |
-| MatchJobWorkflow | job-evaluation | `job_profile` | yes | Yes | [ ] | Job data passed to the LLM match activity. |
-| MatchJobWorkflow | job-evaluation | `evaluation_config` | yes | Yes | [ ] | Scoring and prompt config passed to the LLM match activity. |
-| MatchJobWorkflow | job-evaluation | `provider` | no | No | — | Read by the Python workflow but never set by the Go trigger, so always absent. |
-| MatchJobWorkflow | job-evaluation | `model` | no | No | — | Read by the Python workflow but never set by the Go trigger, so always absent. |
+
 | GenerateReportWorkflow | job-evaluation | `evaluation_id` | yes | No | — | Report row marked pending, success, or failed. |
 | GenerateReportWorkflow | job-evaluation | `candidate_profile` | yes | Yes | [ ] | Input to the report LLM. |
 | GenerateReportWorkflow | job-evaluation | `job_profile` | yes | Yes | [ ] | Input to the report LLM. |
@@ -66,13 +62,13 @@ Source of truth is `workers/python/workflows/*.py` plus the activity validators 
 
 ## Migration notes
 
-- `candidate_profile`, `job_profile`, and `evaluation_results` are stored as JSONB columns `candidate_profile_data`, `job_profile_data`, and `evaluation_data` on the matching evaluation row. A worker-auth GET endpoint keyed by `evaluation_id` can return them.
-- `evaluation_config` is the scoring config referenced by `scoring_config_id` on the evaluation row. The worker already has `get_active_scoring_config(family)`; the GET response should include the config ID so the exact version used at queue time can be fetched.
-- `facts` is not stored as one column. The Go service composes it from the user profile (name, contact, headline, education, roles) while building the workflow input, so the new GET endpoint must recompose it from `evaluation_id`.
+- `candidate_profile`, `job_profile`, and `evaluation_results` are stored as JSONB columns `candidate_profile_data`, `job_profile_data`, and `evaluation_data` on the matching evaluation row. Worker-auth `GET /v1/matching-evaluations/{id}` now returns the first two plus `evaluation_status` and `evaluation_config`.
+- `evaluation_config` is resolved from `scoring_config_id` on the evaluation row, so MatchJobWorkflow uses the exact config version from queue time.
+- `facts` is not stored as one column. The Go service composes it from the user profile (name, contact, headline, education, roles), so the remaining resume/cover-letter migration still needs it in a GET response.
+- MatchJobWorkflow now calls `fetch_match_input_activity` first. If the stored status is not `queued` or `queued_retry`, it returns `status: skipped` without running evaluation or report. `TriggerEvaluations` flips the row to queued before enqueueing so the worker sees the right status.
 - `job_description` was removed from the workflow input and from `AnalyzeJob.analyze()`, which now takes only `slug`. The usecase calls `get_job(slug)` and uses the stored job description; the Go caller still validates that a description exists before queueing.
-- The Python API client needs a matching `get_evaluation(evaluation_id)` method before activities can replace these payload keys.
 
-`job_id` and `user_id` are already IDs, so keep them in the payload. The small scalars and routing keys (`overall_score`, `eligibility_status`, `recommendation_label`, `variant`, `template_name`, `provider`, `model`, board/scan fields, limiter fields) are not big payloads and stay as-is.
+`job_id` and `user_id` are already IDs, so keep them in the payload. The small scalars and routing keys (`overall_score`, `eligibility_status`, `recommendation_label`, `variant`, `template_name`, board/scan fields, limiter fields) are not big payloads and stay as-is.
 
 ## Migration checklist
 
@@ -81,14 +77,16 @@ Source of truth is `workers/python/workflows/*.py` plus the activity validators 
 | [x] | Python | Remove `job_description` from the `JobAnalyzeWorkflow` payload and from `AnalyzeJob.analyze()`; the JD is fetched by slug. |
 | [x] | Go | Remove the unused `job_id` field from `JobAnalyzeWorkflowInput`; only `slug` remains. |
 | [x] | Go | Remove the unused `slug` field from `MatchJobWorkflowInput`. |
-| [ ] | API | Add worker-auth `GET /v1/matching-evaluations/{id}` returning `candidate_profile_data`, `job_profile_data`, `evaluation_data`, `scoring_config_id`, and recomposed `facts`. |
-| [ ] | API | Regenerate the OpenAPI spec and TypeScript client after adding the endpoint. |
-| [ ] | Python | Add `get_evaluation(evaluation_id)` to the `GetojobuAPI` protocol and client in `workers/python/repository/getojobu_api.py`. |
-| [ ] | Go | Stop composing the removed dicts in `apps/backend/internal/usecase/matching/` once the GET endpoint supplies them. |
-| [ ] | Python | Fetch each removed key inside its activity from `evaluation_id` instead of reading `input`. |
-| [ ] | Python | Remove dead `provider` and `model` reads in `MatchJobWorkflow`; the Go trigger never sets them. |
-| [ ] | Python | Set evaluation statuses (`pending`, `success`, `failed`) from the fetched row, not from payload fields. |
-| [ ] | Tests | Update Python activity and workflow tests to feed only IDs and assert the API fetch. |
-| [ ] | Tests | Update Go usecase tests to assert the new workflow input shape. |
-| [ ] | Tests | Add an API test for the new GET endpoint, including authorization and cross-tenant isolation. |
-| [ ] | Verify | Run `make test` in `workers/python` and the Go backend test suite, then re-check the payload table against the code. |
+| [x] | API | Add worker-auth `GET /v1/matching-evaluations/{id}` returning `evaluation_status`, `candidate_profile`, `job_profile`, and `evaluation_config`. |
+| [x] | API | Regenerate the OpenAPI spec for the new endpoint. |
+| [x] | API | No generated TypeScript client exists in `apps/web/lib/api`; the OpenAPI spec is the contract. |
+| [x] | Python | Add `get_evaluation(evaluation_id)` to the `GetojobuAPI` protocol and client in `workers/python/repository/getojobu_api.py`. |
+| [x] | Go | Stop composing the profile/config dicts in `TriggerEvaluations`; only `evaluation_id` is enqueued. |
+| [x] | Go | Flip evaluation status to queued/queued_retry before enqueueing so the worker's status check is correct. |
+| [x] | Python | Add `fetch_match_input_activity` to fetch the snapshot and gate on status in `MatchJobWorkflow`. |
+| [x] | Python | Remove dead `provider` and `model` reads in `MatchJobWorkflow`. |
+| [ ] | Python | Migrate the remaining report/resume/cover-letter big payloads to `GET /v1/matching-evaluations/{id}`; that response still needs `evaluation_data` and `facts`. |
+| [x] | Tests | Update Python activity and workflow tests to feed only IDs and assert the API fetch. |
+| [x] | Tests | Update Go usecase tests to assert the new workflow input shape and enqueue order. |
+| [ ] | Tests | Add an API handler test for the new GET endpoint, including authorization. |
+| [x] | Verify | Run `make test` in `workers/python` and the Go backend test suite, then re-check the payload table against the code. |

@@ -36,6 +36,40 @@ def init_evaluate_match_container(
 
 
 @activity.defn
+async def fetch_match_input_activity(input: dict[str, Any]) -> dict[str, Any]:
+    """Fetch the evaluation snapshot and gate MatchJobWorkflow on queue status."""
+    container = init_evaluate_match_container()
+
+    evaluation_id = input.get("evaluation_id")
+    if not evaluation_id or not isinstance(evaluation_id, str):
+        raise ValueError("evaluation_id is required")
+
+    evaluation = await container.repository.getojobu_api.get_evaluation(evaluation_id)
+    status = evaluation.get("evaluation_status")
+    if status not in ("queued", "queued_retry"):
+        return {"status": "skipped", "evaluation_status": status}
+
+    candidate = evaluation.get("candidate_profile")
+    job = evaluation.get("job_profile")
+    config = evaluation.get("evaluation_config")
+    for name, value in (
+        ("candidate_profile", candidate),
+        ("job_profile", job),
+        ("evaluation_config", config),
+    ):
+        if not isinstance(value, dict) or not value:
+            raise ValueError(f"{name} is required")
+
+    return {
+        "status": "ready",
+        "evaluation_status": status,
+        "candidate_profile": cast(dict[str, Any], candidate),
+        "job_profile": cast(dict[str, Any], job),
+        "evaluation_config": cast(dict[str, Any], config),
+    }
+
+
+@activity.defn
 async def evaluate_match_activity(input: dict[str, Any]) -> dict[str, Any]:
     """Temporal activity for Step 2: Compatibility Evaluation using LLM."""
     container = init_evaluate_match_container()
@@ -82,20 +116,14 @@ async def update_evaluation_status_activity(input: dict[str, Any]) -> dict[str, 
 
     raw_eval_data = input.get("evaluation_data")
     eval_data = (
-        cast(dict[str, Any], raw_eval_data)
-        if isinstance(raw_eval_data, dict)
-        else None
+        cast(dict[str, Any], raw_eval_data) if isinstance(raw_eval_data, dict) else None
     )
     raw_fail_msg = input.get("failure_message")
     fail_msg = str(raw_fail_msg) if raw_fail_msg is not None else None
     raw_provider = input.get("provider")
     provider = str(raw_provider) if raw_provider is not None else None
     raw_model = input.get("model")
-    model = (
-        str(raw_model)
-        if raw_model is not None
-        else container.cfg.omni_route.model
-    )
+    model = str(raw_model) if raw_model is not None else container.cfg.omni_route.model
 
     return await container.repository.getojobu_api.patch_matching_evaluation(
         evaluation_id=evaluation_id,

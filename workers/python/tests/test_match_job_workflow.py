@@ -8,6 +8,7 @@ from temporalio import activity
 
 from deliveries.consumer.activities.evaluate_match import (
     evaluate_match_activity,
+    fetch_match_input_activity,
     init_evaluate_match_container,
     update_evaluation_status_activity,
 )
@@ -52,7 +53,6 @@ async def test_evaluate_match_activity_missing_inputs():
             {
                 "candidate_profile": {},
                 "job_profile": {"title": "Go Engineer"},
-                "evaluation_config": {"family": "technology"},
             }
         )
 
@@ -143,6 +143,16 @@ async def test_match_job_workflow_execution():
     async with env:
         task_queue = "test-match-queue"
 
+        @activity.defn(name="fetch_match_input_activity")
+        async def fake_fetch_match_input(input: dict[str, Any]) -> dict[str, Any]:
+            return {
+                "status": "ready",
+                "evaluation_status": "queued",
+                "candidate_profile": {"skills": ["go"]},
+                "job_profile": {"family": "technology"},
+                "evaluation_config": {"family": "technology"},
+            }
+
         @activity.defn(name="evaluate_match_activity")
         async def fake_evaluate_match(input: dict[str, Any]) -> dict[str, Any]:
             return {
@@ -190,6 +200,7 @@ async def test_match_job_workflow_execution():
             task_queue=task_queue,
             workflows=[MatchJobWorkflow],
             activities=[
+                fake_fetch_match_input,
                 fake_evaluate_match,
                 fake_update_status,
                 fake_generate_report,
@@ -200,10 +211,6 @@ async def test_match_job_workflow_execution():
                 MatchJobWorkflow.run,
                 {
                     "evaluation_id": "eval-123",
-                    "slug": "test-job",
-                    "candidate_profile": {"skills": ["go"]},
-                    "job_profile": {"family": "technology"},
-                    "evaluation_config": {"family": "technology"},
                 },
                 id="test-match-wf-1",
                 task_queue=task_queue,
@@ -235,6 +242,16 @@ async def test_match_job_workflow_marks_failed_when_step_3_fails():
     async with env:
         task_queue = "test-match-queue-fail-3"
 
+        @activity.defn(name="fetch_match_input_activity")
+        async def fake_fetch_match_input(input: dict[str, Any]) -> dict[str, Any]:
+            return {
+                "status": "ready",
+                "evaluation_status": "queued",
+                "candidate_profile": {"skills": ["go"]},
+                "job_profile": {"family": "technology"},
+                "evaluation_config": {"family": "technology"},
+            }
+
         @activity.defn(name="evaluate_match_activity")
         async def fake_evaluate_match(input: dict[str, Any]) -> dict[str, Any]:
             return {
@@ -258,16 +275,16 @@ async def test_match_job_workflow_marks_failed_when_step_3_fails():
             env.client,
             task_queue=task_queue,
             workflows=[MatchJobWorkflow],
-            activities=[fake_evaluate_match, fake_update_status],
+            activities=[
+                fake_fetch_match_input,
+                fake_evaluate_match,
+                fake_update_status,
+            ],
         ):
             handle = await env.client.start_workflow(
                 MatchJobWorkflow.run,
                 {
                     "evaluation_id": "eval-fail-3",
-                    "slug": "test-job",
-                    "candidate_profile": {"skills": ["go"]},
-                    "job_profile": {"family": "technology"},
-                    "evaluation_config": {"family": "technology"},
                 },
                 id="test-match-wf-fail-3",
                 task_queue=task_queue,
@@ -292,6 +309,16 @@ async def test_match_job_workflow_completes_when_report_step_fails():
 
     async with env:
         task_queue = "test-match-queue-report-fail"
+
+        @activity.defn(name="fetch_match_input_activity")
+        async def fake_fetch_match_input(input: dict[str, Any]) -> dict[str, Any]:
+            return {
+                "status": "ready",
+                "evaluation_status": "queued",
+                "candidate_profile": {"skills": ["go"]},
+                "job_profile": {"family": "technology"},
+                "evaluation_config": {"family": "technology"},
+            }
 
         @activity.defn(name="evaluate_match_activity")
         async def fake_evaluate_match(input: dict[str, Any]) -> dict[str, Any]:
@@ -327,6 +354,7 @@ async def test_match_job_workflow_completes_when_report_step_fails():
             task_queue=task_queue,
             workflows=[MatchJobWorkflow],
             activities=[
+                fake_fetch_match_input,
                 fake_evaluate_match,
                 fake_update_status,
                 fake_generate_report_fail,
@@ -337,10 +365,6 @@ async def test_match_job_workflow_completes_when_report_step_fails():
                 MatchJobWorkflow.run,
                 {
                     "evaluation_id": "eval-report-fail",
-                    "slug": "test-job",
-                    "candidate_profile": {"skills": ["go"]},
-                    "job_profile": {"family": "technology"},
-                    "evaluation_config": {"family": "technology"},
                 },
                 id="test-match-wf-report-fail",
                 task_queue=task_queue,
@@ -362,6 +386,14 @@ async def test_match_job_workflow_unit_success():
     async def fake_execute_activity(act, input_data, **kwargs):
         name = getattr(act, "__name__", str(act))
         executed_activities.append((name, input_data))
+        if name == "fetch_match_input_activity":
+            return {
+                "status": "ready",
+                "evaluation_status": "queued",
+                "candidate_profile": {"skills": ["go"]},
+                "job_profile": {"family": "technology"},
+                "evaluation_config": {"family": "technology"},
+            }
         if name == "evaluate_match_activity":
             return {
                 "evaluations": [
@@ -398,10 +430,6 @@ async def test_match_job_workflow_unit_success():
         res = await wf.run(
             {
                 "evaluation_id": "eval-unit-1",
-                "slug": "test-job",
-                "candidate_profile": {"skills": ["go"]},
-                "job_profile": {"family": "technology"},
-                "evaluation_config": {"family": "technology"},
             }
         )
 
@@ -413,6 +441,7 @@ async def test_match_job_workflow_unit_success():
 
     activity_names = [a[0] for a in executed_activities]
     assert activity_names == [
+        "fetch_match_input_activity",
         "update_evaluation_status_activity",
         "evaluate_match_activity",
         "update_evaluation_status_activity",
@@ -431,6 +460,14 @@ async def test_match_job_workflow_unit_report_failure_retains_success():
     async def fake_execute_activity(act, input_data, **kwargs):
         name = getattr(act, "__name__", str(act))
         executed_activities.append((name, input_data))
+        if name == "fetch_match_input_activity":
+            return {
+                "status": "ready",
+                "evaluation_status": "queued",
+                "candidate_profile": {"skills": ["go"]},
+                "job_profile": {"family": "technology"},
+                "evaluation_config": {"family": "technology"},
+            }
         if name == "evaluate_match_activity":
             return {
                 "evaluations": [
@@ -458,10 +495,6 @@ async def test_match_job_workflow_unit_report_failure_retains_success():
         res = await wf.run(
             {
                 "evaluation_id": "eval-unit-report-fail",
-                "slug": "test-job",
-                "candidate_profile": {"skills": ["go"]},
-                "job_profile": {"family": "technology"},
-                "evaluation_config": {"family": "technology"},
             }
         )
 
@@ -476,3 +509,67 @@ async def test_match_job_workflow_unit_report_failure_retains_success():
     ][-1]
     assert last_report_update[1]["report_status"] == "failed"
     assert "timed out" in last_report_update[1]["report_failure_message"]
+
+
+@pytest.mark.asyncio
+async def test_fetch_match_input_activity_ready():
+    mock_container = MagicMock()
+    mock_container.repository.getojobu_api.get_evaluation = AsyncMock(
+        return_value={
+            "evaluation_status": "queued_retry",
+            "candidate_profile": {"skills": ["go"]},
+            "job_profile": {"title": "Go Engineer"},
+            "evaluation_config": {"family": "technology"},
+        }
+    )
+    init_evaluate_match_container(mock_container)
+
+    res = await fetch_match_input_activity({"evaluation_id": "eval-1"})
+
+    assert res["status"] == "ready"
+    assert res["evaluation_config"]["family"] == "technology"
+    mock_container.repository.getojobu_api.get_evaluation.assert_awaited_once_with(
+        "eval-1"
+    )
+
+
+@pytest.mark.asyncio
+async def test_fetch_match_input_activity_skips_other_statuses():
+    mock_container = MagicMock()
+    mock_container.repository.getojobu_api.get_evaluation = AsyncMock(
+        return_value={"evaluation_status": "success"}
+    )
+    init_evaluate_match_container(mock_container)
+
+    res = await fetch_match_input_activity({"evaluation_id": "eval-1"})
+
+    assert res == {"status": "skipped", "evaluation_status": "success"}
+
+
+@pytest.mark.asyncio
+async def test_fetch_match_input_activity_requires_evaluation_id():
+    with pytest.raises(ValueError, match="evaluation_id is required"):
+        await fetch_match_input_activity({})
+
+
+@pytest.mark.asyncio
+async def test_match_job_workflow_skips_when_evaluation_is_not_queued():
+    wf = MatchJobWorkflow()
+    executed = []
+
+    async def fake_execute_activity(act, input_data, **kwargs):
+        name = getattr(act, "__name__", str(act))
+        executed.append(name)
+        if name == "fetch_match_input_activity":
+            return {"status": "skipped", "evaluation_status": "success"}
+        raise AssertionError(f"unexpected activity {name}")
+
+    with patch(
+        "workflows.match_job.workflow.execute_activity",
+        side_effect=fake_execute_activity,
+    ):
+        res = await wf.run({"evaluation_id": "eval-1"})
+
+    assert res["status"] == "skipped"
+    assert res["evaluation_status"] == "success"
+    assert executed == ["fetch_match_input_activity"]

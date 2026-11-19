@@ -40,6 +40,9 @@ func NewHandler(c *contract.Contract) *handler {
 func (h *handler) Route(g *httpx.Router) {
 	auth := middleware.NewAuthMiddleware(h.cfg, h.userUC)
 
+	// GET /v1/matching-evaluations/{id} (strictly worker API key)
+	g.GET("/{id}", h.GetEvaluation, auth.ValidAPIKey)
+
 	// PATCH /v1/matching-evaluations/{id} (strictly worker API key)
 	g.PATCH("/{id}", h.UpdateEvaluation, auth.ValidAPIKey)
 
@@ -66,6 +69,33 @@ func (h *handler) Route(g *httpx.Router) {
 
 	g.POST("/bulk-generate-resume", h.BulkQueueGenerateResume, auth.ValidClerkOrAPIKey)
 	g.POST("/bulk-generate-cover-letter", h.BulkQueueGenerateCoverLetter, auth.ValidClerkOrAPIKey)
+}
+
+// GetEvaluation returns the stored MatchJobWorkflow input for an evaluation.
+// @Summary Get matching workflow input
+// @Description Returns the evaluation status and stored profile snapshots used by MatchJobWorkflow. Accessible only via machine API key.
+// @Tags matching
+// @Produce json
+// @Param id path string true "Matching evaluation ID (UUID)"
+// @Success 200 {object} models.GetEvaluationResponse
+// @Failure 400 {object} httpx.Error
+// @Failure 401 {object} httpx.Error
+// @Failure 404 {object} httpx.Error
+// @security ApiKeyAuth
+// @Router /v1/matching-evaluations/{id} [get]
+func (h *handler) GetEvaluation(w http.ResponseWriter, r *http.Request) error {
+	id, err := uuid.Parse(r.PathValue("id"))
+	if err != nil {
+		return httpx.Envelope(httpx.CodeInvalidRequest, "invalid evaluation id", "")
+	}
+	input, err := h.matchingUC.GetEvaluation(r.Context(), id)
+	if err != nil {
+		if errors.Is(err, constants.ErrNotFound) {
+			return httpx.Envelope(httpx.CodeNotFound, "evaluation not found", "")
+		}
+		return err
+	}
+	return httpx.RespondJSON(w, r, http.StatusOK, input)
 }
 
 type updateEvaluationPayload struct {

@@ -68,6 +68,8 @@ class GetojobuAPI(Protocol):
         visa_relocation: bool | None = None,
     ) -> dict[str, Any]: ...
 
+    async def get_evaluation(self, evaluation_id: str) -> dict[str, Any]: ...
+
     async def get_active_scoring_config(self, family: str) -> dict[str, Any]: ...
 
     async def patch_matching_evaluation(
@@ -329,6 +331,19 @@ class _getojobuAPI:
         if not isinstance(unwrapped, dict):
             raise TypeError(
                 f"patch job {slug!r} status: expected dict, got {type(unwrapped)}"
+            )
+        return unwrapped
+
+    async def get_evaluation(self, evaluation_id: str) -> dict[str, Any]:
+        response = await self._client.get(f"/v1/matching-evaluations/{evaluation_id}")
+        self._check_response(response, operation=f"get evaluation {evaluation_id!r}")
+        raw = response.json()
+        unwrapped = self._unwrap_response(
+            raw, operation=f"get evaluation {evaluation_id!r}"
+        )
+        if not isinstance(unwrapped, dict):
+            raise TypeError(
+                f"get evaluation {evaluation_id!r}: expected dict, got {type(unwrapped)}"
             )
         return unwrapped
 

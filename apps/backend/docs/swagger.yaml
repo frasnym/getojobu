@@ -543,6 +543,20 @@ definitions:
     - ExperienceTypeInternship
     - ExperienceTypeVolunteer
     - ExperienceTypeOther
+  models.GetEvaluationResponse:
+    properties:
+      candidate_profile:
+        additionalProperties: true
+        type: object
+      evaluation_config:
+        additionalProperties: true
+        type: object
+      evaluation_status:
+        type: string
+      job_profile:
+        additionalProperties: true
+        type: object
+    type: object
   models.MandatoryRequirementAssessment:
     properties:
       evidence:
@@ -1377,6 +1391,39 @@ paths:
       tags:
       - maintenance
   /v1/matching-evaluations/{id}:
+    get:
+      description: Returns the evaluation status and stored profile snapshots used
+        by MatchJobWorkflow. Accessible only via machine API key.
+      parameters:
+      - description: Matching evaluation ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.GetEvaluationResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpx.Error'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpx.Error'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httpx.Error'
+      security:
+      - ApiKeyAuth: []
+      summary: Get matching workflow input
+      tags:
+      - matching
     patch:
       consumes:
       - application/json

@@ -1084,6 +1084,56 @@ const docTemplate = `{
             }
         },
         "/v1/matching-evaluations/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Returns the evaluation status and stored profile snapshots used by MatchJobWorkflow. Accessible only via machine API key.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "matching"
+                ],
+                "summary": "Get matching workflow input",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Matching evaluation ID (UUID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.GetEvaluationResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpx.Error"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/httpx.Error"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httpx.Error"
+                        }
+                    }
+                }
+            },
             "patch": {
                 "security": [
                     {
@@ -3256,6 +3306,26 @@ const docTemplate = `{
                 "ExperienceTypeVolunteer",
                 "ExperienceTypeOther"
             ]
+        },
+        "models.GetEvaluationResponse": {
+            "type": "object",
+            "properties": {
+                "candidate_profile": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "evaluation_config": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "evaluation_status": {
+                    "type": "string"
+                },
+                "job_profile": {
+                    "type": "object",
+                    "additionalProperties": true
+                }
+            }
         },
         "models.MandatoryRequirementAssessment": {
             "type": "object",

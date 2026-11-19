@@ -1,10 +1,11 @@
 """MatchJobWorkflow — Temporal workflow definition for Step 2 Compatibility Evaluation and Step 4 Report Generation.
 
 Flow:
-1. Update evaluation status to 'pending' via update_evaluation_status_activity.
-2. Run evaluate_match_activity to execute the LLM compatibility evaluation.
-3. If successful: update evaluation status to 'success' with the evaluation data.
-4. Auto-generate candidate match report (Step 4) via generate_report_activity and update_report_status_activity.
+1. Fetch the evaluation via fetch_match_input_activity; only queued or queued_retry is processed.
+2. Update evaluation status to 'pending' via update_evaluation_status_activity.
+3. Run evaluate_match_activity to execute the LLM compatibility evaluation.
+4. If successful: update evaluation status to 'success' with the evaluation data.
+5. Auto-generate candidate match report (Step 4) via generate_report_activity and update_report_status_activity.
 """
 
 from __future__ import annotations
@@ -18,6 +19,7 @@ from temporalio.common import RetryPolicy
 with workflow.unsafe.imports_passed_through():
     from deliveries.consumer.activities.evaluate_match import (
         evaluate_match_activity,
+        fetch_match_input_activity,
         update_evaluation_status_activity,
     )
     from deliveries.consumer.activities.report_generation import (
@@ -42,9 +44,6 @@ class MatchJobWorkflow:
         Input:
             {
                 "evaluation_id": str,
-                "candidate_profile": dict,
-                "job_profile": dict,
-                "evaluation_config": dict,
             }
         """
         raw_eval_id = input.get("evaluation_id")
@@ -52,28 +51,23 @@ class MatchJobWorkflow:
             raise ValueError("evaluation_id is required")
         evaluation_id: str = raw_eval_id
 
-        raw_candidate = input.get("candidate_profile")
-        candidate_profile: dict[str, Any] = (
-            cast(dict[str, Any], raw_candidate)
-            if isinstance(raw_candidate, dict)
-            else {}
+        fetched: dict[str, Any] = await workflow.execute_activity(
+            fetch_match_input_activity,
+            {"evaluation_id": evaluation_id},
+            start_to_close_timeout=timedelta(seconds=30),
+            retry_policy=DEFAULT_RETRY_POLICY,
         )
+        if fetched.get("status") == "skipped":
+            return {
+                "workflow": "MatchJobWorkflow",
+                "evaluation_id": evaluation_id,
+                "status": "skipped",
+                "evaluation_status": fetched.get("evaluation_status"),
+            }
 
-        raw_job = input.get("job_profile")
-        job_profile: dict[str, Any] = (
-            cast(dict[str, Any], raw_job) if isinstance(raw_job, dict) else {}
-        )
-
-        raw_config = input.get("evaluation_config")
-        evaluation_config: dict[str, Any] = (
-            cast(dict[str, Any], raw_config) if isinstance(raw_config, dict) else {}
-        )
-
-        provider_val = input.get("provider")
-        provider: str | None = str(provider_val) if provider_val is not None else None
-
-        model_val = input.get("model")
-        model: str | None = str(model_val) if model_val is not None else None
+        candidate_profile = cast(dict[str, Any], fetched["candidate_profile"])
+        job_profile = cast(dict[str, Any], fetched["job_profile"])
+        evaluation_config = cast(dict[str, Any], fetched["evaluation_config"])
 
         # Step 1: Mark evaluation pending
         pending_input: dict[str, Any] = {
@@ -108,8 +102,6 @@ class MatchJobWorkflow:
                 "status": "success",
                 "evaluation_status": "success",
                 "evaluation_data": eval_output,
-                "provider": provider,
-                "model": model,
             }
             success_res = await workflow.execute_activity(
                 update_evaluation_status_activity,
@@ -124,8 +116,6 @@ class MatchJobWorkflow:
                 "status": "failed",
                 "evaluation_status": "failed",
                 "failure_message": str(exc),
-                "provider": provider,
-                "model": model,
             }
             await workflow.execute_activity(
                 update_evaluation_status_activity,
