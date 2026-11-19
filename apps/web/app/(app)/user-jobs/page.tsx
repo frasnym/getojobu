@@ -10,7 +10,7 @@ import { JobFilters } from "@/components/jobs/job-filters";
 import { PaginationControls } from "@/components/jobs/pagination-controls";
 import { JobDetailDrawer } from "@/components/jobs/job-detail-drawer";
 import { ReportTab } from "@/components/jobs/job-report-header";
-import { UserJob } from "@/lib/api/types";
+import { JobStatus, UserJob } from "@/lib/api/types";
 import { Sparkles, Briefcase, Compass, RefreshCw, CheckSquare, Eye, EyeOff, X, Plus } from "lucide-react";
 
 export default function UserJobsPage() {
@@ -281,7 +281,7 @@ export default function UserJobsPage() {
 							key={userJob.id}
 							userJob={userJob}
 							onSelect={setSelectedRow}
-							canOpenDetail={userJob.job.status === "analyzed"}
+							canOpenDetail={userJob.job.status === JobStatus.Analyzed}
 							isSelected={selectedRow?.id === userJob.id}
 							onHideToggle={hideJob}
 							onRetry={retryJob}

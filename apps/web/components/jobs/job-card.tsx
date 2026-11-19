@@ -1,6 +1,6 @@
 import React from "react";
 import Link from "next/link";
-import { UserJob } from "@/lib/api/types";
+import { JobStatus, UserJob } from "@/lib/api/types";
 import { MapPin, Globe, Clock, ArrowRight, Eye, EyeOff, RotateCcw } from "lucide-react";
 import { EvaluationStatusTag, EligibilityTag, RecommendationTag, StatusTag } from "@/components/jobs/evaluation-tags";
 
@@ -39,12 +39,12 @@ export function JobCard({
 }: JobCardProps) {
 	const job = userJob.job;
 	const targetHref = href || `/user-jobs/${job.slug}`;
-	const isScrapePending = job.status === "scrape_new" || job.status === "scrape_pending";
-	const isScrapeFailed = job.status === "scrape_failed";
+	const isScrapePending = job.status === JobStatus.ScrapeNew || job.status === JobStatus.ScrapePending;
+	const isScrapeFailed = job.status === JobStatus.ScrapeFailed;
 	const isClickable = !!onSelect && canOpenDetail && !isScrapePending;
 	const isHidden = userJob.is_hidden === true;
 	// Matches retryJob priority so the label always says what a click will retry.
-	const retryLabel = job.status === "failed"
+	const retryLabel = job.status === JobStatus.Failed
 		? "Retry Analyze Job"
 		: userJob.evaluation?.evaluation_status === "failed"
 			? "Retry Evaluate Job"

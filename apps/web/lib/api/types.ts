@@ -62,6 +62,20 @@ export interface CreateJobResponse {
   added_to_user_list: boolean;
 }
 
+export const JobStatus = {
+  New: "new",
+  Queued: "queued",
+  QueuedRetry: "queued_retry",
+  AnalyzePending: "analyze_pending",
+  Analyzed: "analyzed",
+  Failed: "failed",
+  ScrapeNew: "scrape_new",
+  ScrapePending: "scrape_pending",
+  ScrapeFailed: "scrape_failed",
+} as const;
+
+export type JobStatusValue = (typeof JobStatus)[keyof typeof JobStatus];
+
 export interface Job {
   id: number;
   slug: string;
