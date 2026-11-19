@@ -225,7 +225,6 @@ export function CoverLetterTab({
           {isReady && (
             <div className="flex flex-wrap items-center gap-2">
               <DownloadCoverLetterButton text={text ?? ""} fileName={fileName ?? "Cover Letter.pdf"} />
-              <CopyCoverLetterButton text={text ?? ""} />
             </div>
           )}
           {isFailed && (
@@ -264,8 +263,13 @@ export function CoverLetterTab({
 
       {/* The letter itself. A failed regeneration keeps the previous letter visible. */}
       {text ? (
-        <div className="whitespace-pre-wrap rounded-xl border border-border/60 bg-card p-6 text-sm leading-relaxed text-foreground/90">
-          {text}
+        <div className="overflow-hidden rounded-xl border border-border/60 bg-card text-sm leading-relaxed text-foreground/90">
+          {isReady && (
+            <div className="flex justify-end border-b border-border/40 px-4 py-2.5">
+              <CopyCoverLetterButton text={text} />
+            </div>
+          )}
+          <div className="whitespace-pre-wrap p-6">{text}</div>
         </div>
       ) : (
         <div className="rounded-xl border border-border/40 bg-card/40 p-6 text-sm text-muted-foreground">
