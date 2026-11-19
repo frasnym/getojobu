@@ -43,8 +43,8 @@ func NewUsecase(r *repository.Contract) (*Contract, error) {
 		Jobs:           ucJobs.NewJobService(r),
 		ScoringConfigs: ucScoringConfigs.NewScoringConfigService(r.ScoringConfigsRepository),
 		Matching:       ucMatching.NewService(r),
+		UserJobs:       ucUserJobs.NewUserJobsService(r),
 	}
-	c.UserJobs = ucUserJobs.NewUserJobsService(r, c.Jobs)
 	c.Retry = ucRetry.NewService(r, c.Jobs, c.Matching)
 	return c, nil
 }

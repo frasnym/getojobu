@@ -50,21 +50,6 @@ func (mr *MockUserJobsMockRecorder) Add(ctx, userID, jobID interface{}) *gomock.
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Add", reflect.TypeOf((*MockUserJobs)(nil).Add), ctx, userID, jobID)
 }
 
-// CreateManual mocks base method.
-func (m *MockUserJobs) CreateManual(ctx context.Context, userID string, params models.CreateManualJobParams) (*models.CreateJobResult, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CreateManual", ctx, userID, params)
-	ret0, _ := ret[0].(*models.CreateJobResult)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// CreateManual indicates an expected call of CreateManual.
-func (mr *MockUserJobsMockRecorder) CreateManual(ctx, userID, params interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateManual", reflect.TypeOf((*MockUserJobs)(nil).CreateManual), ctx, userID, params)
-}
-
 // ListByUser mocks base method.
 func (m *MockUserJobs) ListByUser(ctx context.Context, userID string, filter models.UserJobFilter, limit, offset int) ([]*models.UserJobWithJob, int, error) {
 	m.ctrl.T.Helper()
@@ -79,21 +64,6 @@ func (m *MockUserJobs) ListByUser(ctx context.Context, userID string, filter mod
 func (mr *MockUserJobsMockRecorder) ListByUser(ctx, userID, filter, limit, offset interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListByUser", reflect.TypeOf((*MockUserJobs)(nil).ListByUser), ctx, userID, filter, limit, offset)
-}
-
-// ScrapeURL mocks base method.
-func (m *MockUserJobs) ScrapeURL(ctx context.Context, userID string, params models.ScrapeURLParams) (*models.CreateJobResult, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ScrapeURL", ctx, userID, params)
-	ret0, _ := ret[0].(*models.CreateJobResult)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// ScrapeURL indicates an expected call of ScrapeURL.
-func (mr *MockUserJobsMockRecorder) ScrapeURL(ctx, userID, params interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ScrapeURL", reflect.TypeOf((*MockUserJobs)(nil).ScrapeURL), ctx, userID, params)
 }
 
 // SetBulkHideStatus mocks base method.

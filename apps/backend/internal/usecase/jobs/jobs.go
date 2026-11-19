@@ -5,6 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
+
+	"github.com/google/uuid"
 
 	"github.com/frasnym/getojobu/apps/backend/internal/contract/repository"
 	"github.com/frasnym/getojobu/apps/backend/internal/models"
@@ -30,6 +33,10 @@ type Job interface {
 	// StartJobScrape starts JobScrapeWorkflows in Temporal for the normalized
 	// search targets derived from user preferences, returning the workflow ids.
 	StartJobScrape(ctx context.Context, params models.ScrapeJobsParams) ([]string, error)
+	// CreateManual inserts a private job owned by the calling user.
+	CreateManual(ctx context.Context, userID string, params models.CreateManualJobParams) (*models.CreateJobResult, error)
+	// ScrapeURL creates a scrape_pending skeleton job and dispatches the URL scrape workflow.
+	ScrapeURL(ctx context.Context, userID string, params models.ScrapeURLParams) (*models.CreateJobResult, error)
 }
 
 type jobService struct {
@@ -83,6 +90,104 @@ func (s *jobService) Create(ctx context.Context, params models.CreateJobParams) 
 	}
 	if err := s.tx.Transact(ctx, operation); err != nil {
 		return nil, fmt.Errorf("create job: %w", err)
+	}
+	return result, nil
+}
+
+// CreateManual inserts a private job owned by the calling user and links it to
+// them. The slug is prefixed with the user's first eight UUID characters so
+// manual jobs cannot collide with scraped listings or with other users.
+func (s *jobService) CreateManual(ctx context.Context, userID string, params models.CreateManualJobParams) (*models.CreateJobResult, error) {
+	if strings.TrimSpace(params.Title) == "" {
+		return nil, fmt.Errorf("title is required")
+	}
+	if strings.TrimSpace(params.Company) == "" {
+		return nil, fmt.Errorf("company is required")
+	}
+	if strings.TrimSpace(params.Location) == "" {
+		return nil, fmt.Errorf("location is required")
+	}
+
+	ownerID, err := uuid.Parse(userID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid user id: %w", err)
+	}
+
+	return s.Create(ctx, models.CreateJobParams{
+		Slug:           models.BuildManualJobSlug(userID, params.Title, params.Company, params.Location),
+		Source:         "manual",
+		OwnerID:        &ownerID,
+		SourceURL:      params.SourceURL,
+		ApplyURL:       params.ApplyURL,
+		Title:          params.Title,
+		Company:        params.Company,
+		Location:       params.Location,
+		Description:    params.Description,
+		PostedDate:     params.PostedDate,
+		IsRemote:       params.IsRemote,
+		VisaRelocation: params.VisaRelocation,
+		UpdatedByType:  "user",
+		UpdatedByID:    userID,
+		UserIDs:        []string{userID},
+	})
+}
+
+// ScrapeURL creates a skeleton job at scrape_pending and queues the scrape
+// workflow. If the workflow cannot be started, the job is marked scrape_failed
+// with the dispatch error so the user can retry.
+func (s *jobService) ScrapeURL(ctx context.Context, userID string, params models.ScrapeURLParams) (*models.CreateJobResult, error) {
+	if strings.TrimSpace(params.SourceURL) == "" {
+		return nil, fmt.Errorf("source_url is required")
+	}
+
+	ownerID, err := uuid.Parse(userID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid user id: %w", err)
+	}
+
+	slugPrefix := userID
+	if len(userID) >= 8 {
+		slugPrefix = userID[:8]
+	}
+	slug := fmt.Sprintf("m-%s-scrape-%d", slugPrefix, time.Now().UnixNano())
+
+	result, err := s.Create(ctx, models.CreateJobParams{
+		Slug:          slug,
+		Source:        "user_scrape",
+		Status:        string(constants.StatusScrapePending),
+		OwnerID:       &ownerID,
+		SourceURL:     &params.SourceURL,
+		Title:         "Pending scrape",
+		Company:       "unknown",
+		Location:      "unknown",
+		UpdatedByType: "user",
+		UpdatedByID:   userID,
+		UserIDs:       []string{userID},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("create scrape job: %w", err)
+	}
+
+	_, err = s.workflows.StartUserJobScrape(ctx, models.UserJobScrapeWorkflowInput{
+		JobID:     result.Job.ID,
+		Slug:      result.Job.Slug,
+		SourceURL: params.SourceURL,
+		UserID:    userID,
+		OwnerID:   userID,
+	})
+	if err != nil {
+		message := fmt.Sprintf("scrape dispatch failed: %v", err)
+		if _, updateErr := s.UpdateStatus(ctx, models.UpdateJobParams{
+			Slug:           result.Job.Slug,
+			Status:         string(constants.StatusScrapeFailed),
+			FailureMessage: &message,
+			UpdatedByType:  "user",
+			UpdatedByID:    userID,
+		}); updateErr != nil {
+			return nil, fmt.Errorf("mark scrape failed after dispatch error: %w", updateErr)
+		}
+		result.Job.Status = string(constants.StatusScrapeFailed)
+		result.Job.FailureMessage = &message
 	}
 	return result, nil
 }

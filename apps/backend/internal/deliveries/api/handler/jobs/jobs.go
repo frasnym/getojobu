@@ -15,7 +15,6 @@ import (
 	"github.com/frasnym/getojobu/apps/backend/internal/models"
 	ucJobs "github.com/frasnym/getojobu/apps/backend/internal/usecase/jobs"
 	ucMatching "github.com/frasnym/getojobu/apps/backend/internal/usecase/matching"
-	ucUserJobs "github.com/frasnym/getojobu/apps/backend/internal/usecase/user_jobs"
 	ucUsers "github.com/frasnym/getojobu/apps/backend/internal/usecase/users"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/constants"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/ctxval"
@@ -28,7 +27,6 @@ type handler struct {
 	cfg        *config.Config
 	userUC     ucUsers.User
 	ucJobs     ucJobs.Job
-	userJobs   ucUserJobs.UserJobs
 	matchingUC ucMatching.Matching
 }
 
@@ -38,7 +36,6 @@ func NewHandler(c *contract.Contract) *handler {
 		cfg:        c.Cfg,
 		userUC:     c.Usecase.Users,
 		ucJobs:     c.Usecase.Jobs,
-		userJobs:   c.Usecase.UserJobs,
 		matchingUC: c.Usecase.Matching,
 	}
 }

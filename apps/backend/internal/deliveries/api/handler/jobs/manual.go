@@ -66,7 +66,7 @@ func (h *handler) CreateManualJob(w http.ResponseWriter, r *http.Request) error 
 		postedDate = parsed
 	}
 
-	result, err := h.userJobs.CreateManual(r.Context(), p.ID, models.CreateManualJobParams{
+	result, err := h.ucJobs.CreateManual(r.Context(), p.ID, models.CreateManualJobParams{
 		Title:          req.Title,
 		Company:        req.Company,
 		Location:       req.Location,

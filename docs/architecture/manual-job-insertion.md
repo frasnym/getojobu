@@ -22,9 +22,9 @@ The URL scrape is a Temporal workflow on the Python worker. The Go API only crea
 
 ## Flow
 
-Manual entry: handler resolves the Clerk principal, validates fields, and calls `userJobs.CreateManual`. That method builds the prefixed slug, sets `source = manual` and `owner_id`, then delegates to the jobs usecase `Create`, which inserts the row and the `user_jobs` link in one transaction.
+Manual entry: handler resolves the Clerk principal, validates fields, and calls the jobs usecase `CreateManual`. That method builds the prefixed slug, sets `source = manual` and `owner_id`, then calls the jobs usecase `Create`, which inserts the row and the `user_jobs` link in one transaction.
 
-URL scrape: `userJobs.ScrapeURL` creates a skeleton job at `scrape_pending` with `source = user_scrape`, the user's `owner_id`, and the original URL, then calls `Workflows.StartUserJobScrape`. That wrapper enqueues a `LimiterWorkItem` of type `user_job_scrape` with a stable item ID `user-job-scrape-{slug}`. The concurrency limiter maps the type to `UserJobScrapeWorkflow` on the `job-scrape` queue, where the workflow and its activities are registered. Starting the workflow directly on the `job-limit` queue would not work: that queue only polls the limiter workflow.
+URL scrape: the jobs usecase `ScrapeURL` creates a skeleton job at `scrape_pending` with `source = user_scrape`, the user's `owner_id`, and the original URL, then calls `Workflows.StartUserJobScrape`. That wrapper enqueues a `LimiterWorkItem` of type `user_job_scrape` with a stable item ID `user-job-scrape-{slug}`. The concurrency limiter maps the type to `UserJobScrapeWorkflow` on the `job-scrape` queue, where the workflow and its activities are registered. Starting the workflow directly on the `job-limit` queue would not work: that queue only polls the limiter workflow.
 
 The Python workflow runs `fetch_and_extract_job` (HTTP fetch, HTML-to-text, LLM extraction), `update_scraped_job` (regenerate the prefixed slug and PATCH the skeleton to `new` with the extracted fields), then `queue_scraped_job_analysis` (POST `/v1/jobs/bulk-queue-analyze`). On failure it calls `mark_scrape_failed` to record `scrape_failed` and a failure message. Activity retries: 2 for fetch, 3 for API calls. Timeouts: 60s for fetch plus LLM, 30s for API calls.
 

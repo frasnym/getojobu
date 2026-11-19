@@ -15,7 +15,6 @@ import (
 	"github.com/frasnym/getojobu/apps/backend/internal/deliveries/api/dto"
 	"github.com/frasnym/getojobu/apps/backend/internal/models"
 	ucJobsMocks "github.com/frasnym/getojobu/apps/backend/internal/usecase/jobs/mocks"
-	ucUserJobsMocks "github.com/frasnym/getojobu/apps/backend/internal/usecase/user_jobs/mocks"
 	ucUsersMocks "github.com/frasnym/getojobu/apps/backend/internal/usecase/users/mocks"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/constants"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/ctxval"
@@ -554,7 +553,6 @@ func TestCreateManualJob_missing_title_returns_400(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	h, _, _ := newHandlerWithMock(ctrl)
-	h.userJobs = ucUserJobsMocks.NewMockUserJobs(ctrl)
 
 	mux := http.NewServeMux()
 	mux.Handle("POST /jobs/manual", httpx.HandlerFunc(h.CreateManualJob))

@@ -44,7 +44,7 @@ func (h *handler) ScrapeURL(w http.ResponseWriter, r *http.Request) error {
 		return httpx.Envelope(httpx.CodeInvalidRequest, "source_url must be an http(s) URL", "")
 	}
 
-	result, err := h.userJobs.ScrapeURL(r.Context(), p.ID, models.ScrapeURLParams{SourceURL: req.SourceURL})
+	result, err := h.ucJobs.ScrapeURL(r.Context(), p.ID, models.ScrapeURLParams{SourceURL: req.SourceURL})
 	if err != nil {
 		logging.Error(r.Context(), "scrape job from URL failed", err, "user_id", p.ID)
 		return err

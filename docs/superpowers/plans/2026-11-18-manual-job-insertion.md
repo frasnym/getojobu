@@ -40,6 +40,7 @@ These decisions were agreed before implementation. They override any conflicting
 - Python API client: `patch_job_status` is extended to carry the scraped fields in `workers/python/repository/getojobu_api.py`.
 - Frontend: the My Jobs detail view is `JobDetailDrawer`, not `[slug]/page.tsx`. `lib/api/types.ts` gains `source`, `failure_message`, and `visa_relocation` on `Job`.
 - Slug parity: Python uses Go's `untitled` fallback and Unicode-aware normalization so regenerated slugs match `BuildManualJobSlug`.
+- Final placement: after the endpoints moved to `/v1/jobs`, `CreateManual` and `ScrapeURL` live on the jobs usecase, not `UserJobs`. The `user_jobs` usecase and `NewUserJobsService(r)` contract wiring stay unchanged. This overrides the Task 3 and Task 4 steps that put these methods on `userJobsService`.
 - Commits: one commit per task as listed below. Each commit requires explicit approval before it is made. Every `git add` names files individually; never `git add .` or a whole directory.
 
 ---

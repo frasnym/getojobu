@@ -1,4 +1,4 @@
-package user_jobs
+package jobs
 
 import (
 	"context"
@@ -7,8 +7,7 @@ import (
 	"testing"
 
 	"github.com/frasnym/getojobu/apps/backend/internal/models"
-	repoMocks "github.com/frasnym/getojobu/apps/backend/internal/repository/mocks"
-	ucJobsMocks "github.com/frasnym/getojobu/apps/backend/internal/usecase/jobs/mocks"
+	"github.com/frasnym/getojobu/apps/backend/internal/repository/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
@@ -24,10 +23,11 @@ func TestCreateManual(t *testing.T) {
 
 	t.Run("happy path", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		jobsUC := ucJobsMocks.NewMockJob(ctrl)
-		s := &userJobsService{jobsUC: jobsUC}
+		repo := mocks.NewMockJobs(ctrl)
+		userJobs := mocks.NewMockUserJobs(ctrl)
+		s := newServiceWithMock(repo, userJobs)
 
-		jobsUC.EXPECT().Create(gomock.Any(), gomock.Any()).DoAndReturn(
+		repo.EXPECT().Create(gomock.Any(), gomock.Any()).DoAndReturn(
 			func(_ context.Context, got models.CreateJobParams) (*models.CreateJobResult, error) {
 				assert.Equal(t, "manual", got.Source)
 				require.NotNil(t, got.OwnerID)
@@ -36,23 +36,27 @@ func TestCreateManual(t *testing.T) {
 				assert.Equal(t, []string{userID}, got.UserIDs)
 				assert.Equal(t, "user", got.UpdatedByType)
 				assert.Equal(t, userID, got.UpdatedByID)
-				return &models.CreateJobResult{Job: &models.Job{Slug: got.Slug}, Created: true}, nil
+				return &models.CreateJobResult{Job: &models.Job{ID: 1, Slug: got.Slug}, Created: true}, nil
 			},
 		)
+		userJobs.EXPECT().Create(gomock.Any(), userID, int64(1)).Return(true, nil)
 
 		got, err := s.CreateManual(context.Background(), userID, params)
 		require.NoError(t, err)
 		assert.True(t, got.Created)
+		assert.True(t, got.AddedToUserList)
 	})
 
 	t.Run("duplicate slug", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		jobsUC := ucJobsMocks.NewMockJob(ctrl)
-		s := &userJobsService{jobsUC: jobsUC}
+		repo := mocks.NewMockJobs(ctrl)
+		userJobs := mocks.NewMockUserJobs(ctrl)
+		s := newServiceWithMock(repo, userJobs)
 
-		jobsUC.EXPECT().Create(gomock.Any(), gomock.Any()).Return(
-			&models.CreateJobResult{Job: &models.Job{}, Created: false}, nil,
+		repo.EXPECT().Create(gomock.Any(), gomock.Any()).Return(
+			&models.CreateJobResult{Job: &models.Job{ID: 1}, Created: false}, nil,
 		)
+		userJobs.EXPECT().Create(gomock.Any(), userID, int64(1)).Return(false, nil)
 
 		got, err := s.CreateManual(context.Background(), userID, params)
 		require.NoError(t, err)
@@ -61,8 +65,7 @@ func TestCreateManual(t *testing.T) {
 
 	t.Run("missing title", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		jobsUC := ucJobsMocks.NewMockJob(ctrl)
-		s := &userJobsService{jobsUC: jobsUC}
+		s := newServiceWithMock(mocks.NewMockJobs(ctrl), mocks.NewMockUserJobs(ctrl))
 
 		_, err := s.CreateManual(context.Background(), userID, models.CreateManualJobParams{
 			Company: "Acme", Location: "Berlin",
@@ -77,11 +80,13 @@ func TestScrapeURL(t *testing.T) {
 
 	t.Run("happy path", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		jobsUC := ucJobsMocks.NewMockJob(ctrl)
-		workflows := repoMocks.NewMockWorkflows(ctrl)
-		s := &userJobsService{jobsUC: jobsUC, workflows: workflows}
+		repo := mocks.NewMockJobs(ctrl)
+		userJobs := mocks.NewMockUserJobs(ctrl)
+		workflows := mocks.NewMockWorkflows(ctrl)
+		s := newServiceWithMock(repo, userJobs)
+		s.workflows = workflows
 
-		jobsUC.EXPECT().Create(gomock.Any(), gomock.Any()).DoAndReturn(
+		repo.EXPECT().Create(gomock.Any(), gomock.Any()).DoAndReturn(
 			func(_ context.Context, got models.CreateJobParams) (*models.CreateJobResult, error) {
 				assert.Equal(t, "user_scrape", got.Source)
 				assert.Equal(t, "scrape_pending", got.Status)
@@ -93,6 +98,7 @@ func TestScrapeURL(t *testing.T) {
 				return &models.CreateJobResult{Job: &models.Job{ID: 42, Slug: got.Slug}, Created: true}, nil
 			},
 		)
+		userJobs.EXPECT().Create(gomock.Any(), userID, int64(42)).Return(true, nil)
 		workflows.EXPECT().StartUserJobScrape(gomock.Any(), gomock.Any()).DoAndReturn(
 			func(_ context.Context, payload models.UserJobScrapeWorkflowInput) (string, error) {
 				assert.Equal(t, int64(42), payload.JobID)
@@ -111,26 +117,30 @@ func TestScrapeURL(t *testing.T) {
 
 	t.Run("empty URL", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		s := &userJobsService{
-			jobsUC:    ucJobsMocks.NewMockJob(ctrl),
-			workflows: repoMocks.NewMockWorkflows(ctrl),
-		}
+		s := newServiceWithMock(mocks.NewMockJobs(ctrl), mocks.NewMockUserJobs(ctrl))
+
 		_, err := s.ScrapeURL(context.Background(), userID, models.ScrapeURLParams{})
 		require.Error(t, err)
 	})
 
-	t.Run("workflow start failure keeps the job", func(t *testing.T) {
+	t.Run("workflow start failure marks scrape failed", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		jobsUC := ucJobsMocks.NewMockJob(ctrl)
-		workflows := repoMocks.NewMockWorkflows(ctrl)
-		s := &userJobsService{jobsUC: jobsUC, workflows: workflows}
+		repo := mocks.NewMockJobs(ctrl)
+		userJobs := mocks.NewMockUserJobs(ctrl)
+		workflows := mocks.NewMockWorkflows(ctrl)
+		s := newServiceWithMock(repo, userJobs)
+		s.workflows = workflows
 
-		jobsUC.EXPECT().Create(gomock.Any(), gomock.Any()).Return(
+		repo.EXPECT().Create(gomock.Any(), gomock.Any()).Return(
 			&models.CreateJobResult{Job: &models.Job{ID: 7, Slug: "m-abcdef12-scrape-1"}, Created: true}, nil,
 		)
+		userJobs.EXPECT().Create(gomock.Any(), userID, int64(7)).Return(true, nil)
 		workflows.EXPECT().StartUserJobScrape(gomock.Any(), gomock.Any()).
 			Return("", errors.New("temporal unavailable"))
-		jobsUC.EXPECT().UpdateStatus(gomock.Any(), gomock.Any()).DoAndReturn(
+		repo.EXPECT().GetBySlug(gomock.Any(), "m-abcdef12-scrape-1", "").Return(
+			&models.JobWithOwnership{Job: &models.Job{ID: 7, Slug: "m-abcdef12-scrape-1", Status: "scrape_pending"}}, nil,
+		)
+		repo.EXPECT().UpdateStatus(gomock.Any(), gomock.Any()).DoAndReturn(
 			func(_ context.Context, p models.UpdateJobParams) (*models.Job, error) {
 				assert.Equal(t, "scrape_failed", p.Status)
 				require.NotNil(t, p.FailureMessage)

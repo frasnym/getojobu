@@ -65,6 +65,21 @@ func (mr *MockJobMockRecorder) CreateBulk(ctx, params interface{}) *gomock.Call 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateBulk", reflect.TypeOf((*MockJob)(nil).CreateBulk), ctx, params)
 }
 
+// CreateManual mocks base method.
+func (m *MockJob) CreateManual(ctx context.Context, userID string, params models.CreateManualJobParams) (*models.CreateJobResult, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CreateManual", ctx, userID, params)
+	ret0, _ := ret[0].(*models.CreateJobResult)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CreateManual indicates an expected call of CreateManual.
+func (mr *MockJobMockRecorder) CreateManual(ctx, userID, params interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateManual", reflect.TypeOf((*MockJob)(nil).CreateManual), ctx, userID, params)
+}
+
 // GetBySlug mocks base method.
 func (m *MockJob) GetBySlug(ctx context.Context, slug, userID string) (*models.JobWithOwnership, error) {
 	m.ctrl.T.Helper()
@@ -109,6 +124,21 @@ func (m *MockJob) QueueAnalysisBulk(ctx context.Context, items []models.QueueAna
 func (mr *MockJobMockRecorder) QueueAnalysisBulk(ctx, items, caller interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueueAnalysisBulk", reflect.TypeOf((*MockJob)(nil).QueueAnalysisBulk), ctx, items, caller)
+}
+
+// ScrapeURL mocks base method.
+func (m *MockJob) ScrapeURL(ctx context.Context, userID string, params models.ScrapeURLParams) (*models.CreateJobResult, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ScrapeURL", ctx, userID, params)
+	ret0, _ := ret[0].(*models.CreateJobResult)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ScrapeURL indicates an expected call of ScrapeURL.
+func (mr *MockJobMockRecorder) ScrapeURL(ctx, userID, params interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ScrapeURL", reflect.TypeOf((*MockJob)(nil).ScrapeURL), ctx, userID, params)
 }
 
 // StartJobScrape mocks base method.
