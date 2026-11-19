@@ -32,6 +32,12 @@ interface JobFiltersProps {
   /** Recommendation label filter value ("all" | "strong_match" | ...) */
   recommendationLabelFilter?: string;
   onRecommendationLabelChange?: (value: string) => void;
+  /** Resume status filter value ("all" | "success" | "failed" | ...) */
+  resumeStatusFilter?: string;
+  onResumeStatusChange?: (value: string) => void;
+  /** Cover letter status filter value ("all" | "success" | "failed" | ...) */
+  coverLetterStatusFilter?: string;
+  onCoverLetterStatusChange?: (value: string) => void;
   /** When true, at least one filter differs from its initial state. */
   isFiltersChanged?: boolean;
   /** Query the backend with the current filters (server-side). */
@@ -221,6 +227,15 @@ const REPORT_STATUS_OPTIONS: FilterOption<string>[] = [
   { label: "Failed", value: "failed" },
 ];
 
+const DOCUMENT_STATUS_OPTIONS: FilterOption<string>[] = [
+  { label: "All", value: "all" },
+  { label: "Success", value: "success" },
+  { label: "Pending", value: "pending" },
+  { label: "Queued", value: "queued" },
+  { label: "Queued Retry", value: "queued_retry" },
+  { label: "Failed", value: "failed" },
+];
+
 const ELIGIBILITY_STATUS_OPTIONS: FilterOption<string>[] = [
   { label: "All", value: "all" },
   { label: "Eligible", value: "eligible" },
@@ -255,6 +270,10 @@ export function JobFilters({
   onEligibilityStatusChange,
   recommendationLabelFilter = "all",
   onRecommendationLabelChange,
+  resumeStatusFilter = "all",
+  onResumeStatusChange,
+  coverLetterStatusFilter = "all",
+  onCoverLetterStatusChange,
   isFiltersChanged = false,
   onQueryAll,
   loading = false,
@@ -354,6 +373,20 @@ export function JobFilters({
       onRemove: () => onRecommendationLabelChange?.("all"),
     });
   }
+  if (resumeStatusFilter !== "all") {
+    activeChips.push({
+      label: `Resume: ${optionLabel(DOCUMENT_STATUS_OPTIONS, resumeStatusFilter)}`,
+      value: "resume_status",
+      onRemove: () => onResumeStatusChange?.("all"),
+    });
+  }
+  if (coverLetterStatusFilter !== "all") {
+    activeChips.push({
+      label: `Cover Letter: ${optionLabel(DOCUMENT_STATUS_OPTIONS, coverLetterStatusFilter)}`,
+      value: "cover_letter_status",
+      onRemove: () => onCoverLetterStatusChange?.("all"),
+    });
+  }
 
   return (
     <div className="flex flex-col gap-3 py-2">
@@ -451,6 +484,8 @@ export function JobFilters({
                       onReportStatusChange?.("all");
                       onEligibilityStatusChange?.("all");
                       onRecommendationLabelChange?.("all");
+                      onResumeStatusChange?.("all");
+                      onCoverLetterStatusChange?.("all");
                     }}
                     disabled={activeChips.length === 0}
                     className="text-[11px] font-semibold text-muted-foreground transition-colors hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
@@ -604,6 +639,30 @@ export function JobFilters({
                             }`}
                           />
                         }
+                      />
+                    )}
+                  </div>
+
+                  <div className="space-y-3">
+                    <h4 className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                      Documents
+                    </h4>
+                    {onResumeStatusChange !== undefined && (
+                      <FilterDropdown
+                        prefix="Resume"
+                        value={resumeStatusFilter}
+                        options={DOCUMENT_STATUS_OPTIONS}
+                        onChange={onResumeStatusChange}
+                        icon={<FileText className="h-3 w-3 text-muted-foreground" />}
+                      />
+                    )}
+                    {onCoverLetterStatusChange !== undefined && (
+                      <FilterDropdown
+                        prefix="Cover Letter"
+                        value={coverLetterStatusFilter}
+                        options={DOCUMENT_STATUS_OPTIONS}
+                        onChange={onCoverLetterStatusChange}
+                        icon={<FileText className="h-3 w-3 text-muted-foreground" />}
                       />
                     )}
                   </div>

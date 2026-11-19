@@ -23,7 +23,9 @@ export function filterUserJobs(
   evaluationStatus: string = "all",
   reportStatus: string = "all",
   eligibilityStatus: string = "all",
-  recommendationLabel: string = "all"
+  recommendationLabel: string = "all",
+  resumeStatus: string = "all",
+  coverLetterStatus: string = "all"
 ): UserJob[] {
   if (!Array.isArray(rows)) {
     return [];
@@ -84,6 +86,22 @@ export function filterUserJobs(
       return false;
     }
 
+    // Resume status filter
+    if (
+      resumeStatus !== "all" &&
+      row.evaluation?.resume_status?.toLowerCase() !== resumeStatus.toLowerCase()
+    ) {
+      return false;
+    }
+
+    // Cover letter status filter
+    if (
+      coverLetterStatus !== "all" &&
+      row.evaluation?.cover_letter_status?.toLowerCase() !== coverLetterStatus.toLowerCase()
+    ) {
+      return false;
+    }
+
     // Query filter
     if (!normalizedQuery) {
       return true;
@@ -113,6 +131,8 @@ export function useUserJobs(explicitToken?: string | null) {
   const [reportStatusFilter, setReportStatusFilter] = useState("all");
   const [eligibilityStatusFilter, setEligibilityStatusFilter] = useState("all");
   const [recommendationLabelFilter, setRecommendationLabelFilter] = useState("all");
+  const [resumeStatusFilter, setResumeStatusFilter] = useState("all");
+  const [coverLetterStatusFilter, setCoverLetterStatusFilter] = useState("all");
 
   // Snapshot of the initial filter state (the defaults) captured on first
   // render. Used to detect when the user has changed any filter away from its
@@ -126,6 +146,8 @@ export function useUserJobs(explicitToken?: string | null) {
     reportStatusFilter,
     eligibilityStatusFilter,
     recommendationLabelFilter,
+    resumeStatusFilter,
+    coverLetterStatusFilter,
   });
 
   const setPage = useCallback((newPage: number) => {
@@ -150,6 +172,8 @@ export function useUserJobs(explicitToken?: string | null) {
           report_status: reportStatusFilter,
           eligibility_status: eligibilityStatusFilter,
           recommendation_label: recommendationLabelFilter,
+          resume_status: resumeStatusFilter,
+          cover_letter_status: coverLetterStatusFilter,
         });
         if (!mountedRef || mountedRef.current) {
           setUserJobs(Array.isArray(res.data) ? res.data : []);
@@ -184,6 +208,8 @@ export function useUserJobs(explicitToken?: string | null) {
         report_status: reportStatusFilter,
         eligibility_status: eligibilityStatusFilter,
         recommendation_label: recommendationLabelFilter,
+        resume_status: resumeStatusFilter,
+        cover_letter_status: coverLetterStatusFilter,
       });
       setUserJobs(Array.isArray(res.data) ? res.data : []);
       setPagination(res.pagination);
@@ -193,7 +219,7 @@ export function useUserJobs(explicitToken?: string | null) {
     } finally {
       setLoading(false);
     }
-  }, [explicitToken, getToken, limit, statusFilter, remoteOnly, hideFilter, evaluationStatusFilter, reportStatusFilter, eligibilityStatusFilter, recommendationLabelFilter]);
+  }, [explicitToken, getToken, limit, statusFilter, remoteOnly, hideFilter, evaluationStatusFilter, reportStatusFilter, eligibilityStatusFilter, recommendationLabelFilter, resumeStatusFilter, coverLetterStatusFilter]);
 
   useEffect(() => {
     const mountedRef = { current: true };
@@ -220,7 +246,9 @@ export function useUserJobs(explicitToken?: string | null) {
         evaluationStatusFilter,
         reportStatusFilter,
         eligibilityStatusFilter,
-        recommendationLabelFilter
+        recommendationLabelFilter,
+        resumeStatusFilter,
+        coverLetterStatusFilter
       ),
     [
       userJobs,
@@ -232,6 +260,8 @@ export function useUserJobs(explicitToken?: string | null) {
       reportStatusFilter,
       eligibilityStatusFilter,
       recommendationLabelFilter,
+      resumeStatusFilter,
+      coverLetterStatusFilter,
     ]
   );
 
@@ -244,7 +274,9 @@ export function useUserJobs(explicitToken?: string | null) {
       evaluationStatusFilter !== initialFiltersRef.current.evaluationStatusFilter ||
       reportStatusFilter !== initialFiltersRef.current.reportStatusFilter ||
       eligibilityStatusFilter !== initialFiltersRef.current.eligibilityStatusFilter ||
-      recommendationLabelFilter !== initialFiltersRef.current.recommendationLabelFilter,
+      recommendationLabelFilter !== initialFiltersRef.current.recommendationLabelFilter ||
+      resumeStatusFilter !== initialFiltersRef.current.resumeStatusFilter ||
+      coverLetterStatusFilter !== initialFiltersRef.current.coverLetterStatusFilter,
     [
       searchQuery,
       statusFilter,
@@ -254,6 +286,8 @@ export function useUserJobs(explicitToken?: string | null) {
       reportStatusFilter,
       eligibilityStatusFilter,
       recommendationLabelFilter,
+      resumeStatusFilter,
+      coverLetterStatusFilter,
     ]
   );
 
@@ -294,6 +328,16 @@ export function useUserJobs(explicitToken?: string | null) {
 
   const handleRecommendationLabelChange = (value: string) => {
     setRecommendationLabelFilter(value);
+    setPageState(1);
+  };
+
+  const handleResumeStatusChange = (value: string) => {
+    setResumeStatusFilter(value);
+    setPageState(1);
+  };
+
+  const handleCoverLetterStatusChange = (value: string) => {
+    setCoverLetterStatusFilter(value);
     setPageState(1);
   };
 
@@ -431,6 +475,10 @@ export function useUserJobs(explicitToken?: string | null) {
     setEligibilityStatusFilter: handleEligibilityStatusChange,
     recommendationLabelFilter,
     setRecommendationLabelFilter: handleRecommendationLabelChange,
+    resumeStatusFilter,
+    setResumeStatusFilter: handleResumeStatusChange,
+    coverLetterStatusFilter,
+    setCoverLetterStatusFilter: handleCoverLetterStatusChange,
     hideJob,
     bulkHideJob,
     retryJob,

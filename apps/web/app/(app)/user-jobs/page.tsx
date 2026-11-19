@@ -46,6 +46,10 @@ export default function UserJobsPage() {
 		setEligibilityStatusFilter,
 		recommendationLabelFilter,
 		setRecommendationLabelFilter,
+		resumeStatusFilter,
+		setResumeStatusFilter,
+		coverLetterStatusFilter,
+		setCoverLetterStatusFilter,
 	} = useUserJobs();
 
 	const [selectedRow, setSelectedRow] = useState<UserJob | null>(null);
@@ -275,6 +279,10 @@ export default function UserJobsPage() {
 				onEligibilityStatusChange={setEligibilityStatusFilter}
 				recommendationLabelFilter={recommendationLabelFilter}
 				onRecommendationLabelChange={setRecommendationLabelFilter}
+				resumeStatusFilter={resumeStatusFilter}
+				onResumeStatusChange={setResumeStatusFilter}
+				coverLetterStatusFilter={coverLetterStatusFilter}
+				onCoverLetterStatusChange={setCoverLetterStatusFilter}
 				totalCount={pagination?.totalItems ?? filteredJobs.length}
 				isFiltersChanged={isFiltersChanged}
 				onQueryAll={queryAll}

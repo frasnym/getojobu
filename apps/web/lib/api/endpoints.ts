@@ -54,6 +54,8 @@ export async function getUserJobs(
     report_status?: string;
     eligibility_status?: string;
     recommendation_label?: string;
+    resume_status?: string;
+    cover_letter_status?: string;
   }
 ): Promise<PaginatedResult<UserJob[]>> {
   const params = new URLSearchParams();
@@ -79,6 +81,12 @@ export async function getUserJobs(
   }
   if (filters?.recommendation_label && filters.recommendation_label !== "all") {
     params.set("recommendation_label", filters.recommendation_label);
+  }
+  if (filters?.resume_status && filters.resume_status !== "all") {
+    params.set("resume_status", filters.resume_status);
+  }
+  if (filters?.cover_letter_status && filters.cover_letter_status !== "all") {
+    params.set("cover_letter_status", filters.cover_letter_status);
   }
   return apiClientWithPagination<UserJob[]>(`/v1/user-jobs?${params.toString()}`, {
     token,

@@ -70,6 +70,31 @@ describe("useUserJobs hook and filterUserJobs", () => {
     expect(all).toHaveLength(2);
   });
 
+  it("filters user jobs by resume and cover letter status", () => {
+    const rows = [
+      {
+        ...mockUserJobs[0],
+        evaluation: { resume_status: "success", cover_letter_status: "failed" },
+      },
+      {
+        ...mockUserJobs[1],
+        evaluation: { resume_status: "failed", cover_letter_status: "success" },
+      },
+    ] as UserJob[];
+
+    const resumeOnly = filterUserJobs(
+      rows, "", "all", false, "all", "all", "all", "all", "all", "success"
+    );
+    expect(resumeOnly).toHaveLength(1);
+    expect(resumeOnly[0].id).toBe(mockUserJobs[0].id);
+
+    const coverOnly = filterUserJobs(
+      rows, "", "all", false, "all", "all", "all", "all", "all", "all", "success"
+    );
+    expect(coverOnly).toHaveLength(1);
+    expect(coverOnly[0].id).toBe(mockUserJobs[1].id);
+  });
+
   it("fetches user jobs and returns filtered list", async () => {
     vi.spyOn(endpoints, "getUserJobs").mockResolvedValue({
       data: mockUserJobs,

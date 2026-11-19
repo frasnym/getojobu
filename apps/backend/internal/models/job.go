@@ -55,6 +55,8 @@ type UserJobFilter struct {
 	ReportStatus string `json:"report_status,omitempty"`
 	// ResumeStatus restricts by matching_evaluations.resume_status.
 	ResumeStatus string `json:"resume_status,omitempty"`
+	// CoverLetterStatus restricts by matching_evaluations.cover_letter_status.
+	CoverLetterStatus string `json:"cover_letter_status,omitempty"`
 }
 
 // JobWithOwnership is a shared job listing plus the requesting user's link to

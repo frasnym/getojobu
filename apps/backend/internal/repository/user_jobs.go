@@ -418,6 +418,11 @@ func whereClauses(filter models.UserJobFilter) (string, []any) {
 		clauses = append(clauses, fmt.Sprintf("LOWER(me.resume_status) = LOWER($%d)", next))
 		next++
 	}
+	if filter.CoverLetterStatus != "" && filter.CoverLetterStatus != "all" {
+		args = append(args, filter.CoverLetterStatus)
+		clauses = append(clauses, fmt.Sprintf("LOWER(me.cover_letter_status) = LOWER($%d)", next))
+		next++
+	}
 
 	if len(clauses) == 0 {
 		return "", nil

@@ -91,6 +91,7 @@ func (h *handler) Route(g *httpx.Router) {
 // @Param recommendation_label query string false "Filter by recommendation label"
 // @Param report_status query string false "Filter by match report status"
 // @Param resume_status query string false "Filter by resume status"
+// @Param cover_letter_status query string false "Filter by cover letter status"
 // @Success 200 {array} dto.UserJobResponse
 // @Failure 400 {object} httpx.Error
 // @Failure 401 {object} httpx.Error
@@ -140,6 +141,7 @@ func (h *handler) ListUserJobs(w http.ResponseWriter, r *http.Request) error {
 		RecommendationLabel: r.URL.Query().Get("recommendation_label"),
 		ReportStatus:        r.URL.Query().Get("report_status"),
 		ResumeStatus:        r.URL.Query().Get("resume_status"),
+		CoverLetterStatus:   r.URL.Query().Get("cover_letter_status"),
 	}
 
 	jobs, totalItems, err := h.ucJobs.ListByUser(r.Context(), p.ID, filter, limit, offset)

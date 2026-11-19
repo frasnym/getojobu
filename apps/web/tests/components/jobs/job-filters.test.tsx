@@ -93,6 +93,30 @@ describe("JobFilters component", () => {
     expect(onStatusChange).toHaveBeenCalledWith("all");
   });
 
+  it("renders resume and cover letter filters and clears them from chips", () => {
+    const onResumeChange = vi.fn();
+    const onCoverChange = vi.fn();
+    render(
+      <JobFilters
+        searchQuery=""
+        onSearchChange={vi.fn()}
+        statusFilter="all"
+        onStatusChange={vi.fn()}
+        resumeStatusFilter="failed"
+        onResumeStatusChange={onResumeChange}
+        coverLetterStatusFilter="success"
+        onCoverLetterStatusChange={onCoverChange}
+        totalCount={2}
+      />
+    );
+
+    expect(screen.getByText("Resume: Failed")).toBeInTheDocument();
+    expect(screen.getByText("Cover Letter: Success")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Remove Resume: Failed filter/i }));
+    expect(onResumeChange).toHaveBeenCalledWith("all");
+  });
+
   it("toggles remote from the popover", () => {
     const onRemoteChange = vi.fn();
     render(
