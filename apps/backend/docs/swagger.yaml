@@ -235,13 +235,6 @@ definitions:
       issue:
         type: string
     type: object
-  jobs.bulkAnalyzeCompatibilityItemRequest:
-    properties:
-      force:
-        type: boolean
-      slug:
-        type: string
-    type: object
   jobs.bulkCreateJobRequest:
     properties:
       jobs:
@@ -273,6 +266,11 @@ definitions:
         items:
           type: string
         type: array
+    type: object
+  jobs.createEvaluationItemRequest:
+    properties:
+      slug:
+        type: string
     type: object
   jobs.createJobRequest:
     properties:
@@ -369,6 +367,13 @@ definitions:
       id:
         type: string
       variant:
+        type: string
+    type: object
+  matching.bulkGenerateEvaluationItemRequest:
+    properties:
+      force:
+        type: boolean
+      id:
         type: string
     type: object
   matching.bulkGenerateReportItemRequest:
@@ -1149,44 +1154,6 @@ paths:
       summary: Bulk create jobs
       tags:
       - jobs
-  /v1/jobs/bulk-analyze-compatibility:
-    post:
-      consumes:
-      - application/json
-      description: Trigger compatibility evaluation for multiple jobs in bulk with
-        partial results. Clerk users evaluate their own profile; machine API key callers
-        evaluate all users associated with the job in user_jobs.
-      parameters:
-      - description: Jobs to evaluate compatibility
-        in: body
-        name: jobs
-        required: true
-        schema:
-          items:
-            $ref: '#/definitions/jobs.bulkAnalyzeCompatibilityItemRequest'
-          type: array
-      produces:
-      - application/json
-      responses:
-        "202":
-          description: Accepted
-          schema:
-            items:
-              $ref: '#/definitions/models.MatchingEvaluationSummary'
-            type: array
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/httpx.Error'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/httpx.Error'
-      security:
-      - ApiKeyAuth: []
-      summary: Trigger bulk compatibility evaluation
-      tags:
-      - jobs
   /v1/jobs/bulk-queue-analyze:
     post:
       consumes:
@@ -1229,6 +1196,45 @@ paths:
       security:
       - ApiKeyAuth: []
       summary: Bulk queue job analysis
+      tags:
+      - jobs
+  /v1/jobs/evaluation:
+    post:
+      consumes:
+      - application/json
+      description: Insert one matching evaluation per user linked to each job slug
+        at status new, without starting a workflow. Clerk callers are scoped to the
+        user in their token; API key callers are trusted and evaluate all linked users.
+        Per-item failures are returned in the response and do not stop the batch.
+      parameters:
+      - description: Job slugs to create evaluations for
+        in: body
+        name: items
+        required: true
+        schema:
+          items:
+            $ref: '#/definitions/jobs.createEvaluationItemRequest'
+          type: array
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            items:
+              $ref: '#/definitions/models.MatchingEvaluationSummary'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpx.Error'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpx.Error'
+      security:
+      - ApiKeyAuth: []
+      summary: Create matching evaluations
       tags:
       - jobs
   /v1/jobs/manual:
@@ -1644,6 +1650,45 @@ paths:
       security:
       - ApiKeyAuth: []
       summary: Bulk queue cover letter generation
+      tags:
+      - matching
+  /v1/matching-evaluations/bulk-generate-evaluation:
+    post:
+      consumes:
+      - application/json
+      description: Starts the match-job workflow for each given evaluation ID at status
+        new or failed. Clerk callers are checked for ownership from the token; API
+        key callers are trusted and need no per-item user. Per-item failures are returned
+        in the response and do not stop the batch.
+      parameters:
+      - description: Evaluation IDs to trigger
+        in: body
+        name: items
+        required: true
+        schema:
+          items:
+            $ref: '#/definitions/matching.bulkGenerateEvaluationItemRequest'
+          type: array
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            items:
+              $ref: '#/definitions/models.MatchingEvaluationSummary'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpx.Error'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpx.Error'
+      security:
+      - ApiKeyAuth: []
+      summary: Bulk generate evaluations
       tags:
       - matching
   /v1/matching-evaluations/bulk-generate-report:
