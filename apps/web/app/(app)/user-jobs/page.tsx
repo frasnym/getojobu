@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import Link from "next/link";
+import { useAuth } from "@clerk/nextjs";
+import { scrapeJobFromURL } from "@/lib/api/endpoints";
 import { useUserJobs } from "@/hooks/use-user-jobs";
 import { JobCard } from "@/components/jobs/job-card";
 import { JobFilters } from "@/components/jobs/job-filters";
@@ -9,9 +11,10 @@ import { PaginationControls } from "@/components/jobs/pagination-controls";
 import { JobDetailDrawer } from "@/components/jobs/job-detail-drawer";
 import { ReportTab } from "@/components/jobs/job-report-header";
 import { UserJob } from "@/lib/api/types";
-import { Sparkles, Briefcase, Compass, RefreshCw, CheckSquare, Eye, EyeOff, X } from "lucide-react";
+import { Sparkles, Briefcase, Compass, RefreshCw, CheckSquare, Eye, EyeOff, X, Plus } from "lucide-react";
 
 export default function UserJobsPage() {
+	const { getToken } = useAuth();
 	const {
 		filteredJobs,
 		pagination,
@@ -120,6 +123,19 @@ export default function UserJobsPage() {
 		[hideJob]
 	);
 
+	const handleScrapeRetry = useCallback(
+		async (_userJobId: string, sourceUrl: string) => {
+			try {
+				const token = await getToken();
+				await scrapeJobFromURL({ source_url: sourceUrl }, token);
+				await refetch();
+			} catch {
+				// The new skeleton will show its own scrape_failed state if it fails again.
+			}
+		},
+		[getToken, refetch]
+	);
+
 	const handleClose = () => {
 		setSelectedRow(null);
 		setActiveTab("details");
@@ -142,7 +158,14 @@ export default function UserJobsPage() {
 					</p>
 				</div>
 
-				<div className="pt-2 sm:pt-0">
+				<div className="flex items-center gap-2 pt-2 sm:pt-0">
+					<Link
+						href="/user-jobs/add"
+						className="inline-flex items-center gap-2 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground shadow hover:bg-primary/90 transition-colors"
+					>
+						<Plus className="h-3.5 w-3.5" />
+						<span>Add Job</span>
+					</Link>
 					<button
 						type="button"
 						onClick={() => refetch()}
@@ -262,6 +285,7 @@ export default function UserJobsPage() {
 							isSelected={selectedRow?.id === userJob.id}
 							onHideToggle={hideJob}
 							onRetry={retryJob}
+							onScrapeRetry={handleScrapeRetry}
 							selectable
 							isChecked={checkedIds.has(userJob.id)}
 							onCheckChange={(checked) => toggleCheck(userJob.id, checked)}

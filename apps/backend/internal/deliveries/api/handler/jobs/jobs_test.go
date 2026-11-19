@@ -540,7 +540,7 @@ func TestUpdateJob_status_transition_success(t *testing.T) {
 	slug := "some-job-new"
 	updated := &models.Job{Slug: slug, Status: "analyze_pending"}
 	mockJob.EXPECT().
-		UpdateStatus(gomock.Any(), slug, "analyze_pending", (*string)(nil), (*string)(nil), "worker", "getojobu-worker").
+		UpdateStatus(gomock.Any(), models.UpdateJobParams{Slug: slug, Status: "analyze_pending", AnalyzeResult: (*string)(nil), FailureMessage: (*string)(nil), UpdatedByType: "worker", UpdatedByID: "getojobu-worker"}).
 		Return(updated, nil)
 
 	mux := http.NewServeMux()
@@ -558,6 +558,27 @@ func TestUpdateJob_status_transition_success(t *testing.T) {
 	assert.Equal(t, "analyze_pending", m["status"])
 }
 
+func TestUpdateJob_clerk_caller_cannot_touch_other_users_private_job(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	h, mockJob, _ := newHandlerWithMock(ctrl)
+
+	slug := "m-personal-job"
+	mockJob.EXPECT().
+		GetBySlug(gomock.Any(), slug, "user-a").
+		Return(nil, constants.ErrNotFound)
+
+	mux := http.NewServeMux()
+	mux.Handle("PATCH /jobs/{slug}", httpx.HandlerFunc(h.UpdateJob))
+
+	req := httptest.NewRequest(http.MethodPatch, "/jobs/"+slug, strings.NewReader(`{"status":"new"}`))
+	req = req.WithContext(ctxval.ContextWithPrincipal(req.Context(), &models.Principal{ID: "user-a"}))
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusNotFound, w.Code)
+}
+
 func TestUpdateJob_status_transition_blocked_from_analyzed(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
@@ -565,7 +586,7 @@ func TestUpdateJob_status_transition_blocked_from_analyzed(t *testing.T) {
 
 	slug := "already-analyzed-job"
 	mockJob.EXPECT().
-		UpdateStatus(gomock.Any(), slug, "analyze_pending", (*string)(nil), (*string)(nil), "worker", "getojobu-worker").
+		UpdateStatus(gomock.Any(), models.UpdateJobParams{Slug: slug, Status: "analyze_pending", AnalyzeResult: (*string)(nil), FailureMessage: (*string)(nil), UpdatedByType: "worker", UpdatedByID: "getojobu-worker"}).
 		Return(nil, fmt.Errorf("%w: %s", constants.ErrInvalidTransition, "job is already finalized"))
 
 	mux := http.NewServeMux()
@@ -590,7 +611,7 @@ func TestUpdateJob_status_transition_with_analyze_result(t *testing.T) {
 	result := strPtr(`{"title":"Engineer"}`)
 	updated := &models.Job{Slug: slug, Status: "analyzed", AnalyzeResult: json.RawMessage(*result)}
 	mockJob.EXPECT().
-		UpdateStatus(gomock.Any(), slug, "analyzed", result, (*string)(nil), "worker", "getojobu-worker").
+		UpdateStatus(gomock.Any(), models.UpdateJobParams{Slug: slug, Status: "analyzed", AnalyzeResult: result, FailureMessage: (*string)(nil), UpdatedByType: "worker", UpdatedByID: "getojobu-worker"}).
 		Return(updated, nil)
 
 	mux := http.NewServeMux()
@@ -615,7 +636,7 @@ func TestUpdateJob_status_transition_failed_with_message(t *testing.T) {
 	msg := strPtr("LLM timeout")
 	updated := &models.Job{Slug: slug, Status: "failed", FailureMessage: msg}
 	mockJob.EXPECT().
-		UpdateStatus(gomock.Any(), slug, "failed", (*string)(nil), msg, "worker", "getojobu-worker").
+		UpdateStatus(gomock.Any(), models.UpdateJobParams{Slug: slug, Status: "failed", AnalyzeResult: (*string)(nil), FailureMessage: msg, UpdatedByType: "worker", UpdatedByID: "getojobu-worker"}).
 		Return(updated, nil)
 
 	mux := http.NewServeMux()
@@ -637,7 +658,7 @@ func TestUpdateJob_status_not_found(t *testing.T) {
 	h, mockJob, _ := newHandlerWithMock(ctrl)
 
 	mockJob.EXPECT().
-		UpdateStatus(gomock.Any(), "missing", "analyze_pending", (*string)(nil), (*string)(nil), "worker", "getojobu-worker").
+		UpdateStatus(gomock.Any(), models.UpdateJobParams{Slug: "missing", Status: "analyze_pending", AnalyzeResult: (*string)(nil), FailureMessage: (*string)(nil), UpdatedByType: "worker", UpdatedByID: "getojobu-worker"}).
 		Return(nil, constants.ErrNotFound)
 
 	mux := http.NewServeMux()

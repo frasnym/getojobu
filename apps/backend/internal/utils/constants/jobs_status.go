@@ -13,6 +13,8 @@ const (
 	StatusAnalyzePending JobStatus = "analyze_pending"
 	StatusAnalyzed       JobStatus = "analyzed"
 	StatusFailed         JobStatus = "failed"
+	StatusScrapePending  JobStatus = "scrape_pending"
+	StatusScrapeFailed   JobStatus = "scrape_failed"
 )
 
 // ValidateJobStatusTransition returns an error when transitioning from current
@@ -27,6 +29,9 @@ const (
 //	analyze_pending → analyzed
 //	analyze_pending → failed
 //	failed          → queued_retry    (retry)
+//	scrape_pending  → new             (scrape succeeded)
+//	scrape_pending  → scrape_failed   (scrape failed)
+//	scrape_failed   → scrape_pending  (retry scrape)
 //
 // Everything else is rejected, including any transition out of "analyzed".
 func ValidateJobStatusTransition(current, next JobStatus) error {
@@ -85,6 +90,24 @@ func ValidateJobStatusTransition(current, next JobStatus) error {
 		return fmt.Errorf(
 			"transition from %q to %q is not allowed: failed jobs may only be retried via %q",
 			current, next, StatusQueuedRetry,
+		)
+
+	case StatusScrapePending:
+		if next == StatusNew || next == StatusScrapeFailed {
+			return nil
+		}
+		return fmt.Errorf(
+			"transition from %q to %q is not allowed: expected %q or %q",
+			current, next, StatusNew, StatusScrapeFailed,
+		)
+
+	case StatusScrapeFailed:
+		if next == StatusScrapePending {
+			return nil
+		}
+		return fmt.Errorf(
+			"transition from %q to %q is not allowed: expected %q to retry the scrape",
+			current, next, StatusScrapePending,
 		)
 
 	default:

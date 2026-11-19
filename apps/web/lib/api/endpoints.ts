@@ -7,7 +7,32 @@ import {
   EvaluationDetail,
   AccountUser,
   UpdateAccountInput,
+  CreateManualJobRequest,
+  ScrapeURLRequest,
+  CreateJobResponse,
 } from "./types";
+
+export async function createManualJob(
+  params: CreateManualJobRequest,
+  token?: string | null
+): Promise<CreateJobResponse> {
+  return apiClient<CreateJobResponse>("/v1/user-jobs/manual", {
+    method: "POST",
+    token,
+    body: JSON.stringify(params),
+  });
+}
+
+export async function scrapeJobFromURL(
+  params: ScrapeURLRequest,
+  token?: string | null
+): Promise<CreateJobResponse> {
+  return apiClient<CreateJobResponse>("/v1/user-jobs/scrape-url", {
+    method: "POST",
+    token,
+    body: JSON.stringify(params),
+  });
+}
 
 export async function getJobs(
   token?: string | null,

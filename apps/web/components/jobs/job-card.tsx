@@ -20,6 +20,8 @@ interface JobCardProps {
 	onCheckChange?: (checked: boolean) => void;
 	/** Called when the user retries a failed job analysis. */
 	onRetry?: (userJobId: string) => void | Promise<void>;
+	/** Called when the user retries a failed URL scrape. */
+	onScrapeRetry?: (userJobId: string, sourceUrl: string) => void | Promise<void>;
 }
 
 export function JobCard({
@@ -29,6 +31,7 @@ export function JobCard({
 	isSelected,
 	onHideToggle,
 	onRetry,
+	onScrapeRetry,
 	canOpenDetail = true,
 	selectable = false,
 	isChecked = false,
@@ -36,7 +39,9 @@ export function JobCard({
 }: JobCardProps) {
 	const job = userJob.job;
 	const targetHref = href || `/user-jobs/${job.slug}`;
-	const isClickable = !!onSelect && canOpenDetail;
+	const isScrapePending = job.status === "scrape_pending";
+	const isScrapeFailed = job.status === "scrape_failed";
+	const isClickable = !!onSelect && canOpenDetail && !isScrapePending;
 	const isHidden = userJob.is_hidden === true;
 	// Matches retryJob priority so the label always says what a click will retry.
 	const retryLabel = job.status === "failed"
@@ -66,6 +71,18 @@ export function JobCard({
 				<div className="space-y-2 flex-1">
 					<div className="flex flex-wrap items-center gap-2">
 						<span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{job.company}</span>
+						{job.source === "manual" && (
+							<StatusTag label="Manual" tone="info" testId="manual-source-tag" />
+						)}
+						{job.source === "user_scrape" && (
+							<StatusTag label="Scraped" tone="info" testId="scraped-source-tag" />
+						)}
+						{isScrapePending && (
+							<StatusTag label="Scraping..." tone="pending" icon={<Clock className="h-3 w-3 animate-spin" />} testId="scrape-pending-tag" />
+						)}
+						{isScrapeFailed && (
+							<StatusTag label="Scrape failed" tone="failed" testId="scrape-failed-tag" />
+						)}
 						{job.is_remote && (
 							<StatusTag
 								label="Remote"
@@ -130,7 +147,7 @@ export function JobCard({
 					</div>
 				</div>
 
-				{canOpenDetail && (
+				{canOpenDetail && !isScrapePending && (
 					<div className="flex shrink-0 justify-end pt-2 sm:pt-0">
 						<div className="flex items-center gap-1 text-xs font-medium text-muted-foreground group-hover:text-foreground group-hover:translate-x-0.5 transition-all">
 							<span>Details</span>
@@ -143,6 +160,25 @@ export function JobCard({
 			{(job.status || userJob.evaluation || selectable) && (
 				<div className="mt-4 flex flex-wrap items-center gap-2.5 border-t border-border/40 pt-3">
 					<EvaluationStatusTag status={job.status} />
+					{isScrapeFailed && job.failure_message && (
+						<span className="text-xs text-destructive" title={job.failure_message}>
+							{job.failure_message.slice(0, 120)}
+						</span>
+					)}
+					{isScrapeFailed && job.source_url && onScrapeRetry && (
+						<button
+							type="button"
+							onClick={(e) => {
+								e.stopPropagation();
+								onScrapeRetry(userJob.id, job.source_url as string);
+							}}
+							className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3.5 py-1.5 text-xs font-semibold text-foreground hover:bg-secondary transition-colors"
+							aria-label="Retry scrape"
+						>
+							<RotateCcw className="h-3.5 w-3.5 text-red-500" />
+							<span>Retry Scrape</span>
+						</button>
+					)}
 					{userJob.evaluation && (
 						<>
 							<EvaluationStatusTag status={userJob.evaluation.evaluation_status} label="Evaluation" />

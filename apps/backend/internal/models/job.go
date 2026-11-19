@@ -31,6 +31,7 @@ type Job struct {
 	UpdatedAt      time.Time
 	UpdatedByType  string
 	UpdatedByID    string
+	OwnerID        *uuid.UUID
 }
 
 // UserJobFilter holds optional server-side filters when listing a user's jobs.
@@ -86,8 +87,47 @@ type CreateJobParams struct {
 	// ("system", "system") via actorTypeID() in the repository when empty).
 	UpdatedByType string `json:"-"`
 	UpdatedByID   string `json:"-"`
+	// OwnerID marks a private, user-created listing. NULL means shared.
+	OwnerID *uuid.UUID `json:"-"`
+	// Status lets callers insert a listing at a specific status. Empty uses the
+	// database default of "new".
+	Status string `json:"-"`
 	// UserIDs is the list of internal user ids linked to this job in user_jobs.
 	UserIDs []string `json:"-"`
+}
+
+// UpdateJobParams carries the fields for a status transition. The extended
+// fields are applied only when the current status is scrape_pending.
+type UpdateJobParams struct {
+	Slug           string
+	Status         string
+	AnalyzeResult  *string
+	FailureMessage *string
+	NewSlug        *string
+	Title          *string
+	Company        *string
+	Location       *string
+	Description    *string
+	SourceURL      *string
+	ApplyURL       *string
+	PostedDate     *time.Time
+	IsRemote       *bool
+	VisaRelocation *bool
+	UpdatedByType  string
+	UpdatedByID    string
+}
+
+// CreateManualJobParams holds user-supplied fields for a manually inserted job.
+type CreateManualJobParams struct {
+	Title          string
+	Company        string
+	Location       string
+	Description    *string
+	SourceURL      *string
+	ApplyURL       *string
+	PostedDate     time.Time
+	IsRemote       *bool
+	VisaRelocation *bool
 }
 
 // CreateJobResult is the outcome of creating a job listing.
@@ -169,4 +209,16 @@ func BuildJobSlug(title, company, location string) string {
 		location = "unspecified-location"
 	}
 	return title + "-" + company + "-" + location
+}
+
+// BuildManualJobSlug prefixes the standard slug with "m-{first8 of userID}-"
+// to namespace manual jobs away from scraped jobs and from other users.
+func BuildManualJobSlug(userID, title, company, location string) string {
+	prefix := "m-"
+	if len(userID) >= 8 {
+		prefix += userID[:8] + "-"
+	} else if userID != "" {
+		prefix += userID + "-"
+	}
+	return prefix + BuildJobSlug(title, company, location)
 }

@@ -239,10 +239,10 @@ func TestUpdateStatus_allowed(t *testing.T) {
 		GetBySlug(gomock.Any(), slug, "").
 		Return(&models.JobWithOwnership{Job: existing}, nil)
 	repo.EXPECT().
-		UpdateStatus(gomock.Any(), slug, "analyze_pending", (*string)(nil), (*string)(nil), "worker", "worker_1").
+		UpdateStatus(gomock.Any(), models.UpdateJobParams{Slug: slug, Status: "analyze_pending", AnalyzeResult: (*string)(nil), FailureMessage: (*string)(nil), UpdatedByType: "worker", UpdatedByID: "worker_1"}).
 		Return(updated, nil)
 
-	got, err := s.UpdateStatus(context.Background(), slug, "analyze_pending", nil, nil, "worker", "worker_1")
+	got, err := s.UpdateStatus(context.Background(), models.UpdateJobParams{Slug: slug, Status: "analyze_pending", AnalyzeResult: nil, FailureMessage: nil, UpdatedByType: "worker", UpdatedByID: "worker_1"})
 
 	require.NoError(t, err)
 	assert.Equal(t, "analyze_pending", got.Status)
@@ -262,7 +262,7 @@ func TestUpdateStatus_invalid_transition(t *testing.T) {
 		GetBySlug(gomock.Any(), slug, "").
 		Return(&models.JobWithOwnership{Job: existing}, nil)
 
-	_, err := s.UpdateStatus(context.Background(), slug, "analyze_pending", nil, nil, "worker", "worker_1")
+	_, err := s.UpdateStatus(context.Background(), models.UpdateJobParams{Slug: slug, Status: "analyze_pending", AnalyzeResult: nil, FailureMessage: nil, UpdatedByType: "worker", UpdatedByID: "worker_1"})
 
 	require.Error(t, err)
 	assert.True(t, errors.Is(err, constants.ErrInvalidTransition))
@@ -286,14 +286,83 @@ func TestUpdateStatus_appends_failure_message_when_failing_again(t *testing.T) {
 		GetBySlug(gomock.Any(), slug, "").
 		Return(&models.JobWithOwnership{Job: existing}, nil)
 	repo.EXPECT().
-		UpdateStatus(gomock.Any(), slug, "failed", (*string)(nil), gomock.Eq(&combinedMsg), "worker", "worker_1").
-		Return(updated, nil)
+		UpdateStatus(gomock.Any(), gomock.Any()).
+		DoAndReturn(func(_ context.Context, p models.UpdateJobParams) (*models.Job, error) {
+			require.NotNil(t, p.FailureMessage)
+			assert.Equal(t, combinedMsg, *p.FailureMessage)
+			return updated, nil
+		})
 
-	got, err := s.UpdateStatus(context.Background(), slug, "failed", nil, &newMsg, "worker", "worker_1")
+	got, err := s.UpdateStatus(context.Background(), models.UpdateJobParams{Slug: slug, Status: "failed", AnalyzeResult: nil, FailureMessage: &newMsg, UpdatedByType: "worker", UpdatedByID: "worker_1"})
 
 	require.NoError(t, err)
 	assert.Equal(t, "failed", got.Status)
 	assert.Equal(t, combinedMsg, *got.FailureMessage)
+}
+
+func TestUpdateStatus_scrape_callback_fields(t *testing.T) {
+	t.Run("scrape_pending to new persists extended fields", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		repo := mocks.NewMockJobs(ctrl)
+		s := newServiceWithMock(repo, mocks.NewMockUserJobs(ctrl))
+
+		slug := "m-abcdef12-scrape-1"
+		newSlug := "m-abcdef12-senior-engineer-acme-berlin"
+		title := "Senior Engineer"
+		company := "Acme"
+		location := "Berlin"
+		remote := true
+
+		repo.EXPECT().GetBySlug(gomock.Any(), slug, "").Return(
+			&models.JobWithOwnership{Job: &models.Job{Slug: slug, Status: "scrape_pending"}}, nil,
+		)
+		repo.EXPECT().UpdateStatus(gomock.Any(), gomock.Any()).DoAndReturn(
+			func(_ context.Context, p models.UpdateJobParams) (*models.Job, error) {
+				assert.Equal(t, "new", p.Status)
+				require.NotNil(t, p.NewSlug)
+				assert.Equal(t, newSlug, *p.NewSlug)
+				assert.Equal(t, &title, p.Title)
+				assert.Equal(t, &company, p.Company)
+				assert.Equal(t, &location, p.Location)
+				assert.Equal(t, &remote, p.IsRemote)
+				return &models.Job{Slug: newSlug, Status: "new"}, nil
+			},
+		)
+
+		_, err := s.UpdateStatus(context.Background(), models.UpdateJobParams{
+			Slug: slug, Status: "new", NewSlug: &newSlug, Title: &title,
+			Company: &company, Location: &location, IsRemote: &remote,
+			UpdatedByType: "worker", UpdatedByID: "scrape",
+		})
+		require.NoError(t, err)
+	})
+
+	t.Run("non-scrape transition ignores extended fields", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		repo := mocks.NewMockJobs(ctrl)
+		s := newServiceWithMock(repo, mocks.NewMockUserJobs(ctrl))
+
+		slug := "some-job"
+		title := "Ignored"
+		repo.EXPECT().GetBySlug(gomock.Any(), slug, "").Return(
+			&models.JobWithOwnership{Job: &models.Job{Slug: slug, Status: "queued"}}, nil,
+		)
+		repo.EXPECT().UpdateStatus(gomock.Any(), gomock.Any()).DoAndReturn(
+			func(_ context.Context, p models.UpdateJobParams) (*models.Job, error) {
+				assert.Nil(t, p.Title)
+				assert.Nil(t, p.NewSlug)
+				return &models.Job{Slug: slug, Status: "analyze_pending"}, nil
+			},
+		)
+
+		_, err := s.UpdateStatus(context.Background(), models.UpdateJobParams{
+			Slug: slug, Status: "analyze_pending", Title: &title,
+			UpdatedByType: "worker", UpdatedByID: "worker",
+		})
+		require.NoError(t, err)
+	})
 }
 
 func strPtr(s string) *string {

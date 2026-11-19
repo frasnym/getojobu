@@ -2185,6 +2185,108 @@
                 }
             }
         },
+        "/v1/user-jobs/manual": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Create a private job from user-supplied fields. Only the owning Clerk user can see it.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "user-jobs"
+                ],
+                "summary": "Create manual job",
+                "parameters": [
+                    {
+                        "description": "Manual job data",
+                        "name": "job",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/user_jobs.createManualJobRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/dto.CreateJobResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpx.Error"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/httpx.Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/user-jobs/scrape-url": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Create a private job from a URL. The job starts at scrape_pending and is filled in by the scrape workflow.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "user-jobs"
+                ],
+                "summary": "Scrape job from URL",
+                "parameters": [
+                    {
+                        "description": "Job URL",
+                        "name": "job",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/user_jobs.scrapeURLRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Accepted",
+                        "schema": {
+                            "$ref": "#/definitions/dto.CreateJobResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpx.Error"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/httpx.Error"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/user-jobs/{user_job_id}/evaluation": {
             "get": {
                 "security": [
@@ -2357,6 +2459,9 @@
                     "type": "string"
                 },
                 "slug": {
+                    "type": "string"
+                },
+                "source": {
                     "type": "string"
                 },
                 "source_url": {
@@ -2741,11 +2846,41 @@
                 "analyze_result": {
                     "type": "string"
                 },
+                "apply_url": {
+                    "type": "string"
+                },
+                "company": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
                 "failure_message": {
+                    "type": "string"
+                },
+                "is_remote": {
+                    "type": "boolean"
+                },
+                "location": {
+                    "type": "string"
+                },
+                "posted_date": {
+                    "type": "string"
+                },
+                "slug": {
+                    "type": "string"
+                },
+                "source_url": {
                     "type": "string"
                 },
                 "status": {
                     "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "visa_relocation": {
+                    "type": "boolean"
                 }
             }
         },
@@ -3411,6 +3546,46 @@
                 },
                 "job_id": {
                     "type": "integer"
+                }
+            }
+        },
+        "user_jobs.createManualJobRequest": {
+            "type": "object",
+            "properties": {
+                "apply_url": {
+                    "type": "string"
+                },
+                "company": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "is_remote": {
+                    "type": "boolean"
+                },
+                "location": {
+                    "type": "string"
+                },
+                "posted_date": {
+                    "type": "string"
+                },
+                "source_url": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "visa_relocation": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "user_jobs.scrapeURLRequest": {
+            "type": "object",
+            "properties": {
+                "source_url": {
+                    "type": "string"
                 }
             }
         },

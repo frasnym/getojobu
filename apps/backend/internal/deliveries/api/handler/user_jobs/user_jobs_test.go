@@ -589,6 +589,22 @@ func TestSetBulkHideStatus_unauthenticated(t *testing.T) {
 	assert.Equal(t, http.StatusUnauthorized, w.Code)
 }
 
+func TestCreateManualJob_missing_title_returns_400(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	h, _ := newHandlerWithMock(ctrl)
+
+	mux := http.NewServeMux()
+	mux.Handle("POST /user-jobs/manual", httpx.HandlerFunc(h.CreateManualJob))
+
+	req := httptest.NewRequest(http.MethodPost, "/user-jobs/manual", strings.NewReader(`{"company":"Acme","location":"Berlin"}`))
+	req = req.WithContext(ctxval.ContextWithPrincipal(req.Context(), principalCtx(uuid.NewString())))
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
 func TestRoute_registers_userjobs_under_group(t *testing.T) {
 	// Arrange.
 	ctrl := gomock.NewController(t)
@@ -602,15 +618,19 @@ func TestRoute_registers_userjobs_under_group(t *testing.T) {
 
 	// Assert via introspection. Patterns are compounded with the group prefix.
 	routes := rt.Routes()
-	require.Len(t, routes, 4, "expected 4 user-jobs routes under /v1/user-jobs")
+	require.Len(t, routes, 6, "expected 6 user-jobs routes under /v1/user-jobs")
 	assert.Equal(t, http.MethodGet, routes[0].Method)
 	assert.Equal(t, "/v1/user-jobs", routes[0].Pattern)
 	assert.Equal(t, http.MethodPost, routes[1].Method)
 	assert.Equal(t, "/v1/user-jobs", routes[1].Pattern)
-	assert.Equal(t, http.MethodPatch, routes[2].Method)
-	assert.Equal(t, "/v1/user-jobs/bulk", routes[2].Pattern)
-	assert.Equal(t, http.MethodGet, routes[3].Method)
-	assert.Equal(t, "/v1/user-jobs/{user_job_id}/evaluation", routes[3].Pattern)
+	assert.Equal(t, http.MethodPost, routes[2].Method)
+	assert.Equal(t, "/v1/user-jobs/manual", routes[2].Pattern)
+	assert.Equal(t, http.MethodPost, routes[3].Method)
+	assert.Equal(t, "/v1/user-jobs/scrape-url", routes[3].Pattern)
+	assert.Equal(t, http.MethodPatch, routes[4].Method)
+	assert.Equal(t, "/v1/user-jobs/bulk", routes[4].Pattern)
+	assert.Equal(t, http.MethodGet, routes[5].Method)
+	assert.Equal(t, "/v1/user-jobs/{user_job_id}/evaluation", routes[5].Pattern)
 }
 
 func TestGetEvaluation_includesJob(t *testing.T) {

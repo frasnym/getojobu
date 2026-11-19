@@ -24,6 +24,9 @@ func TestValidateJobStatusTransition(t *testing.T) {
 			{"analyze_pending_to_failed", StatusAnalyzePending, StatusFailed},
 			{"analyze_pending_to_queued_retry", StatusAnalyzePending, StatusQueuedRetry},
 			{"failed_to_queued_retry", StatusFailed, StatusQueuedRetry},
+			{"scrape_pending_to_new", StatusScrapePending, StatusNew},
+			{"scrape_pending_to_scrape_failed", StatusScrapePending, StatusScrapeFailed},
+			{"scrape_failed_to_scrape_pending", StatusScrapeFailed, StatusScrapePending},
 		}
 
 		for _, tc := range cases {
@@ -93,6 +96,18 @@ func TestValidateJobStatusTransition(t *testing.T) {
 				current:     StatusNew,
 				next:        StatusAnalyzePending,
 				wantContain: "job must move to \"queued\" first",
+			},
+			{
+				name:        "scrape_pending_to_queued",
+				current:     StatusScrapePending,
+				next:        StatusQueued,
+				wantContain: "not allowed",
+			},
+			{
+				name:        "scrape_failed_to_new",
+				current:     StatusScrapeFailed,
+				next:        StatusNew,
+				wantContain: "not allowed",
 			},
 			{
 				name:        "unknown_current_status",

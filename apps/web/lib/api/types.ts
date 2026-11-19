@@ -40,6 +40,28 @@ export interface EvaluationDetail {
   evaluation: MatchReport;
 }
 
+export interface CreateManualJobRequest {
+  title: string;
+  company: string;
+  location: string;
+  description?: string;
+  source_url?: string;
+  apply_url?: string;
+  posted_date?: string;
+  is_remote?: boolean;
+  visa_relocation?: boolean;
+}
+
+export interface ScrapeURLRequest {
+  source_url: string;
+}
+
+export interface CreateJobResponse {
+  job: Job;
+  created: boolean;
+  added_to_user_list: boolean;
+}
+
 export interface Job {
   id: number;
   slug: string;
@@ -48,9 +70,12 @@ export interface Job {
   company: string;
   location: string;
   description?: string;
+  source?: string;
+  failure_message?: string;
   apply_url?: string;
   source_url?: string;
   is_remote?: boolean;
+  visa_relocation?: boolean;
   posted_date?: string;
   created_at: string;
   updated_at?: string;

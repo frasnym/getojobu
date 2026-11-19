@@ -77,10 +77,21 @@ For missing company or location values, use consistent placeholders such as `unk
 | `posted_date`     | `DATE`        |      Yes | Posting date reported by the source                                  |
 | `is_remote`       | `BOOLEAN`     |      Yes | Whether the role is remote; `NULL` means unknown                     |
 | `visa_relocation` | `BOOLEAN`     |      Yes | Whether visa/relocation support is reported; `NULL` means unknown    |
+| `owner_id`        | `UUID`        |      Yes | FK to `users(id)`; `NULL` = shared listing, non-null = private listing |
 | `created_at`      | `TIMESTAMPTZ` |       No | When the row was inserted                                            |
 | `updated_at`      | `TIMESTAMPTZ` |       No | When the row was last modified                                       |
 
 `source`, `external_id`, `source_url`, and `apply_url` describe the first discovered listing. They are not a collection of all sources that advertise the same job.
+
+### Manual and user-scraped listings
+
+Manual listings use `source = manual` or `source = user_scrape` and set `owner_id` to the internal user ID. A private listing is linked in `user_jobs` exactly like a shared listing, so it appears in that user's saved jobs and goes through the same analysis pipeline. Shared/scraped listings keep `owner_id = NULL`.
+
+Manual slugs are namespaced as `m-{first8 of user UUID}-{title}-{company}-{location}`. The prefix prevents collisions with scraped slugs and between different users. A repeated insert by the same user hits `ON CONFLICT (slug) DO NOTHING` and returns the existing row.
+
+The visibility rule applies to Clerk callers only: `WHERE owner_id IS NULL OR owner_id = :current_user_id`. API-key callers and internal Go reads see all jobs; the Python worker relies on this to update private jobs and queue their analysis.
+
+Two additional statuses support URL scraping: `scrape_pending` (skeleton job created, extraction in progress) and `scrape_failed` (extraction failed, `failure_message` holds the reason). Transitions: `scrape_pending → new` on success, `scrape_pending → scrape_failed` on failure, and `scrape_failed → scrape_pending` on retry. No other transition out of these states is allowed.
 
 ## PostgreSQL migration
 

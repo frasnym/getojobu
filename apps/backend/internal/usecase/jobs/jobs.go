@@ -23,7 +23,7 @@ type Job interface {
 	// analyzeResult and failureMessage are optional (nil = keep existing value).
 	// Returns ErrNotFound when slug is unknown, ErrInvalidTransition when the
 	// current → next transition is not permitted.
-	UpdateStatus(ctx context.Context, slug, status string, analyzeResult, failureMessage *string, updatedByType, updatedByID string) (*models.Job, error)
+	UpdateStatus(ctx context.Context, params models.UpdateJobParams) (*models.Job, error)
 	// QueueAnalysisBulk validates each job and queues its JobAnalyzeWorkflow in Temporal.
 	// Per-item failures are returned in the result instead of aborting the batch.
 	QueueAnalysisBulk(ctx context.Context, items []models.QueueAnalysisItem, caller *models.Principal) (models.QueueAnalysisBulkResult, error)
@@ -184,8 +184,8 @@ func (s *jobService) List(ctx context.Context, limit, offset int, userID string)
 // in the handler or the repository. Returns ErrNotFound when slug is unknown
 // and ErrInvalidTransition (wrapping the validator's error) when the transition
 // is not permitted.
-func (s *jobService) UpdateStatus(ctx context.Context, slug, status string, analyzeResult, failureMessage *string, updatedByType, updatedByID string) (*models.Job, error) {
-	existingRes, err := s.repo.GetBySlug(ctx, slug, "")
+func (s *jobService) UpdateStatus(ctx context.Context, params models.UpdateJobParams) (*models.Job, error) {
+	existingRes, err := s.repo.GetBySlug(ctx, params.Slug, "")
 	if err != nil {
 		if errors.Is(err, constants.ErrNotFound) {
 			return nil, constants.ErrNotFound
@@ -196,20 +196,35 @@ func (s *jobService) UpdateStatus(ctx context.Context, slug, status string, anal
 
 	if err := constants.ValidateJobStatusTransition(
 		constants.JobStatus(existing.Status),
-		constants.JobStatus(status),
+		constants.JobStatus(params.Status),
 	); err != nil {
 		return nil, fmt.Errorf("%w: %s", constants.ErrInvalidTransition, err.Error())
 	}
 
-	if constants.JobStatus(status) == constants.StatusFailed && failureMessage != nil && existing.FailureMessage != nil && strings.TrimSpace(*existing.FailureMessage) != "" {
-		combined := fmt.Sprintf("%s\n%s", *existing.FailureMessage, *failureMessage)
+	if constants.JobStatus(params.Status) == constants.StatusFailed && params.FailureMessage != nil && existing.FailureMessage != nil && strings.TrimSpace(*existing.FailureMessage) != "" {
+		combined := fmt.Sprintf("%s\n%s", *existing.FailureMessage, *params.FailureMessage)
 		if len(combined) > 4000 {
 			combined = combined[len(combined)-4000:]
 		}
-		failureMessage = &combined
+		params.FailureMessage = &combined
 	}
 
-	job, err := s.repo.UpdateStatus(ctx, slug, status, analyzeResult, failureMessage, updatedByType, updatedByID)
+	// Extended fields are meaningful only for the scrape callback. For every
+	// other transition they are cleared so existing rows are left untouched.
+	if constants.JobStatus(existing.Status) != constants.StatusScrapePending {
+		params.NewSlug = nil
+		params.Title = nil
+		params.Company = nil
+		params.Location = nil
+		params.Description = nil
+		params.SourceURL = nil
+		params.ApplyURL = nil
+		params.PostedDate = nil
+		params.IsRemote = nil
+		params.VisaRelocation = nil
+	}
+
+	job, err := s.repo.UpdateStatus(ctx, params)
 	if err != nil {
 		if errors.Is(err, constants.ErrNotFound) {
 			return nil, constants.ErrNotFound

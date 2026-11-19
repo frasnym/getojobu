@@ -56,6 +56,16 @@ class GetojobuAPI(Protocol):
         *,
         analyze_result: str | None = None,
         failure_message: str | None = None,
+        new_slug: str | None = None,
+        title: str | None = None,
+        company: str | None = None,
+        location: str | None = None,
+        description: str | None = None,
+        source_url: str | None = None,
+        apply_url: str | None = None,
+        posted_date: str | None = None,
+        is_remote: bool | None = None,
+        visa_relocation: bool | None = None,
     ) -> dict[str, Any]: ...
 
     async def get_active_scoring_config(self, family: str) -> dict[str, Any]: ...
@@ -242,12 +252,42 @@ class _getojobuAPI:
         *,
         analyze_result: str | None = None,
         failure_message: str | None = None,
+        new_slug: str | None = None,
+        title: str | None = None,
+        company: str | None = None,
+        location: str | None = None,
+        description: str | None = None,
+        source_url: str | None = None,
+        apply_url: str | None = None,
+        posted_date: str | None = None,
+        is_remote: bool | None = None,
+        visa_relocation: bool | None = None,
     ) -> dict[str, Any]:
         payload: dict[str, Any] = {"status": status}
         if analyze_result is not None:
             payload["analyze_result"] = analyze_result
         if failure_message is not None:
             payload["failure_message"] = failure_message
+        if new_slug is not None:
+            payload["slug"] = new_slug
+        if title is not None:
+            payload["title"] = title
+        if company is not None:
+            payload["company"] = company
+        if location is not None:
+            payload["location"] = location
+        if description is not None:
+            payload["description"] = description
+        if source_url is not None:
+            payload["source_url"] = source_url
+        if apply_url is not None:
+            payload["apply_url"] = apply_url
+        if posted_date is not None:
+            payload["posted_date"] = posted_date
+        if is_remote is not None:
+            payload["is_remote"] = is_remote
+        if visa_relocation is not None:
+            payload["visa_relocation"] = visa_relocation
 
         response = await self._client.patch(
             f"/v1/jobs/{slug}",
