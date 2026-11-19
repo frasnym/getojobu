@@ -260,19 +260,6 @@ export function JobFilters({
   loading = false,
   isDrawerOpen = false,
 }: JobFiltersProps) {
-  // Determine status active color
-  let statusColorClass = "bg-primary/10 text-primary border-primary/25";
-  if (statusFilter === "analyzed") {
-    statusColorClass =
-      "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30";
-  } else if (statusFilter === "analyze_pending") {
-    statusColorClass =
-      "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30";
-  } else if (statusFilter === "failed") {
-    statusColorClass =
-      "bg-red-500/15 text-red-400 dark:text-red-300 border-red-500/30";
-  }
-
   // More-filters popover state
   const [moreFiltersOpen, setMoreFiltersOpen] = useState(false);
   const moreFiltersRef = useRef<HTMLDivElement>(null);
@@ -368,15 +355,6 @@ export function JobFilters({
     });
   }
 
-  const secondaryFilterCount = [
-    statusFilter !== "all",
-    remoteOnly,
-    ownedFilter !== "all",
-    evaluationStatusFilter !== "all",
-    reportStatusFilter !== "all",
-    eligibilityStatusFilter !== "all",
-  ].filter(Boolean).length;
-
   return (
     <div className="flex flex-col gap-3 py-2">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -418,12 +396,11 @@ export function JobFilters({
                 value={recommendationLabelFilter}
                 options={RECOMMENDATION_LABEL_OPTIONS}
                 onChange={onRecommendationLabelChange}
-                activeColorClass="bg-red-500/15 text-red-400 dark:text-red-300 border-red-500/30"
                 icon={
                   <Sparkles
                     className={`h-3 w-3 ${
                       recommendationLabelFilter !== "all"
-                        ? "text-red-400 dark:text-red-300 fill-red-500/20"
+                        ? "text-primary fill-primary/20"
                         : "text-muted-foreground"
                     }`}
                   />
@@ -440,16 +417,16 @@ export function JobFilters({
               aria-haspopup="dialog"
               aria-label="More filters"
               className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-semibold transition-all ${
-                moreFiltersOpen || secondaryFilterCount > 0
+                moreFiltersOpen || activeChips.length > 0
                   ? "bg-primary/10 text-primary border-primary/25"
                   : "border-border/60 bg-secondary/60 text-muted-foreground hover:bg-secondary hover:text-foreground"
               }`}
             >
               <SlidersHorizontal className="h-3.5 w-3.5" />
               <span>More filters</span>
-              {secondaryFilterCount > 0 && (
+              {activeChips.length > 0 && (
                 <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
-                  {secondaryFilterCount}
+                  {activeChips.length}
                 </span>
               )}
               <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-150 ${moreFiltersOpen ? "rotate-180" : ""}`} />
@@ -475,7 +452,7 @@ export function JobFilters({
                       onEligibilityStatusChange?.("all");
                       onRecommendationLabelChange?.("all");
                     }}
-                    disabled={secondaryFilterCount === 0}
+                    disabled={activeChips.length === 0}
                     className="text-[11px] font-semibold text-muted-foreground transition-colors hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
                   >
                     Clear all
@@ -492,7 +469,6 @@ export function JobFilters({
                       value={statusFilter}
                       options={STATUS_OPTIONS}
                       onChange={onStatusChange}
-                      activeColorClass={statusColorClass}
                       icon={
                         <Briefcase
                           className={`h-3 w-3 ${
@@ -509,12 +485,11 @@ export function JobFilters({
                         value={ownedFilter}
                         options={OWNED_OPTIONS}
                         onChange={onOwnedFilterChange}
-                        activeColorClass="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
                         icon={
                           <Bookmark
                             className={`h-3 w-3 ${
                               ownedFilter !== "all"
-                                ? "text-emerald-500 fill-emerald-500/20"
+                                ? "text-primary fill-primary/20"
                                 : "text-muted-foreground"
                             }`}
                           />
@@ -541,13 +516,13 @@ export function JobFilters({
                         type="button"
                         aria-pressed={remoteOnly}
                         onClick={() => onRemoteChange(!remoteOnly)}
-                        className={`inline-flex w-full items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-semibold transition-all ${
+                        className={`inline-flex w-full items-center justify-start gap-1.5 rounded-lg border px-3 py-2 text-xs font-semibold transition-all ${
                           remoteOnly
-                            ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 shadow-xs"
+                            ? "bg-primary/10 text-primary border-primary/25 shadow-xs"
                             : "border-border/60 bg-secondary/60 text-muted-foreground hover:bg-secondary hover:text-foreground"
                         }`}
                       >
-                        <Globe className={`h-3.5 w-3.5 ${remoteOnly ? "text-emerald-500" : ""}`} />
+                        <Globe className={`h-3.5 w-3.5 ${remoteOnly ? "text-primary" : ""}`} />
                         <span>Remote Only</span>
                       </button>
                     )}
@@ -563,12 +538,11 @@ export function JobFilters({
                         value={evaluationStatusFilter}
                         options={EVALUATION_STATUS_OPTIONS}
                         onChange={onEvaluationStatusChange}
-                        activeColorClass="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
                         icon={
                           <CheckCircle2
                             className={`h-3 w-3 ${
                               evaluationStatusFilter !== "all"
-                                ? "text-emerald-500 fill-emerald-500/20"
+                                ? "text-primary fill-primary/20"
                                 : "text-muted-foreground"
                             }`}
                           />
@@ -581,12 +555,11 @@ export function JobFilters({
                         value={reportStatusFilter}
                         options={REPORT_STATUS_OPTIONS}
                         onChange={onReportStatusChange}
-                        activeColorClass="bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30"
                         icon={
                           <FileText
                             className={`h-3 w-3 ${
                               reportStatusFilter !== "all"
-                                ? "text-blue-500 fill-blue-500/20"
+                                ? "text-primary fill-primary/20"
                                 : "text-muted-foreground"
                             }`}
                           />
@@ -605,12 +578,11 @@ export function JobFilters({
                         value={eligibilityStatusFilter}
                         options={ELIGIBILITY_STATUS_OPTIONS}
                         onChange={onEligibilityStatusChange}
-                        activeColorClass="bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30"
                         icon={
                           <AlertTriangle
                             className={`h-3 w-3 ${
                               eligibilityStatusFilter !== "all"
-                                ? "text-amber-500 fill-amber-500/20"
+                                ? "text-primary fill-primary/20"
                                 : "text-muted-foreground"
                             }`}
                           />
@@ -623,12 +595,11 @@ export function JobFilters({
                         value={recommendationLabelFilter}
                         options={RECOMMENDATION_LABEL_OPTIONS}
                         onChange={onRecommendationLabelChange}
-                        activeColorClass="bg-red-500/15 text-red-400 dark:text-red-300 border-red-500/30"
                         icon={
                           <Sparkles
                             className={`h-3 w-3 ${
                               recommendationLabelFilter !== "all"
-                                ? "text-red-400 dark:text-red-300 fill-red-500/20"
+                                ? "text-primary fill-primary/20"
                                 : "text-muted-foreground"
                             }`}
                           />
