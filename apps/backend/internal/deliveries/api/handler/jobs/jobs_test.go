@@ -15,6 +15,7 @@ import (
 	"github.com/frasnym/getojobu/apps/backend/internal/deliveries/api/dto"
 	"github.com/frasnym/getojobu/apps/backend/internal/models"
 	ucJobsMocks "github.com/frasnym/getojobu/apps/backend/internal/usecase/jobs/mocks"
+	ucUserJobsMocks "github.com/frasnym/getojobu/apps/backend/internal/usecase/user_jobs/mocks"
 	ucUsersMocks "github.com/frasnym/getojobu/apps/backend/internal/usecase/users/mocks"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/constants"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/ctxval"
@@ -531,6 +532,40 @@ func strPtr(s string) *string {
 // ---------------------------------------------------------------------------
 // UpdateJob — status-transition path
 // ---------------------------------------------------------------------------
+
+func TestRoute_registers_manual_endpoints_under_jobs_group(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	h, _, _ := newHandlerWithMock(ctrl)
+	rt := httpx.New()
+	h.Route(rt.Group("/v1/jobs"))
+
+	patterns := map[string]bool{}
+	for _, route := range rt.Routes() {
+		if route.Method == http.MethodPost {
+			patterns[route.Pattern] = true
+		}
+	}
+	assert.True(t, patterns["/v1/jobs/manual"], "missing POST /v1/jobs/manual")
+	assert.True(t, patterns["/v1/jobs/scrape-url"], "missing POST /v1/jobs/scrape-url")
+}
+
+func TestCreateManualJob_missing_title_returns_400(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	h, _, _ := newHandlerWithMock(ctrl)
+	h.userJobs = ucUserJobsMocks.NewMockUserJobs(ctrl)
+
+	mux := http.NewServeMux()
+	mux.Handle("POST /jobs/manual", httpx.HandlerFunc(h.CreateManualJob))
+
+	req := httptest.NewRequest(http.MethodPost, "/jobs/manual", strings.NewReader(`{"company":"Acme","location":"Berlin"}`))
+	req = req.WithContext(ctxval.ContextWithPrincipal(req.Context(), &models.Principal{ID: uuid.NewString()}))
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
 
 func TestUpdateJob_status_transition_success(t *testing.T) {
 	ctrl := gomock.NewController(t)

@@ -15,6 +15,7 @@ import (
 	"github.com/frasnym/getojobu/apps/backend/internal/models"
 	ucJobs "github.com/frasnym/getojobu/apps/backend/internal/usecase/jobs"
 	ucMatching "github.com/frasnym/getojobu/apps/backend/internal/usecase/matching"
+	ucUserJobs "github.com/frasnym/getojobu/apps/backend/internal/usecase/user_jobs"
 	ucUsers "github.com/frasnym/getojobu/apps/backend/internal/usecase/users"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/constants"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/ctxval"
@@ -27,6 +28,7 @@ type handler struct {
 	cfg        *config.Config
 	userUC     ucUsers.User
 	ucJobs     ucJobs.Job
+	userJobs   ucUserJobs.UserJobs
 	matchingUC ucMatching.Matching
 }
 
@@ -36,6 +38,7 @@ func NewHandler(c *contract.Contract) *handler {
 		cfg:        c.Cfg,
 		userUC:     c.Usecase.Users,
 		ucJobs:     c.Usecase.Jobs,
+		userJobs:   c.Usecase.UserJobs,
 		matchingUC: c.Usecase.Matching,
 	}
 }
@@ -48,6 +51,8 @@ func (h *handler) Route(g *httpx.Router) {
 	g.GET("", h.ListJobs, auth.ValidClerkOrAPIKey)
 	g.POST("", h.CreateJob, auth.ValidClerkOrAPIKey)
 	g.POST("/bulk", h.BulkCreateJob, auth.ValidClerkOrAPIKey)
+	g.POST("/manual", h.CreateManualJob, auth.ValidClerkSession)
+	g.POST("/scrape-url", h.ScrapeURL, auth.ValidClerkSession)
 	g.POST("/bulk-queue-analyze", h.BulkQueueAnalyzeJob, auth.ValidClerkOrAPIKey)
 	g.POST("/bulk-analyze-compatibility", h.BulkAnalyzeCompatibility, auth.ValidClerkOrAPIKey)
 	g.POST("/scrape", h.ScrapeJobs, apiKey.ValidAPIKey)

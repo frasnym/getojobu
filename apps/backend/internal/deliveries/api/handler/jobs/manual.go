@@ -1,4 +1,4 @@
-package user_jobs
+package jobs
 
 import (
 	"net/http"
@@ -12,7 +12,7 @@ import (
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/logging"
 )
 
-// createManualJobRequest is the POST /v1/user-jobs/manual body.
+// createManualJobRequest is the POST /v1/jobs/manual body.
 type createManualJobRequest struct {
 	Title          string  `json:"title"`
 	Company        string  `json:"company"`
@@ -30,7 +30,7 @@ type createManualJobRequest struct {
 // analysis pipeline.
 // @Summary Create manual job
 // @Description Create a private job from user-supplied fields. Only the owning Clerk user can see it.
-// @Tags user-jobs
+// @Tags jobs
 // @Accept json
 // @Produce json
 // @Param job body createManualJobRequest true "Manual job data"
@@ -38,7 +38,7 @@ type createManualJobRequest struct {
 // @Failure 400 {object} httpx.Error
 // @Failure 401 {object} httpx.Error
 // @security ApiKeyAuth
-// @Router /v1/user-jobs/manual [post]
+// @Router /v1/jobs/manual [post]
 func (h *handler) CreateManualJob(w http.ResponseWriter, r *http.Request) error {
 	p := ctxval.PrincipalFromContext(r.Context())
 	if p == nil {
@@ -66,7 +66,7 @@ func (h *handler) CreateManualJob(w http.ResponseWriter, r *http.Request) error 
 		postedDate = parsed
 	}
 
-	result, err := h.ucJobs.CreateManual(r.Context(), p.ID, models.CreateManualJobParams{
+	result, err := h.userJobs.CreateManual(r.Context(), p.ID, models.CreateManualJobParams{
 		Title:          req.Title,
 		Company:        req.Company,
 		Location:       req.Location,

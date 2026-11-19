@@ -70,8 +70,6 @@ func (h *handler) Route(g *httpx.Router) {
 
 	g.GET("", h.ListUserJobs, auth.ValidClerkSession)
 	g.POST("", h.AddUserJob, auth.ValidClerkSession)
-	g.POST("/manual", h.CreateManualJob, auth.ValidClerkSession)
-	g.POST("/scrape-url", h.ScrapeURL, auth.ValidClerkSession)
 	g.PATCH("/bulk", h.SetBulkHideStatus, auth.ValidClerkSession)
 	g.GET("/{user_job_id}/evaluation", h.GetEvaluation, auth.ValidClerkSession)
 }

@@ -518,6 +518,57 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/jobs/manual": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Create a private job from user-supplied fields. Only the owning Clerk user can see it.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "jobs"
+                ],
+                "summary": "Create manual job",
+                "parameters": [
+                    {
+                        "description": "Manual job data",
+                        "name": "job",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/jobs.createManualJobRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/dto.CreateJobResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpx.Error"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/httpx.Error"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/jobs/scrape": {
             "post": {
                 "security": [
@@ -551,6 +602,57 @@ const docTemplate = `{
                         "description": "Accepted",
                         "schema": {
                             "$ref": "#/definitions/models.ScrapeJobsResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpx.Error"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/httpx.Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/jobs/scrape-url": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Create a private job from a URL. The job starts at scrape_pending and is filled in by the scrape workflow.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "jobs"
+                ],
+                "summary": "Scrape job from URL",
+                "parameters": [
+                    {
+                        "description": "Job URL",
+                        "name": "job",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/jobs.scrapeURLRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Accepted",
+                        "schema": {
+                            "$ref": "#/definitions/dto.CreateJobResponse"
                         }
                     },
                     "400": {
@@ -2187,108 +2289,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/v1/user-jobs/manual": {
-            "post": {
-                "security": [
-                    {
-                        "ApiKeyAuth": []
-                    }
-                ],
-                "description": "Create a private job from user-supplied fields. Only the owning Clerk user can see it.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "user-jobs"
-                ],
-                "summary": "Create manual job",
-                "parameters": [
-                    {
-                        "description": "Manual job data",
-                        "name": "job",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/user_jobs.createManualJobRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Created",
-                        "schema": {
-                            "$ref": "#/definitions/dto.CreateJobResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/httpx.Error"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/httpx.Error"
-                        }
-                    }
-                }
-            }
-        },
-        "/v1/user-jobs/scrape-url": {
-            "post": {
-                "security": [
-                    {
-                        "ApiKeyAuth": []
-                    }
-                ],
-                "description": "Create a private job from a URL. The job starts at scrape_pending and is filled in by the scrape workflow.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "user-jobs"
-                ],
-                "summary": "Scrape job from URL",
-                "parameters": [
-                    {
-                        "description": "Job URL",
-                        "name": "job",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/user_jobs.scrapeURLRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "202": {
-                        "description": "Accepted",
-                        "schema": {
-                            "$ref": "#/definitions/dto.CreateJobResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/httpx.Error"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/httpx.Error"
-                        }
-                    }
-                }
-            }
-        },
         "/v1/user-jobs/{user_job_id}/evaluation": {
             "get": {
                 "security": [
@@ -2839,6 +2839,46 @@ const docTemplate = `{
                 },
                 "visa_relocation": {
                     "type": "boolean"
+                }
+            }
+        },
+        "jobs.createManualJobRequest": {
+            "type": "object",
+            "properties": {
+                "apply_url": {
+                    "type": "string"
+                },
+                "company": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "is_remote": {
+                    "type": "boolean"
+                },
+                "location": {
+                    "type": "string"
+                },
+                "posted_date": {
+                    "type": "string"
+                },
+                "source_url": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "visa_relocation": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "jobs.scrapeURLRequest": {
+            "type": "object",
+            "properties": {
+                "source_url": {
+                    "type": "string"
                 }
             }
         },
@@ -3548,46 +3588,6 @@ const docTemplate = `{
                 },
                 "job_id": {
                     "type": "integer"
-                }
-            }
-        },
-        "user_jobs.createManualJobRequest": {
-            "type": "object",
-            "properties": {
-                "apply_url": {
-                    "type": "string"
-                },
-                "company": {
-                    "type": "string"
-                },
-                "description": {
-                    "type": "string"
-                },
-                "is_remote": {
-                    "type": "boolean"
-                },
-                "location": {
-                    "type": "string"
-                },
-                "posted_date": {
-                    "type": "string"
-                },
-                "source_url": {
-                    "type": "string"
-                },
-                "title": {
-                    "type": "string"
-                },
-                "visa_relocation": {
-                    "type": "boolean"
-                }
-            }
-        },
-        "user_jobs.scrapeURLRequest": {
-            "type": "object",
-            "properties": {
-                "source_url": {
-                    "type": "string"
                 }
             }
         },

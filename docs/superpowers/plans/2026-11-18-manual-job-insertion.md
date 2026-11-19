@@ -238,7 +238,7 @@ git commit -m "feat: owner_id in job CRUD, visibility filter on List/GetBySlug"
   - `ucJobs.Create` from the existing jobs usecase (creates the `user_jobs` link and transaction)
 - Produces:
   - `UserJobs.CreateManual(ctx, userID string, params models.CreateManualJobParams) (*models.CreateJobResult, error)` usecase method
-  - `POST /v1/user-jobs/manual` handler (Clerk auth)
+  - `POST /v1/jobs/manual` handler (Clerk auth)
   - `createManualJobRequest` DTO: `title`, `company`, `location`, `description`, `source_url`, `apply_url`, `posted_date`, `is_remote`, `visa_relocation`
   - `JobResponse.Source string` added to API response DTO
 
@@ -319,7 +319,7 @@ Handler `CreateManualJob(w, r) error`:
 5. Call `h.ucJobs.CreateManual(ctx, userID, params)`
 6. Return `dto.NewCreateJobResponse(result)` with 201
 
-Swagger annotations: `@Summary Create manual job`, `@Tags user-jobs`, `@Security ApiKeyAuth`, `@Router /v1/user-jobs/manual [post]`
+Swagger annotations: `@Summary Create manual job`, `@Tags user-jobs`, `@Security ApiKeyAuth`, `@Router /v1/jobs/manual [post]`
 
 - [ ] **Step 5: Register the route in `apps/backend/internal/deliveries/api/handler/user_jobs/user_jobs.go`**
 
@@ -367,7 +367,7 @@ git add apps/backend/internal/models/job.go \
   apps/backend/docs/docs.go \
   apps/backend/docs/swagger.json \
   apps/backend/docs/swagger.yaml
-git commit -m "feat: POST /v1/user-jobs/manual endpoint for manual job insertion"
+git commit -m "feat: POST /v1/jobs/manual endpoint for manual job insertion"
 ```
 
 ---
@@ -391,7 +391,7 @@ git commit -m "feat: POST /v1/user-jobs/manual endpoint for manual job insertion
   - `Workflows.StartLimiterWorkItem` from existing repository
 - Produces:
   - `UserJobs.ScrapeURL(ctx, userID string, params models.ScrapeURLParams) (*models.CreateJobResult, error)` usecase method
-  - `POST /v1/user-jobs/scrape-url` handler (Clerk auth)
+  - `POST /v1/jobs/scrape-url` handler (Clerk auth)
   - `UserJobScrapeWorkflowInput` model: `{job_id, slug, source_url, user_id, owner_id}`
   - `Workflows.StartUserJobScrape(ctx, input UserJobScrapeWorkflowInput) (string, error)` repository method
 
@@ -466,7 +466,7 @@ Handler `ScrapeURL(w, r) error`:
 3. Call `h.ucJobs.ScrapeURL(ctx, userID, params)`
 4. Return 202 Accepted with `dto.NewCreateJobResponse(result)`
 
-Swagger: `@Summary Scrape job from URL`, `@Tags user-jobs`, `@Router /v1/user-jobs/scrape-url [post]`
+Swagger: `@Summary Scrape job from URL`, `@Tags user-jobs`, `@Router /v1/jobs/scrape-url [post]`
 
 - [ ] **Step 6: Register the route**
 
@@ -510,7 +510,7 @@ git add apps/backend/internal/models/user_job_scrape.go \
   apps/backend/docs/docs.go \
   apps/backend/docs/swagger.json \
   apps/backend/docs/swagger.yaml
-git commit -m "feat: POST /v1/user-jobs/scrape-url endpoint with Temporal workflow dispatch"
+git commit -m "feat: POST /v1/jobs/scrape-url endpoint with Temporal workflow dispatch"
 ```
 
 ---
@@ -736,8 +736,8 @@ git commit -m "feat: extend PATCH /v1/jobs/{slug} to accept scraped fields on sc
 
 **Interfaces:**
 - Consumes:
-  - `POST /v1/user-jobs/manual` from Task 3
-  - `POST /v1/user-jobs/scrape-url` from Task 4
+  - `POST /v1/jobs/manual` from Task 3
+  - `POST /v1/jobs/scrape-url` from Task 4
   - `CreateJobResponse` DTO shape
 - Produces:
   - `/user-jobs/add` page with tabbed form (Manual / Scrape URL)
@@ -842,7 +842,7 @@ Display a small badge next to the job title in `JobCard`:
 - [ ] **Step 2: Add scrape status indicators**
 
 When `status === "scrape_pending"`: show a loading spinner or "Scraping..." text, disable click-through to detail.
-When `status === "scrape_failed"`: show error indicator with the failure message, offer a "Retry" button that calls `POST /v1/user-jobs/scrape-url` with the same URL.
+When `status === "scrape_failed"`: show error indicator with the failure message, offer a "Retry" button that calls `POST /v1/jobs/scrape-url` with the same URL.
 
 - [ ] **Step 3: Update the job detail drawer to show source info**
 

@@ -16,7 +16,7 @@ export async function createManualJob(
   params: CreateManualJobRequest,
   token?: string | null
 ): Promise<CreateJobResponse> {
-  return apiClient<CreateJobResponse>("/v1/user-jobs/manual", {
+  return apiClient<CreateJobResponse>("/v1/jobs/manual", {
     method: "POST",
     token,
     body: JSON.stringify(params),
@@ -27,7 +27,7 @@ export async function scrapeJobFromURL(
   params: ScrapeURLRequest,
   token?: string | null
 ): Promise<CreateJobResponse> {
-  return apiClient<CreateJobResponse>("/v1/user-jobs/scrape-url", {
+  return apiClient<CreateJobResponse>("/v1/jobs/scrape-url", {
     method: "POST",
     token,
     body: JSON.stringify(params),

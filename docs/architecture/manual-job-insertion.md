@@ -14,8 +14,8 @@ The URL scrape is a Temporal workflow on the Python worker. The Go API only crea
 
 ## API endpoints
 
-- `POST /v1/user-jobs/manual` — Clerk-authenticated. Body: `title`, `company`, `location` (required), plus optional `description`, `source_url`, `apply_url`, `posted_date`, `is_remote`, `visa_relocation`. Returns `201` with `CreateJobResponse`.
-- `POST /v1/user-jobs/scrape-url` — Clerk-authenticated. Body: `source_url` (an `http(s)` URL). Returns `202` with a skeleton job at `scrape_pending`.
+- `POST /v1/jobs/manual` — Clerk-authenticated. Body: `title`, `company`, `location` (required), plus optional `description`, `source_url`, `apply_url`, `posted_date`, `is_remote`, `visa_relocation`. Returns `201` with `CreateJobResponse`.
+- `POST /v1/jobs/scrape-url` — Clerk-authenticated. Body: `source_url` (an `http(s)` URL). Returns `202` with a skeleton job at `scrape_pending`.
 - `PATCH /v1/jobs/{slug}` — extended with optional job fields and a new `slug` value for the scrape callback. The Go usecase applies these fields only when the current status is `scrape_pending`.
 
 `JobResponse` now includes `source` so the frontend can badge manual and user-scraped jobs.
