@@ -169,8 +169,7 @@ type QueueAnalysisBulkResult struct {
 
 // JobAnalyzeWorkflowInput is the payload sent to Temporal JobAnalyzeWorkflow.
 type JobAnalyzeWorkflowInput struct {
-	JobID string `json:"job_id"`
-	Slug  string `json:"slug"`
+	Slug string `json:"slug"`
 }
 
 // GetJobParams holds parameters for getting a job listing by slug. Slug is

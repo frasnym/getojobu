@@ -3,7 +3,6 @@ package jobs
 import (
 	"context"
 	"fmt"
-	"strconv"
 	"strings"
 	"time"
 
@@ -135,8 +134,7 @@ func (s *jobService) queueAnalysis(ctx context.Context, slug string, force bool,
 	}
 
 	input := models.JobAnalyzeWorkflowInput{
-		JobID: strconv.FormatInt(job.ID, 10),
-		Slug:  job.Slug,
+		Slug: job.Slug,
 	}
 
 	return s.workflows.StartLimiterWorkItem(ctx, workflowID, models.LimiterJobTypeAnalyze, input)

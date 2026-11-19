@@ -65,8 +65,7 @@ func TestQueueAnalysisBulk(t *testing.T) {
 		mockRepo.EXPECT().UpdateStatus(gomock.Any(), models.UpdateJobParams{Slug: slug, Status: "queued", AnalyzeResult: (*string)(nil), FailureMessage: (*string)(nil), UpdatedByType: "cron", UpdatedByID: "cron-scrape"}).Return(job, nil)
 
 		expectedInput := models.JobAnalyzeWorkflowInput{
-			JobID: "101",
-			Slug:  slug,
+			Slug: slug,
 		}
 		mockWorkflows.EXPECT().StartLimiterWorkItem(gomock.Any(), "job-analyze-101", models.LimiterJobTypeAnalyze, expectedInput).Return("job-analyze-101", nil)
 
@@ -100,8 +99,7 @@ func TestQueueAnalysisBulk(t *testing.T) {
 		mockRepo.EXPECT().UpdateStatus(gomock.Any(), models.UpdateJobParams{Slug: slug, Status: "queued_retry", AnalyzeResult: (*string)(nil), FailureMessage: (*string)(nil), UpdatedByType: "", UpdatedByID: ""}).Return(job, nil)
 
 		expectedInput := models.JobAnalyzeWorkflowInput{
-			JobID: "1011",
-			Slug:  slug,
+			Slug: slug,
 		}
 		mockWorkflows.EXPECT().StartLimiterWorkItem(gomock.Any(), "job-analyze-1011", models.LimiterJobTypeAnalyze, expectedInput).Return("job-analyze-1011", nil)
 
@@ -133,8 +131,7 @@ func TestQueueAnalysisBulk(t *testing.T) {
 		mockRepo.EXPECT().UpdateStatus(gomock.Any(), models.UpdateJobParams{Slug: slug, Status: "queued_retry", AnalyzeResult: (*string)(nil), FailureMessage: (*string)(nil), UpdatedByType: "worker", UpdatedByID: "getojobu-worker"}).Return(job, nil)
 
 		expectedInput := models.JobAnalyzeWorkflowInput{
-			JobID: "102",
-			Slug:  slug,
+			Slug: slug,
 		}
 		mockWorkflows.EXPECT().StartLimiterWorkItem(gomock.Any(), "job-analyze-102", models.LimiterJobTypeAnalyze, expectedInput).Return("job-analyze-102", nil)
 
@@ -276,8 +273,7 @@ func TestQueueAnalysisBulk(t *testing.T) {
 		mockWorkflows.EXPECT().IsWorkflowRunning(gomock.Any(), "job-analyze-1034").Return(false, nil)
 		mockRepo.EXPECT().UpdateStatus(gomock.Any(), models.UpdateJobParams{Slug: slug, Status: "queued_retry", AnalyzeResult: (*string)(nil), FailureMessage: (*string)(nil), UpdatedByType: "", UpdatedByID: ""}).Return(job, nil)
 		expectedInput := models.JobAnalyzeWorkflowInput{
-			JobID: "1034",
-			Slug:  slug,
+			Slug: slug,
 		}
 		mockWorkflows.EXPECT().StartLimiterWorkItem(gomock.Any(), "job-analyze-1034", models.LimiterJobTypeAnalyze, expectedInput).Return("job-analyze-1034", nil)
 
@@ -390,8 +386,7 @@ func TestQueueAnalysisBulk(t *testing.T) {
 		mockRepo.EXPECT().UpdateStatus(gomock.Any(), models.UpdateJobParams{Slug: slug, Status: "queued", AnalyzeResult: (*string)(nil), FailureMessage: (*string)(nil), UpdatedByType: "", UpdatedByID: ""}).Return(job, nil)
 
 		expectedInput := models.JobAnalyzeWorkflowInput{
-			JobID: "107",
-			Slug:  slug,
+			Slug: slug,
 		}
 		mockWorkflows.EXPECT().StartLimiterWorkItem(gomock.Any(), "job-analyze-107", models.LimiterJobTypeAnalyze, expectedInput).Return("", errors.New("temporal connection error"))
 
@@ -460,7 +455,7 @@ func TestQueueAnalysisBulk_continues_after_no_description(t *testing.T) {
 	mockRepo.EXPECT().GetBySlug(gomock.Any(), okSlug, "").Return(&models.JobWithOwnership{Job: okJob}, nil)
 	mockRepo.EXPECT().UpdateStatus(gomock.Any(), models.UpdateJobParams{Slug: okSlug, Status: "queued", AnalyzeResult: (*string)(nil), FailureMessage: (*string)(nil), UpdatedByType: "", UpdatedByID: ""}).Return(okJob, nil)
 	mockWorkflows.EXPECT().StartLimiterWorkItem(gomock.Any(), "job-analyze-201", models.LimiterJobTypeAnalyze, models.JobAnalyzeWorkflowInput{
-		JobID: "201", Slug: okSlug,
+		Slug: okSlug,
 	}).Return("job-analyze-201", nil)
 
 	svc := &jobService{repo: mockRepo, userJobs: mockUserJobs, workflows: mockWorkflows}
@@ -498,7 +493,7 @@ func TestQueueAnalysisBulk_continues_after_already_queued(t *testing.T) {
 	mockRepo.EXPECT().GetBySlug(gomock.Any(), okSlug, "").Return(&models.JobWithOwnership{Job: okJob}, nil)
 	mockRepo.EXPECT().UpdateStatus(gomock.Any(), models.UpdateJobParams{Slug: okSlug, Status: "queued", AnalyzeResult: (*string)(nil), FailureMessage: (*string)(nil), UpdatedByType: "", UpdatedByID: ""}).Return(okJob, nil)
 	mockWorkflows.EXPECT().StartLimiterWorkItem(gomock.Any(), "job-analyze-203", models.LimiterJobTypeAnalyze, models.JobAnalyzeWorkflowInput{
-		JobID: "203", Slug: okSlug,
+		Slug: okSlug,
 	}).Return("job-analyze-203", nil)
 
 	svc := &jobService{repo: mockRepo, userJobs: mockUserJobs, workflows: mockWorkflows}
@@ -536,7 +531,7 @@ func TestQueueAnalysisBulk_continues_after_invalid_status(t *testing.T) {
 	mockRepo.EXPECT().GetBySlug(gomock.Any(), okSlug, "").Return(&models.JobWithOwnership{Job: okJob}, nil)
 	mockRepo.EXPECT().UpdateStatus(gomock.Any(), models.UpdateJobParams{Slug: okSlug, Status: "queued", AnalyzeResult: (*string)(nil), FailureMessage: (*string)(nil), UpdatedByType: "", UpdatedByID: ""}).Return(okJob, nil)
 	mockWorkflows.EXPECT().StartLimiterWorkItem(gomock.Any(), "job-analyze-205", models.LimiterJobTypeAnalyze, models.JobAnalyzeWorkflowInput{
-		JobID: "205", Slug: okSlug,
+		Slug: okSlug,
 	}).Return("job-analyze-205", nil)
 
 	svc := &jobService{repo: mockRepo, userJobs: mockUserJobs, workflows: mockWorkflows}
@@ -602,8 +597,7 @@ func TestQueueAnalysisBulk_QueuedStaleness(t *testing.T) {
 			mockRepo.EXPECT().GetBySlug(gomock.Any(), slug, "").Return(&models.JobWithOwnership{Job: job}, nil)
 			mockRepo.EXPECT().UpdateStatus(gomock.Any(), models.UpdateJobParams{Slug: slug, Status: "queued_retry", AnalyzeResult: (*string)(nil), FailureMessage: (*string)(nil), UpdatedByType: "", UpdatedByID: ""}).Return(job, nil)
 			mockWorkflows.EXPECT().StartLimiterWorkItem(gomock.Any(), "job-analyze-302", models.LimiterJobTypeAnalyze, models.JobAnalyzeWorkflowInput{
-				JobID: "302",
-				Slug:  slug,
+				Slug: slug,
 			}).Return("job-analyze-302", nil)
 
 			svc := &jobService{repo: mockRepo, userJobs: mockUserJobs, workflows: mockWorkflows}
