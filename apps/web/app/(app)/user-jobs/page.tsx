@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import Link from "next/link";
 import { useAuth } from "@clerk/nextjs";
 import { scrapeJobFromURL } from "@/lib/api/endpoints";
@@ -11,7 +11,7 @@ import { PaginationControls } from "@/components/jobs/pagination-controls";
 import { JobDetailDrawer } from "@/components/jobs/job-detail-drawer";
 import { ReportTab } from "@/components/jobs/job-report-header";
 import { JobStatus, UserJob } from "@/lib/api/types";
-import { Sparkles, Briefcase, Compass, RefreshCw, CheckSquare, Eye, EyeOff, Plus } from "lucide-react";
+import { Sparkles, Briefcase, Compass, RefreshCw, CheckSquare, Eye, EyeOff, Plus, ChevronDown } from "lucide-react";
 
 export default function UserJobsPage() {
 	const { getToken } = useAuth();
@@ -55,6 +55,8 @@ export default function UserJobsPage() {
 	// Bulk selection state (checked job ids on the current page).
 	const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set());
 	const [bulkBusy, setBulkBusy] = useState(false);
+	const [bulkMenuOpen, setBulkMenuOpen] = useState(false);
+	const bulkMenuRef = useRef<HTMLDivElement>(null);
 
 	const visibleIds = useMemo(() => filteredJobs.map((uj) => uj.id).filter(Boolean), [filteredJobs]);
 	const allVisibleChecked = visibleIds.length > 0 && visibleIds.every((id) => checkedIds.has(id));
@@ -88,12 +90,37 @@ export default function UserJobsPage() {
 			try {
 				await bulkHideJob(ids, isHidden);
 				setCheckedIds(new Set());
+				setBulkMenuOpen(false);
 			} finally {
 				setBulkBusy(false);
 			}
 		},
 		[checkedIds, bulkHideJob]
 	);
+
+	useEffect(() => {
+		if (!bulkMenuOpen) return;
+
+		const handleClickOutside = (e: MouseEvent) => {
+			if (bulkMenuRef.current && !bulkMenuRef.current.contains(e.target as Node)) {
+				setBulkMenuOpen(false);
+			}
+		};
+		const handleKeyDown = (e: KeyboardEvent) => {
+			if (e.key === "Escape") setBulkMenuOpen(false);
+		};
+
+		document.addEventListener("mousedown", handleClickOutside);
+		document.addEventListener("keydown", handleKeyDown);
+		return () => {
+			document.removeEventListener("mousedown", handleClickOutside);
+			document.removeEventListener("keydown", handleKeyDown);
+		};
+	}, [bulkMenuOpen]);
+
+	useEffect(() => {
+		if (checkedIds.size === 0) setBulkMenuOpen(false);
+	}, [checkedIds]);
 
 	// Reset eval id when a different job is selected so the drawer fetches
 	// that job's own evaluation rather than leaking a previous job's id.
@@ -185,20 +212,46 @@ export default function UserJobsPage() {
 								<CheckSquare className="h-3.5 w-3.5" />
 								<span>{allVisibleChecked ? "Select none" : "Select all"}</span>
 							</button>
-							<button
-								type="button"
-								onClick={() => runBulkHide(true)}
-								disabled={bulkBusy || checkedIds.size === 0}
-								className={`ml-3 inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors disabled:opacity-50 disabled:pointer-events-none ${
-									bulkBusy || checkedIds.size === 0
-										? "border-border/40 text-muted-foreground bg-muted"
-										: "border-red-500/40 text-red-400 dark:text-red-300 hover:bg-red-500/10"
-								}`}
-								aria-label="Hide selected jobs"
-							>
-								<EyeOff className="h-3.5 w-3.5" />
-								<span>{bulkBusy ? "Hiding..." : "Hide selected"}</span>
-							</button>
+							<div ref={bulkMenuRef} className="relative ml-3">
+								<button
+									type="button"
+									onClick={() => setBulkMenuOpen((prev) => !prev)}
+									disabled={bulkBusy || bulkMenuOpen || checkedIds.size === 0}
+									aria-expanded={bulkMenuOpen}
+									aria-haspopup="menu"
+									className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-secondary disabled:opacity-50 disabled:pointer-events-none"
+								>
+									<ChevronDown className={`h-3.5 w-3.5 transition-transform duration-150 ${bulkMenuOpen ? "rotate-180" : ""}`} />
+									<span>{bulkBusy ? "Applying..." : "Bulk action"}</span>
+								</button>
+								{bulkMenuOpen && (
+									<div
+										role="menu"
+										className="absolute left-0 top-full z-50 mt-1.5 w-44 overflow-hidden rounded-lg border border-border bg-card p-1 shadow-lg ring-1 ring-black/5 dark:ring-white/10"
+									>
+										<button
+											type="button"
+											role="menuitem"
+											onClick={() => runBulkHide(true)}
+											disabled={bulkBusy}
+											className="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-xs font-medium text-red-400 transition-colors hover:bg-red-500/10 disabled:opacity-50 disabled:pointer-events-none dark:text-red-300"
+										>
+											<EyeOff className="h-3.5 w-3.5" />
+											<span>Hide selected</span>
+										</button>
+										<button
+											type="button"
+											role="menuitem"
+											onClick={() => runBulkHide(false)}
+											disabled={bulkBusy}
+											className="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-secondary disabled:opacity-50 disabled:pointer-events-none"
+										>
+											<Eye className="h-3.5 w-3.5" />
+											<span>Unhide selected</span>
+										</button>
+									</div>
+								)}
+							</div>
 						</>
 					)}
 				</div>
@@ -294,49 +347,9 @@ export default function UserJobsPage() {
 
 			{/* Bulk action bar */}
 			{checkedIds.size > 0 && (
-				<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0">
-					<div className="inline-flex items-center gap-2 text-sm font-semibold text-foreground">
-						<span>{checkedIds.size}</span>
-						<span className="text-muted-foreground">selected</span>
-					</div>
-					<div className="flex items-center gap-2">
-						<button
-							type="button"
-							onClick={() => toggleCheckAll()}
-							disabled={bulkBusy}
-							className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-secondary disabled:opacity-50 disabled:pointer-events-none transition-colors"
-						>
-							{allVisibleChecked ? (
-								<>
-									<CheckSquare className="h-3.5 w-3.5" />
-									<span>Select none</span>
-								</>
-							) : (
-								<>
-									<CheckSquare className="h-3.5 w-3.5" />
-									<span>Select all</span>
-								</>
-							)}
-						</button>
-						<button
-							type="button"
-							onClick={() => runBulkHide(true)}
-							disabled={bulkBusy}
-							className={`inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors disabled:opacity-50 disabled:pointer-events-none ${
-								bulkBusy
-									? "border-border/40 text-muted-foreground bg-muted"
-									: "border-red-500/40 text-red-400 dark:text-red-300 hover:bg-red-500/10"
-							}`}
-							aria-label="Hide selected jobs"
-						>
-							{bulkBusy ? (
-								<EyeOff className="h-3.5 w-3.5 animate-spin" />
-							) : (
-								<EyeOff className="h-3.5 w-3.5" />
-							)}
-							<span>{bulkBusy ? "Hiding..." : "Hide selected"}</span>
-						</button>
-					</div>
+				<div className="inline-flex items-center gap-2 text-sm font-semibold text-foreground">
+					<span>{checkedIds.size}</span>
+					<span className="text-muted-foreground">selected</span>
 				</div>
 			)}
 
