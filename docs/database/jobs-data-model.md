@@ -91,7 +91,7 @@ Manual slugs are namespaced as `m-{first8 of user UUID}-{title}-{company}-{locat
 
 The visibility rule applies to Clerk callers only: `WHERE owner_id IS NULL OR owner_id = :current_user_id`. API-key callers and internal Go reads see all jobs; the Python worker relies on this to update private jobs and queue their analysis.
 
-Two additional statuses support URL scraping: `scrape_pending` (worker started extraction) and `scrape_failed` (extraction failed, `failure_message` holds the reason). The API creates the skeleton at the default `new` status and only queues the workflow; the worker owns the `new → scrape_pending` transition. Further transitions: `scrape_pending → new` on success, `scrape_pending → scrape_failed` on failure, `new → scrape_failed` if the worker cannot start, and `scrape_failed → scrape_pending` on retry. No other transition out of these states is allowed.
+Two additional statuses support URL scraping: `scrape_pending` (worker started extraction) and `scrape_failed` (extraction failed, `failure_message` holds the reason). The API creates the skeleton at `scrape_new` and only queues the workflow; the worker owns the `scrape_new → scrape_pending` transition. Further transitions: `scrape_pending → new` on success, `scrape_pending → scrape_failed` on failure, `scrape_new → scrape_failed` if dispatch fails, and `scrape_failed → scrape_pending` on retry. No other transition out of these states is allowed.
 
 ## PostgreSQL migration
 

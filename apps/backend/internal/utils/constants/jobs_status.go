@@ -13,6 +13,7 @@ const (
 	StatusAnalyzePending JobStatus = "analyze_pending"
 	StatusAnalyzed       JobStatus = "analyzed"
 	StatusFailed         JobStatus = "failed"
+	StatusScrapeNew      JobStatus = "scrape_new"
 	StatusScrapePending  JobStatus = "scrape_pending"
 	StatusScrapeFailed   JobStatus = "scrape_failed"
 )
@@ -29,8 +30,8 @@ const (
 //	analyze_pending → analyzed
 //	analyze_pending → failed
 //	failed          → queued_retry    (retry)
-//	new             → scrape_pending  (worker starts URL scrape)
-//	new             → scrape_failed   (dispatch/setup failure before scrape)
+//	scrape_new      → scrape_pending  (worker starts URL scrape)
+//	scrape_new      → scrape_failed   (dispatch/setup failure before scrape)
 //	scrape_pending  → new             (scrape succeeded)
 //	scrape_pending  → scrape_failed   (scrape failed)
 //	scrape_failed   → scrape_pending  (retry scrape)
@@ -44,12 +45,21 @@ func ValidateJobStatusTransition(current, next JobStatus) error {
 
 	switch current {
 	case StatusNew:
-		if next == StatusQueued || next == StatusScrapePending || next == StatusScrapeFailed {
+		if next == StatusQueued {
 			return nil
 		}
 		return fmt.Errorf(
 			"transition from %q to %q is not allowed: job must move to %q first",
 			current, next, StatusQueued,
+		)
+
+	case StatusScrapeNew:
+		if next == StatusScrapePending || next == StatusScrapeFailed {
+			return nil
+		}
+		return fmt.Errorf(
+			"transition from %q to %q is not allowed: expected %q or %q",
+			current, next, StatusScrapePending, StatusScrapeFailed,
 		)
 
 	case StatusQueued:

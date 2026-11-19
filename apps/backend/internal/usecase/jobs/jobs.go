@@ -132,9 +132,9 @@ func (s *jobService) CreateManual(ctx context.Context, userID string, params mod
 	})
 }
 
-// ScrapeURL creates a skeleton job at the default new status and queues the
-// scrape workflow. The worker sets scrape_pending. If the workflow cannot be
-// started, the job is marked scrape_failed so the user can retry.
+// ScrapeURL creates a skeleton job at scrape_new and queues the scrape
+// workflow. The worker sets scrape_pending. If the workflow cannot be started,
+// the job is marked scrape_failed so the user can retry.
 func (s *jobService) ScrapeURL(ctx context.Context, userID string, params models.ScrapeURLParams) (*models.CreateJobResult, error) {
 	if strings.TrimSpace(params.SourceURL) == "" {
 		return nil, fmt.Errorf("source_url is required")
@@ -151,11 +151,12 @@ func (s *jobService) ScrapeURL(ctx context.Context, userID string, params models
 	}
 	slug := fmt.Sprintf("m-%s-scrape-%d", slugPrefix, time.Now().UnixNano())
 
-	// The API only creates the skeleton and queues work. The worker moves it to
-	// scrape_pending when it starts the actual URL fetch.
+	// The API only creates the skeleton and queues work. The worker moves it
+	// from scrape_new to scrape_pending when it starts the URL fetch.
 	result, err := s.Create(ctx, models.CreateJobParams{
 		Slug:          slug,
 		Source:        "user_scrape",
+		Status:        string(constants.StatusScrapeNew),
 		OwnerID:       &ownerID,
 		SourceURL:     &params.SourceURL,
 		Title:         "Pending scrape",

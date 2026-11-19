@@ -39,7 +39,7 @@ export function JobCard({
 }: JobCardProps) {
 	const job = userJob.job;
 	const targetHref = href || `/user-jobs/${job.slug}`;
-	const isScrapePending = job.status === "scrape_pending";
+	const isScrapePending = job.status === "scrape_new" || job.status === "scrape_pending";
 	const isScrapeFailed = job.status === "scrape_failed";
 	const isClickable = !!onSelect && canOpenDetail && !isScrapePending;
 	const isHidden = userJob.is_hidden === true;
