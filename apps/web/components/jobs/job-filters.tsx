@@ -516,13 +516,13 @@ export function JobFilters({
                         type="button"
                         aria-pressed={remoteOnly}
                         onClick={() => onRemoteChange(!remoteOnly)}
-                        className={`inline-flex w-full items-center justify-start gap-1.5 rounded-lg border px-3 py-2 text-xs font-semibold transition-all ${
+                        className={`relative inline-flex w-full items-center justify-center rounded-lg border px-3 py-2 text-xs font-semibold transition-all ${
                           remoteOnly
                             ? "bg-primary/10 text-primary border-primary/25 shadow-xs"
                             : "border-border/60 bg-secondary/60 text-muted-foreground hover:bg-secondary hover:text-foreground"
                         }`}
                       >
-                        <Globe className={`h-3.5 w-3.5 ${remoteOnly ? "text-primary" : ""}`} />
+                        <Globe className={`absolute left-3 h-3.5 w-3.5 ${remoteOnly ? "text-primary" : ""}`} />
                         <span>Remote Only</span>
                       </button>
                     )}
