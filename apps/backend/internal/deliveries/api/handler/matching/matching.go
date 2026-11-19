@@ -61,6 +61,9 @@ func (h *handler) Route(g *httpx.Router) {
 	// POST /v1/matching-evaluations/bulk-generate-report (strictly worker API key)
 	g.POST("/bulk-generate-report", h.BulkQueueGenerateReport, auth.ValidAPIKey)
 
+	// POST /v1/matching-evaluations/bulk-generate-evaluation (Clerk user session or worker API key)
+	g.POST("/bulk-generate-evaluation", h.BulkGenerateEvaluation, auth.ValidClerkOrAPIKey)
+
 	// POST /v1/matching-evaluations/{id}/retry-report (Clerk user session or worker API key)
 	g.POST("/{id}/retry-report", h.RetryReport, auth.ValidClerkOrAPIKey)
 
@@ -499,5 +502,74 @@ func (h *handler) BulkQueueGenerateResume(w http.ResponseWriter, r *http.Request
 		}
 		return err
 	}
+	return httpx.RespondJSON(w, r, http.StatusAccepted, summaries)
+}
+
+// resolveTriggerUserID resolves the user a machine caller acts for. For Clerk
+// callers a body-supplied user_id is rejected and the empty value is returned;
+// ownership is derived from the principal by the usecase. For API key callers
+// a user_id is required.
+func resolveTriggerUserID(p *models.Principal, bodyUserID string) (string, error) {
+	if p.ActorType == "" {
+		if strings.TrimSpace(bodyUserID) != "" {
+			return "", httpx.Envelope(httpx.CodeInvalidRequest, "user_id not allowed for Clerk authentication", "")
+		}
+		return "", nil
+	}
+	uid := strings.TrimSpace(bodyUserID)
+	if uid == "" {
+		return "", httpx.Envelope(httpx.CodeInvalidRequest, "user_id is required for API key authentication", "")
+	}
+	return uid, nil
+}
+
+// BulkGenerateEvaluation starts the workflow behind each evaluation that is
+// ready to run. Clerk callers may only trigger evaluations they own; machine
+// callers supply the user they act for per item.
+// @Summary Bulk generate evaluations
+// @Description Starts the match-job workflow for each given evaluation ID at status new or failed. Clerk callers cannot supply user_id (ownership comes from the token); API key callers must supply it per item. Per-item failures are returned in the response and do not stop the batch.
+// @Tags matching
+// @Accept json
+// @Produce json
+// @Param items body bulkGenerateEvaluationRequest true "Evaluation IDs to trigger"
+// @Success 202 {array} models.MatchingEvaluationSummary
+// @Failure 400 {object} httpx.Error
+// @Failure 401 {object} httpx.Error
+// @security ApiKeyAuth
+// @Router /v1/matching-evaluations/bulk-generate-evaluation [post]
+func (h *handler) BulkGenerateEvaluation(w http.ResponseWriter, r *http.Request) error {
+	ctx := r.Context()
+	p := ctxval.PrincipalFromContext(ctx)
+	if p == nil {
+		return httpx.Envelope(httpx.CodeUnauthorized, "unauthorized", "")
+	}
+
+	var req bulkGenerateEvaluationRequest
+	if err := httpx.ParseJSON(r, &req); err != nil {
+		return err
+	}
+
+	if err := req.Validate(); err != nil {
+		return err
+	}
+
+	items := make([]models.TriggerEvaluationItem, len(req))
+	for i, item := range req {
+		userID, err := resolveTriggerUserID(p, item.UserID)
+		if err != nil {
+			return err
+		}
+		id, _ := uuid.Parse(item.ID)
+		items[i] = models.TriggerEvaluationItem{ID: id, UserID: userID}
+	}
+
+	summaries, err := h.matchingUC.TriggerEvaluations(ctx, items, p)
+	if err != nil {
+		if errors.Is(err, constants.ErrUnauthorized) {
+			return httpx.Envelope(httpx.CodeUnauthorized, "unauthorized", "")
+		}
+		return err
+	}
+
 	return httpx.RespondJSON(w, r, http.StatusAccepted, summaries)
 }

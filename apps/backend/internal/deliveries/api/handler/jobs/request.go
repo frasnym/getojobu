@@ -67,14 +67,17 @@ type bulkQueueAnalyzeResponse struct {
 	Failed      []bulkQueueAnalyzeFailure `json:"failed,omitempty"`
 }
 
-// bulkAnalyzeCompatibilityItemRequest is one item in the POST /v1/jobs/bulk-analyze-compatibility request.
-type bulkAnalyzeCompatibilityItemRequest struct {
-	Slug  string `json:"slug"`
-	Force bool   `json:"force"`
+// createEvaluationItemRequest is one item in the POST /v1/jobs/evaluation request.
+type createEvaluationItemRequest struct {
+	Slug string `json:"slug"`
+	// UserIDs is the list of internal user ids to create the evaluation for.
+	// Required for API key callers. Clerk callers must not send it; it is
+	// resolved from the session token by the usecase.
+	UserIDs []string `json:"user_ids,omitempty"`
 }
 
-// bulkAnalyzeCompatibilityRequest is the array payload for POST /v1/jobs/bulk-analyze-compatibility.
-type bulkAnalyzeCompatibilityRequest []bulkAnalyzeCompatibilityItemRequest
+// createEvaluationRequest is the array payload for POST /v1/jobs/evaluation.
+type createEvaluationRequest []createEvaluationItemRequest
 
 // Validate checks the fields required for every job listing: source, title,
 // company, and location. It also parses posted_date (YYYY-MM-DD)
@@ -109,8 +112,8 @@ func (r bulkQueueAnalyzeRequest) Validate() error {
 	return nil
 }
 
-// Validate checks array bounds for bulk analyze compatibility requests.
-func (r bulkAnalyzeCompatibilityRequest) Validate() error {
+// Validate checks array bounds for create evaluation requests.
+func (r createEvaluationRequest) Validate() error {
 	if len(r) == 0 {
 		return httpx.Envelope(httpx.CodeInvalidRequest, "at least one job is required", "")
 	}

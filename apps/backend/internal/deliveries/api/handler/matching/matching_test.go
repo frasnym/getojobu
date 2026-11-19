@@ -60,72 +60,131 @@ func setupTestRouter(
 	return rt
 }
 
-func TestBulkAnalyzeCompatibilityHandler(t *testing.T) {
+func TestBulkGenerateEvaluationHandler(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
 	mockMatching := usecaseMocks.NewMockMatching(ctrl)
 	mockUsers := userMocks.NewMockUser(ctrl)
 	apiKey := "test-worker-key"
-
 	rt := setupTestRouter(ctrl, mockMatching, mockUsers, apiKey)
+	path := "/v1/matching-evaluations/bulk-generate-evaluation"
+	evalID := uuid.New()
+
+	post := func(body string, authorized bool) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodPost, path, bytes.NewBufferString(body))
+		if authorized {
+			req.Header.Set("Authorization", "Bearer "+apiKey)
+		}
+		rec := httptest.NewRecorder()
+		rt.Mux().ServeHTTP(rec, req)
+		return rec
+	}
 
 	t.Run("unauthenticated returns 401", func(t *testing.T) {
-		body := bytes.NewBufferString(`[{"slug":"job-1","force":false}]`)
-		req := httptest.NewRequest(http.MethodPost, "/v1/jobs/bulk-analyze-compatibility", body)
-		req.Header.Set("Content-Type", "application/json")
-		rec := httptest.NewRecorder()
-
-		rt.Mux().ServeHTTP(rec, req)
+		rec := post(fmt.Sprintf(`[{"id":"%s","user_id":"user_1"}]`, evalID.String()), false)
 		assert.Equal(t, http.StatusUnauthorized, rec.Code)
 	})
 
 	t.Run("empty array returns 400", func(t *testing.T) {
-		body := bytes.NewBufferString(`[]`)
-		req := httptest.NewRequest(http.MethodPost, "/v1/jobs/bulk-analyze-compatibility", body)
-		req.Header.Set("Authorization", "Bearer "+apiKey)
-		req.Header.Set("Content-Type", "application/json")
-		rec := httptest.NewRecorder()
-
-		rt.Mux().ServeHTTP(rec, req)
+		rec := post(`[]`, true)
 		assert.Equal(t, http.StatusBadRequest, rec.Code)
 	})
 
-	t.Run("valid bulk request returns 202 with partial results", func(t *testing.T) {
-		newID := uuid.New()
-		errStr := "already evaluated"
-		mockMatching.EXPECT().TriggerCompatibilityBulk(gomock.Any(), []models.BulkAnalyzeCompatibilityItem{
-			{Slug: "job-1", Force: false},
-			{Slug: "job-2", Force: true},
+	t.Run("over 100 items returns 400", func(t *testing.T) {
+		items := make([]map[string]string, 101)
+		for i := range items {
+			items[i] = map[string]string{"id": uuid.NewString(), "user_id": "user_1"}
+		}
+		body, err := json.Marshal(items)
+		require.NoError(t, err)
+		rec := post(string(body), true)
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+	})
+
+	t.Run("invalid id returns 400", func(t *testing.T) {
+		rec := post(`[{"id":"not-a-uuid","user_id":"user_1"}]`, true)
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+	})
+
+	t.Run("api key caller without user_id returns 400", func(t *testing.T) {
+		rec := post(fmt.Sprintf(`[{"id":"%s"}]`, evalID.String()), true)
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+	})
+
+	t.Run("api key caller user_id is passed to the usecase and partial errors survive", func(t *testing.T) {
+		secondID := uuid.New()
+		errStr := "cannot trigger evaluation with status success"
+		mockMatching.EXPECT().TriggerEvaluations(gomock.Any(), []models.TriggerEvaluationItem{
+			{ID: evalID, UserID: "user_1"},
+			{ID: secondID, UserID: "user_1"},
 		}, gomock.Any()).Return([]*models.MatchingEvaluationSummary{
-			{
-				Slug:             "job-1",
-				ID:               &newID,
-				EvaluationStatus: string(constants.MatchingStatusQueued),
-			},
-			{
-				Slug:  "job-2",
-				Error: &errStr,
-			},
+			{ID: &evalID, EvaluationStatus: string(constants.MatchingStatusQueued)},
+			{ID: &secondID, Error: &errStr},
 		}, nil)
 
-		body := bytes.NewBufferString(`[{"slug":"job-1","force":false},{"slug":"job-2","force":true}]`)
-		req := httptest.NewRequest(http.MethodPost, "/v1/jobs/bulk-analyze-compatibility", body)
-		req.Header.Set("Authorization", "Bearer "+apiKey)
-		req.Header.Set("Content-Type", "application/json")
-		rec := httptest.NewRecorder()
-
-		rt.Mux().ServeHTTP(rec, req)
-		assert.Equal(t, http.StatusAccepted, rec.Code)
+		body := fmt.Sprintf(`[{"id":"%s","user_id":"user_1"},{"id":"%s","user_id":"user_1"}]`, evalID.String(), secondID.String())
+		rec := post(body, true)
+		require.Equal(t, http.StatusAccepted, rec.Code)
 
 		var resp httpx.Response[[]models.MatchingEvaluationSummary]
-		err := json.Unmarshal(rec.Body.Bytes(), &resp)
-		require.NoError(t, err)
+		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
 		require.Len(t, resp.Data, 2)
-		assert.Equal(t, "job-1", resp.Data[0].Slug)
+		assert.Equal(t, string(constants.MatchingStatusQueued), resp.Data[0].EvaluationStatus)
 		assert.Nil(t, resp.Data[0].Error)
-		assert.Equal(t, "job-2", resp.Data[1].Slug)
-		assert.Equal(t, "already evaluated", *resp.Data[1].Error)
+		require.NotNil(t, resp.Data[1].Error)
+		assert.Equal(t, errStr, *resp.Data[1].Error)
+	})
+
+	t.Run("clerk caller supplying user_id is rejected", func(t *testing.T) {
+		c := &contract.Contract{
+			Cfg:     &config.Config{},
+			Usecase: &contractUsecase.Contract{Matching: mockMatching, Users: mockUsers},
+		}
+		h := handlerMatching.NewHandler(c)
+		clerk := &models.Principal{ID: "user-clerk-1"}
+
+		body := fmt.Sprintf(`[{"id":"%s","user_id":"user-clerk-2"}]`, evalID.String())
+		req := httptest.NewRequest(http.MethodPost, path, bytes.NewBufferString(body))
+		req = req.WithContext(ctxval.ContextWithPrincipal(req.Context(), clerk))
+		rec := httptest.NewRecorder()
+
+		httpx.HandlerFunc(h.BulkGenerateEvaluation).ServeHTTP(rec, req)
+
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+	})
+
+	t.Run("clerk caller without user_id leaves ownership to the usecase", func(t *testing.T) {
+		c := &contract.Contract{
+			Cfg:     &config.Config{},
+			Usecase: &contractUsecase.Contract{Matching: mockMatching, Users: mockUsers},
+		}
+		h := handlerMatching.NewHandler(c)
+		clerk := &models.Principal{ID: "user-clerk-1"}
+
+		mockMatching.EXPECT().TriggerEvaluations(gomock.Any(), []models.TriggerEvaluationItem{
+			{ID: evalID},
+		}, gomock.Any()).Return([]*models.MatchingEvaluationSummary{{
+			ID: &evalID, EvaluationStatus: string(constants.MatchingStatusQueued),
+		}}, nil)
+
+		body := fmt.Sprintf(`[{"id":"%s"}]`, evalID.String())
+		req := httptest.NewRequest(http.MethodPost, path, bytes.NewBufferString(body))
+		req = req.WithContext(ctxval.ContextWithPrincipal(req.Context(), clerk))
+		rec := httptest.NewRecorder()
+
+		httpx.HandlerFunc(h.BulkGenerateEvaluation).ServeHTTP(rec, req)
+
+		assert.Equal(t, http.StatusAccepted, rec.Code)
+	})
+
+	t.Run("old bulk-analyze-compatibility route is removed", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodPost, "/v1/jobs/bulk-analyze-compatibility", nil)
+		rec := httptest.NewRecorder()
+		rt.Mux().ServeHTTP(rec, req)
+		// No POST handler is registered for the old path; the mux answers 404
+		// or 405 (GET/PATCH exist for /{slug}) but never reaches a handler.
+		assert.Contains(t, []int{http.StatusNotFound, http.StatusMethodNotAllowed}, rec.Code)
 	})
 }
 

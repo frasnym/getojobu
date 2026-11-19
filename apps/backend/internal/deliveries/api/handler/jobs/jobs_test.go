@@ -1,6 +1,7 @@
 package jobs
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -15,6 +16,7 @@ import (
 	"github.com/frasnym/getojobu/apps/backend/internal/deliveries/api/dto"
 	"github.com/frasnym/getojobu/apps/backend/internal/models"
 	ucJobsMocks "github.com/frasnym/getojobu/apps/backend/internal/usecase/jobs/mocks"
+	ucMatchingMocks "github.com/frasnym/getojobu/apps/backend/internal/usecase/matching/mocks"
 	ucUsersMocks "github.com/frasnym/getojobu/apps/backend/internal/usecase/users/mocks"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/constants"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/ctxval"
@@ -33,6 +35,19 @@ func newHandlerWithMock(ctrl *gomock.Controller) (*handler, *ucJobsMocks.MockJob
 		ucJobs: mockJob,
 	}
 	return h, mockJob, mockUsers
+}
+
+func newHandlerWithMatchingMock(ctrl *gomock.Controller) (*handler, *ucMatchingMocks.MockMatching) {
+	mockJob := ucJobsMocks.NewMockJob(ctrl)
+	mockUsers := ucUsersMocks.NewMockUser(ctrl)
+	mockMatching := ucMatchingMocks.NewMockMatching(ctrl)
+	h := &handler{
+		cfg:        &config.Config{},
+		userUC:     mockUsers,
+		ucJobs:     mockJob,
+		matchingUC: mockMatching,
+	}
+	return h, mockMatching
 }
 
 func principalCtx(actorType, actorID string) *models.Principal {
@@ -950,18 +965,18 @@ func TestBulkQueueAnalyzeRequest_Validate(t *testing.T) {
 	})
 }
 
-func TestBulkAnalyzeCompatibilityRequest_Validate(t *testing.T) {
+func TestCreateEvaluationRequest_Validate(t *testing.T) {
 	t.Run("empty slice returns error", func(t *testing.T) {
-		req := bulkAnalyzeCompatibilityRequest{}
+		req := createEvaluationRequest{}
 		err := req.Validate()
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "at least one job is required")
 	})
 
 	t.Run("over 100 items returns error", func(t *testing.T) {
-		req := make(bulkAnalyzeCompatibilityRequest, 101)
+		req := make(createEvaluationRequest, 101)
 		for i := range req {
-			req[i] = bulkAnalyzeCompatibilityItemRequest{Slug: fmt.Sprintf("job-%d", i)}
+			req[i] = createEvaluationItemRequest{Slug: fmt.Sprintf("job-%d", i)}
 		}
 		err := req.Validate()
 		require.Error(t, err)
@@ -969,11 +984,179 @@ func TestBulkAnalyzeCompatibilityRequest_Validate(t *testing.T) {
 	})
 
 	t.Run("valid items return nil", func(t *testing.T) {
-		req := bulkAnalyzeCompatibilityRequest{
-			{Slug: "job-1", Force: false},
-			{Slug: "job-2", Force: true},
+		req := createEvaluationRequest{
+			{Slug: "job-1"},
+			{Slug: "job-2", UserIDs: []string{"user_42"}},
 		}
 		err := req.Validate()
 		require.NoError(t, err)
 	})
+}
+
+// ---------------------------------------------------------------------------
+// CreateEvaluation — insert-only evaluation creation
+// ---------------------------------------------------------------------------
+
+func TestCreateEvaluation_clerk_success(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	h, mockMatching := newHandlerWithMatchingMock(ctrl)
+
+	id := uuid.New()
+	mockMatching.EXPECT().
+		CreateEvaluations(gomock.Any(), []models.CreateEvaluationItem{{Slug: "job-1"}}, gomock.Any()).
+		Return([]*models.MatchingEvaluationSummary{{
+			Slug: "job-1", ID: &id, EvaluationStatus: "new",
+		}}, nil)
+
+	body := strings.NewReader(`[{"slug":"job-1"}]`)
+	req := httptest.NewRequest(http.MethodPost, "/jobs/evaluation", body)
+	req = req.WithContext(ctxval.ContextWithPrincipal(req.Context(), principalCtx("", "user_1")))
+	w := httptest.NewRecorder()
+
+	httpx.HandlerFunc(h.CreateEvaluation).ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusAccepted, w.Code)
+	var resp httpx.Response[[]models.MatchingEvaluationSummary]
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+	require.True(t, resp.Success)
+	require.Len(t, resp.Data, 1)
+	assert.Equal(t, "new", resp.Data[0].EvaluationStatus)
+}
+
+func TestCreateEvaluation_clerk_rejects_body_user_ids(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	h, _ := newHandlerWithMatchingMock(ctrl)
+
+	body := strings.NewReader(`[{"slug":"job-1","user_ids":["user_42"]}]`)
+	req := httptest.NewRequest(http.MethodPost, "/jobs/evaluation", body)
+	req = req.WithContext(ctxval.ContextWithPrincipal(req.Context(), principalCtx("", "user_1")))
+	w := httptest.NewRecorder()
+
+	httpx.HandlerFunc(h.CreateEvaluation).ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestCreateEvaluation_api_key_passes_user_ids(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	h, mockMatching := newHandlerWithMatchingMock(ctrl)
+
+	id := uuid.New()
+	mockMatching.EXPECT().
+		CreateEvaluations(gomock.Any(), []models.CreateEvaluationItem{
+			{Slug: "job-1", UserIDs: []string{"user_42"}},
+			{Slug: "job-2", UserIDs: []string{"user_43"}},
+		}, gomock.Any()).
+		Return([]*models.MatchingEvaluationSummary{
+			{Slug: "job-1", ID: &id, EvaluationStatus: "new"},
+			{Slug: "job-2", ID: &id, EvaluationStatus: "new"},
+		}, nil)
+
+	body := strings.NewReader(`[{"slug":"job-1","user_ids":["user_42"]},{"slug":"job-2","user_ids":["user_43"]}]`)
+	req := httptest.NewRequest(http.MethodPost, "/jobs/evaluation", body)
+	req = req.WithContext(ctxval.ContextWithPrincipal(req.Context(), principalCtx("api_key", "key_1")))
+	w := httptest.NewRecorder()
+
+	httpx.HandlerFunc(h.CreateEvaluation).ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusAccepted, w.Code)
+}
+
+func TestCreateEvaluation_api_key_requires_user_ids(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	h, _ := newHandlerWithMatchingMock(ctrl)
+
+	body := strings.NewReader(`[{"slug":"job-1"}]`)
+	req := httptest.NewRequest(http.MethodPost, "/jobs/evaluation", body)
+	req = req.WithContext(ctxval.ContextWithPrincipal(req.Context(), principalCtx("api_key", "key_1")))
+	w := httptest.NewRecorder()
+
+	httpx.HandlerFunc(h.CreateEvaluation).ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestCreateEvaluation_empty_array(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	h, _ := newHandlerWithMatchingMock(ctrl)
+
+	body := strings.NewReader(`[]`)
+	req := httptest.NewRequest(http.MethodPost, "/jobs/evaluation", body)
+	req = req.WithContext(ctxval.ContextWithPrincipal(req.Context(), principalCtx("", "user_1")))
+	w := httptest.NewRecorder()
+
+	httpx.HandlerFunc(h.CreateEvaluation).ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestCreateEvaluation_over_100_items(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	h, _ := newHandlerWithMatchingMock(ctrl)
+
+	items := make([]createEvaluationItemRequest, 101)
+	for i := range items {
+		items[i] = createEvaluationItemRequest{Slug: fmt.Sprintf("job-%d", i)}
+	}
+	body, err := json.Marshal(items)
+	require.NoError(t, err)
+	req := httptest.NewRequest(http.MethodPost, "/jobs/evaluation", bytes.NewReader(body))
+	req = req.WithContext(ctxval.ContextWithPrincipal(req.Context(), principalCtx("", "user_1")))
+	w := httptest.NewRecorder()
+
+	httpx.HandlerFunc(h.CreateEvaluation).ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestCreateEvaluation_partial_failure(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	h, mockMatching := newHandlerWithMatchingMock(ctrl)
+
+	id := uuid.New()
+	errStr := "job not found"
+	mockMatching.EXPECT().
+		CreateEvaluations(gomock.Any(), gomock.Any(), gomock.Any()).
+		Return([]*models.MatchingEvaluationSummary{
+			{Slug: "job-1", ID: &id, EvaluationStatus: "new"},
+			{Slug: "job-2", Error: &errStr},
+		}, nil)
+
+	body := strings.NewReader(`[{"slug":"job-1"},{"slug":"job-2"}]`)
+	req := httptest.NewRequest(http.MethodPost, "/jobs/evaluation", body)
+	req = req.WithContext(ctxval.ContextWithPrincipal(req.Context(), principalCtx("", "user_1")))
+	w := httptest.NewRecorder()
+
+	httpx.HandlerFunc(h.CreateEvaluation).ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusAccepted, w.Code)
+	var resp httpx.Response[[]models.MatchingEvaluationSummary]
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+	require.Len(t, resp.Data, 2)
+	assert.Equal(t, "job-1", resp.Data[0].Slug)
+	assert.Nil(t, resp.Data[0].Error)
+	assert.Equal(t, "job-2", resp.Data[1].Slug)
+	require.NotNil(t, resp.Data[1].Error)
+	assert.Equal(t, "job not found", *resp.Data[1].Error)
+}
+
+func TestCreateEvaluation_unauthenticated(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	h, _ := newHandlerWithMatchingMock(ctrl)
+
+	body := strings.NewReader(`[{"slug":"job-1"}]`)
+	req := httptest.NewRequest(http.MethodPost, "/jobs/evaluation", body)
+	w := httptest.NewRecorder()
+
+	httpx.HandlerFunc(h.CreateEvaluation).ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusUnauthorized, w.Code)
 }
