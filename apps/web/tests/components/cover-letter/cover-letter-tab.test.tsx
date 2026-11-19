@@ -162,6 +162,30 @@ describe("CoverLetterTab component", () => {
     printSpy.mockRestore();
   });
 
+  it("copies the cover letter text and shows feedback when Copy is clicked", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText },
+    });
+
+    render(
+      <CoverLetterTab
+        evalId="eval-001"
+        status="success"
+        text={readyLetter}
+        fileName={fileName}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Copy cover letter/i }));
+
+    await waitFor(() => {
+      expect(writeText).toHaveBeenCalledWith(readyLetter);
+      expect(screen.getByRole("button", { name: /Cover letter copied/i })).toBeInTheDocument();
+    });
+  });
+
   it("falls back to a timeout when afterprint never fires", () => {
     vi.useFakeTimers();
     const printSpy = vi.spyOn(window, "print").mockImplementation(() => {});

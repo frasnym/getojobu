@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { DownloadCoverLetterButton } from "./download-cover-letter-button";
+import { CopyCoverLetterButton } from "./copy-cover-letter-button";
 import { generateCoverLetter } from "@/lib/api/endpoints";
 import {
   FileText,
@@ -222,7 +223,10 @@ export function CoverLetterTab({
             <VariantSelector value={variant} onChange={setVariant} />
           )}
           {isReady && (
-            <DownloadCoverLetterButton text={text ?? ""} fileName={fileName ?? "Cover Letter.pdf"} />
+            <div className="flex flex-wrap items-center gap-2">
+              <DownloadCoverLetterButton text={text ?? ""} fileName={fileName ?? "Cover Letter.pdf"} />
+              <CopyCoverLetterButton text={text ?? ""} />
+            </div>
           )}
           {isFailed && (
             <button
