@@ -93,7 +93,7 @@ describe("JobFilters component", () => {
     expect(onStatusChange).toHaveBeenCalledWith("all");
   });
 
-  it("toggles remote inside the drawer", () => {
+  it("toggles remote from the popover", () => {
     const onRemoteChange = vi.fn();
     render(
       <JobFilters
@@ -107,16 +107,8 @@ describe("JobFilters component", () => {
       />
     );
 
-    // Remote toggle is not inline anymore
-    expect(
-      screen.queryByRole("button", { name: /Remote Only/i })
-    ).not.toBeInTheDocument();
-
-    // Open drawer and toggle remote
-    fireEvent.click(screen.getByRole("button", { name: /Filters/i }));
-    const remoteBtn = screen.getByRole("button", { name: /Remote Only/i });
-    expect(remoteBtn).toBeInTheDocument();
-    fireEvent.click(remoteBtn);
+    fireEvent.click(screen.getByRole("button", { name: /More filters/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Remote Only/i }));
     expect(onRemoteChange).toHaveBeenCalledWith(true);
   });
 

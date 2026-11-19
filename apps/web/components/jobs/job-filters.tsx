@@ -273,37 +273,34 @@ export function JobFilters({
       "bg-red-500/15 text-red-400 dark:text-red-300 border-red-500/30";
   }
 
-  // Filters drawer state
-  const [filtersDrawerOpen, setFiltersDrawerOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
+  // More-filters popover state
+  const [moreFiltersOpen, setMoreFiltersOpen] = useState(false);
+  const moreFiltersRef = useRef<HTMLDivElement>(null);
 
-  // Close drawer on Escape or click outside
+  // Close popover on Escape or click outside
   useEffect(() => {
+    if (!moreFiltersOpen) return;
+
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && filtersDrawerOpen) {
-        setFiltersDrawerOpen(false);
+      if (e.key === "Escape") {
+        setMoreFiltersOpen(false);
       }
     };
     const handleClickOutside = (e: MouseEvent) => {
       if (
-        filtersDrawerOpen &&
-        containerRef.current &&
-        !containerRef.current.contains(e.target as Node)
+        moreFiltersRef.current &&
+        !moreFiltersRef.current.contains(e.target as Node)
       ) {
-        setFiltersDrawerOpen(false);
+        setMoreFiltersOpen(false);
       }
     };
-    if (filtersDrawerOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
-      window.addEventListener("keydown", handleKeyDown);
-      document.body.style.overflow = "hidden";
-    }
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleKeyDown);
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
-      window.removeEventListener("keydown", handleKeyDown);
-      document.body.style.overflow = "unset";
+      document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [filtersDrawerOpen]);
+  }, [moreFiltersOpen]);
 
   // Build list of active filters for chips
   const activeChips: { label: string; value: string; onRemove: () => void }[] = [];
@@ -371,315 +368,342 @@ export function JobFilters({
     });
   }
 
-  const hasActiveFilters = activeChips.length > 0;
+  const secondaryFilterCount = [
+    statusFilter !== "all",
+    remoteOnly,
+    ownedFilter !== "all",
+    evaluationStatusFilter !== "all",
+    reportStatusFilter !== "all",
+    eligibilityStatusFilter !== "all",
+  ].filter(Boolean).length;
 
   return (
-    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between py-2">
-      {/* Search Input */}
-      <div className="relative flex-1 max-w-md">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={(e) => onSearchChange(e.target.value)}
-          placeholder="Filter by role, company, or location..."
-          className="w-full rounded-lg border border-border bg-card py-2 pl-9 pr-4 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-colors"
-        />
-      </div>
+    <div className="flex flex-col gap-3 py-2">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        {/* Search Input */}
+        <div className="relative w-full lg:max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => onSearchChange(e.target.value)}
+            placeholder="Filter by role, company, or location..."
+            className="w-full rounded-lg border border-border bg-card py-2 pl-9 pr-4 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-colors"
+          />
+        </div>
 
-      {/* Filter Options: Filters button + active chips + drawer */}
-      <div className="flex flex-wrap items-center gap-2 pb-1 sm:pb-0">
-        <button
-          type="button"
-          onClick={() => setFiltersDrawerOpen(true)}
-          className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all ${
-            hasActiveFilters
-              ? "bg-primary/10 text-primary border-primary/25"
-              : "border-border/60 bg-secondary/60 text-muted-foreground hover:bg-secondary hover:text-foreground"
-          }`}
-          aria-label="Open filters"
-        >
-          <SlidersHorizontal className="h-3.5 w-3.5" />
-          <span>Filters</span>
-          {hasActiveFilters && (
-            <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
-              {activeChips.length}
-            </span>
+        {/* Primary filters stay inline; the rest live in a compact popover */}
+        <div className="flex flex-wrap items-center gap-2">
+          {onHideFilterChange !== undefined && (
+            <div className="w-[168px]">
+              <FilterDropdown
+                prefix="Visibility"
+                value={hideFilter}
+                options={HIDE_OPTIONS}
+                onChange={onHideFilterChange}
+                icon={
+                  hideFilter === "hidden" ? (
+                    <EyeOff className="h-3 w-3 text-muted-foreground" />
+                  ) : (
+                    <Eye className="h-3 w-3 text-muted-foreground" />
+                  )
+                }
+              />
+            </div>
           )}
-        </button>
+          {onRecommendationLabelChange !== undefined && (
+            <div className="w-[168px]">
+              <FilterDropdown
+                prefix="Recommendation"
+                value={recommendationLabelFilter}
+                options={RECOMMENDATION_LABEL_OPTIONS}
+                onChange={onRecommendationLabelChange}
+                activeColorClass="bg-red-500/15 text-red-400 dark:text-red-300 border-red-500/30"
+                icon={
+                  <Sparkles
+                    className={`h-3 w-3 ${
+                      recommendationLabelFilter !== "all"
+                        ? "text-red-400 dark:text-red-300 fill-red-500/20"
+                        : "text-muted-foreground"
+                    }`}
+                  />
+                }
+              />
+            </div>
+          )}
 
-        {/* Active filter chips */}
-        {activeChips.map((chip) => (
-          <span
-            key={chip.value}
-            className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-card px-2.5 py-1 text-[11px] font-medium text-foreground"
-          >
-            {chip.label}
+          <div ref={moreFiltersRef} className="relative">
             <button
               type="button"
-              onClick={chip.onRemove}
-              className="rounded-full p-0.5 hover:bg-secondary transition-colors"
-              aria-label={`Remove ${chip.label} filter`}
+              onClick={() => setMoreFiltersOpen((prev) => !prev)}
+              aria-expanded={moreFiltersOpen}
+              aria-haspopup="dialog"
+              aria-label="More filters"
+              className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-semibold transition-all ${
+                moreFiltersOpen || secondaryFilterCount > 0
+                  ? "bg-primary/10 text-primary border-primary/25"
+                  : "border-border/60 bg-secondary/60 text-muted-foreground hover:bg-secondary hover:text-foreground"
+              }`}
             >
-              <X className="h-3 w-3 text-muted-foreground" />
+              <SlidersHorizontal className="h-3.5 w-3.5" />
+              <span>More filters</span>
+              {secondaryFilterCount > 0 && (
+                <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
+                  {secondaryFilterCount}
+                </span>
+              )}
+              <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-150 ${moreFiltersOpen ? "rotate-180" : ""}`} />
             </button>
-          </span>
-        ))}
 
-        {/* Query all / Search all — only shown when filters differ from initial state and no drawer is open */}
-        {isFiltersChanged && onQueryAll && !isDrawerOpen && (
-          <button
-            type="button"
-            onClick={onQueryAll}
-            disabled={loading}
-            className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${
-              loading
-                ? "border-border/40 bg-secondary/50 text-muted-foreground"
-                : "bg-primary text-primary-foreground border-primary hover:bg-primary/90"
-            }`}
-            aria-label={searchQuery ? "Search all jobs on backend" : "Query all jobs on backend"}
-          >
-            {loading ? (
-              <>
-                <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-                <span>Searching...</span>
-              </>
-            ) : searchQuery ? (
-              <span>Search all</span>
-            ) : (
-              <span>Query all</span>
+            {moreFiltersOpen && (
+              <div
+                role="dialog"
+                aria-label="More filters"
+                className="absolute right-0 top-full z-50 mt-2 w-[540px] max-w-[calc(100vw-2rem)] rounded-xl border border-border bg-card p-4 shadow-2xl"
+              >
+                <div className="mb-3 flex items-center justify-between">
+                  <span className="text-xs font-bold">More filters</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onStatusChange("all");
+                      onRemoteChange?.(false);
+                      onOwnedFilterChange?.("all");
+                      onHideFilterChange?.("all");
+                      onEvaluationStatusChange?.("all");
+                      onReportStatusChange?.("all");
+                      onEligibilityStatusChange?.("all");
+                      onRecommendationLabelChange?.("all");
+                    }}
+                    disabled={secondaryFilterCount === 0}
+                    className="text-[11px] font-semibold text-muted-foreground transition-colors hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
+                  >
+                    Clear all
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-3">
+                    <h4 className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                      Job
+                    </h4>
+                    <FilterDropdown
+                      prefix="Job Status"
+                      value={statusFilter}
+                      options={STATUS_OPTIONS}
+                      onChange={onStatusChange}
+                      activeColorClass={statusColorClass}
+                      icon={
+                        <Briefcase
+                          className={`h-3 w-3 ${
+                            statusFilter !== "all"
+                              ? "text-primary"
+                              : "text-muted-foreground"
+                          }`}
+                        />
+                      }
+                    />
+                    {onOwnedFilterChange !== undefined && (
+                      <FilterDropdown
+                        prefix="Saved"
+                        value={ownedFilter}
+                        options={OWNED_OPTIONS}
+                        onChange={onOwnedFilterChange}
+                        activeColorClass="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
+                        icon={
+                          <Bookmark
+                            className={`h-3 w-3 ${
+                              ownedFilter !== "all"
+                                ? "text-emerald-500 fill-emerald-500/20"
+                                : "text-muted-foreground"
+                            }`}
+                          />
+                        }
+                      />
+                    )}
+                    {onHideFilterChange !== undefined && (
+                      <FilterDropdown
+                        prefix="Visibility"
+                        value={hideFilter}
+                        options={HIDE_OPTIONS}
+                        onChange={onHideFilterChange}
+                        icon={
+                          hideFilter === "hidden" ? (
+                            <EyeOff className="h-3 w-3 text-muted-foreground" />
+                          ) : (
+                            <Eye className="h-3 w-3 text-muted-foreground" />
+                          )
+                        }
+                      />
+                    )}
+                    {onRemoteChange !== undefined && (
+                      <button
+                        type="button"
+                        aria-pressed={remoteOnly}
+                        onClick={() => onRemoteChange(!remoteOnly)}
+                        className={`inline-flex w-full items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-semibold transition-all ${
+                          remoteOnly
+                            ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 shadow-xs"
+                            : "border-border/60 bg-secondary/60 text-muted-foreground hover:bg-secondary hover:text-foreground"
+                        }`}
+                      >
+                        <Globe className={`h-3.5 w-3.5 ${remoteOnly ? "text-emerald-500" : ""}`} />
+                        <span>Remote Only</span>
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="space-y-3">
+                    <h4 className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                      Evaluation
+                    </h4>
+                    {onEvaluationStatusChange !== undefined && (
+                      <FilterDropdown
+                        prefix="Evaluation"
+                        value={evaluationStatusFilter}
+                        options={EVALUATION_STATUS_OPTIONS}
+                        onChange={onEvaluationStatusChange}
+                        activeColorClass="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
+                        icon={
+                          <CheckCircle2
+                            className={`h-3 w-3 ${
+                              evaluationStatusFilter !== "all"
+                                ? "text-emerald-500 fill-emerald-500/20"
+                                : "text-muted-foreground"
+                            }`}
+                          />
+                        }
+                      />
+                    )}
+                    {onReportStatusChange !== undefined && (
+                      <FilterDropdown
+                        prefix="Report"
+                        value={reportStatusFilter}
+                        options={REPORT_STATUS_OPTIONS}
+                        onChange={onReportStatusChange}
+                        activeColorClass="bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30"
+                        icon={
+                          <FileText
+                            className={`h-3 w-3 ${
+                              reportStatusFilter !== "all"
+                                ? "text-blue-500 fill-blue-500/20"
+                                : "text-muted-foreground"
+                            }`}
+                          />
+                        }
+                      />
+                    )}
+                  </div>
+
+                  <div className="space-y-3">
+                    <h4 className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                      Decision
+                    </h4>
+                    {onEligibilityStatusChange !== undefined && (
+                      <FilterDropdown
+                        prefix="Eligibility"
+                        value={eligibilityStatusFilter}
+                        options={ELIGIBILITY_STATUS_OPTIONS}
+                        onChange={onEligibilityStatusChange}
+                        activeColorClass="bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30"
+                        icon={
+                          <AlertTriangle
+                            className={`h-3 w-3 ${
+                              eligibilityStatusFilter !== "all"
+                                ? "text-amber-500 fill-amber-500/20"
+                                : "text-muted-foreground"
+                            }`}
+                          />
+                        }
+                      />
+                    )}
+                    {onRecommendationLabelChange !== undefined && (
+                      <FilterDropdown
+                        prefix="Recommendation"
+                        value={recommendationLabelFilter}
+                        options={RECOMMENDATION_LABEL_OPTIONS}
+                        onChange={onRecommendationLabelChange}
+                        activeColorClass="bg-red-500/15 text-red-400 dark:text-red-300 border-red-500/30"
+                        icon={
+                          <Sparkles
+                            className={`h-3 w-3 ${
+                              recommendationLabelFilter !== "all"
+                                ? "text-red-400 dark:text-red-300 fill-red-500/20"
+                                : "text-muted-foreground"
+                            }`}
+                          />
+                        }
+                      />
+                    )}
+                  </div>
+                </div>
+
+                <div className="mt-4 flex items-center justify-between border-t border-border/40 pt-3">
+                  <span className="text-[11px] text-muted-foreground">
+                    {activeChips.length} active filter{activeChips.length === 1 ? "" : "s"}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setMoreFiltersOpen(false)}
+                    className="inline-flex items-center rounded-lg bg-primary px-4 py-2 text-xs font-bold text-primary-foreground shadow-sm hover:bg-primary/90 transition-colors"
+                  >
+                    Done
+                  </button>
+                </div>
+              </div>
             )}
-          </button>
-        )}
+          </div>
 
-        <span className="ml-1 text-xs text-muted-foreground whitespace-nowrap">
-          {totalCount} {totalCount === 1 ? "job" : "jobs"}
-        </span>
+          {isFiltersChanged && onQueryAll && !isDrawerOpen && (
+            <button
+              type="button"
+              onClick={onQueryAll}
+              disabled={loading}
+              className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-semibold transition-colors ${
+                loading
+                  ? "border-border/40 bg-secondary/50 text-muted-foreground"
+                  : "bg-primary text-primary-foreground border-primary hover:bg-primary/90"
+              }`}
+              aria-label={searchQuery ? "Search all jobs on backend" : "Query all jobs on backend"}
+            >
+              {loading ? (
+                <>
+                  <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                  <span>Searching...</span>
+                </>
+              ) : searchQuery ? (
+                <span>Search all</span>
+              ) : (
+                <span>Query all</span>
+              )}
+            </button>
+          )}
+
+          <span className="ml-1 text-xs text-muted-foreground whitespace-nowrap">
+            {totalCount} {totalCount === 1 ? "job" : "jobs"}
+          </span>
+        </div>
       </div>
 
-      {/* Filters Drawer */}
-      {filtersDrawerOpen && (
-        <div className="fixed inset-0 z-50">
-          {/* Backdrop */}
-          <div
-            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-            onClick={() => setFiltersDrawerOpen(false)}
-          />
-          {/* Panel */}
-          <div
-            ref={containerRef}
-            className="absolute right-0 top-0 flex h-full w-full max-w-lg flex-col bg-card shadow-2xl border-l border-border/60 animate-in slide-in-from-right duration-200"
-            role="dialog"
-            aria-modal="true"
-            aria-label="Filters"
-          >
-            {/* Drawer Header */}
-            <div className="flex items-center justify-between border-b border-border/40 px-5 py-4">
-              <h3 className="text-base font-bold text-foreground">Filters</h3>
+      {/* Active filter chips */}
+      {activeChips.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {activeChips.map((chip) => (
+            <span
+              key={chip.value}
+              className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-card px-2.5 py-1 text-[11px] font-medium text-foreground"
+            >
+              {chip.label}
               <button
                 type="button"
-                onClick={() => setFiltersDrawerOpen(false)}
-                className="rounded-lg p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
-                aria-label="Close filters"
+                onClick={chip.onRemove}
+                className="rounded-full p-0.5 hover:bg-secondary transition-colors"
+                aria-label={`Remove ${chip.label} filter`}
               >
-                <X className="h-4 w-4" />
+                <X className="h-3 w-3 text-muted-foreground" />
               </button>
-            </div>
-
-            {/* Drawer Content */}
-            <div className="flex-1 overflow-y-auto px-5 py-4 space-y-6">
-              {/* Job group */}
-              <div className="space-y-3">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                  Job
-                </h4>
-                <div className="grid grid-cols-2 gap-3">
-                  <FilterDropdown
-                    prefix="Job Status"
-                    value={statusFilter}
-                    options={STATUS_OPTIONS}
-                    onChange={onStatusChange}
-                    activeColorClass={statusColorClass}
-                    icon={
-                      <Briefcase
-                        className={`h-3 w-3 ${
-                          statusFilter !== "all"
-                            ? "text-primary"
-                            : "text-muted-foreground"
-                        }`}
-                      />
-                    }
-                  />
-                  {onRemoteChange !== undefined && (
-                    <button
-                      type="button"
-                      aria-pressed={remoteOnly}
-                      onClick={() => onRemoteChange(!remoteOnly)}
-                      className={`inline-flex w-full items-center justify-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all ${
-                        remoteOnly
-                          ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 shadow-xs"
-                          : "border-border/60 bg-secondary/60 text-muted-foreground hover:bg-secondary hover:text-foreground"
-                      }`}
-                    >
-                      <Globe
-                        className={`h-3.5 w-3.5 ${
-                          remoteOnly ? "text-emerald-500" : ""
-                        }`}
-                      />
-                      <span>Remote Only</span>
-                    </button>
-                  )}
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  {onOwnedFilterChange !== undefined && (
-                    <FilterDropdown
-                      prefix="Saved"
-                      value={ownedFilter}
-                      options={OWNED_OPTIONS}
-                      onChange={onOwnedFilterChange}
-                      activeColorClass="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
-                      icon={
-                        <Bookmark
-                          className={`h-3 w-3 ${
-                            ownedFilter !== "all"
-                              ? "text-emerald-500 fill-emerald-500/20"
-                              : "text-muted-foreground"
-                          }`}
-                        />
-                      }
-                    />
-                  )}
-                  {onHideFilterChange !== undefined && (
-                    <FilterDropdown
-                      prefix="Visibility"
-                      value={hideFilter}
-                      options={HIDE_OPTIONS}
-                      onChange={onHideFilterChange}
-                      icon={
-                        hideFilter === "hidden" ? (
-                          <EyeOff className="h-3 w-3 text-muted-foreground" />
-                        ) : (
-                          <Eye className="h-3 w-3 text-muted-foreground" />
-                        )
-                      }
-                    />
-                  )}
-                </div>
-              </div>
-
-              {/* Evaluation group */}
-              <div className="space-y-3">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                  Evaluation
-                </h4>
-                <div className="grid grid-cols-2 gap-3">
-                  {onEvaluationStatusChange !== undefined && (
-                    <FilterDropdown
-                      prefix="Evaluation"
-                      value={evaluationStatusFilter}
-                      options={EVALUATION_STATUS_OPTIONS}
-                      onChange={onEvaluationStatusChange}
-                      activeColorClass="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
-                      icon={
-                        <CheckCircle2
-                          className={`h-3 w-3 ${
-                            evaluationStatusFilter !== "all"
-                              ? "text-emerald-500 fill-emerald-500/20"
-                              : "text-muted-foreground"
-                          }`}
-                        />
-                      }
-                    />
-                  )}
-                  {onReportStatusChange !== undefined && (
-                    <FilterDropdown
-                      prefix="Report"
-                      value={reportStatusFilter}
-                      options={REPORT_STATUS_OPTIONS}
-                      onChange={onReportStatusChange}
-                      activeColorClass="bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30"
-                      icon={
-                        <FileText
-                          className={`h-3 w-3 ${
-                            reportStatusFilter !== "all"
-                              ? "text-blue-500 fill-blue-500/20"
-                              : "text-muted-foreground"
-                          }`}
-                        />
-                      }
-                    />
-                  )}
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  {onEligibilityStatusChange !== undefined && (
-                    <FilterDropdown
-                      prefix="Eligibility"
-                      value={eligibilityStatusFilter}
-                      options={ELIGIBILITY_STATUS_OPTIONS}
-                      onChange={onEligibilityStatusChange}
-                      activeColorClass="bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30"
-                      icon={
-                        <AlertTriangle
-                          className={`h-3 w-3 ${
-                            eligibilityStatusFilter !== "all"
-                              ? "text-amber-500 fill-amber-500/20"
-                              : "text-muted-foreground"
-                          }`}
-                        />
-                      }
-                    />
-                  )}
-                  {onRecommendationLabelChange !== undefined && (
-                    <FilterDropdown
-                      prefix="Recommendation"
-                      value={recommendationLabelFilter}
-                      options={RECOMMENDATION_LABEL_OPTIONS}
-                      onChange={onRecommendationLabelChange}
-                      activeColorClass="bg-red-500/15 text-red-400 dark:text-red-300 border-red-500/30"
-                      icon={
-                        <Sparkles
-                          className={`h-3 w-3 ${
-                            recommendationLabelFilter !== "all"
-                              ? "text-red-400 dark:text-red-300 fill-red-500/20"
-                              : "text-muted-foreground"
-                          }`}
-                        />
-                      }
-                    />
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Drawer Footer */}
-            <div className="flex items-center justify-between gap-2 border-t border-border/40 px-5 py-4">
-              <button
-                type="button"
-                onClick={() => {
-                  onStatusChange("all");
-                  onRemoteChange?.(false);
-                  onOwnedFilterChange?.("all");
-                  onHideFilterChange?.("all");
-                  onEvaluationStatusChange?.("all");
-                  onReportStatusChange?.("all");
-                  onEligibilityStatusChange?.("all");
-                  onRecommendationLabelChange?.("all");
-                }}
-                disabled={!hasActiveFilters}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-border/60 px-3 py-2 text-xs font-semibold text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors disabled:opacity-50 disabled:pointer-events-none"
-              >
-                <X className="h-3.5 w-3.5" />
-                Clear all
-              </button>
-              <button
-                type="button"
-                onClick={() => setFiltersDrawerOpen(false)}
-                className="inline-flex items-center rounded-lg bg-primary px-4 py-2 text-xs font-bold text-primary-foreground shadow-sm hover:bg-primary/90 transition-colors"
-              >
-                Done
-              </button>
-            </div>
-          </div>
+            </span>
+          ))}
         </div>
       )}
     </div>
