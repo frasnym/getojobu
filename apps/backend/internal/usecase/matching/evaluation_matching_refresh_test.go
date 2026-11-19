@@ -35,9 +35,9 @@ func TestRefreshProfileCache(t *testing.T) {
 	projRepo.EXPECT().ListByUser(gomock.Any(), userID.String()).Return([]*models.Project{}, nil)
 	projSkillsRepo.EXPECT().ListSkillsByUser(gomock.Any(), userID.String()).Return([]*models.UserSkill{}, nil)
 
-	var profileJSON, factsJSON []byte
+	var profileJSON, factsJSON json.RawMessage
 	usersRepo.EXPECT().UpdateProfileCache(gomock.Any(), userID.String(), gomock.Any(), gomock.Any()).
-		DoAndReturn(func(_ context.Context, _ string, profile, facts []byte) error {
+		DoAndReturn(func(_ context.Context, _ string, profile, facts json.RawMessage) error {
 			profileJSON, factsJSON = profile, facts
 			return nil
 		})

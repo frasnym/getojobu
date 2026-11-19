@@ -11,6 +11,7 @@ package mocks
 
 import (
 	context "context"
+	json "encoding/json"
 	reflect "reflect"
 
 	models "github.com/frasnym/getojobu/apps/backend/internal/models"
@@ -131,7 +132,7 @@ func (mr *MockUsersMockRecorder) UpdateProfile(ctx, id, p any) *gomock.Call {
 }
 
 // UpdateProfileCache mocks base method.
-func (m *MockUsers) UpdateProfileCache(ctx context.Context, id string, profileData, factsData []byte) error {
+func (m *MockUsers) UpdateProfileCache(ctx context.Context, id string, profileData, factsData json.RawMessage) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateProfileCache", ctx, id, profileData, factsData)
 	ret0, _ := ret[0].(error)

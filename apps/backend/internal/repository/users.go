@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -19,7 +20,7 @@ type Users interface {
 	Update(ctx context.Context, id string, email, fullName string) (*models.User, error)
 	UpdateProfile(ctx context.Context, id string, p models.UserProfileInput) (*models.User, error)
 	SoftDelete(ctx context.Context, id string) (*models.User, error)
-	UpdateProfileCache(ctx context.Context, id string, profileData, factsData []byte) error
+	UpdateProfileCache(ctx context.Context, id string, profileData, factsData json.RawMessage) error
 }
 
 type usersRepository struct {
@@ -253,7 +254,7 @@ func (r *usersRepository) SoftDelete(ctx context.Context, id string) (*models.Us
 
 // UpdateProfileCache stores the composed profile and facts for a user. The
 // refresh endpoint calls this after recomputing from the source tables.
-func (r *usersRepository) UpdateProfileCache(ctx context.Context, id string, profileData, factsData []byte) error {
+func (r *usersRepository) UpdateProfileCache(ctx context.Context, id string, profileData, factsData json.RawMessage) error {
 	query := `
 		UPDATE users
 		SET profile_data = $2, facts_data = $3, updated_at = NOW()

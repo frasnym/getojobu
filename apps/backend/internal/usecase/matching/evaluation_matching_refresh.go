@@ -37,7 +37,7 @@ func (s *matchingService) RefreshProfileCache(
 		facts, enriched := s.composeFacts(ctx, user, candidate)
 		profileJSON, _ := json.Marshal(enriched)
 		factsJSON, _ := json.Marshal(facts)
-		if err := s.usersRepo.UpdateProfileCache(ctx, id.String(), profileJSON, factsJSON); err != nil {
+		if err := s.usersRepo.UpdateProfileCache(ctx, id.String(), json.RawMessage(profileJSON), json.RawMessage(factsJSON)); err != nil {
 			msg := err.Error()
 			result.Error = &msg
 			results = append(results, result)

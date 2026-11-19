@@ -52,7 +52,7 @@ func (s *matchingService) GetEvaluation(ctx context.Context, id uuid.UUID) (*mod
 		facts, candidate = s.composeFacts(ctx, user, candidate)
 		profileJSON, _ := json.Marshal(candidate)
 		factsJSON, _ := json.Marshal(facts)
-		if err := s.usersRepo.UpdateProfileCache(ctx, user.ID, profileJSON, factsJSON); err != nil {
+		if err := s.usersRepo.UpdateProfileCache(ctx, user.ID, json.RawMessage(profileJSON), json.RawMessage(factsJSON)); err != nil {
 			return nil, err
 		}
 	}
