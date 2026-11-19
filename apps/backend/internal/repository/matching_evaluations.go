@@ -18,7 +18,6 @@ import (
 
 // MatchingEvaluations is the interface for matching evaluations data access.
 type MatchingEvaluations interface {
-	Create(ctx context.Context, eval *models.MatchingEvaluation) (*models.MatchingEvaluation, error)
 	CreateIfAbsent(ctx context.Context, eval *models.MatchingEvaluation) (*models.MatchingEvaluation, bool, error)
 	FlipStatus(ctx context.Context, id uuid.UUID, from string, to string) (bool, error)
 	FlipStatusWithClear(ctx context.Context, id uuid.UUID, from string, to string) (bool, error)
@@ -40,64 +39,6 @@ func NewMatchingEvaluationsRepository(pg *database.PG) MatchingEvaluations {
 	return &matchingEvaluationsRepository{
 		PG: pg,
 	}
-}
-
-func (r *matchingEvaluationsRepository) Create(ctx context.Context, eval *models.MatchingEvaluation) (res *models.MatchingEvaluation, err error) {
-	tx, err := r.StartTrx(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("create matching evaluation start trx: %w", err)
-	}
-	defer r.Committer(ctx, tx, &err)
-
-	if eval.EvaluationStatus == "" {
-		eval.EvaluationStatus = string(constants.MatchingStatusQueued)
-	}
-	now := time.Now()
-	eval.CreatedAt = now
-	eval.UpdatedAt = now
-
-	query := `
-		INSERT INTO matching_evaluations (
-			user_job_id, evaluation_status,
-			candidate_profile_data, job_profile_data, scoring_config_id,
-			evaluation_data, overall_score, eligibility_status,
-			recommendation_label, failure_message,
-			report_data, report_status, report_failure_message,
-			created_at, updated_at
-		) VALUES (
-			$1, $2,
-			$3, $4, $5,
-			$6, $7, $8,
-			$9, $10,
-			$11, $12, $13,
-			$14, $15
-		)
-		RETURNING id, created_at, updated_at
-	`
-
-	err = tx.QueryRow(ctx, query,
-		eval.UserJobID,
-		eval.EvaluationStatus,
-		eval.CandidateProfileData,
-		eval.JobProfileData,
-		eval.ScoringConfigID,
-		eval.EvaluationData,
-		eval.OverallScore,
-		eval.EligibilityStatus,
-		eval.RecommendationLabel,
-		eval.FailureMessage,
-		eval.ReportData,
-		eval.ReportStatus,
-		eval.ReportFailureMessage,
-		eval.CreatedAt,
-		eval.UpdatedAt,
-	).Scan(&eval.ID, &eval.CreatedAt, &eval.UpdatedAt)
-
-	if err != nil {
-		return nil, fmt.Errorf("insert matching evaluation: %w", err)
-	}
-
-	return eval, nil
 }
 
 // CreateIfAbsent inserts an evaluation only when none exists for its user_job.

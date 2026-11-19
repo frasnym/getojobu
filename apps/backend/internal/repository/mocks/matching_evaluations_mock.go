@@ -41,21 +41,6 @@ func (m *MockMatchingEvaluations) EXPECT() *MockMatchingEvaluationsMockRecorder 
 	return m.recorder
 }
 
-// Create mocks base method.
-func (m *MockMatchingEvaluations) Create(ctx context.Context, eval *models.MatchingEvaluation) (*models.MatchingEvaluation, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Create", ctx, eval)
-	ret0, _ := ret[0].(*models.MatchingEvaluation)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// Create indicates an expected call of Create.
-func (mr *MockMatchingEvaluationsMockRecorder) Create(ctx, eval any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockMatchingEvaluations)(nil).Create), ctx, eval)
-}
-
 // CreateIfAbsent mocks base method.
 func (m *MockMatchingEvaluations) CreateIfAbsent(ctx context.Context, eval *models.MatchingEvaluation) (*models.MatchingEvaluation, bool, error) {
 	m.ctrl.T.Helper()
