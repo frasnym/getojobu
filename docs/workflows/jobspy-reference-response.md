@@ -115,7 +115,7 @@ Example captured from Glassdoor for `Systems Automation Engineer I @ RoviSys` in
    - `slug`: `build_job_slug(title, company, location)` -> e.g. `systems-automation-engineer-i-rovisys-ireland`.
    - `source`: `site` (e.g. `glassdoor`).
    - `source_url`: `job_url_direct` or fallback to `job_url`.
-   - `description`: `row.get("description")`.
+   - `description`: `row.get("description")`. Rows with a missing, shorter-than-five-word, or not confidently English description are discarded before ingest and counted in `filtered_out_language`. Detection uses `fast-langdetect` with the offline `lite` model; the first language must be `en` with a score of at least `0.8`.
    - `posted_date`: Filtered by recency (`cut = now - 24h`) and formatted as `YYYY-MM-DD`.
 3. **`ingest_jobs`:**
    Sends the enriched payload to Go backend `POST /v1/jobs/bulk`.

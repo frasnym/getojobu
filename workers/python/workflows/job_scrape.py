@@ -10,8 +10,8 @@ Orchestrates one scan of the configured job boards for a given set of keyword
   so one board's rate limits do not block another), errors are logged into
   attrs["errors"] rather than failing the scan.
 - enrich_jobs:  normalize location, drop rows missing title/company/location,
-  enforce the 24h recency filter by posted_date, attach audit attribution,
-  sort remaining rows posted_date DESC.
+  enforce the 24h recency filter by posted_date, drop rows whose description is
+  not confidently English, attach audit attribution, sort rows posted_date DESC.
 - ingest_jobs:  call the Go API POST /v1/jobs/bulk (chunked, max 100), record
   created vs skipped (slug conflict, first-source-wins).
 - queue_analysis:  start JobAnalyzeWorkflow for each newly created job with a
@@ -95,7 +95,7 @@ class JobScrapeWorkflow:
             retry_policy=DEFAULT_RETRY_POLICY,
         )
 
-        # 2. enrich_jobs — clean, normalize, filter by recency, attach audit.
+        # 2. enrich_jobs — clean, normalize, filter by recency/language, attach audit.
         raw_jobs_val = scan_results.get("jobs")
         raw_jobs: list[Any] = (
             cast(list[Any], raw_jobs_val) if isinstance(raw_jobs_val, list) else []
@@ -173,6 +173,7 @@ class JobScrapeWorkflow:
         )
         found_val = enriched.get("found")
         filtered_val = enriched.get("filtered_out_recency")
+        filtered_language_val = enriched.get("filtered_out_language")
         inserted_val = ingested.get("inserted")
         skipped_val = ingested.get("skipped")
         started_val = analysis.get("started")
@@ -198,6 +199,11 @@ class JobScrapeWorkflow:
                 "jobs_found": found_val if isinstance(found_val, int) else 0,
                 "filtered_out_recency": (
                     filtered_val if isinstance(filtered_val, int) else 0
+                ),
+                "filtered_out_language": (
+                    filtered_language_val
+                    if isinstance(filtered_language_val, int)
+                    else 0
                 ),
                 "inserted": inserted_val if isinstance(inserted_val, int) else 0,
                 "skipped": skipped_val if isinstance(skipped_val, int) else 0,

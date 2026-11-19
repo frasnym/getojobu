@@ -1,7 +1,7 @@
 """Temporal activity wrappers for the JobScrapeWorkflow.
 
     scrape_scan    — issue jobspy.scrape_jobs() per board, collect raw results
-    enrich_jobs    — normalize, recency-filter, map to job rows
+    enrich_jobs    — normalize, recency/language-filter, map to job rows
     ingest_jobs    — call Go API POST /v1/jobs/bulk (chunked)
     queue_analysis — start JobAnalyzeWorkflow for newly created jobs
 
@@ -19,6 +19,7 @@ from collections.abc import Iterable
 from datetime import UTC, date, datetime, time, timedelta
 from typing import Any, cast
 
+from fast_langdetect import detect
 from temporalio import activity
 
 from config.config import load as config_load
@@ -88,6 +89,25 @@ LOCATION_MAP: dict[str, dict[str, str]] = {
 
 # Recency: jobs older than this are dropped by enrich_jobs.
 RECENT_DAYS = 1
+
+# Language: only descriptions with enough text and a confident English result survive.
+MIN_DESCRIPTION_WORDS = 5
+MIN_ENGLISH_CONFIDENCE = 0.8
+
+
+def is_english_description(description: object) -> bool:
+    if not isinstance(description, str):
+        return False
+    text = description.replace("\n", " ").strip()
+    if len(text.split()) < MIN_DESCRIPTION_WORDS:
+        return False
+    candidates = detect(text, model="lite", k=1)
+    if not candidates:
+        return False
+    top = candidates[0]
+    return (
+        top.get("lang") == "en" and float(top.get("score", 0)) >= MIN_ENGLISH_CONFIDENCE
+    )
 
 
 def slugify(s: str) -> str:
@@ -279,8 +299,9 @@ def enrich_jobs(input_data: dict[str, Any]) -> dict[str, Any]:
     """Clean, normalize, and recency-filter raw JobSpy results.
 
     Drops rows missing title/company/location, enforces posted within 24h,
-    normalizes location via the lookup table, maps fields to job rows, and
-    attaches audit attribution (updated_by_type="cron", updated_by_id="cron-scrape").
+    drops rows whose description is not confidently English, normalizes location
+    via the lookup table, maps fields to job rows, and attaches audit attribution
+    (updated_by_type="cron", updated_by_id="cron-scrape").
 
     Returns:
         {
@@ -289,6 +310,7 @@ def enrich_jobs(input_data: dict[str, Any]) -> dict[str, Any]:
                       updated_by_type, updated_by_id}],
             "found": int,
             "filtered_out_recency": int,
+            "filtered_out_language": int,
             "errors": [...],
         }
     """
@@ -309,6 +331,7 @@ def enrich_jobs(input_data: dict[str, Any]) -> dict[str, Any]:
     cut = datetime.now(UTC) - timedelta(days=RECENT_DAYS)
     jobs: list[tuple[datetime, dict[str, Any]]] = []
     filtered_recency = 0
+    filtered_language = 0
     found = 0
 
     for row in raw:
@@ -393,6 +416,17 @@ def enrich_jobs(input_data: dict[str, Any]) -> dict[str, Any]:
             is_remote_val = row.get("is_remote")
             is_remote: bool = is_remote_val is True
 
+            description_val = row.get("description")
+            if not is_english_description(description_val):
+                filtered_language += 1
+                logger.debug(
+                    "drop row not confidently english",
+                    user_ids=user_ids,
+                    scan_id=search_id,
+                    row_title=title_str,
+                )
+                continue
+
             jobs.append(
                 (
                     posted,
@@ -405,7 +439,7 @@ def enrich_jobs(input_data: dict[str, Any]) -> dict[str, Any]:
                         "title": title_str,
                         "company": company_str,
                         "location": loc_str,
-                        "description": row.get("description"),
+                        "description": description_val,
                         "posted_date": posted.strftime("%Y-%m-%d"),
                         "is_remote": is_remote,
                         "updated_by_type": "cron",
@@ -429,6 +463,7 @@ def enrich_jobs(input_data: dict[str, Any]) -> dict[str, Any]:
     _safe_heartbeat(
         found=found,
         filtered_out_recency=filtered_recency,
+        filtered_out_language=filtered_language,
         inserted=len(sorted_jobs),
     )
 
@@ -436,6 +471,7 @@ def enrich_jobs(input_data: dict[str, Any]) -> dict[str, Any]:
         "jobs": sorted_jobs,
         "found": found,
         "filtered_out_recency": filtered_recency,
+        "filtered_out_language": filtered_language,
         "errors": errors,
     }
 

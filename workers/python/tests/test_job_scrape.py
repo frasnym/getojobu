@@ -121,7 +121,7 @@ def test_enrich_jobs_drops_missing_required_fields():
             "location": "ireland",
             "date_posted": now_iso,
             "site": "glassdoor",
-            "description": "Great job",
+            "description": _english_description(),
         },
     ]
 
@@ -154,18 +154,21 @@ def test_enrich_jobs_recency_filter_and_sorting():
             "company": "Co",
             "location": "Norway",
             "date_posted": recent_2h,
+            "description": _english_description(),
         },
         {
             "title": "Expired",
             "company": "Co",
             "location": "Norway",
             "date_posted": too_old_2d,
+            "description": _english_description(),
         },
         {
             "title": "Newer",
             "company": "Co",
             "location": "Norway",
             "date_posted": recent_1h,
+            "description": _english_description(),
         },
     ]
 
@@ -196,6 +199,7 @@ def test_enrich_jobs_location_normalization():
             "location": "ireland",
             "date_posted": now_iso,
             "site": "glassdoor",
+            "description": _english_description(),
         },
         {
             "title": "D2",
@@ -203,6 +207,7 @@ def test_enrich_jobs_location_normalization():
             "location": "norway",
             "date_posted": now_iso,
             "site": "linkedin",
+            "description": _english_description(),
         },
         {
             "title": "D3",
@@ -210,6 +215,7 @@ def test_enrich_jobs_location_normalization():
             "location": "Unknown City",
             "date_posted": now_iso,
             "site": "glassdoor",
+            "description": _english_description(),
         },
     ]
 
@@ -220,6 +226,69 @@ def test_enrich_jobs_location_normalization():
     assert locs["D1"] == "Ireland"
     assert locs["D2"] == "Norway"
     assert locs["D3"] == "Unknown City"
+
+
+def _english_description() -> str:
+    return (
+        "We are looking for a senior backend engineer to design and build scalable "
+        "services. You will work with Go, PostgreSQL, and distributed systems, and "
+        "you will help the team improve reliability across our platform."
+    )
+
+
+def _raw_job(description: object, title: str) -> dict[str, Any]:
+    return {
+        "title": title,
+        "company": "Acme",
+        "location": "indonesia",
+        "date_posted": datetime.now(UTC).isoformat(),
+        "site": "glassdoor",
+        "description": description,
+    }
+
+
+def test_enrich_jobs_keeps_english_jobs():
+    res = enrich_jobs(
+        {
+            "user_ids": ["u1"],
+            "raw_jobs": [_raw_job(_english_description(), "English Dev")],
+        }
+    )
+    assert [job["title"] for job in res["jobs"]] == ["English Dev"]
+    assert res.get("filtered_out_language") == 0
+
+
+def test_enrich_jobs_drops_non_english_jobs():
+    indonesian = (
+        "Kami sedang mencari pengembang perangkat lunak dengan pengalaman membangun "
+        "sistem terdistribusi dan basis data. Kirim lamaran Anda melalui tautan ini."
+    )
+    res = enrich_jobs(
+        {
+            "user_ids": ["u1"],
+            "raw_jobs": [
+                _raw_job(_english_description(), "English Dev"),
+                _raw_job(indonesian, "Non English Dev"),
+            ],
+        }
+    )
+    assert [job["title"] for job in res["jobs"]] == ["English Dev"]
+    assert res.get("filtered_out_language") == 1
+
+
+def test_enrich_jobs_drops_missing_and_short_descriptions():
+    res = enrich_jobs(
+        {
+            "user_ids": ["u1"],
+            "raw_jobs": [
+                _raw_job(None, "No Description"),
+                _raw_job("   ", "Whitespace Description"),
+                _raw_job("Great job", "Short Description"),
+            ],
+        }
+    )
+    assert res["jobs"] == []
+    assert res.get("filtered_out_language") == 3
 
 
 @pytest.mark.asyncio
@@ -514,7 +583,7 @@ def test_enrich_jobs_preserves_user_ids():
             "location": "Indonesia",
             "date_posted": now_iso,
             "site": "glassdoor",
-            "description": "Awesome role",
+            "description": _english_description(),
         }
     ]
 
