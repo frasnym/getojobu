@@ -496,7 +496,7 @@ func (h *handler) BulkGenerateEvaluation(w http.ResponseWriter, r *http.Request)
 	items := make([]models.TriggerEvaluationItem, len(req))
 	for i, item := range req {
 		id, _ := uuid.Parse(item.ID)
-		items[i] = models.TriggerEvaluationItem{ID: id}
+		items[i] = models.TriggerEvaluationItem{ID: id, Force: item.Force}
 	}
 
 	summaries, err := h.matchingUC.TriggerEvaluations(ctx, items, p)

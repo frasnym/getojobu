@@ -13,7 +13,10 @@ import (
 
 // TriggerEvaluations starts the Temporal workflow behind each evaluation that
 // is ready to run. A new row moves to queued; a failed row is retried in place
-// with one atomic clear-and-flip and moves to queued_retry. Every workflow is
+// with one atomic clear-and-flip and moves to queued_retry. An in-progress row
+// (queued, queued_retry, pending) can be force-requeued to queued_retry; its
+// workflow gets a fresh ID so a stuck limiter item does not absorb the retry.
+// A successful row is terminal and is always rejected. Every workflow is
 // started before its status is flipped, so a queued row never exists without a
 // workflow behind it.
 func (s *matchingService) TriggerEvaluations(
@@ -62,13 +65,34 @@ func (s *matchingService) TriggerEvaluations(
 			}
 		}
 
+		// Capture a stable nonce from the row loaded before the status write.
+		// Forced runs use it so a retry starts a fresh limiter item when the
+		// previous one is still stuck in queued/queued_retry/pending (the
+		// limiter deduplicates by item ID). Two rapid force clicks on the same
+		// loaded row share an ID; a later force after a status change gets a
+		// new one.
+		forceNonce := eval.UpdatedAt.UnixNano()
+
 		var from, to constants.MatchingEvaluationStatus
 		switch constants.MatchingEvaluationStatus(eval.EvaluationStatus) {
 		case constants.MatchingStatusNew:
 			from, to = constants.MatchingStatusNew, constants.MatchingStatusQueued
 		case constants.MatchingStatusFailed:
 			from, to = constants.MatchingStatusFailed, constants.MatchingStatusQueuedRetry
+		case constants.MatchingStatusQueued, constants.MatchingStatusQueuedRetry, constants.MatchingStatusPending:
+			if !item.Force {
+				errStr := fmt.Sprintf("cannot trigger evaluation with status %s; force is required to re-queue an in-progress evaluation", eval.EvaluationStatus)
+				summaries = append(summaries, &models.MatchingEvaluationSummary{
+					ID:               &eval.ID,
+					UserJobID:        &eval.UserJobID,
+					EvaluationStatus: eval.EvaluationStatus,
+					Error:            &errStr,
+				})
+				continue
+			}
+			from, to = constants.MatchingEvaluationStatus(eval.EvaluationStatus), constants.MatchingStatusQueuedRetry
 		default:
+			// success (and any unknown status) is terminal and cannot be retried.
 			errStr := fmt.Sprintf("cannot trigger evaluation with status %s", eval.EvaluationStatus)
 			summaries = append(summaries, &models.MatchingEvaluationSummary{
 				ID:               &eval.ID,
@@ -104,7 +128,13 @@ func (s *matchingService) TriggerEvaluations(
 			JobProfile:       jobMap,
 			EvaluationConfig: configMap,
 		}
+		// Non-force requests keep the deterministic ID so double-clicks collapse
+		// into a single limiter item. Forced requests add the nonce so a stuck or
+		// still-active item does not absorb the retry.
 		workflowID := fmt.Sprintf("match-job-%s", eval.ID.String())
+		if item.Force {
+			workflowID = fmt.Sprintf("match-job-%s-%d", eval.ID.String(), forceNonce)
+		}
 		if _, err := s.workflowsRepo.StartLimiterWorkItem(ctx, workflowID, models.LimiterJobTypeMatch, wfInput); err != nil {
 			errStr := fmt.Sprintf("start match job workflow: %s", err.Error())
 			summaries = append(summaries, &models.MatchingEvaluationSummary{
@@ -118,7 +148,9 @@ func (s *matchingService) TriggerEvaluations(
 		_, err = s.evalRepo.Update(ctx, eval.ID, models.UpdateMatchingEvaluationParams{
 			EvaluationStatus:         string(to),
 			ExpectedEvaluationStatus: string(from),
-			ClearEvaluationResult:    from == constants.MatchingStatusFailed,
+			// new -> queued has no stale results to clear. Every re-queue
+			// (failed and forced in-progress rows) clears the result columns.
+			ClearEvaluationResult: from != constants.MatchingStatusNew,
 		})
 		if err != nil && !errors.Is(err, constants.ErrNotFound) {
 			errStr := fmt.Sprintf("update evaluation status: %s", err.Error())

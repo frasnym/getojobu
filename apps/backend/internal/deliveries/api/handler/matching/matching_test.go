@@ -131,6 +131,18 @@ func TestBulkGenerateEvaluationHandler(t *testing.T) {
 		assert.Equal(t, errStr, *resp.Data[1].Error)
 	})
 
+	t.Run("force flag is passed through to the usecase", func(t *testing.T) {
+		mockMatching.EXPECT().TriggerEvaluations(gomock.Any(), []models.TriggerEvaluationItem{
+			{ID: evalID, Force: true},
+		}, gomock.Any()).Return([]*models.MatchingEvaluationSummary{{
+			ID: &evalID, EvaluationStatus: string(constants.MatchingStatusQueuedRetry),
+		}}, nil)
+
+		body := fmt.Sprintf(`[{"id":"%s","force":true}]`, evalID.String())
+		rec := post(body, true)
+		require.Equal(t, http.StatusAccepted, rec.Code)
+	})
+
 	t.Run("clerk caller leaves ownership to the usecase", func(t *testing.T) {
 		c := &contract.Contract{
 			Cfg:     &config.Config{},

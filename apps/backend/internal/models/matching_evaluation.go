@@ -132,7 +132,8 @@ type CreateEvaluationItem struct {
 // TriggerEvaluationItem holds input for starting the workflow behind an
 // existing evaluation.
 type TriggerEvaluationItem struct {
-	ID uuid.UUID `json:"id"`
+	ID    uuid.UUID `json:"id"`
+	Force bool      `json:"force,omitempty"`
 }
 
 // BulkGenerateReportItem holds input for a single report generation in a batch.
