@@ -10,9 +10,10 @@ import (
 	"github.com/frasnym/getojobu/apps/backend/internal/utils"
 )
 
-// GetEvaluation returns the stored input for MatchJobWorkflow. The profile
+// GetEvaluation returns the stored input for the evaluation workflows. The
 // snapshots come from the evaluation row so retries use the same data as the
-// original queue, and the config is resolved by the row's config ID.
+// original queue; the resume facts and config are composed by the same helper
+// the queue step uses.
 func (s *matchingService) GetEvaluation(ctx context.Context, id uuid.UUID) (*models.GetEvaluationResponse, error) {
 	eval, err := s.evalRepo.GetByID(ctx, id)
 	if err != nil {
@@ -22,19 +23,18 @@ func (s *matchingService) GetEvaluation(ctx context.Context, id uuid.UUID) (*mod
 	if err != nil {
 		return nil, err
 	}
+	userJob, err := s.userJobsRepo.GetByID(ctx, eval.UserJobID)
+	if err != nil {
+		return nil, err
+	}
+	user, err := s.usersRepo.FindByID(ctx, userJob.UserID.String())
+	if err != nil {
+		return nil, err
+	}
 
-	var candidate, job, results map[string]interface{}
-	_ = json.Unmarshal(eval.CandidateProfileData, &candidate)
-	_ = json.Unmarshal(eval.JobProfileData, &job)
-	_ = json.Unmarshal(eval.EvaluationData, &results)
-	if candidate == nil {
-		candidate = map[string]interface{}{}
-	}
-	if job == nil {
-		job = map[string]interface{}{}
-	}
-	if results == nil {
-		results = map[string]interface{}{}
+	resumeInput, err := s.buildResumeInput(ctx, eval, userJob, user)
+	if err != nil {
+		return nil, err
 	}
 
 	configBytes, _ := json.Marshal(config)
@@ -47,12 +47,16 @@ func (s *matchingService) GetEvaluation(ctx context.Context, id uuid.UUID) (*mod
 	return &models.GetEvaluationResponse{
 		EvaluationStatus:    eval.EvaluationStatus,
 		ReportStatus:        utils.PtrStringOrEmpty(eval.ReportStatus),
-		CandidateProfile:    candidate,
-		JobProfile:          job,
-		EvaluationResults:   results,
+		ResumeStatus:        utils.PtrStringOrEmpty(eval.ResumeStatus),
+		CandidateProfile:    resumeInput.CandidateProfile,
+		JobProfile:          resumeInput.JobProfile,
+		EvaluationResults:   resumeInput.EvaluationResults,
 		EvaluationConfig:    configMap,
-		OverallScore:        utils.PtrFloatOrZero(eval.OverallScore),
-		EligibilityStatus:   utils.PtrStringOrEmpty(eval.EligibilityStatus),
-		RecommendationLabel: utils.PtrStringOrEmpty(eval.RecommendationLabel),
+		Facts:               resumeInput.Facts,
+		OverallScore:        resumeInput.OverallScore,
+		EligibilityStatus:   resumeInput.EligibilityStatus,
+		RecommendationLabel: resumeInput.RecommendationLabel,
+		JobID:               resumeInput.JobID,
+		UserID:              resumeInput.UserID,
 	}, nil
 }

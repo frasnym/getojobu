@@ -2,7 +2,6 @@ package matching
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -11,7 +10,6 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/frasnym/getojobu/apps/backend/internal/models"
-	"github.com/frasnym/getojobu/apps/backend/internal/utils"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/constants"
 )
 
@@ -81,131 +79,6 @@ func (s *matchingService) triggerResume(
 		return nil, fmt.Errorf("%w: onboarding is incomplete", constants.ErrInvalidRequest)
 	}
 
-	var candidate, job, evidence map[string]interface{}
-	_ = json.Unmarshal(eval.CandidateProfileData, &candidate)
-	_ = json.Unmarshal(eval.JobProfileData, &job)
-	_ = json.Unmarshal(eval.EvaluationData, &evidence)
-
-	// Assemble education from user_educations table (pre-formatted lines for
-	// all educations — keep the payload small, no raw DB rows in facts; the
-	// full array is mirrored into candidate_profile.educations).
-	var educationLine string
-	var eduRows []*models.UserEducation
-	if s.eduRepo != nil {
-		edus, err := s.eduRepo.ListByUser(ctx, user.ID)
-		if err == nil && len(edus) > 0 {
-			eduRows = edus
-			var lines []string
-			for _, top := range edus {
-				var yearStr string
-				if top.StartYear != nil && top.EndYear != nil {
-					yearStr = fmt.Sprintf("%d-%d", *top.StartYear, *top.EndYear)
-				} else if top.EndYear != nil {
-					yearStr = fmt.Sprintf("%d", *top.EndYear)
-				} else if top.StartYear != nil {
-					yearStr = fmt.Sprintf("%d", *top.StartYear)
-				}
-				parts := []string{fmt.Sprintf("%s in %s, %s", top.Degree, top.FieldOfStudy, top.Institution)}
-				if yearStr != "" {
-					parts = append(parts, yearStr)
-				}
-				if top.GPA != nil && *top.GPA != "" {
-					parts = append(parts, fmt.Sprintf("GPA: %s", *top.GPA))
-				}
-				lines = append(lines, strings.Join(parts, " | "))
-			}
-			educationLine = strings.Join(lines, "\n")
-		}
-	}
-
-	// Assemble roles with stable IDs from user_experiences table
-	var roles []map[string]interface{}
-	if s.expRepo != nil {
-		exps, err := s.expRepo.ListByUser(ctx, user.ID)
-		if err == nil {
-			for _, exp := range exps {
-				period := ""
-				if !exp.StartedAt.IsZero() {
-					start := exp.StartedAt.Format("Jan 2006")
-					end := "Current"
-					if !exp.EndedAt.IsZero() {
-						end = exp.EndedAt.Format("Jan 2006")
-					}
-					period = fmt.Sprintf("%s - %s", start, end)
-				}
-				roles = append(roles, map[string]interface{}{
-					"id":      exp.ID,
-					"company": exp.Organization,
-					"role":    exp.RoleTitle,
-					"period":  period,
-				})
-			}
-		}
-	}
-	if len(roles) == 0 {
-		if rawExps, ok := candidate["experience"].([]interface{}); ok {
-			for idx, rawExp := range rawExps {
-				if expMap, ok := rawExp.(map[string]interface{}); ok {
-					roles = append(roles, map[string]interface{}{
-						"id":      fmt.Sprintf("exp-%d", idx+1),
-						"company": expMap["company"],
-						"role":    expMap["role"],
-						"period":  expMap["period"],
-					})
-				}
-			}
-		}
-	}
-
-	var contactParts []string
-	if user.FullName != nil && *user.FullName != "" {
-		contactParts = append(contactParts, *user.FullName)
-	}
-	if user.Phone != nil && *user.Phone != "" {
-		contactParts = append(contactParts, *user.Phone)
-	}
-	if user.Email != nil && *user.Email != "" {
-		contactParts = append(contactParts, *user.Email)
-	}
-	if user.LinkedInURL != nil && *user.LinkedInURL != "" {
-		contactParts = append(contactParts, *user.LinkedInURL)
-	}
-	if user.GitHubURL != nil && *user.GitHubURL != "" {
-		contactParts = append(contactParts, *user.GitHubURL)
-	}
-	contactLine := strings.Join(contactParts, " | ")
-
-	// Enrich candidate_profile with educations so the resume worker finds
-	// education data alongside the rest of the candidate profile instead of
-	// only inside facts.
-	candidate["educations"] = eduRows
-
-	facts := map[string]interface{}{
-		"name":      utils.PtrStringOrEmpty(user.FullName),
-		"headline":  utils.PtrStringOrEmpty(user.Headline),
-		"phone":     utils.PtrStringOrEmpty(user.Phone),
-		"email":     utils.PtrStringOrEmpty(user.Email),
-		"linkedin":  utils.PtrStringOrEmpty(user.LinkedInURL),
-		"github":    utils.PtrStringOrEmpty(user.GitHubURL),
-		"portfolio": utils.PtrStringOrEmpty(user.PortfolioURL),
-		"education": educationLine,
-		"contact":   contactLine,
-		"roles":     roles,
-	}
-
-	input := map[string]interface{}{
-		"evaluation_id":        id.String(),
-		"job_id":               userJob.JobID,
-		"user_id":              userJob.UserID.String(),
-		"candidate_profile":    candidate,
-		"facts":                facts,
-		"job_profile":          job,
-		"evaluation_results":   evidence,
-		"overall_score":        utils.PtrFloatOrZero(eval.OverallScore),
-		"eligibility_status":   utils.PtrStringOrEmpty(eval.EligibilityStatus),
-		"recommendation_label": *eval.RecommendationLabel,
-	}
-
 	queueStatus := string(constants.ResumeStatusQueued)
 	if eval.ResumeStatus != nil {
 		queueStatus = string(constants.ResumeStatusQueuedRetry)
@@ -219,6 +92,7 @@ func (s *matchingService) triggerResume(
 	eval = updated
 
 	workflowID := fmt.Sprintf("resume-gen-%s", id.String())
+	input := map[string]interface{}{"evaluation_id": id.String()}
 	if _, err := s.workflowsRepo.StartLimiterWorkItem(ctx, workflowID, models.LimiterJobTypeResume, input); err != nil {
 		return nil, fmt.Errorf("start resume workflow: %w", err)
 	}
