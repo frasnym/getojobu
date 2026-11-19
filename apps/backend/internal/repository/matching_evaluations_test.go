@@ -145,6 +145,8 @@ func TestCreate(t *testing.T) {
 	assert.Equal(t, got.ID, got2.ID)
 	assert.Equal(t, string(constants.MatchingStatusNew), got2.EvaluationStatus)
 	assert.JSONEq(t, `{"candidate":"v1"}`, string(got2.CandidateProfileData))
+	assert.True(t, got.CreatedAt.Equal(got2.CreatedAt), "created_at must be unchanged on conflict")
+	assert.True(t, got.UpdatedAt.Equal(got2.UpdatedAt), "updated_at must be unchanged on conflict")
 
 	// A row already at success is returned unchanged, whatever the caller sends.
 	_, err = pool.Exec(ctx, `UPDATE matching_evaluations SET evaluation_status = 'success' WHERE id = $1`, got.ID)
@@ -161,6 +163,8 @@ func TestCreate(t *testing.T) {
 	assert.Equal(t, got.ID, got3.ID)
 	assert.Equal(t, string(constants.MatchingStatusSuccess), got3.EvaluationStatus)
 	assert.JSONEq(t, `{"candidate":"v1"}`, string(got3.CandidateProfileData))
+	assert.True(t, got.CreatedAt.Equal(got3.CreatedAt), "created_at must be unchanged on conflict")
+	assert.True(t, got.UpdatedAt.Equal(got3.UpdatedAt), "updated_at must be unchanged on conflict")
 }
 
 func mevalSeedEval(t *testing.T, ctx context.Context, pool *pgxpool.Pool, seed mevalSeed, status string) uuid.UUID {

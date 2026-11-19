@@ -56,7 +56,7 @@ func (r *matchingEvaluationsRepository) Create(ctx context.Context, eval *models
 	eval.CreatedAt = now
 	eval.UpdatedAt = now
 
-	insertQuery := `
+	query := `
 		INSERT INTO matching_evaluations (
 			user_job_id, evaluation_status,
 			candidate_profile_data, job_profile_data, scoring_config_id,
@@ -72,11 +72,20 @@ func (r *matchingEvaluationsRepository) Create(ctx context.Context, eval *models
 			$11, $12, $13,
 			$14, $15
 		)
-		ON CONFLICT (user_job_id) DO NOTHING
-		RETURNING id, created_at, updated_at
+		ON CONFLICT (user_job_id) DO UPDATE SET user_job_id = EXCLUDED.user_job_id
+		RETURNING
+			id, user_job_id, evaluation_status,
+			candidate_profile_data, job_profile_data, scoring_config_id,
+			evaluation_data, overall_score, eligibility_status,
+			recommendation_label, failure_message,
+			report_data, report_status, report_failure_message,
+			resume_status, resume_failure_message, resume_pdf_key, resume_json_key,
+			cover_letter_status, cover_letter_content, cover_letter_failure_message,
+			created_at, updated_at
 	`
 
-	insertErr := tx.QueryRow(ctx, insertQuery,
+	result := &models.MatchingEvaluation{}
+	err = tx.QueryRow(ctx, query,
 		eval.UserJobID,
 		eval.EvaluationStatus,
 		eval.CandidateProfileData,
@@ -92,62 +101,36 @@ func (r *matchingEvaluationsRepository) Create(ctx context.Context, eval *models
 		eval.ReportFailureMessage,
 		eval.CreatedAt,
 		eval.UpdatedAt,
-	).Scan(&eval.ID, &eval.CreatedAt, &eval.UpdatedAt)
-	if insertErr == nil {
-		return eval, nil
-	}
-	if !errors.Is(insertErr, pgx.ErrNoRows) {
-		return nil, fmt.Errorf("insert matching evaluation if absent: %w", insertErr)
-	}
-
-	selectQuery := `
-		SELECT
-			id, user_job_id, evaluation_status,
-			candidate_profile_data, job_profile_data, scoring_config_id,
-			evaluation_data, overall_score, eligibility_status,
-			recommendation_label, failure_message,
-			report_data, report_status, report_failure_message,
-			resume_status, resume_failure_message, resume_pdf_key, resume_json_key,
-			cover_letter_status, cover_letter_content, cover_letter_failure_message,
-			created_at, updated_at
-		FROM matching_evaluations
-		WHERE user_job_id = $1
-	`
-
-	existing := &models.MatchingEvaluation{}
-	err = tx.QueryRow(ctx, selectQuery, eval.UserJobID).Scan(
-		&existing.ID,
-		&existing.UserJobID,
-		&existing.EvaluationStatus,
-		&existing.CandidateProfileData,
-		&existing.JobProfileData,
-		&existing.ScoringConfigID,
-		&existing.EvaluationData,
-		&existing.OverallScore,
-		&existing.EligibilityStatus,
-		&existing.RecommendationLabel,
-		&existing.FailureMessage,
-		&existing.ReportData,
-		&existing.ReportStatus,
-		&existing.ReportFailureMessage,
-		&existing.ResumeStatus,
-		&existing.ResumeFailureMessage,
-		&existing.ResumePDFKey,
-		&existing.ResumeJSONKey,
-		&existing.CoverLetterStatus,
-		&existing.CoverLetterContent,
-		&existing.CoverLetterFailureMessage,
-		&existing.CreatedAt,
-		&existing.UpdatedAt,
+	).Scan(
+		&result.ID,
+		&result.UserJobID,
+		&result.EvaluationStatus,
+		&result.CandidateProfileData,
+		&result.JobProfileData,
+		&result.ScoringConfigID,
+		&result.EvaluationData,
+		&result.OverallScore,
+		&result.EligibilityStatus,
+		&result.RecommendationLabel,
+		&result.FailureMessage,
+		&result.ReportData,
+		&result.ReportStatus,
+		&result.ReportFailureMessage,
+		&result.ResumeStatus,
+		&result.ResumeFailureMessage,
+		&result.ResumePDFKey,
+		&result.ResumeJSONKey,
+		&result.CoverLetterStatus,
+		&result.CoverLetterContent,
+		&result.CoverLetterFailureMessage,
+		&result.CreatedAt,
+		&result.UpdatedAt,
 	)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, constants.ErrNotFound
-		}
-		return nil, fmt.Errorf("get existing matching evaluation: %w", err)
+		return nil, fmt.Errorf("insert matching evaluation: %w", err)
 	}
 
-	return existing, nil
+	return result, nil
 }
 
 func (r *matchingEvaluationsRepository) GetByID(ctx context.Context, id uuid.UUID) (*models.MatchingEvaluation, error) {
