@@ -75,10 +75,23 @@ func (s *matchingService) CreateEvaluations(
 				continue
 			}
 			targetUserIDs = []string{caller.ID}
-		} else {
-			// Machine caller: user IDs are supplied per item; ownership of the
-			// job link is verified when each user_job is resolved below.
+		} else if len(item.UserIDs) > 0 {
+			// Machine caller with explicit IDs: ownership of the job link is
+			// verified when each user_job is resolved below.
 			targetUserIDs = item.UserIDs
+		} else {
+			// Machine caller without IDs: resolve the users linked to the job,
+			// matching the behavior of the old slug-based bulk trigger.
+			users, err := s.userJobsRepo.GetUsersByJobID(ctx, job.ID)
+			if err != nil {
+				errStr := fmt.Sprintf("get users by job id: %s", err.Error())
+				summaries = append(summaries, &models.MatchingEvaluationSummary{
+					Slug:  item.Slug,
+					Error: &errStr,
+				})
+				continue
+			}
+			targetUserIDs = users
 		}
 
 		// Build the derived job profile: strip service metadata, default the
@@ -189,6 +202,7 @@ func (s *matchingService) CreateEvaluations(
 				Slug:             job.Slug,
 				ID:               &eval.ID,
 				UserJobID:        &eval.UserJobID,
+				UserID:           userJob.UserID.String(),
 				EvaluationStatus: eval.EvaluationStatus,
 				CreatedAt:        &eval.CreatedAt,
 			})

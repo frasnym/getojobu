@@ -536,9 +536,10 @@ func clampLimit(limit int) int {
 
 // CreateEvaluation inserts one matching evaluation per resolved user of each
 // job slug at status "new" without starting a workflow. Clerk callers cannot
-// supply user_ids; API key callers must supply them per item.
+// supply user_ids; API key callers may omit them to evaluate all users linked
+// to the job, or supply them explicitly.
 // @Summary Create matching evaluations
-// @Description Insert one matching evaluation per resolved user of each job slug at status new, without starting a workflow. Clerk callers cannot supply user_ids (the user comes from the token); API key callers must supply them. Per-item failures are returned in the response and do not stop the batch.
+// @Description Insert one matching evaluation per resolved user of each job slug at status new, without starting a workflow. Clerk callers cannot supply user_ids (the user comes from the token); API key callers may omit user_ids to resolve all linked users, or supply them explicitly. Per-item failures are returned in the response and do not stop the batch.
 // @Tags jobs
 // @Accept json
 // @Produce json
@@ -566,15 +567,22 @@ func (h *handler) CreateEvaluation(w http.ResponseWriter, r *http.Request) error
 
 	items := make([]models.CreateEvaluationItem, len(req))
 	for i, item := range req {
-		userIDs, err := resolveOwnerUserIDs(p, item.UserIDs)
-		if err != nil {
-			return err
-		}
 		items[i] = models.CreateEvaluationItem{Slug: strings.TrimSpace(item.Slug)}
-		// For Clerk callers the usecase derives the owning user from the
-		// principal and rejects any body user IDs, so only machine callers
-		// pass the resolved IDs through.
-		if p.ActorType != "" {
+		if p.ActorType == "" {
+			// Clerk callers never pass user IDs; resolveOwnerUserIDs rejects
+			// any body-supplied values and requires an internal user ID.
+			if _, err := resolveOwnerUserIDs(p, item.UserIDs); err != nil {
+				return err
+			}
+			continue
+		}
+		// API key callers may omit user_ids: the usecase then resolves the
+		// users linked to the job. Supplied IDs stay ownership-checked.
+		if len(item.UserIDs) > 0 {
+			userIDs, err := resolveOwnerUserIDs(p, item.UserIDs)
+			if err != nil {
+				return err
+			}
 			items[i].UserIDs = userIDs
 		}
 	}

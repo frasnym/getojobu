@@ -268,3 +268,90 @@ func TestCreateEvaluations(t *testing.T) {
 		assert.Nil(t, res[0].Error)
 	})
 }
+
+func TestCreateEvaluations_machine_caller_without_user_ids(t *testing.T) {
+	ctx := context.Background()
+	slug := "test-job"
+	job := &models.Job{
+		ID:            101,
+		Slug:          slug,
+		AnalyzeResult: []byte(`{"family":"technology"}`),
+	}
+	scoringConfig := &models.ScoringConfig{
+		ID:         uuid.New(),
+		Family:     "technology",
+		Categories: []models.CategoryConfig{{Name: "technical_skills", Weight: 1.0}},
+	}
+	caller := &models.Principal{ActorType: "api_key", ActorID: "key-1"}
+
+	newService := func(t *testing.T) (matching.Matching, *repoMocks.MockMatchingEvaluations, *repoMocks.MockUserJobs, *repoMocks.MockScoringConfigs, *repoMocks.MockJobs) {
+		t.Helper()
+		ctrl := gomock.NewController(t)
+		evalRepo := repoMocks.NewMockMatchingEvaluations(ctrl)
+		userJobsRepo := repoMocks.NewMockUserJobs(ctrl)
+		scoringConfigsRepo := repoMocks.NewMockScoringConfigs(ctrl)
+		jobsRepo := repoMocks.NewMockJobs(ctrl)
+		expRepo := repoMocks.NewMockExperiences(ctrl)
+		projRepo := repoMocks.NewMockProjects(ctrl)
+		projSkillsRepo := repoMocks.NewMockProjectSkills(ctrl)
+		expRepo.EXPECT().ListByUser(gomock.Any(), gomock.Any()).Return([]*models.Experience{}, nil).AnyTimes()
+		projRepo.EXPECT().ListByUser(gomock.Any(), gomock.Any()).Return([]*models.Project{}, nil).AnyTimes()
+		projSkillsRepo.EXPECT().ListSkillsByUser(gomock.Any(), gomock.Any()).Return([]*models.UserSkill{}, nil).AnyTimes()
+		service := matching.NewService(&repository.Contract{
+			MatchingEvaluationsRepository: evalRepo,
+			UserJobsRepository:            userJobsRepo,
+			ScoringConfigsRepository:      scoringConfigsRepo,
+			JobsRepository:                jobsRepo,
+			ExperiencesRepository:         expRepo,
+			ProjectsRepository:            projRepo,
+			ProjectSkillsRepository:       projSkillsRepo,
+		})
+		return service, evalRepo, userJobsRepo, scoringConfigsRepo, jobsRepo
+	}
+
+	t.Run("resolves linked users and returns their user_id", func(t *testing.T) {
+		service, evalRepo, userJobsRepo, scoringConfigsRepo, jobsRepo := newService(t)
+		userA, userB := uuid.New(), uuid.New()
+		jobA := &models.UserJob{ID: uuid.New(), UserID: userA, JobID: job.ID}
+		jobB := &models.UserJob{ID: uuid.New(), UserID: userB, JobID: job.ID}
+		evalA := &models.MatchingEvaluation{ID: uuid.New(), UserJobID: jobA.ID, EvaluationStatus: string(constants.MatchingStatusNew)}
+		evalB := &models.MatchingEvaluation{ID: uuid.New(), UserJobID: jobB.ID, EvaluationStatus: string(constants.MatchingStatusNew)}
+
+		jobsRepo.EXPECT().GetBySlug(ctx, slug, "").Return(&models.JobWithOwnership{Job: job}, nil)
+		scoringConfigsRepo.EXPECT().GetActiveByFamily(ctx, "technology").Return(scoringConfig, nil)
+		userJobsRepo.EXPECT().GetUsersByJobID(ctx, job.ID).Return([]string{userA.String(), userB.String()}, nil)
+		userJobsRepo.EXPECT().GetByUserAndJob(ctx, userA.String(), job.ID).Return(jobA, nil)
+		userJobsRepo.EXPECT().GetByUserAndJob(ctx, userB.String(), job.ID).Return(jobB, nil)
+		evalRepo.EXPECT().CreateIfAbsent(ctx, gomock.Any()).DoAndReturn(
+			func(_ context.Context, eval *models.MatchingEvaluation) (*models.MatchingEvaluation, bool, error) {
+				if eval.UserJobID == jobA.ID {
+					return evalA, true, nil
+				}
+				return evalB, true, nil
+			}).Times(2)
+
+		res, err := service.CreateEvaluations(ctx, []models.CreateEvaluationItem{{Slug: slug}}, caller)
+		require.NoError(t, err)
+		require.Len(t, res, 2)
+		owners := map[uuid.UUID]string{
+			*res[0].ID: res[0].UserID,
+			*res[1].ID: res[1].UserID,
+		}
+		assert.Equal(t, map[uuid.UUID]string{
+			evalA.ID: userA.String(),
+			evalB.ID: userB.String(),
+		}, owners)
+	})
+
+	t.Run("reports linked-user lookup failure", func(t *testing.T) {
+		service, _, userJobsRepo, _, jobsRepo := newService(t)
+		jobsRepo.EXPECT().GetBySlug(ctx, slug, "").Return(&models.JobWithOwnership{Job: job}, nil)
+		userJobsRepo.EXPECT().GetUsersByJobID(ctx, job.ID).Return(nil, errors.New("db down"))
+
+		res, err := service.CreateEvaluations(ctx, []models.CreateEvaluationItem{{Slug: slug}}, caller)
+		require.NoError(t, err)
+		require.Len(t, res, 1)
+		require.NotNil(t, res[0].Error)
+		assert.Contains(t, *res[0].Error, "get users by job id")
+	})
+}

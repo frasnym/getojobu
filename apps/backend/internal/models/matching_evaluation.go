@@ -115,6 +115,7 @@ type MatchingEvaluationSummary struct {
 	Slug              string     `json:"slug,omitempty"`
 	ID                *uuid.UUID `json:"id,omitempty"`
 	UserJobID         *uuid.UUID `json:"user_job_id,omitempty"`
+	UserID            string     `json:"user_id,omitempty"`
 	EvaluationStatus  string     `json:"evaluation_status,omitempty"`
 	ResumeStatus      *string    `json:"resume_status,omitempty"`
 	ReportStatus      *string    `json:"report_status,omitempty"`

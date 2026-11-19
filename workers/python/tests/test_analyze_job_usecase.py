@@ -36,7 +36,14 @@ class _FakeAPI:
 
     async def create_evaluations(self, items: list[dict]) -> list[dict]:
         self.created = items
-        return [{"id": "eval-1", "slug": "job-1", "evaluation_status": "new"}]
+        return [
+            {
+                "id": "eval-1",
+                "slug": "job-1",
+                "user_id": "user-1",
+                "evaluation_status": "new",
+            }
+        ]
 
     async def trigger_evaluations(self, items: list[dict]) -> list[dict]:
         self.triggered = items
@@ -187,7 +194,7 @@ async def test_analyze_inserts_then_triggers_evaluations():
     await svc.analyze(slug="job-1")
 
     assert fake_api.created == [{"slug": "job-1"}]
-    assert fake_api.triggered == [{"id": "eval-1"}]
+    assert fake_api.triggered == [{"id": "eval-1", "user_id": "user-1"}]
 
 
 @pytest.mark.asyncio
@@ -205,4 +212,4 @@ async def test_analyze_propagates_trigger_failure():
         await svc.analyze(slug="job-1")
 
     assert fake_api.created == [{"slug": "job-1"}]
-    assert fake_api.triggered == [{"id": "eval-1"}]
+    assert fake_api.triggered == [{"id": "eval-1", "user_id": "user-1"}]

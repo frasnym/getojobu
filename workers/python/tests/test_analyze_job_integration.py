@@ -97,7 +97,7 @@ class _FakeAPI:
 
     async def create_evaluations(self, items: list[dict]) -> list[dict]:
         self.created = items
-        return [{"id": "eval-1", "evaluation_status": "new"}]
+        return [{"id": "eval-1", "user_id": "user-1", "evaluation_status": "new"}]
 
     async def trigger_evaluations(self, items: list[dict]) -> list[dict]:
         self.triggered = items

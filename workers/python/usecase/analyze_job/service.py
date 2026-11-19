@@ -117,11 +117,14 @@ class AnalyzeJob:
         # fails the activity so Temporal retries both calls; the insert step
         # is create-if-absent, so a retry cannot duplicate evaluation rows.
         created = await self._api.create_evaluations([{"slug": slug}])
-        trigger_items = [
-            {"id": item["id"]}
-            for item in created
-            if isinstance(item, dict) and item.get("id") and not item.get("error")
-        ]
+        trigger_items = []
+        for item in created:
+            if not isinstance(item, dict) or not item.get("id") or item.get("error"):
+                continue
+            trigger = {"id": item["id"]}
+            if item.get("user_id"):
+                trigger["user_id"] = item["user_id"]
+            trigger_items.append(trigger)
         if trigger_items:
             await self._api.trigger_evaluations(trigger_items)
 
