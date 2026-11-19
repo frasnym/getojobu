@@ -3,6 +3,7 @@ package matching
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/frasnym/getojobu/apps/backend/internal/models"
@@ -114,14 +115,13 @@ func (s *matchingService) TriggerEvaluations(
 			continue
 		}
 
-		var flipped bool
-		if from == constants.MatchingStatusFailed {
-			flipped, err = s.evalRepo.FlipStatusWithClear(ctx, eval.ID, string(from), string(to))
-		} else {
-			flipped, err = s.evalRepo.FlipStatus(ctx, eval.ID, string(from), string(to))
-		}
-		if err != nil {
-			errStr := fmt.Sprintf("flip evaluation status: %s", err.Error())
+		_, err = s.evalRepo.Update(ctx, eval.ID, models.UpdateMatchingEvaluationParams{
+			EvaluationStatus:         string(to),
+			ExpectedEvaluationStatus: string(from),
+			ClearEvaluationResult:    from == constants.MatchingStatusFailed,
+		})
+		if err != nil && !errors.Is(err, constants.ErrNotFound) {
+			errStr := fmt.Sprintf("update evaluation status: %s", err.Error())
 			summaries = append(summaries, &models.MatchingEvaluationSummary{
 				ID:        &eval.ID,
 				UserJobID: &eval.UserJobID,
@@ -129,11 +129,12 @@ func (s *matchingService) TriggerEvaluations(
 			})
 			continue
 		}
-		if !flipped {
-			// The worker may have moved the row to pending before our
-			// conditional update landed, or a prior trigger may already have
-			// queued it. In either case the workflow is running, so report the
-			// in-flight state as a success instead of a false failure.
+		if err != nil {
+			// The expected-status guard did not match. The worker may have
+			// moved the row to pending before our update landed, or a prior
+			// trigger may already have queued it. In either case the workflow
+			// is running, so report the in-flight state as a success instead of
+			// a false failure.
 			if current, getErr := s.evalRepo.GetByID(ctx, eval.ID); getErr == nil &&
 				isInFlightEvaluationStatus(constants.MatchingEvaluationStatus(current.EvaluationStatus)) {
 				summaries = append(summaries, &models.MatchingEvaluationSummary{

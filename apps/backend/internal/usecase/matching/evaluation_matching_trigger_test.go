@@ -75,6 +75,14 @@ func storedEvaluation(id, userJobID, scoringConfigID uuid.UUID, status string) *
 
 func strPtr(s string) *string { return &s }
 
+func guardedUpdateParams(from, to constants.MatchingEvaluationStatus) models.UpdateMatchingEvaluationParams {
+	return models.UpdateMatchingEvaluationParams{
+		EvaluationStatus:         string(to),
+		ExpectedEvaluationStatus: string(from),
+		ClearEvaluationResult:    from == constants.MatchingStatusFailed,
+	}
+}
+
 func triggerScoringConfig(id uuid.UUID) *models.ScoringConfig {
 	return &models.ScoringConfig{
 		ID:         id,
@@ -105,7 +113,7 @@ func TestTriggerEvaluations(t *testing.T) {
 					capturedInput, _ = input.(matching.MatchJobWorkflowInput)
 					return "wf-id", nil
 				}),
-			h.evalRepo.EXPECT().FlipStatus(ctx, id, string(constants.MatchingStatusNew), string(constants.MatchingStatusQueued)).Return(true, nil),
+			h.evalRepo.EXPECT().Update(ctx, id, guardedUpdateParams(constants.MatchingStatusNew, constants.MatchingStatusQueued)).Return(nil, nil),
 		)
 
 		res, err := h.service.TriggerEvaluations(ctx, []models.TriggerEvaluationItem{{ID: id}}, &models.Principal{ID: ownerID.String()})
@@ -133,8 +141,8 @@ func TestTriggerEvaluations(t *testing.T) {
 		config := triggerScoringConfig(scoringConfigID)
 
 		var capturedInput matching.MatchJobWorkflowInput
-		// The single atomic call must replace the old clear-then-flip sequence.
-		// The recorded order proves the stored profile and scoring config were
+		// The guarded update clears results and flips status in one call. The
+		// recorded order proves the stored profile and scoring config were
 		// decoded into the workflow input before the row is mutated.
 		gomock.InOrder(
 			h.evalRepo.EXPECT().GetByID(ctx, id).Return(eval, nil),
@@ -145,9 +153,8 @@ func TestTriggerEvaluations(t *testing.T) {
 					capturedInput, _ = input.(matching.MatchJobWorkflowInput)
 					return "wf-id", nil
 				}),
-			h.evalRepo.EXPECT().FlipStatusWithClear(ctx, id, string(constants.MatchingStatusFailed), string(constants.MatchingStatusQueuedRetry)).Return(true, nil),
+			h.evalRepo.EXPECT().Update(ctx, id, guardedUpdateParams(constants.MatchingStatusFailed, constants.MatchingStatusQueuedRetry)).Return(nil, nil),
 		)
-		h.evalRepo.EXPECT().FlipStatus(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
 
 		res, err := h.service.TriggerEvaluations(ctx, []models.TriggerEvaluationItem{{ID: id}}, &models.Principal{ID: ownerID.String()})
 		require.NoError(t, err)
@@ -183,7 +190,7 @@ func TestTriggerEvaluations(t *testing.T) {
 					capturedInput, _ = input.(matching.MatchJobWorkflowInput)
 					return "wf-id", nil
 				}),
-			h.evalRepo.EXPECT().FlipStatusWithClear(ctx, id, string(constants.MatchingStatusFailed), string(constants.MatchingStatusQueuedRetry)).Return(true, nil),
+			h.evalRepo.EXPECT().Update(ctx, id, guardedUpdateParams(constants.MatchingStatusFailed, constants.MatchingStatusQueuedRetry)).Return(nil, nil),
 		)
 
 		res, err := h.service.TriggerEvaluations(ctx, []models.TriggerEvaluationItem{{ID: id}}, &models.Principal{ID: ownerID.String()})
@@ -208,7 +215,7 @@ func TestTriggerEvaluations(t *testing.T) {
 			h.userJobsRepo.EXPECT().GetByID(ctx, userJobID).Return(&models.UserJob{ID: userJobID, UserID: ownerID}, nil),
 			h.scoringConfigsRepo.EXPECT().GetByID(ctx, scoringConfigID).Return(config, nil),
 			h.workflowsRepo.EXPECT().StartLimiterWorkItem(ctx, "match-job-"+id.String(), models.LimiterJobTypeMatch, gomock.Any()).Return("wf-id", nil),
-			h.evalRepo.EXPECT().FlipStatus(ctx, id, string(constants.MatchingStatusNew), string(constants.MatchingStatusQueued)).Return(false, nil),
+			h.evalRepo.EXPECT().Update(ctx, id, guardedUpdateParams(constants.MatchingStatusNew, constants.MatchingStatusQueued)).Return(nil, constants.ErrNotFound),
 			h.evalRepo.EXPECT().GetByID(ctx, id).Return(pendingEval, nil),
 		)
 
@@ -217,6 +224,52 @@ func TestTriggerEvaluations(t *testing.T) {
 		require.Len(t, res, 1)
 		assert.Nil(t, res[0].Error, "an already-running workflow is not a failure")
 		assert.Equal(t, string(constants.MatchingStatusPending), res[0].EvaluationStatus)
+	})
+
+	t.Run("guard mismatch with no in-flight status is a per-item error", func(t *testing.T) {
+		h := newTriggerHarness(t)
+		ownerID, userJobID, scoringConfigID := triggerFixture()
+		id := uuid.New()
+		eval := storedEvaluation(id, userJobID, scoringConfigID, string(constants.MatchingStatusNew))
+		failedEval := storedEvaluation(id, userJobID, scoringConfigID, string(constants.MatchingStatusFailed))
+		config := triggerScoringConfig(scoringConfigID)
+
+		gomock.InOrder(
+			h.evalRepo.EXPECT().GetByID(ctx, id).Return(eval, nil),
+			h.userJobsRepo.EXPECT().GetByID(ctx, userJobID).Return(&models.UserJob{ID: userJobID, UserID: ownerID}, nil),
+			h.scoringConfigsRepo.EXPECT().GetByID(ctx, scoringConfigID).Return(config, nil),
+			h.workflowsRepo.EXPECT().StartLimiterWorkItem(ctx, "match-job-"+id.String(), models.LimiterJobTypeMatch, gomock.Any()).Return("wf-id", nil),
+			h.evalRepo.EXPECT().Update(ctx, id, guardedUpdateParams(constants.MatchingStatusNew, constants.MatchingStatusQueued)).Return(nil, constants.ErrNotFound),
+			h.evalRepo.EXPECT().GetByID(ctx, id).Return(failedEval, nil),
+		)
+
+		res, err := h.service.TriggerEvaluations(ctx, []models.TriggerEvaluationItem{{ID: id}}, &models.Principal{ID: ownerID.String()})
+		require.NoError(t, err)
+		require.Len(t, res, 1)
+		require.NotNil(t, res[0].Error)
+		assert.Contains(t, *res[0].Error, "status changed before it could be queued")
+	})
+
+	t.Run("other update errors stay per-item errors", func(t *testing.T) {
+		h := newTriggerHarness(t)
+		ownerID, userJobID, scoringConfigID := triggerFixture()
+		id := uuid.New()
+		eval := storedEvaluation(id, userJobID, scoringConfigID, string(constants.MatchingStatusNew))
+		config := triggerScoringConfig(scoringConfigID)
+
+		gomock.InOrder(
+			h.evalRepo.EXPECT().GetByID(ctx, id).Return(eval, nil),
+			h.userJobsRepo.EXPECT().GetByID(ctx, userJobID).Return(&models.UserJob{ID: userJobID, UserID: ownerID}, nil),
+			h.scoringConfigsRepo.EXPECT().GetByID(ctx, scoringConfigID).Return(config, nil),
+			h.workflowsRepo.EXPECT().StartLimiterWorkItem(ctx, "match-job-"+id.String(), models.LimiterJobTypeMatch, gomock.Any()).Return("wf-id", nil),
+			h.evalRepo.EXPECT().Update(ctx, id, guardedUpdateParams(constants.MatchingStatusNew, constants.MatchingStatusQueued)).Return(nil, errors.New("db down")),
+		)
+
+		res, err := h.service.TriggerEvaluations(ctx, []models.TriggerEvaluationItem{{ID: id}}, &models.Principal{ID: ownerID.String()})
+		require.NoError(t, err)
+		require.Len(t, res, 1)
+		require.NotNil(t, res[0].Error)
+		assert.Contains(t, *res[0].Error, "update evaluation status: db down")
 	})
 
 	t.Run("terminal and in-progress statuses return per-item errors and start nothing", func(t *testing.T) {
@@ -257,7 +310,7 @@ func TestTriggerEvaluations(t *testing.T) {
 			h.userJobsRepo.EXPECT().GetByID(ctx, userJobID).Return(&models.UserJob{ID: userJobID, UserID: ownerID}, nil),
 			h.scoringConfigsRepo.EXPECT().GetByID(ctx, scoringConfigID).Return(config, nil),
 			h.workflowsRepo.EXPECT().StartLimiterWorkItem(ctx, "match-job-"+id.String(), models.LimiterJobTypeMatch, gomock.Any()).Return("wf-id", nil),
-			h.evalRepo.EXPECT().FlipStatus(ctx, id, string(constants.MatchingStatusNew), string(constants.MatchingStatusQueued)).Return(true, nil),
+			h.evalRepo.EXPECT().Update(ctx, id, guardedUpdateParams(constants.MatchingStatusNew, constants.MatchingStatusQueued)).Return(nil, nil),
 			h.evalRepo.EXPECT().GetByID(ctx, id).Return(queuedEval, nil),
 			h.userJobsRepo.EXPECT().GetByID(ctx, userJobID).Return(&models.UserJob{ID: userJobID, UserID: ownerID}, nil),
 		)
@@ -281,8 +334,7 @@ func TestTriggerEvaluations(t *testing.T) {
 		h.userJobsRepo.EXPECT().GetByID(ctx, userJobID).Return(&models.UserJob{ID: userJobID, UserID: ownerID}, nil)
 		h.scoringConfigsRepo.EXPECT().GetByID(ctx, scoringConfigID).Return(config, nil)
 		h.workflowsRepo.EXPECT().StartLimiterWorkItem(ctx, "match-job-"+id.String(), models.LimiterJobTypeMatch, gomock.Any()).Return("", errors.New("temporal down"))
-		h.evalRepo.EXPECT().FlipStatus(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
-		h.evalRepo.EXPECT().FlipStatusWithClear(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
+		h.evalRepo.EXPECT().Update(gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
 
 		res, err := h.service.TriggerEvaluations(ctx, []models.TriggerEvaluationItem{{ID: id}}, &models.Principal{ID: ownerID.String()})
 		require.NoError(t, err)
@@ -319,7 +371,7 @@ func TestTriggerEvaluations(t *testing.T) {
 			h.evalRepo.EXPECT().GetByID(ctx, id).Return(eval, nil),
 			h.scoringConfigsRepo.EXPECT().GetByID(ctx, scoringConfigID).Return(config, nil),
 			h.workflowsRepo.EXPECT().StartLimiterWorkItem(ctx, "match-job-"+id.String(), models.LimiterJobTypeMatch, gomock.Any()).Return("wf-id", nil),
-			h.evalRepo.EXPECT().FlipStatus(ctx, id, string(constants.MatchingStatusNew), string(constants.MatchingStatusQueued)).Return(true, nil),
+			h.evalRepo.EXPECT().Update(ctx, id, guardedUpdateParams(constants.MatchingStatusNew, constants.MatchingStatusQueued)).Return(nil, nil),
 		)
 		h.userJobsRepo.EXPECT().GetByID(gomock.Any(), gomock.Any()).Times(0)
 
@@ -347,7 +399,7 @@ func TestTriggerEvaluations(t *testing.T) {
 			h.userJobsRepo.EXPECT().GetByID(ctx, userJobID).Return(&models.UserJob{ID: userJobID, UserID: ownerID}, nil),
 			h.scoringConfigsRepo.EXPECT().GetByID(ctx, scoringConfigID).Return(config, nil),
 			h.workflowsRepo.EXPECT().StartLimiterWorkItem(ctx, "match-job-"+goodID.String(), models.LimiterJobTypeMatch, gomock.Any()).Return("wf-id", nil),
-			h.evalRepo.EXPECT().FlipStatus(ctx, goodID, string(constants.MatchingStatusNew), string(constants.MatchingStatusQueued)).Return(true, nil),
+			h.evalRepo.EXPECT().Update(ctx, goodID, guardedUpdateParams(constants.MatchingStatusNew, constants.MatchingStatusQueued)).Return(nil, nil),
 		)
 
 		res, err := h.service.TriggerEvaluations(ctx, []models.TriggerEvaluationItem{{ID: badID}, {ID: goodID}}, &models.Principal{ID: ownerID.String()})

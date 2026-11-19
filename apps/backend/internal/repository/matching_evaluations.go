@@ -19,8 +19,6 @@ import (
 // MatchingEvaluations is the interface for matching evaluations data access.
 type MatchingEvaluations interface {
 	Create(ctx context.Context, eval *models.MatchingEvaluation) (*models.MatchingEvaluation, error)
-	FlipStatus(ctx context.Context, id uuid.UUID, from string, to string) (bool, error)
-	FlipStatusWithClear(ctx context.Context, id uuid.UUID, from string, to string) (bool, error)
 	GetByID(ctx context.Context, id uuid.UUID) (*models.MatchingEvaluation, error)
 	GetLatestByUserAndJob(ctx context.Context, userID uuid.UUID, jobID int64) (*models.MatchingEvaluation, error)
 	GetLatestByUserJobID(ctx context.Context, userID uuid.UUID, userJobID uuid.UUID) (*models.EvaluationWithJob, error)
@@ -150,57 +148,6 @@ func (r *matchingEvaluationsRepository) Create(ctx context.Context, eval *models
 	}
 
 	return existing, nil
-}
-
-// FlipStatus updates an evaluation's status only when it still matches from.
-// The bool reports whether the conditional update matched a row.
-func (r *matchingEvaluationsRepository) FlipStatus(ctx context.Context, id uuid.UUID, from string, to string) (updated bool, err error) {
-	tx, err := r.StartTrx(ctx)
-	if err != nil {
-		return false, fmt.Errorf("flip matching evaluation status start trx: %w", err)
-	}
-	defer r.Committer(ctx, tx, &err)
-
-	res, err := tx.Exec(ctx, `
-		UPDATE matching_evaluations
-		SET evaluation_status = $3, updated_at = NOW()
-		WHERE id = $1 AND evaluation_status = $2
-	`, id, from, to)
-	if err != nil {
-		return false, fmt.Errorf("flip matching evaluation status: %w", err)
-	}
-
-	return res.RowsAffected() > 0, nil
-}
-
-// FlipStatusWithClear clears the five evaluation-result columns and flips the
-// status in a single conditional update. The profile bytes are workflow inputs
-// and are kept intact so every later retry can rebuild its input. Report,
-// resume, and cover-letter columns are untouched.
-func (r *matchingEvaluationsRepository) FlipStatusWithClear(ctx context.Context, id uuid.UUID, from string, to string) (updated bool, err error) {
-	tx, err := r.StartTrx(ctx)
-	if err != nil {
-		return false, fmt.Errorf("flip matching evaluation status with clear start trx: %w", err)
-	}
-	defer r.Committer(ctx, tx, &err)
-
-	res, err := tx.Exec(ctx, `
-		UPDATE matching_evaluations
-		SET
-			evaluation_status = $2,
-			evaluation_data = NULL,
-			overall_score = NULL,
-			eligibility_status = NULL,
-			recommendation_label = NULL,
-			failure_message = NULL,
-			updated_at = NOW()
-		WHERE id = $1 AND evaluation_status = $3
-	`, id, to, from)
-	if err != nil {
-		return false, fmt.Errorf("flip matching evaluation status with clear: %w", err)
-	}
-
-	return res.RowsAffected() > 0, nil
 }
 
 func (r *matchingEvaluationsRepository) GetByID(ctx context.Context, id uuid.UUID) (*models.MatchingEvaluation, error) {
@@ -417,13 +364,13 @@ func (r *matchingEvaluationsRepository) Update(
 		UPDATE matching_evaluations
 		SET
 			evaluation_status = COALESCE(NULLIF($2, ''), evaluation_status),
-			evaluation_data = COALESCE($3, evaluation_data),
-			overall_score = COALESCE($4, overall_score),
-			eligibility_status = COALESCE($5, eligibility_status),
-			recommendation_label = COALESCE($6, recommendation_label),
-			failure_message = COALESCE($7, failure_message),
+			evaluation_data = CASE WHEN $8 THEN NULL ELSE COALESCE($3, evaluation_data) END,
+			overall_score = CASE WHEN $8 THEN NULL ELSE COALESCE($4, overall_score) END,
+			eligibility_status = CASE WHEN $8 THEN NULL ELSE COALESCE($5, eligibility_status) END,
+			recommendation_label = CASE WHEN $8 THEN NULL ELSE COALESCE($6, recommendation_label) END,
+			failure_message = CASE WHEN $8 THEN NULL ELSE COALESCE($7, failure_message) END,
 			updated_at = NOW()
-		WHERE id = $1
+		WHERE id = $1 AND ($9 = '' OR evaluation_status = $9)
 		RETURNING
 			id, user_job_id, evaluation_status,
 			candidate_profile_data, job_profile_data, scoring_config_id,
@@ -444,6 +391,8 @@ func (r *matchingEvaluationsRepository) Update(
 		params.EligibilityStatus,
 		params.RecommendationLabel,
 		params.FailureMessage,
+		params.ClearEvaluationResult,
+		params.ExpectedEvaluationStatus,
 	).Scan(
 		&eval.ID,
 		&eval.UserJobID,

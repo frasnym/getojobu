@@ -163,126 +163,123 @@ func TestCreate(t *testing.T) {
 	assert.JSONEq(t, `{"candidate":"v1"}`, string(got3.CandidateProfileData))
 }
 
-func TestFlipStatus(t *testing.T) {
-	repo, pool, seed := mevalTestRepo(t)
-	ctx := context.Background()
-
-	newID := uuid.New()
-	_, err := pool.Exec(ctx, `INSERT INTO matching_evaluations (id, user_job_id, scoring_config_id, evaluation_status)
-		VALUES ($1, $2, $3, 'new')`, newID, seed.UserJobID, seed.ScoringConfigID)
+func mevalSeedEval(t *testing.T, ctx context.Context, pool *pgxpool.Pool, seed mevalSeed, status string) uuid.UUID {
+	t.Helper()
+	id := uuid.New()
+	_, err := pool.Exec(ctx, `
+		INSERT INTO matching_evaluations (
+			id, user_job_id, scoring_config_id, evaluation_status,
+			candidate_profile_data, job_profile_data, evaluation_data,
+			overall_score, eligibility_status, recommendation_label, failure_message,
+			report_data, report_status, report_failure_message,
+			resume_status, resume_failure_message, resume_pdf_key, resume_json_key,
+			cover_letter_status, cover_letter_content, cover_letter_failure_message
+		) VALUES (
+			$1, $2, $3, $4,
+			'{"candidate":"v1"}', '{"job":"v1"}', '{"eval":"v1"}',
+			87.5, 'eligible', 'strong_match', 'boom',
+			'{"report":"v1"}', 'success', NULL,
+			'success', NULL, 'resume.pdf', 'resume.json',
+			'success', '{"text":"dear"}', NULL
+		)`, id, seed.UserJobID, seed.ScoringConfigID, status)
 	require.NoError(t, err)
-
-	ok, err := repo.FlipStatus(ctx, newID, string(constants.MatchingStatusNew), string(constants.MatchingStatusQueued))
-	require.NoError(t, err)
-	require.True(t, ok, "new -> queued must update the row")
-
-	var status string
-	err = pool.QueryRow(ctx, `SELECT evaluation_status FROM matching_evaluations WHERE id = $1`, newID).Scan(&status)
-	require.NoError(t, err)
-	assert.Equal(t, string(constants.MatchingStatusQueued), status)
-
-	otherUserJobID := uuid.New()
-	var otherJobID int64
-	err = pool.QueryRow(ctx, `INSERT INTO jobs (slug, source, title, company, location, updated_by_type, updated_by_id)
-		VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
-		"meval-other-job-"+seed.UserID.String(), "linkedin", "Engineer", "Acme", "Jakarta", "user", "seed").Scan(&otherJobID)
-	require.NoError(t, err)
-	_, err = pool.Exec(ctx, `INSERT INTO user_jobs (id, user_id, job_id) VALUES ($1, $2, $3)`,
-		otherUserJobID, seed.UserID, otherJobID)
-	require.NoError(t, err)
-	successID := uuid.New()
-	_, err = pool.Exec(ctx, `INSERT INTO matching_evaluations (id, user_job_id, scoring_config_id, evaluation_status)
-		VALUES ($1, $2, $3, 'success')`, successID, otherUserJobID, seed.ScoringConfigID)
-	require.NoError(t, err)
-
-	ok, err = repo.FlipStatus(ctx, successID, string(constants.MatchingStatusNew), string(constants.MatchingStatusQueued))
-	require.NoError(t, err)
-	assert.False(t, ok, "a success row must not match a from=new guard")
-
-	err = pool.QueryRow(ctx, `SELECT evaluation_status FROM matching_evaluations WHERE id = $1`, successID).Scan(&status)
-	require.NoError(t, err)
-	assert.Equal(t, string(constants.MatchingStatusSuccess), status)
+	return id
 }
 
-func TestFlipStatusWithClear(t *testing.T) {
-	repo, pool, seed := mevalTestRepo(t)
+func TestUpdate(t *testing.T) {
 	ctx := context.Background()
 
-	seedFailed := func() uuid.UUID {
-		t.Helper()
-		id := uuid.New()
-		_, err := pool.Exec(ctx, `
-			INSERT INTO matching_evaluations (
-				id, user_job_id, scoring_config_id, evaluation_status,
-				candidate_profile_data, job_profile_data, evaluation_data,
-				overall_score, eligibility_status, recommendation_label, failure_message,
-				report_data, report_status, report_failure_message,
-				resume_status, resume_failure_message, resume_pdf_key, resume_json_key,
-				cover_letter_status, cover_letter_content, cover_letter_failure_message
-			) VALUES (
-				$1, $2, $3, 'failed',
-				'{"candidate":"v1"}', '{"job":"v1"}', '{"eval":"v1"}',
-				87.5, 'eligible', 'strong_match', 'boom',
-				'{"report":"v1"}', 'success', NULL,
-				'success', NULL, 'resume.pdf', 'resume.json',
-				'success', '{"text":"dear"}', NULL
-			)`, id, seed.UserJobID, seed.ScoringConfigID)
+	t.Run("matching expected status clears only the five result columns", func(t *testing.T) {
+		repo, pool, seed := mevalTestRepo(t)
+		id := mevalSeedEval(t, ctx, pool, seed, string(constants.MatchingStatusFailed))
+
+		got, err := repo.Update(ctx, id, models.UpdateMatchingEvaluationParams{
+			EvaluationStatus:         string(constants.MatchingStatusQueuedRetry),
+			ExpectedEvaluationStatus: string(constants.MatchingStatusFailed),
+			ClearEvaluationResult:    true,
+		})
 		require.NoError(t, err)
-		return id
-	}
+		assert.Equal(t, string(constants.MatchingStatusQueuedRetry), got.EvaluationStatus)
+		assert.Nil(t, got.EvaluationData)
+		assert.Nil(t, got.OverallScore)
+		assert.Nil(t, got.EligibilityStatus)
+		assert.Nil(t, got.RecommendationLabel)
+		assert.Nil(t, got.FailureMessage)
 
-	id := seedFailed()
-	ok, err := repo.FlipStatusWithClear(ctx, id,
-		string(constants.MatchingStatusFailed), string(constants.MatchingStatusQueuedRetry))
-	require.NoError(t, err)
-	require.True(t, ok, "failed -> queued_retry must update the row")
+		var status string
+		var resultCleared, profilesKept, artifactsKept bool
+		err = pool.QueryRow(ctx, `
+			SELECT evaluation_status,
+				evaluation_data IS NULL AND overall_score IS NULL AND eligibility_status IS NULL
+					AND recommendation_label IS NULL AND failure_message IS NULL,
+				candidate_profile_data = '{"candidate":"v1"}'::jsonb
+					AND job_profile_data = '{"job":"v1"}'::jsonb,
+				report_status = 'success' AND report_data = '{"report":"v1"}'::jsonb
+					AND resume_status = 'success' AND resume_pdf_key = 'resume.pdf'
+					AND resume_json_key = 'resume.json'
+					AND cover_letter_status = 'success' AND cover_letter_content = '{"text":"dear"}'::jsonb
+			FROM matching_evaluations WHERE id = $1`, id).Scan(&status, &resultCleared, &profilesKept, &artifactsKept)
+		require.NoError(t, err)
+		assert.Equal(t, string(constants.MatchingStatusQueuedRetry), status)
+		assert.True(t, resultCleared, "all five evaluation-result columns must be NULL")
+		assert.True(t, profilesKept, "profile bytes are inputs and must survive a retry")
+		assert.True(t, artifactsKept, "report/resume/cover-letter columns must be untouched")
 
-	var status string
-	var resultCleared, profilesKept, artifactsKept bool
-	err = pool.QueryRow(ctx, `
-		SELECT evaluation_status,
-			evaluation_data IS NULL AND overall_score IS NULL AND eligibility_status IS NULL
-				AND recommendation_label IS NULL AND failure_message IS NULL,
-			candidate_profile_data = '{"candidate":"v1"}'::jsonb
-				AND job_profile_data = '{"job":"v1"}'::jsonb,
-			report_status = 'success' AND report_data = '{"report":"v1"}'::jsonb
-				AND resume_status = 'success' AND resume_pdf_key = 'resume.pdf'
-				AND resume_json_key = 'resume.json'
-				AND cover_letter_status = 'success' AND cover_letter_content = '{"text":"dear"}'::jsonb
-		FROM matching_evaluations WHERE id = $1`, id).Scan(&status, &resultCleared, &profilesKept, &artifactsKept)
-	require.NoError(t, err)
-	assert.Equal(t, string(constants.MatchingStatusQueuedRetry), status)
-	assert.True(t, resultCleared, "the five evaluation-result columns must be cleared in the same update")
-	assert.True(t, profilesKept, "profile bytes are inputs and must survive a retry")
-	assert.True(t, artifactsKept, "report/resume/cover-letter columns must be untouched")
+		// A second failure followed by another retry must still find the
+		// profile bytes used to rebuild the workflow input.
+		_, err = pool.Exec(ctx, `UPDATE matching_evaluations SET evaluation_status = 'failed' WHERE id = $1`, id)
+		require.NoError(t, err)
+		_, err = repo.Update(ctx, id, models.UpdateMatchingEvaluationParams{
+			EvaluationStatus:         string(constants.MatchingStatusQueuedRetry),
+			ExpectedEvaluationStatus: string(constants.MatchingStatusFailed),
+			ClearEvaluationResult:    true,
+		})
+		require.NoError(t, err)
+		err = pool.QueryRow(ctx, `
+			SELECT candidate_profile_data = '{"candidate":"v1"}'::jsonb
+				AND job_profile_data = '{"job":"v1"}'::jsonb
+			FROM matching_evaluations WHERE id = $1`, id).Scan(&profilesKept)
+		require.NoError(t, err)
+		assert.True(t, profilesKept, "profile bytes must survive a second failed retry")
+	})
 
-	// A second failure followed by another retry must still find the profile
-	// bytes used to rebuild the workflow input.
-	_, err = pool.Exec(ctx, `UPDATE matching_evaluations SET evaluation_status = 'failed' WHERE id = $1`, id)
-	require.NoError(t, err)
-	ok, err = repo.FlipStatusWithClear(ctx, id,
-		string(constants.MatchingStatusFailed), string(constants.MatchingStatusQueuedRetry))
-	require.NoError(t, err)
-	require.True(t, ok, "second failed retry must update the row")
-	err = pool.QueryRow(ctx, `
-		SELECT candidate_profile_data = '{"candidate":"v1"}'::jsonb
-			AND job_profile_data = '{"job":"v1"}'::jsonb
-		FROM matching_evaluations WHERE id = $1`, id).Scan(&profilesKept)
-	require.NoError(t, err)
-	assert.True(t, profilesKept, "profile bytes must survive a second failed retry")
+	t.Run("non-matching expected status returns ErrNotFound and changes nothing", func(t *testing.T) {
+		repo, pool, seed := mevalTestRepo(t)
+		id := mevalSeedEval(t, ctx, pool, seed, string(constants.MatchingStatusFailed))
 
-	// A stale from-status must match no row and clear nothing.
-	guardID := seedFailed()
-	ok, err = repo.FlipStatusWithClear(ctx, guardID,
-		string(constants.MatchingStatusNew), string(constants.MatchingStatusQueuedRetry))
-	require.NoError(t, err)
-	assert.False(t, ok, "a failed row must not match a from=new guard")
+		_, err := repo.Update(ctx, id, models.UpdateMatchingEvaluationParams{
+			EvaluationStatus:         string(constants.MatchingStatusQueued),
+			ExpectedEvaluationStatus: string(constants.MatchingStatusNew),
+			ClearEvaluationResult:    true,
+		})
+		require.ErrorIs(t, err, constants.ErrNotFound)
 
-	var guardIntact bool
-	err = pool.QueryRow(ctx, `
-		SELECT evaluation_status = 'failed' AND candidate_profile_data = '{"candidate":"v1"}'::jsonb
-			AND report_status = 'success'
-		FROM matching_evaluations WHERE id = $1`, guardID).Scan(&guardIntact)
-	require.NoError(t, err)
-	assert.True(t, guardIntact, "a non-matching guard must leave the row untouched")
+		var intact bool
+		err = pool.QueryRow(ctx, `
+			SELECT evaluation_status = 'failed' AND evaluation_data = '{"eval":"v1"}'::jsonb
+				AND overall_score = 87.5 AND failure_message = 'boom'
+				AND candidate_profile_data = '{"candidate":"v1"}'::jsonb
+				AND report_status = 'success'
+			FROM matching_evaluations WHERE id = $1`, id).Scan(&intact)
+		require.NoError(t, err)
+		assert.True(t, intact, "a non-matching guard must leave the row untouched")
+	})
+
+	t.Run("empty guard without clear keeps the original update behavior", func(t *testing.T) {
+		repo, pool, seed := mevalTestRepo(t)
+		id := mevalSeedEval(t, ctx, pool, seed, string(constants.MatchingStatusNew))
+		score := 42.5
+
+		got, err := repo.Update(ctx, id, models.UpdateMatchingEvaluationParams{
+			EvaluationStatus: string(constants.MatchingStatusQueued),
+			OverallScore:     &score,
+		})
+		require.NoError(t, err)
+		assert.Equal(t, string(constants.MatchingStatusQueued), got.EvaluationStatus)
+		require.NotNil(t, got.OverallScore)
+		assert.Equal(t, score, *got.OverallScore)
+		assert.JSONEq(t, `{"eval":"v1"}`, string(got.EvaluationData))
+		require.NotNil(t, got.FailureMessage)
+		assert.Equal(t, "boom", *got.FailureMessage)
+	})
 }

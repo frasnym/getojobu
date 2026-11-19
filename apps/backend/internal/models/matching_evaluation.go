@@ -156,12 +156,18 @@ type BulkGenerateCoverLetterItem struct {
 
 // UpdateMatchingEvaluationParams contains fields for updating a matching evaluation.
 type UpdateMatchingEvaluationParams struct {
-	EvaluationStatus    string
-	EvaluationData      json.RawMessage `swaggertype:"object"`
-	OverallScore        *float64
-	EligibilityStatus   *string
-	RecommendationLabel *string
-	FailureMessage      *string
+	EvaluationStatus string
+	// ExpectedEvaluationStatus limits the update to rows still at this status.
+	// Empty means no guard.
+	ExpectedEvaluationStatus string
+	// ClearEvaluationResult nulls the five evaluation-result columns in the
+	// same update. Profile bytes and report/resume/cover-letter columns are kept.
+	ClearEvaluationResult bool
+	EvaluationData        json.RawMessage `swaggertype:"object"`
+	OverallScore          *float64
+	EligibilityStatus     *string
+	RecommendationLabel   *string
+	FailureMessage        *string
 }
 
 // UpdateMatchingEvaluationReportParams contains fields for updating a report on a matching evaluation.
