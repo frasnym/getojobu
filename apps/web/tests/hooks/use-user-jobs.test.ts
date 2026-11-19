@@ -256,7 +256,7 @@ describe("useUserJobs hook and filterUserJobs", () => {
       },
     });
     const reportSpy = vi
-      .spyOn(endpoints, "retryReport")
+      .spyOn(endpoints, "bulkGenerateReport")
       .mockResolvedValue({} as never);
 
     const { result } = renderHook(() => useUserJobs());
@@ -269,13 +269,13 @@ describe("useUserJobs hook and filterUserJobs", () => {
       await result.current.retryJob(reportFailedJob.id);
     });
 
-    expect(reportSpy).toHaveBeenCalledWith("eval-1", "test-token");
+    expect(reportSpy).toHaveBeenCalledWith(["eval-1"], "test-token");
     await waitFor(() => {
       expect(result.current.jobs[0].evaluation?.report_status).toBe("queued_retry");
     });
   });
 
-  it("retryJob leaves report status alone when report retry is forbidden", async () => {
+  it("retryJob leaves report status alone when the bulk report request fails", async () => {
     const reportFailedJob: UserJob = {
       ...mockUserJobs[0],
       evaluation: { id: "eval-1", evaluation_status: "success", report_status: "failed" },
@@ -291,8 +291,8 @@ describe("useUserJobs hook and filterUserJobs", () => {
         hasPrev: false,
       },
     });
-    vi.spyOn(endpoints, "retryReport").mockRejectedValue(
-      Object.assign(new Error("access denied"), { status: 403 })
+    vi.spyOn(endpoints, "bulkGenerateReport").mockRejectedValue(
+      new Error("not authorized to generate report for this evaluation")
     );
 
     const { result } = renderHook(() => useUserJobs());
@@ -305,7 +305,7 @@ describe("useUserJobs hook and filterUserJobs", () => {
       act(async () => {
         await result.current.retryJob(reportFailedJob.id);
       })
-    ).rejects.toThrow("You do not have permission to retry this report.");
+    ).rejects.toThrow("not authorized to generate report for this evaluation");
 
     expect(result.current.jobs[0].evaluation?.report_status).toBe("failed");
   });

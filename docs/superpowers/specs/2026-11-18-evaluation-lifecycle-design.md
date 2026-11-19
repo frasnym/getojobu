@@ -17,7 +17,7 @@ This design splits the call into an insert step and a trigger step, adds an expl
 - One `matching_evaluations` row per `user_jobs` row. The current one-to-many history is not needed soon.
 - When collapsing existing duplicate rows, keep the latest by `created_at`, regardless of status.
 - `user_jobs.latest_evaluation_id` is no longer needed and is dropped.
-- The report-retry API accepts both Clerk and API key callers, like the other endpoints. Clerk callers are checked for ownership of the evaluation before report generation starts.
+- Report retry reuses the existing `POST /v1/matching-evaluations/bulk-generate-report` route with `{id, force: true}`; there is no dedicated report-retry endpoint. That route accepts both Clerk and API key callers. Clerk callers are checked for ownership of each evaluation before report generation starts; an ownership failure is a per-item error in the 202 summary, not HTTP 403.
 - Keep the second route name `bulk-generate-evaluation`.
 
 ## 3. What I decided (my calls, not the user's)
@@ -99,13 +99,13 @@ Run from an empty database and against a staging copy with duplicates first. The
 - Repository: replace `GetLatestByUserAndJob` with `GetByUserJob`; make `Create` an upsert on `user_job_id`; remove the `latest_evaluation_id` update from `Create`.
 - On a failed-row retry, clear the evaluation-result columns listed in §3 in the same update that sets `queued_retry`.
 - Keep the existing envelope and partial-results behavior: one bad item does not stop the rest of the batch.
-- Add a user-facing report-retry endpoint under matching evaluations, registered with `auth.ValidClerkOrAPIKey`, taking an evaluation ID. For a Clerk caller, verify the evaluation belongs to the authenticated user before starting report generation. Reuse the existing report-generation usecase. Do not expose the worker-only `bulk-generate-report` route to the web.
+- Widen the existing `POST /v1/matching-evaluations/bulk-generate-report` route from API-key-only to `auth.ValidClerkOrAPIKey`. Keep the per-item Clerk ownership check in the bulk usecase (`caller.ActorType == ""` → `isEvaluationOwnedBy`); API key callers keep the existing trusted behavior. Do not add a separate report-retry endpoint or usecase method — the web sends `[{id, force: true}]` to the bulk route.
 - Update handler struct comments, then regenerate Swagger with `swag init`.
 
 ### 8.4 Callers
 
 - Temporal is the primary caller of both endpoints. `analyze_job_activity` calls insert and then trigger after a job reaches `analyzed`. Remove the `try/except` at `usecase/analyze_job/service.py:121–131` that currently swallows the trigger error, so a failed trigger fails the activity and Temporal retries both calls. The insert is create-if-absent, so the retry is safe.
-- `apps/web/lib/api/endpoints.ts`: `triggerJobCompatibility` calls insert, then trigger. If the trigger call fails, the row stays `new` and a later click can retry it without creating a duplicate. The `report_status = failed` branch in `use-user-jobs.ts:366–374` calls the new report-retry endpoint instead of forcing a whole new evaluation.
+- `apps/web/lib/api/endpoints.ts`: `triggerJobCompatibility` calls insert, then trigger. If the trigger call fails, the row stays `new` and a later click can retry it without creating a duplicate. The `report_status = failed` branch in `use-user-jobs.ts` calls `bulkGenerateReport([evaluationId], token)` on the widened bulk route instead of forcing a whole new evaluation.
 - `workers/python/repository/getojobu_api.py`: replace `trigger_bulk_analyze_compatibility` with one call per new step. Update its test at `workers/python/tests/test_getojobu_api.py`.
 - `internal/usecase/retry/retry.go`: `FailedMatchingEvaluations` now collects evaluation IDs instead of slugs. Remove the `seen[slug]` dedupe and the `FailedOnly` flag; pass failed IDs straight to the trigger usecase. The other retry batches (report, resume, cover letter) are unchanged.
 - `docs/api/api-design.md`, `docs/database/data-model.md` §4, and `docs/workflows/temporal-workflows.md` § retry paragraph: update to match the new contracts.
@@ -114,7 +114,7 @@ Run from an empty database and against a staging copy with duplicates first. The
 
 - Migration test: runs clean from an empty database; collapses duplicates so only the latest row per user/job survives; the unique constraint rejects a second row.
 - Go usecase tests: insert twice yields one row; insert on an existing `success` or in-progress row leaves its status unchanged; the stored job profile has metadata stripped and includes title/company/location; trigger on `new` starts a workflow; trigger twice starts one workflow; trigger on `success` returns an error; retry on `failed` sets `queued_retry` without creating a row; a failed-to-start workflow leaves the row at `new`, not `queued`; a tenant cannot trigger another user's evaluation.
-- Go handler tests: both endpoints plus the report-retry endpoint, auth, validation, per-item partial failure, Clerk ownership rejection, and the response summaries.
+- Go handler tests: both endpoints plus the widened bulk report route, auth, validation, per-item partial failure, Clerk ownership rejection (as a per-item error), and the response summaries.
 - Python repository test: both new calls hit the expected paths and unwrap the responses.
 - Run the repository's documented Go tests, Python tests, and `swag init` before reporting completion.
 
@@ -128,6 +128,7 @@ Run from an empty database and against a staging copy with duplicates first. The
 ## 11. Open items / approvals needed
 
 - The second endpoint keeps the name `bulk-generate-evaluation`. It reads oddly beside `bulk-generate-report` and `bulk-generate-resume`, but the name is settled.
+- Resolved: report retry uses the existing `bulk-generate-report` route with `{id, force: true}` instead of a dedicated endpoint. That route accepts Clerk or API key callers; Clerk callers are checked for ownership per item, and an ownership failure is a per-item error in the 202 summary rather than HTTP 403. API key callers are trusted as before.
 - Resolved: API key callers are trusted and no per-request user check is done — neither insert (`user_ids`) nor trigger (`user_id`) accepts a user ID from the request. Clerk ownership is still checked. The insert derives users from `user_jobs` and the trigger keys off the evaluation ID, so a caller cannot impersonate another user by supplying an ID; a compromised API key remains a trusted-caller risk accepted by this design.
 - The duplicate-row delete is destructive. Run it first against a backup/staging copy and get explicit approval before production.
 - This reverses the documented decision at `docs/database/data-model.md:49`; updating that document is part of the work, not an optional follow-up.

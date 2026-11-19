@@ -1651,7 +1651,9 @@ paths:
       consumes:
       - application/json
       description: Queues match report generation for multiple evaluations in bulk.
-        Accessible only via machine API key.
+        Clerk callers may only generate reports for evaluations they own; worker API
+        key callers may target any evaluation. An ownership failure is returned as
+        a per-item error in the 202 response.
       parameters:
       - description: Evaluations to generate reports for
         in: body

@@ -5,7 +5,7 @@ import {
   getResumeDownloadUrl,
   generateCoverLetter,
   triggerJobCompatibility,
-  retryReport,
+  bulkGenerateReport,
 } from "@/lib/api/endpoints";
 
 const originalFetch = global.fetch;
@@ -183,7 +183,7 @@ describe("API endpoints", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
-  it("retryReport posts to the per-evaluation report retry endpoint", async () => {
+  it("bulkGenerateReport posts forced items to the bulk report endpoint", async () => {
     const fetchMock = vi.fn(async () =>
       new Response(
         JSON.stringify({
@@ -197,13 +197,34 @@ describe("API endpoints", () => {
     ) as any;
     global.fetch = fetchMock;
 
-    const summary = await retryReport("eval-1");
+    const summary = await bulkGenerateReport(["eval-1"]);
     expect(summary.report_status).toBe("queued_retry");
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(fetchMock.mock.calls[0][0]).toContain(
-      "/v1/matching-evaluations/eval-1/retry-report"
+      "/v1/matching-evaluations/bulk-generate-report"
     );
     expect(fetchMock.mock.calls[0][1].method).toBe("POST");
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual([
+      { id: "eval-1", force: true },
+    ]);
+  });
+
+  it("bulkGenerateReport surfaces a per-item error from the 202 response", async () => {
+    mockFetch({
+      success: true,
+      data: [
+        {
+          id: "eval-1",
+          error: "not authorized to generate report for this evaluation",
+        },
+      ],
+      meta: { timestamp: "2026-11-15T12:00:00Z", requestId: "req-124" },
+      error: null,
+    }, 202);
+
+    await expect(bulkGenerateReport(["eval-1"])).rejects.toThrow(
+      "not authorized to generate report for this evaluation"
+    );
   });
 
   it("unwraps canonical backend response envelope", async () => {

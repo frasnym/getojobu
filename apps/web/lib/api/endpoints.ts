@@ -191,21 +191,22 @@ export async function triggerJobCompatibility(
   return triggered;
 }
 
-/** Re-queue report generation for one evaluation. Clerk callers must own it (403 otherwise). */
-export async function retryReport(
-  evaluationId: string,
+/** Queue report generation for evaluation IDs via the bulk endpoint. Clerk callers must own each evaluation; an ownership failure is a per-item error. */
+export async function bulkGenerateReport(
+  items: string[],
   token?: string | null
 ): Promise<EvaluationSummary> {
   const result = await apiClient<Array<EvaluationSummary & { error?: string | null }>>(
-    `/v1/matching-evaluations/${evaluationId}/retry-report`,
+    "/v1/matching-evaluations/bulk-generate-report",
     {
       method: "POST",
       token,
+      body: JSON.stringify(items.map((id) => ({ id, force: true }))),
     }
   );
   const item = Array.isArray(result) ? result[0] : undefined;
   if (!item) {
-    throw new Error("Empty response from retry-report");
+    throw new Error("Empty response from bulk-generate-report");
   }
   if (item.error) {
     throw new Error(item.error);

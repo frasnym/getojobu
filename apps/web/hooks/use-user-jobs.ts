@@ -7,7 +7,7 @@ import {
   setUserJobHideStatus,
   setUserJobsHideStatus,
   triggerJobCompatibility,
-  retryReport,
+  bulkGenerateReport,
   retryResumeGeneration,
 } from "@/lib/api/endpoints";
 import { StatusFilter } from "./use-jobs";
@@ -362,11 +362,11 @@ export function useUserJobs(explicitToken?: string | null) {
         return;
       }
 
-      // Retry just the report. A non-owner gets 403; surface it clearly and
-      // leave the local report status unchanged.
+      // Retry just the report via the bulk endpoint. A non-owner gets a
+      // per-item error; leave the local report status unchanged.
       if (target.evaluation?.report_status === "failed") {
         try {
-          await retryReport(target.evaluation.id, token);
+          await bulkGenerateReport([target.evaluation.id], token);
         } catch (err) {
           if ((err as { status?: number })?.status === 403) {
             throw new Error("You do not have permission to retry this report.");

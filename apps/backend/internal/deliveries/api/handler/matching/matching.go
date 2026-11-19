@@ -58,14 +58,11 @@ func (h *handler) Route(g *httpx.Router) {
 	// PATCH /v1/matching-evaluations/{id}/cover-letter (strictly worker API key)
 	g.PATCH("/{id}/cover-letter", h.UpdateCoverLetter, auth.ValidAPIKey)
 
-	// POST /v1/matching-evaluations/bulk-generate-report (strictly worker API key)
-	g.POST("/bulk-generate-report", h.BulkQueueGenerateReport, auth.ValidAPIKey)
+	// POST /v1/matching-evaluations/bulk-generate-report (Clerk user session or worker API key)
+	g.POST("/bulk-generate-report", h.BulkQueueGenerateReport, auth.ValidClerkOrAPIKey)
 
 	// POST /v1/matching-evaluations/bulk-generate-evaluation (Clerk user session or worker API key)
 	g.POST("/bulk-generate-evaluation", h.BulkGenerateEvaluation, auth.ValidClerkOrAPIKey)
-
-	// POST /v1/matching-evaluations/{id}/retry-report (Clerk user session or worker API key)
-	g.POST("/{id}/retry-report", h.RetryReport, auth.ValidClerkOrAPIKey)
 
 	g.POST("/bulk-generate-resume", h.BulkQueueGenerateResume, auth.ValidClerkOrAPIKey)
 	g.POST("/bulk-generate-cover-letter", h.BulkQueueGenerateCoverLetter, auth.ValidClerkOrAPIKey)
@@ -356,7 +353,7 @@ func (r bulkGenerateReportRequest) Validate() error {
 
 // BulkQueueGenerateReport queues match report generation for multiple evaluations.
 // @Summary Bulk queue match report generation
-// @Description Queues match report generation for multiple evaluations in bulk. Accessible only via machine API key.
+// @Description Queues match report generation for multiple evaluations in bulk. Clerk callers may only generate reports for evaluations they own; worker API key callers may target any evaluation. An ownership failure is returned as a per-item error in the 202 response.
 // @Tags matching
 // @Accept json
 // @Produce json
@@ -394,45 +391,6 @@ func (h *handler) BulkQueueGenerateReport(w http.ResponseWriter, r *http.Request
 	summaries, err := h.matchingUC.BulkQueueGenerateReport(ctx, items, p)
 	if err != nil {
 		if errors.Is(err, constants.ErrUnauthorized) {
-			return httpx.Envelope(httpx.CodeUnauthorized, "unauthorized", "")
-		}
-		return err
-	}
-
-	return httpx.RespondJSON(w, r, http.StatusAccepted, summaries)
-}
-
-// RetryReport re-queues report generation for a single successful evaluation.
-// @Summary Retry match report generation
-// @Description Re-queues report generation for one successful evaluation without changing its evaluation status. Clerk callers may only retry reports on evaluations they own; worker API key callers may retry any evaluation.
-// @Tags matching
-// @Accept json
-// @Produce json
-// @Param id path string true "Matching evaluation ID (UUID)"
-// @Success 202 {array} models.MatchingEvaluationSummary
-// @Failure 400 {object} httpx.Error
-// @Failure 401 {object} httpx.Error
-// @Failure 403 {object} httpx.Error
-// @security ApiKeyAuth
-// @Router /v1/matching-evaluations/{id}/retry-report [post]
-func (h *handler) RetryReport(w http.ResponseWriter, r *http.Request) error {
-	ctx := r.Context()
-	p := ctxval.PrincipalFromContext(ctx)
-	if p == nil {
-		return httpx.Envelope(httpx.CodeUnauthorized, "unauthorized", "")
-	}
-
-	id, err := uuid.Parse(r.PathValue("id"))
-	if err != nil {
-		return httpx.Envelope(httpx.CodeInvalidRequest, "invalid evaluation id", "")
-	}
-
-	summaries, err := h.matchingUC.RetryReport(ctx, id, p)
-	if err != nil {
-		switch {
-		case errors.Is(err, constants.ErrForbidden):
-			return httpx.Envelope(httpx.CodeForbidden, "access denied", "")
-		case errors.Is(err, constants.ErrUnauthorized):
 			return httpx.Envelope(httpx.CodeUnauthorized, "unauthorized", "")
 		}
 		return err

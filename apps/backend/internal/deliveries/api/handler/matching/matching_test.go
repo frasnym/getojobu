@@ -321,6 +321,36 @@ func TestReportHandlers(t *testing.T) {
 		assert.Equal(t, http.StatusAccepted, rec.Code)
 	})
 
+	t.Run("bulk queue generate report keeps clerk per-item errors in the 202 response", func(t *testing.T) {
+		c := &contract.Contract{
+			Cfg:     &config.Config{},
+			Usecase: &contractUsecase.Contract{Matching: mockMatching, Users: mockUsers},
+		}
+		h := handlerMatching.NewHandler(c)
+		clerk := &models.Principal{ID: "user-clerk-1"}
+		errStr := "not authorized to generate report for this evaluation"
+
+		mockMatching.EXPECT().BulkQueueGenerateReport(gomock.Any(), []models.BulkGenerateReportItem{
+			{ID: evalID, Force: true},
+		}, clerk).Return([]*models.MatchingEvaluationSummary{
+			{ID: &evalID, Error: &errStr},
+		}, nil)
+
+		body := fmt.Sprintf(`[{"id":"%s","force":true}]`, evalID.String())
+		req := httptest.NewRequest(http.MethodPost, "/v1/matching-evaluations/bulk-generate-report", bytes.NewBufferString(body))
+		req = req.WithContext(ctxval.ContextWithPrincipal(req.Context(), clerk))
+		rec := httptest.NewRecorder()
+
+		httpx.HandlerFunc(h.BulkQueueGenerateReport).ServeHTTP(rec, req)
+
+		require.Equal(t, http.StatusAccepted, rec.Code)
+		var resp httpx.Response[[]models.MatchingEvaluationSummary]
+		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+		require.Len(t, resp.Data, 1)
+		require.NotNil(t, resp.Data[0].Error)
+		assert.Equal(t, errStr, *resp.Data[0].Error)
+	})
+
 	t.Run("update report rejects invalid report status", func(t *testing.T) {
 		body, err := json.Marshal(map[string]interface{}{
 			"report_status": "invalid_status",
@@ -696,128 +726,6 @@ func TestUpdateCoverLetter(t *testing.T) {
 		require.NotNil(t, resp.Data.CoverLetterFailureMessage)
 		assert.Equal(t, "Cover letter generation failed", *resp.Data.CoverLetterFailureMessage)
 		assert.NotContains(t, rec.Body.String(), "CV contents")
-	})
-}
-
-func TestRetryReportHandler(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	mockMatching := usecaseMocks.NewMockMatching(ctrl)
-	mockUsers := userMocks.NewMockUser(ctrl)
-	apiKey := "test-worker-key"
-
-	rt := setupTestRouter(ctrl, mockMatching, mockUsers, apiKey)
-	evalID := uuid.New()
-	path := "/v1/matching-evaluations/" + evalID.String() + "/retry-report"
-	queueRetryStatus := string(constants.ReportStatusQueuedRetry)
-
-	t.Run("unauthenticated returns 401", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodPost, path, nil)
-		rec := httptest.NewRecorder()
-
-		rt.Mux().ServeHTTP(rec, req)
-		assert.Equal(t, http.StatusUnauthorized, rec.Code)
-	})
-
-	t.Run("invalid id returns 400", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodPost, "/v1/matching-evaluations/not-a-uuid/retry-report", nil)
-		req.Header.Set("Authorization", "Bearer "+apiKey)
-		rec := httptest.NewRecorder()
-
-		rt.Mux().ServeHTTP(rec, req)
-		assert.Equal(t, http.StatusBadRequest, rec.Code)
-	})
-
-	t.Run("api key caller gets the normal 202 summary", func(t *testing.T) {
-		mockMatching.EXPECT().RetryReport(gomock.Any(), evalID, gomock.Any()).Return(
-			[]*models.MatchingEvaluationSummary{{
-				ID:           &evalID,
-				ReportStatus: &queueRetryStatus,
-			}}, nil)
-
-		req := httptest.NewRequest(http.MethodPost, path, nil)
-		req.Header.Set("Authorization", "Bearer "+apiKey)
-		rec := httptest.NewRecorder()
-
-		rt.Mux().ServeHTTP(rec, req)
-
-		require.Equal(t, http.StatusAccepted, rec.Code)
-		var resp httpx.Response[[]models.MatchingEvaluationSummary]
-		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
-		require.Len(t, resp.Data, 1)
-		require.NotNil(t, resp.Data[0].ReportStatus)
-		assert.Equal(t, string(constants.ReportStatusQueuedRetry), *resp.Data[0].ReportStatus)
-	})
-
-	t.Run("different clerk user gets 403", func(t *testing.T) {
-		clerk := &models.Principal{ID: "user-clerk-not-owner"}
-		mockMatching.EXPECT().RetryReport(gomock.Any(), evalID, clerk).Return(nil, constants.ErrForbidden)
-
-		c := &contract.Contract{
-			Cfg:     &config.Config{},
-			Usecase: &contractUsecase.Contract{Matching: mockMatching, Users: mockUsers},
-		}
-		h := handlerMatching.NewHandler(c)
-		req := httptest.NewRequest(http.MethodPost, path, nil)
-		req.SetPathValue("id", evalID.String())
-		req = req.WithContext(ctxval.ContextWithPrincipal(req.Context(), clerk))
-		rec := httptest.NewRecorder()
-
-		httpx.HandlerFunc(h.RetryReport).ServeHTTP(rec, req)
-
-		require.Equal(t, http.StatusForbidden, rec.Code)
-		var apiErr httpx.Response[any]
-		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &apiErr))
-		require.NotNil(t, apiErr.Error)
-		assert.Equal(t, httpx.CodeForbidden, apiErr.Error.Code)
-	})
-
-	t.Run("clerk caller gets 403 when the evaluation is missing", func(t *testing.T) {
-		clerk := &models.Principal{ID: "user-clerk-1"}
-		mockMatching.EXPECT().RetryReport(gomock.Any(), evalID, clerk).Return(nil, constants.ErrForbidden)
-
-		c := &contract.Contract{
-			Cfg:     &config.Config{},
-			Usecase: &contractUsecase.Contract{Matching: mockMatching, Users: mockUsers},
-		}
-		h := handlerMatching.NewHandler(c)
-		req := httptest.NewRequest(http.MethodPost, path, nil)
-		req.SetPathValue("id", evalID.String())
-		req = req.WithContext(ctxval.ContextWithPrincipal(req.Context(), clerk))
-		rec := httptest.NewRecorder()
-
-		httpx.HandlerFunc(h.RetryReport).ServeHTTP(rec, req)
-
-		assert.Equal(t, http.StatusForbidden, rec.Code)
-	})
-
-	t.Run("clerk owner gets the normal 202 summary", func(t *testing.T) {
-		clerk := &models.Principal{ID: "user-clerk-owner"}
-		mockMatching.EXPECT().RetryReport(gomock.Any(), evalID, clerk).Return(
-			[]*models.MatchingEvaluationSummary{{
-				ID:           &evalID,
-				ReportStatus: &queueRetryStatus,
-			}}, nil)
-
-		c := &contract.Contract{
-			Cfg:     &config.Config{},
-			Usecase: &contractUsecase.Contract{Matching: mockMatching, Users: mockUsers},
-		}
-		h := handlerMatching.NewHandler(c)
-		req := httptest.NewRequest(http.MethodPost, path, nil)
-		req.SetPathValue("id", evalID.String())
-		req = req.WithContext(ctxval.ContextWithPrincipal(req.Context(), clerk))
-		rec := httptest.NewRecorder()
-
-		httpx.HandlerFunc(h.RetryReport).ServeHTTP(rec, req)
-
-		require.Equal(t, http.StatusAccepted, rec.Code)
-		var resp httpx.Response[[]models.MatchingEvaluationSummary]
-		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
-		require.Len(t, resp.Data, 1)
-		require.NotNil(t, resp.Data[0].ReportStatus)
-		assert.Equal(t, string(constants.ReportStatusQueuedRetry), *resp.Data[0].ReportStatus)
 	})
 }
 
