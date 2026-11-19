@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"testing"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -321,7 +320,7 @@ func TestTriggerEvaluations(t *testing.T) {
 		}
 	})
 
-	t.Run("forced in-progress rows requeue with a nonce-suffixed workflow ID and clear results", func(t *testing.T) {
+	t.Run("forced in-progress rows requeue with the deterministic workflow ID and clear results", func(t *testing.T) {
 		for _, status := range []constants.MatchingEvaluationStatus{
 			constants.MatchingStatusQueued,
 			constants.MatchingStatusQueuedRetry,
@@ -332,16 +331,13 @@ func TestTriggerEvaluations(t *testing.T) {
 				ownerID, userJobID, scoringConfigID := triggerFixture()
 				id := uuid.New()
 				eval := storedEvaluation(id, userJobID, scoringConfigID, string(status))
-				eval.UpdatedAt = time.Unix(1_700_000_000, 123456789)
 				config := triggerScoringConfig(scoringConfigID)
 
 				gomock.InOrder(
 					h.evalRepo.EXPECT().GetByID(ctx, id).Return(eval, nil),
 					h.userJobsRepo.EXPECT().GetByID(ctx, userJobID).Return(&models.UserJob{ID: userJobID, UserID: ownerID}, nil),
 					h.scoringConfigsRepo.EXPECT().GetByID(ctx, scoringConfigID).Return(config, nil),
-					h.workflowsRepo.EXPECT().StartLimiterWorkItem(ctx,
-						fmt.Sprintf("match-job-%s-%d", id.String(), eval.UpdatedAt.UnixNano()),
-						models.LimiterJobTypeMatch, gomock.Any()).Return("wf-id", nil),
+					h.workflowsRepo.EXPECT().StartLimiterWorkItem(ctx, "match-job-"+id.String(), models.LimiterJobTypeMatch, gomock.Any()).Return("wf-id", nil),
 					h.evalRepo.EXPECT().Update(ctx, id, guardedUpdateParams(status, constants.MatchingStatusQueuedRetry)).Return(nil, nil),
 				)
 
@@ -359,7 +355,6 @@ func TestTriggerEvaluations(t *testing.T) {
 		ownerID, userJobID, scoringConfigID := triggerFixture()
 		id := uuid.New()
 		eval := storedEvaluation(id, userJobID, scoringConfigID, string(constants.MatchingStatusNew))
-		eval.UpdatedAt = time.Unix(1_700_000_000, 987654321)
 		config := triggerScoringConfig(scoringConfigID)
 
 		gomock.InOrder(

@@ -164,13 +164,6 @@ func (s *matchingService) QueueCoverLetter(
 		return nil, fmt.Errorf("%w: evaluation must be successful", constants.ErrInvalidRequest)
 	}
 
-	// Capture a stable nonce from the row loaded before the status write. Forced
-	// runs use it so a retry can start a fresh limiter item when the previous
-	// item is still active or queued (the limiter deduplicates by item_id).
-	// Two rapid force clicks on this same loaded row share an ID, while a later
-	// force after a status change (and thus a new UpdatedAt) gets a new one.
-	forceNonce := eval.UpdatedAt.UnixNano()
-
 	currentStatus := ""
 	if eval.CoverLetterStatus != nil {
 		currentStatus = *eval.CoverLetterStatus
@@ -221,13 +214,9 @@ func (s *matchingService) QueueCoverLetter(
 	}
 	eval = updated
 
-	// Non-force requests keep the deterministic ID so double-clicks collapse
-	// into a single limiter item. Forced requests add the nonce so a stuck or
-	// still-active item does not absorb the retry.
+	// The workflow ID is deterministic so repeated triggers collapse into a
+	// single limiter item.
 	workflowID := fmt.Sprintf("cover-letter-gen-%s", id.String())
-	if req.Force {
-		workflowID = fmt.Sprintf("cover-letter-gen-%s-%d", id.String(), forceNonce)
-	}
 	if _, err := s.workflowsRepo.StartLimiterWorkItem(ctx, workflowID, models.LimiterJobTypeCoverLetter, input); err != nil {
 		return nil, fmt.Errorf("start cover letter workflow: %w", err)
 	}
