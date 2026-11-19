@@ -169,6 +169,18 @@ func TestMigration000018CollapsesAndConstrains(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 1, legacyColumns, "Down must restore latest_evaluation_id")
 
+	var populated int
+	err = conn.QueryRow(ctx, `SELECT COUNT(*) FROM user_jobs
+		WHERE id = $1 AND latest_evaluation_id IS NOT NULL`, userJobID).Scan(&populated)
+	require.NoError(t, err)
+	assert.Equal(t, 1, populated, "Down must repopulate latest_evaluation_id")
+
+	var pointsAtSurvivor int
+	err = conn.QueryRow(ctx, `SELECT COUNT(*) FROM user_jobs
+		WHERE id = $1 AND latest_evaluation_id = $2`, userJobID, survivor).Scan(&pointsAtSurvivor)
+	require.NoError(t, err)
+	assert.Equal(t, 1, pointsAtSurvivor, "Down must point latest_evaluation_id at the surviving evaluation")
+
 	for _, index := range []string{"idx_user_jobs_latest_eval", "idx_matching_evaluations_user_job_id"} {
 		var indexes int
 		err = conn.QueryRow(ctx, `SELECT COUNT(*) FROM pg_indexes WHERE schemaname = $1 AND indexname = $2`, schema, index).Scan(&indexes)

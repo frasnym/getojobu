@@ -27,5 +27,7 @@ ALTER TABLE matching_evaluations
 ALTER TABLE user_jobs
     ADD COLUMN latest_evaluation_id UUID REFERENCES matching_evaluations(id) ON DELETE SET NULL;
 
+UPDATE user_jobs uj SET latest_evaluation_id = me.id FROM matching_evaluations me WHERE me.user_job_id = uj.id;
+
 CREATE INDEX idx_user_jobs_latest_eval ON user_jobs(latest_evaluation_id);
 CREATE INDEX idx_matching_evaluations_user_job_id ON matching_evaluations(user_job_id);
