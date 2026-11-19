@@ -113,56 +113,6 @@ func TestCreateEvaluations(t *testing.T) {
 		assert.Contains(t, *res[0].Error, "job link not found")
 	})
 
-	t.Run("clerk caller supplying user_ids is rejected", func(t *testing.T) {
-		jobsRepo.EXPECT().GetBySlug(ctx, slug, "").Return(&models.JobWithOwnership{Job: job}, nil)
-
-		res, err := service.CreateEvaluations(ctx, []models.CreateEvaluationItem{
-			{Slug: slug, UserIDs: []string{uuid.NewString()}},
-		}, &models.Principal{ID: userID.String()})
-		require.NoError(t, err)
-		require.Len(t, res, 1)
-		require.NotNil(t, res[0].Error)
-		assert.Contains(t, *res[0].Error, "user_ids")
-	})
-
-	t.Run("api key caller with UserIDs creates one row per user", func(t *testing.T) {
-		userA, userB := uuid.New(), uuid.New()
-		jobA := &models.UserJob{ID: uuid.New(), UserID: userA, JobID: job.ID}
-		jobB := &models.UserJob{ID: uuid.New(), UserID: userB, JobID: job.ID}
-		evalA := &models.MatchingEvaluation{ID: uuid.New(), UserJobID: jobA.ID, EvaluationStatus: string(constants.MatchingStatusNew)}
-		evalB := &models.MatchingEvaluation{ID: uuid.New(), UserJobID: jobB.ID, EvaluationStatus: string(constants.MatchingStatusNew)}
-
-		jobsRepo.EXPECT().GetBySlug(ctx, slug, "").Return(&models.JobWithOwnership{Job: job}, nil)
-		scoringConfigsRepo.EXPECT().GetActiveByFamily(ctx, "technology").Return(scoringConfig, nil)
-		userJobsRepo.EXPECT().GetByUserAndJob(ctx, userA.String(), job.ID).Return(jobA, nil)
-		userJobsRepo.EXPECT().GetByUserAndJob(ctx, userB.String(), job.ID).Return(jobB, nil)
-		expectCandidate(userA.String())
-		expectCandidate(userB.String())
-
-		var seenUserJobs []uuid.UUID
-		evalRepo.EXPECT().CreateIfAbsent(ctx, gomock.Any()).DoAndReturn(
-			func(_ context.Context, eval *models.MatchingEvaluation) (*models.MatchingEvaluation, bool, error) {
-				assert.Equal(t, string(constants.MatchingStatusNew), eval.EvaluationStatus)
-				seenUserJobs = append(seenUserJobs, eval.UserJobID)
-				if eval.UserJobID == jobA.ID {
-					return evalA, true, nil
-				}
-				return evalB, true, nil
-			}).Times(2)
-
-		res, err := service.CreateEvaluations(ctx, []models.CreateEvaluationItem{
-			{Slug: slug, UserIDs: []string{userA.String(), userB.String()}},
-		}, &models.Principal{ActorType: "api_key", ActorID: "key-1"})
-		require.NoError(t, err)
-		require.Len(t, res, 2)
-		assert.Nil(t, res[0].Error)
-		assert.Nil(t, res[1].Error)
-		assert.Equal(t, evalA.ID, *res[0].ID)
-		assert.Equal(t, evalB.ID, *res[1].ID)
-		assert.Equal(t, string(constants.MatchingStatusNew), res[0].EvaluationStatus)
-		assert.ElementsMatch(t, []uuid.UUID{jobA.ID, jobB.ID}, seenUserJobs)
-	})
-
 	t.Run("calling twice yields one row", func(t *testing.T) {
 		jobsRepo.EXPECT().GetBySlug(ctx, slug, "").Return(&models.JobWithOwnership{Job: job}, nil).Times(2)
 		userJobsRepo.EXPECT().IsOwned(ctx, userID.String(), job.ID).Return(true, nil).Times(2)
@@ -282,7 +232,7 @@ func TestCreateEvaluations(t *testing.T) {
 	})
 }
 
-func TestCreateEvaluations_machine_caller_without_user_ids(t *testing.T) {
+func TestCreateEvaluations_machine_caller_resolves_linked_users(t *testing.T) {
 	ctx := context.Background()
 	slug := "test-job"
 	job := &models.Job{
@@ -322,7 +272,7 @@ func TestCreateEvaluations_machine_caller_without_user_ids(t *testing.T) {
 		return service, evalRepo, userJobsRepo, scoringConfigsRepo, jobsRepo
 	}
 
-	t.Run("resolves linked users and returns their user_id", func(t *testing.T) {
+	t.Run("resolves users linked to the job", func(t *testing.T) {
 		service, evalRepo, userJobsRepo, scoringConfigsRepo, jobsRepo := newService(t)
 		userA, userB := uuid.New(), uuid.New()
 		jobA := &models.UserJob{ID: uuid.New(), UserID: userA, JobID: job.ID}
@@ -346,14 +296,14 @@ func TestCreateEvaluations_machine_caller_without_user_ids(t *testing.T) {
 		res, err := service.CreateEvaluations(ctx, []models.CreateEvaluationItem{{Slug: slug}}, caller)
 		require.NoError(t, err)
 		require.Len(t, res, 2)
-		owners := map[uuid.UUID]string{
-			*res[0].ID: res[0].UserID,
-			*res[1].ID: res[1].UserID,
+		userJobsByEval := map[uuid.UUID]uuid.UUID{
+			*res[0].ID: *res[0].UserJobID,
+			*res[1].ID: *res[1].UserJobID,
 		}
-		assert.Equal(t, map[uuid.UUID]string{
-			evalA.ID: userA.String(),
-			evalB.ID: userB.String(),
-		}, owners)
+		assert.Equal(t, map[uuid.UUID]uuid.UUID{
+			evalA.ID: jobA.ID,
+			evalB.ID: jobB.ID,
+		}, userJobsByEval)
 	})
 
 	t.Run("reports linked-user lookup failure", func(t *testing.T) {

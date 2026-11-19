@@ -79,7 +79,7 @@ func (s *retryService) FailedMatchingEvaluations(ctx context.Context, caller *mo
 	var coverLetters []models.BulkGenerateCoverLetterItem
 	for _, eval := range evals {
 		if eval.EvaluationStatus == string(constants.MatchingStatusFailed) {
-			triggerItems = append(triggerItems, models.TriggerEvaluationItem{ID: eval.ID, UserID: eval.UserID})
+			triggerItems = append(triggerItems, models.TriggerEvaluationItem{ID: eval.ID})
 		}
 		if isFailed(eval.ReportStatus) {
 			reports = append(reports, eval.ID)

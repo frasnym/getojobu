@@ -40,7 +40,6 @@ class _FakeAPI:
             {
                 "id": "eval-1",
                 "slug": "job-1",
-                "user_id": "user-1",
                 "evaluation_status": "new",
             }
         ]
@@ -194,7 +193,7 @@ async def test_analyze_inserts_then_triggers_evaluations():
     await svc.analyze(slug="job-1")
 
     assert fake_api.created == [{"slug": "job-1"}]
-    assert fake_api.triggered == [{"id": "eval-1", "user_id": "user-1"}]
+    assert fake_api.triggered == [{"id": "eval-1"}]
 
 
 @pytest.mark.asyncio
@@ -212,7 +211,7 @@ async def test_analyze_propagates_trigger_failure():
         await svc.analyze(slug="job-1")
 
     assert fake_api.created == [{"slug": "job-1"}]
-    assert fake_api.triggered == [{"id": "eval-1", "user_id": "user-1"}]
+    assert fake_api.triggered == [{"id": "eval-1"}]
 
 
 @pytest.mark.asyncio
@@ -238,4 +237,4 @@ async def test_analyze_fails_on_per_item_trigger_error():
     with pytest.raises(RuntimeError, match="start match job workflow"):
         await svc.analyze(slug="job-1")
 
-    assert fake_api.triggered == [{"id": "eval-1", "user_id": "user-1"}]
+    assert fake_api.triggered == [{"id": "eval-1"}]

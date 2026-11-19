@@ -505,29 +505,11 @@ func (h *handler) BulkQueueGenerateResume(w http.ResponseWriter, r *http.Request
 	return httpx.RespondJSON(w, r, http.StatusAccepted, summaries)
 }
 
-// resolveTriggerUserID resolves the user a machine caller acts for. For Clerk
-// callers a body-supplied user_id is rejected and the empty value is returned;
-// ownership is derived from the principal by the usecase. For API key callers
-// a user_id is required.
-func resolveTriggerUserID(p *models.Principal, bodyUserID string) (string, error) {
-	if p.ActorType == "" {
-		if strings.TrimSpace(bodyUserID) != "" {
-			return "", httpx.Envelope(httpx.CodeInvalidRequest, "user_id not allowed for Clerk authentication", "")
-		}
-		return "", nil
-	}
-	uid := strings.TrimSpace(bodyUserID)
-	if uid == "" {
-		return "", httpx.Envelope(httpx.CodeInvalidRequest, "user_id is required for API key authentication", "")
-	}
-	return uid, nil
-}
-
 // BulkGenerateEvaluation starts the workflow behind each evaluation that is
-// ready to run. Clerk callers may only trigger evaluations they own; machine
-// callers supply the user they act for per item.
+// ready to run. Clerk callers may only trigger evaluations they own; API key
+// callers are trusted and may trigger any evaluation by ID.
 // @Summary Bulk generate evaluations
-// @Description Starts the match-job workflow for each given evaluation ID at status new or failed. Clerk callers cannot supply user_id (ownership comes from the token); API key callers must supply it per item. Per-item failures are returned in the response and do not stop the batch.
+// @Description Starts the match-job workflow for each given evaluation ID at status new or failed. Clerk callers are checked for ownership from the token; API key callers are trusted and need no per-item user. Per-item failures are returned in the response and do not stop the batch.
 // @Tags matching
 // @Accept json
 // @Produce json
@@ -555,12 +537,8 @@ func (h *handler) BulkGenerateEvaluation(w http.ResponseWriter, r *http.Request)
 
 	items := make([]models.TriggerEvaluationItem, len(req))
 	for i, item := range req {
-		userID, err := resolveTriggerUserID(p, item.UserID)
-		if err != nil {
-			return err
-		}
 		id, _ := uuid.Parse(item.ID)
-		items[i] = models.TriggerEvaluationItem{ID: id, UserID: userID}
+		items[i] = models.TriggerEvaluationItem{ID: id}
 	}
 
 	summaries, err := h.matchingUC.TriggerEvaluations(ctx, items, p)

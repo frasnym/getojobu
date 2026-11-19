@@ -12,8 +12,7 @@ import (
 // bulkGenerateEvaluationItemRequest is one item in the POST
 // /v1/matching-evaluations/bulk-generate-evaluation request.
 type bulkGenerateEvaluationItemRequest struct {
-	ID     string `json:"id"`
-	UserID string `json:"user_id,omitempty"`
+	ID string `json:"id"`
 }
 
 // bulkGenerateEvaluationRequest is the array payload for POST

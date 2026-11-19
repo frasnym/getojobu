@@ -7,7 +7,6 @@ import "github.com/google/uuid"
 type FailedMatchingEvaluation struct {
 	ID                uuid.UUID
 	Slug              string
-	UserID            string
 	EvaluationStatus  string
 	ReportStatus      *string
 	ResumeStatus      *string

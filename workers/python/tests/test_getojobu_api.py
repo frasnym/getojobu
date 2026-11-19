@@ -416,7 +416,6 @@ async def test_create_evaluations_posts_to_insert_endpoint():
                     {
                         "slug": "test-slug",
                         "id": "11111111-2222-3333-4444-555555555555",
-                        "user_id": "44444444-4444-4444-4444-444444444444",
                         "evaluation_status": "new",
                     }
                 ],
@@ -431,7 +430,6 @@ async def test_create_evaluations_posts_to_insert_endpoint():
     assert isinstance(res, list)
     assert len(res) == 1
     assert res[0]["evaluation_status"] == "new"
-    assert res[0]["user_id"] == "44444444-4444-4444-4444-444444444444"
     await api.aclose()
 
 

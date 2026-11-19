@@ -55,16 +55,8 @@ func (s *matchingService) CreateEvaluations(
 
 		var targetUserIDs []string
 		if caller != nil && caller.ActorType == "" {
-			// Clerk caller: the user comes from the principal. A caller cannot
-			// create an evaluation on behalf of a user it supplies in the body.
-			if len(item.UserIDs) > 0 {
-				errStr := "user_ids are not allowed for clerk callers"
-				summaries = append(summaries, &models.MatchingEvaluationSummary{
-					Slug:  item.Slug,
-					Error: &errStr,
-				})
-				continue
-			}
+			// Clerk caller: the user comes from the principal and ownership of
+			// the job link is verified before an evaluation is created.
 			owned, err := s.userJobsRepo.IsOwned(ctx, caller.ID, job.ID)
 			if err != nil || !owned {
 				errStr := "job link not found"
@@ -75,13 +67,9 @@ func (s *matchingService) CreateEvaluations(
 				continue
 			}
 			targetUserIDs = []string{caller.ID}
-		} else if len(item.UserIDs) > 0 {
-			// Machine caller with explicit IDs: ownership of the job link is
-			// verified when each user_job is resolved below.
-			targetUserIDs = item.UserIDs
 		} else {
-			// Machine caller without IDs: resolve the users linked to the job,
-			// matching the behavior of the old slug-based bulk trigger.
+			// Machine caller: the key is trusted, so resolve every user linked
+			// to the job from user_jobs rather than from the request.
 			users, err := s.userJobsRepo.GetUsersByJobID(ctx, job.ID)
 			if err != nil {
 				errStr := fmt.Sprintf("get users by job id: %s", err.Error())
@@ -213,7 +201,6 @@ func (s *matchingService) CreateEvaluations(
 				Slug:             job.Slug,
 				ID:               &eval.ID,
 				UserJobID:        &eval.UserJobID,
-				UserID:           userJob.UserID.String(),
 				EvaluationStatus: eval.EvaluationStatus,
 				CreatedAt:        &eval.CreatedAt,
 			})

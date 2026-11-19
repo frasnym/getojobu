@@ -36,22 +36,13 @@ func (s *matchingService) TriggerEvaluations(
 			continue
 		}
 
-		userJob, err := s.userJobsRepo.GetByID(ctx, eval.UserJobID)
-		if err != nil {
-			errStr := fmt.Sprintf("get user job: %s", err.Error())
-			summaries = append(summaries, &models.MatchingEvaluationSummary{
-				ID:        &eval.ID,
-				UserJobID: &eval.UserJobID,
-				Error:     &errStr,
-			})
-			continue
-		}
-
 		if caller.ActorType == "" {
-			// A Clerk caller's user comes from the principal; a body-supplied
-			// user ID must never widen the caller's reach.
-			if item.UserID != "" {
-				errStr := "user_id is not allowed for clerk callers"
+			// A Clerk caller's user comes from the principal; ownership of the
+			// evaluation's user_job is still checked. API key callers are
+			// trusted and need no per-item user check.
+			userJob, err := s.userJobsRepo.GetByID(ctx, eval.UserJobID)
+			if err != nil {
+				errStr := fmt.Sprintf("get user job: %s", err.Error())
 				summaries = append(summaries, &models.MatchingEvaluationSummary{
 					ID:        &eval.ID,
 					UserJobID: &eval.UserJobID,
@@ -61,27 +52,6 @@ func (s *matchingService) TriggerEvaluations(
 			}
 			if userJob.UserID.String() != caller.ID {
 				errStr := "evaluation belongs to another user"
-				summaries = append(summaries, &models.MatchingEvaluationSummary{
-					ID:        &eval.ID,
-					UserJobID: &eval.UserJobID,
-					Error:     &errStr,
-				})
-				continue
-			}
-		} else {
-			// Machine callers supply the user they act for and may only touch
-			// evaluations whose user_job belongs to that user.
-			if item.UserID == "" {
-				errStr := "user_id is required for api key callers"
-				summaries = append(summaries, &models.MatchingEvaluationSummary{
-					ID:        &eval.ID,
-					UserJobID: &eval.UserJobID,
-					Error:     &errStr,
-				})
-				continue
-			}
-			if userJob.UserID.String() != item.UserID {
-				errStr := "user_id does not own evaluation"
 				summaries = append(summaries, &models.MatchingEvaluationSummary{
 					ID:        &eval.ID,
 					UserJobID: &eval.UserJobID,

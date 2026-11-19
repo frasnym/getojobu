@@ -72,7 +72,6 @@ func TestFailedMatchingEvaluationsRequeuesEveryFailedField(t *testing.T) {
 	eval := models.FailedMatchingEvaluation{
 		ID:                id,
 		Slug:              "job-a",
-		UserID:            "user-1",
 		EvaluationStatus:  "failed",
 		ReportStatus:      strPtr("failed"),
 		ResumeStatus:      strPtr("failed"),
@@ -80,7 +79,7 @@ func TestFailedMatchingEvaluationsRequeuesEveryFailedField(t *testing.T) {
 	}
 	d.repo.EXPECT().ListFailedMatchingEvaluations(gomock.Any(), ucRetry.MaxFailedMatchingEvaluations).
 		Return([]models.FailedMatchingEvaluation{eval}, nil)
-	d.matching.EXPECT().TriggerEvaluations(gomock.Any(), []models.TriggerEvaluationItem{{ID: id, UserID: "user-1"}}, caller).
+	d.matching.EXPECT().TriggerEvaluations(gomock.Any(), []models.TriggerEvaluationItem{{ID: id}}, caller).
 		Return([]*models.MatchingEvaluationSummary{{}}, nil)
 	d.matching.EXPECT().BulkQueueGenerateReport(gomock.Any(), []models.BulkGenerateReportItem{{ID: id, Force: true}}, caller).
 		Return([]*models.MatchingEvaluationSummary{{}}, nil)
@@ -100,13 +99,13 @@ func TestFailedMatchingEvaluationsTriggersEachFailedEvaluationWithoutSlugDedupe(
 	d := newDeps(t)
 	id1, id2 := uuid.New(), uuid.New()
 	evals := []models.FailedMatchingEvaluation{
-		{ID: id1, Slug: "job-a", UserID: "user-1", EvaluationStatus: "failed", ReportStatus: strPtr("failed")},
-		{ID: id2, Slug: "job-a", UserID: "user-2", EvaluationStatus: "failed", ResumeStatus: strPtr("success")},
+		{ID: id1, Slug: "job-a", EvaluationStatus: "failed", ReportStatus: strPtr("failed")},
+		{ID: id2, Slug: "job-a", EvaluationStatus: "failed", ResumeStatus: strPtr("success")},
 	}
 	d.repo.EXPECT().ListFailedMatchingEvaluations(gomock.Any(), ucRetry.MaxFailedMatchingEvaluations).Return(evals, nil)
 	d.matching.EXPECT().TriggerEvaluations(gomock.Any(), []models.TriggerEvaluationItem{
-		{ID: id1, UserID: "user-1"},
-		{ID: id2, UserID: "user-2"},
+		{ID: id1},
+		{ID: id2},
 	}, caller).Return([]*models.MatchingEvaluationSummary{{}, {}}, nil)
 	d.matching.EXPECT().BulkQueueGenerateReport(gomock.Any(), []models.BulkGenerateReportItem{{ID: id1, Force: true}}, caller).
 		Return([]*models.MatchingEvaluationSummary{{}}, nil)

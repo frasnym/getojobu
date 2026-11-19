@@ -308,60 +308,27 @@ func TestTriggerEvaluations(t *testing.T) {
 		assert.Contains(t, *res[0].Error, "another user")
 	})
 
-	t.Run("clerk caller supplying user_id is rejected", func(t *testing.T) {
+	t.Run("api key caller triggers the evaluation without a user check", func(t *testing.T) {
 		h := newTriggerHarness(t)
-		ownerID, userJobID, scoringConfigID := triggerFixture()
-		id := uuid.New()
-		eval := storedEvaluation(id, userJobID, scoringConfigID, string(constants.MatchingStatusNew))
-
-		h.evalRepo.EXPECT().GetByID(ctx, id).Return(eval, nil)
-		h.userJobsRepo.EXPECT().GetByID(ctx, userJobID).Return(&models.UserJob{ID: userJobID, UserID: ownerID}, nil)
-
-		res, err := h.service.TriggerEvaluations(ctx, []models.TriggerEvaluationItem{{ID: id, UserID: uuid.NewString()}}, &models.Principal{ID: ownerID.String()})
-		require.NoError(t, err)
-		require.Len(t, res, 1)
-		require.NotNil(t, res[0].Error)
-		assert.Contains(t, *res[0].Error, "user_id")
-	})
-
-	t.Run("api key caller with matching user_id triggers the evaluation", func(t *testing.T) {
-		h := newTriggerHarness(t)
-		ownerID, userJobID, scoringConfigID := triggerFixture()
+		_, userJobID, scoringConfigID := triggerFixture()
 		id := uuid.New()
 		eval := storedEvaluation(id, userJobID, scoringConfigID, string(constants.MatchingStatusNew))
 		config := triggerScoringConfig(scoringConfigID)
 
 		gomock.InOrder(
 			h.evalRepo.EXPECT().GetByID(ctx, id).Return(eval, nil),
-			h.userJobsRepo.EXPECT().GetByID(ctx, userJobID).Return(&models.UserJob{ID: userJobID, UserID: ownerID}, nil),
 			h.scoringConfigsRepo.EXPECT().GetByID(ctx, scoringConfigID).Return(config, nil),
 			h.workflowsRepo.EXPECT().StartLimiterWorkItem(ctx, "match-job-"+id.String(), models.LimiterJobTypeMatch, gomock.Any()).Return("wf-id", nil),
 			h.evalRepo.EXPECT().FlipStatus(ctx, id, string(constants.MatchingStatusNew), string(constants.MatchingStatusQueued)).Return(true, nil),
 		)
+		h.userJobsRepo.EXPECT().GetByID(gomock.Any(), gomock.Any()).Times(0)
 
 		caller := &models.Principal{ActorType: "api_key", ActorID: "key-1"}
-		res, err := h.service.TriggerEvaluations(ctx, []models.TriggerEvaluationItem{{ID: id, UserID: ownerID.String()}}, caller)
+		res, err := h.service.TriggerEvaluations(ctx, []models.TriggerEvaluationItem{{ID: id}}, caller)
 		require.NoError(t, err)
 		require.Len(t, res, 1)
 		assert.Nil(t, res[0].Error)
 		assert.Equal(t, string(constants.MatchingStatusQueued), res[0].EvaluationStatus)
-	})
-
-	t.Run("api key caller with mismatched user_id is rejected", func(t *testing.T) {
-		h := newTriggerHarness(t)
-		ownerID, userJobID, scoringConfigID := triggerFixture()
-		id := uuid.New()
-		eval := storedEvaluation(id, userJobID, scoringConfigID, string(constants.MatchingStatusNew))
-
-		h.evalRepo.EXPECT().GetByID(ctx, id).Return(eval, nil)
-		h.userJobsRepo.EXPECT().GetByID(ctx, userJobID).Return(&models.UserJob{ID: userJobID, UserID: ownerID}, nil)
-
-		caller := &models.Principal{ActorType: "api_key", ActorID: "key-1"}
-		res, err := h.service.TriggerEvaluations(ctx, []models.TriggerEvaluationItem{{ID: id, UserID: uuid.NewString()}}, caller)
-		require.NoError(t, err)
-		require.Len(t, res, 1)
-		require.NotNil(t, res[0].Error)
-		assert.Contains(t, *res[0].Error, "user_id")
 	})
 
 	t.Run("one bad item does not stop the rest of the batch", func(t *testing.T) {

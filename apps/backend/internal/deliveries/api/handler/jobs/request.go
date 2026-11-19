@@ -70,10 +70,6 @@ type bulkQueueAnalyzeResponse struct {
 // createEvaluationItemRequest is one item in the POST /v1/jobs/evaluation request.
 type createEvaluationItemRequest struct {
 	Slug string `json:"slug"`
-	// UserIDs is the list of internal user ids to create the evaluation for.
-	// Required for API key callers. Clerk callers must not send it; it is
-	// resolved from the session token by the usecase.
-	UserIDs []string `json:"user_ids,omitempty"`
 }
 
 // createEvaluationRequest is the array payload for POST /v1/jobs/evaluation.

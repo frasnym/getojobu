@@ -986,7 +986,7 @@ func TestCreateEvaluationRequest_Validate(t *testing.T) {
 	t.Run("valid items return nil", func(t *testing.T) {
 		req := createEvaluationRequest{
 			{Slug: "job-1"},
-			{Slug: "job-2", UserIDs: []string{"user_42"}},
+			{Slug: "job-2"},
 		}
 		err := req.Validate()
 		require.NoError(t, err)
@@ -1024,22 +1024,7 @@ func TestCreateEvaluation_clerk_success(t *testing.T) {
 	assert.Equal(t, "new", resp.Data[0].EvaluationStatus)
 }
 
-func TestCreateEvaluation_clerk_rejects_body_user_ids(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-	h, _ := newHandlerWithMatchingMock(ctrl)
-
-	body := strings.NewReader(`[{"slug":"job-1","user_ids":["user_42"]}]`)
-	req := httptest.NewRequest(http.MethodPost, "/jobs/evaluation", body)
-	req = req.WithContext(ctxval.ContextWithPrincipal(req.Context(), principalCtx("", "user_1")))
-	w := httptest.NewRecorder()
-
-	httpx.HandlerFunc(h.CreateEvaluation).ServeHTTP(w, req)
-
-	assert.Equal(t, http.StatusBadRequest, w.Code)
-}
-
-func TestCreateEvaluation_api_key_passes_user_ids(t *testing.T) {
+func TestCreateEvaluation_api_key_resolves_linked_users_in_usecase(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	h, mockMatching := newHandlerWithMatchingMock(ctrl)
@@ -1047,37 +1032,15 @@ func TestCreateEvaluation_api_key_passes_user_ids(t *testing.T) {
 	id := uuid.New()
 	mockMatching.EXPECT().
 		CreateEvaluations(gomock.Any(), []models.CreateEvaluationItem{
-			{Slug: "job-1", UserIDs: []string{"user_42"}},
-			{Slug: "job-2", UserIDs: []string{"user_43"}},
+			{Slug: "job-1"},
+			{Slug: "job-2"},
 		}, gomock.Any()).
 		Return([]*models.MatchingEvaluationSummary{
 			{Slug: "job-1", ID: &id, EvaluationStatus: "new"},
 			{Slug: "job-2", ID: &id, EvaluationStatus: "new"},
 		}, nil)
 
-	body := strings.NewReader(`[{"slug":"job-1","user_ids":["user_42"]},{"slug":"job-2","user_ids":["user_43"]}]`)
-	req := httptest.NewRequest(http.MethodPost, "/jobs/evaluation", body)
-	req = req.WithContext(ctxval.ContextWithPrincipal(req.Context(), principalCtx("api_key", "key_1")))
-	w := httptest.NewRecorder()
-
-	httpx.HandlerFunc(h.CreateEvaluation).ServeHTTP(w, req)
-
-	assert.Equal(t, http.StatusAccepted, w.Code)
-}
-
-func TestCreateEvaluation_api_key_without_user_ids_defers_resolution_to_usecase(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-	h, mockMatching := newHandlerWithMatchingMock(ctrl)
-
-	id := uuid.New()
-	mockMatching.EXPECT().
-		CreateEvaluations(gomock.Any(), []models.CreateEvaluationItem{{Slug: "job-1"}}, gomock.Any()).
-		Return([]*models.MatchingEvaluationSummary{{
-			Slug: "job-1", ID: &id, UserID: "user_42", EvaluationStatus: "new",
-		}}, nil)
-
-	body := strings.NewReader(`[{"slug":"job-1"}]`)
+	body := strings.NewReader(`[{"slug":"job-1"},{"slug":"job-2"}]`)
 	req := httptest.NewRequest(http.MethodPost, "/jobs/evaluation", body)
 	req = req.WithContext(ctxval.ContextWithPrincipal(req.Context(), principalCtx("api_key", "key_1")))
 	w := httptest.NewRecorder()
@@ -1087,8 +1050,8 @@ func TestCreateEvaluation_api_key_without_user_ids_defers_resolution_to_usecase(
 	assert.Equal(t, http.StatusAccepted, w.Code)
 	var resp httpx.Response[[]models.MatchingEvaluationSummary]
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
-	require.Len(t, resp.Data, 1)
-	assert.Equal(t, "user_42", resp.Data[0].UserID)
+	require.Len(t, resp.Data, 2)
+	assert.Equal(t, "new", resp.Data[0].EvaluationStatus)
 }
 
 func TestCreateEvaluation_empty_array(t *testing.T) {

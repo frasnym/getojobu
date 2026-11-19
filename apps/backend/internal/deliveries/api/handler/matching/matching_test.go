@@ -82,7 +82,7 @@ func TestBulkGenerateEvaluationHandler(t *testing.T) {
 	}
 
 	t.Run("unauthenticated returns 401", func(t *testing.T) {
-		rec := post(fmt.Sprintf(`[{"id":"%s","user_id":"user_1"}]`, evalID.String()), false)
+		rec := post(fmt.Sprintf(`[{"id":"%s"}]`, evalID.String()), false)
 		assert.Equal(t, http.StatusUnauthorized, rec.Code)
 	})
 
@@ -94,7 +94,7 @@ func TestBulkGenerateEvaluationHandler(t *testing.T) {
 	t.Run("over 100 items returns 400", func(t *testing.T) {
 		items := make([]map[string]string, 101)
 		for i := range items {
-			items[i] = map[string]string{"id": uuid.NewString(), "user_id": "user_1"}
+			items[i] = map[string]string{"id": uuid.NewString()}
 		}
 		body, err := json.Marshal(items)
 		require.NoError(t, err)
@@ -103,27 +103,22 @@ func TestBulkGenerateEvaluationHandler(t *testing.T) {
 	})
 
 	t.Run("invalid id returns 400", func(t *testing.T) {
-		rec := post(`[{"id":"not-a-uuid","user_id":"user_1"}]`, true)
+		rec := post(`[{"id":"not-a-uuid"}]`, true)
 		assert.Equal(t, http.StatusBadRequest, rec.Code)
 	})
 
-	t.Run("api key caller without user_id returns 400", func(t *testing.T) {
-		rec := post(fmt.Sprintf(`[{"id":"%s"}]`, evalID.String()), true)
-		assert.Equal(t, http.StatusBadRequest, rec.Code)
-	})
-
-	t.Run("api key caller user_id is passed to the usecase and partial errors survive", func(t *testing.T) {
+	t.Run("api key caller items are passed to the usecase and partial errors survive", func(t *testing.T) {
 		secondID := uuid.New()
 		errStr := "cannot trigger evaluation with status success"
 		mockMatching.EXPECT().TriggerEvaluations(gomock.Any(), []models.TriggerEvaluationItem{
-			{ID: evalID, UserID: "user_1"},
-			{ID: secondID, UserID: "user_1"},
+			{ID: evalID},
+			{ID: secondID},
 		}, gomock.Any()).Return([]*models.MatchingEvaluationSummary{
 			{ID: &evalID, EvaluationStatus: string(constants.MatchingStatusQueued)},
 			{ID: &secondID, Error: &errStr},
 		}, nil)
 
-		body := fmt.Sprintf(`[{"id":"%s","user_id":"user_1"},{"id":"%s","user_id":"user_1"}]`, evalID.String(), secondID.String())
+		body := fmt.Sprintf(`[{"id":"%s"},{"id":"%s"}]`, evalID.String(), secondID.String())
 		rec := post(body, true)
 		require.Equal(t, http.StatusAccepted, rec.Code)
 
@@ -136,25 +131,7 @@ func TestBulkGenerateEvaluationHandler(t *testing.T) {
 		assert.Equal(t, errStr, *resp.Data[1].Error)
 	})
 
-	t.Run("clerk caller supplying user_id is rejected", func(t *testing.T) {
-		c := &contract.Contract{
-			Cfg:     &config.Config{},
-			Usecase: &contractUsecase.Contract{Matching: mockMatching, Users: mockUsers},
-		}
-		h := handlerMatching.NewHandler(c)
-		clerk := &models.Principal{ID: "user-clerk-1"}
-
-		body := fmt.Sprintf(`[{"id":"%s","user_id":"user-clerk-2"}]`, evalID.String())
-		req := httptest.NewRequest(http.MethodPost, path, bytes.NewBufferString(body))
-		req = req.WithContext(ctxval.ContextWithPrincipal(req.Context(), clerk))
-		rec := httptest.NewRecorder()
-
-		httpx.HandlerFunc(h.BulkGenerateEvaluation).ServeHTTP(rec, req)
-
-		assert.Equal(t, http.StatusBadRequest, rec.Code)
-	})
-
-	t.Run("clerk caller without user_id leaves ownership to the usecase", func(t *testing.T) {
+	t.Run("clerk caller leaves ownership to the usecase", func(t *testing.T) {
 		c := &contract.Contract{
 			Cfg:     &config.Config{},
 			Usecase: &contractUsecase.Contract{Matching: mockMatching, Users: mockUsers},

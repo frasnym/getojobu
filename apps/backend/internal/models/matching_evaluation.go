@@ -115,7 +115,6 @@ type MatchingEvaluationSummary struct {
 	Slug              string     `json:"slug,omitempty"`
 	ID                *uuid.UUID `json:"id,omitempty"`
 	UserJobID         *uuid.UUID `json:"user_job_id,omitempty"`
-	UserID            string     `json:"user_id,omitempty"`
 	EvaluationStatus  string     `json:"evaluation_status,omitempty"`
 	ResumeStatus      *string    `json:"resume_status,omitempty"`
 	ReportStatus      *string    `json:"report_status,omitempty"`
@@ -124,18 +123,16 @@ type MatchingEvaluationSummary struct {
 	Error             *string    `json:"error,omitempty"`
 }
 
-// CreateEvaluationItem holds input for inserting one evaluation per resolved
-// user of a job slug. UserIDs is optional and applies to machine callers.
+// CreateEvaluationItem holds input for inserting one evaluation for a job slug.
+// The target users are resolved from user_jobs by the usecase.
 type CreateEvaluationItem struct {
-	Slug    string   `json:"slug"`
-	UserIDs []string `json:"user_ids,omitempty"`
+	Slug string `json:"slug"`
 }
 
 // TriggerEvaluationItem holds input for starting the workflow behind an
-// existing evaluation. UserID applies to machine callers.
+// existing evaluation.
 type TriggerEvaluationItem struct {
-	ID     uuid.UUID `json:"id"`
-	UserID string    `json:"user_id,omitempty"`
+	ID uuid.UUID `json:"id"`
 }
 
 // BulkGenerateReportItem holds input for a single report generation in a batch.
