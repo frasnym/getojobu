@@ -61,6 +61,16 @@ GET    /v1/jobs/{slug}
 PATCH  /v1/jobs/{slug}
 ```
 
+### Evaluation lifecycle
+
+```text
+POST   /v1/jobs/evaluation
+POST   /v1/matching-evaluations/bulk-generate-evaluation
+POST   /v1/matching-evaluations/{id}/retry-report
+```
+
+Creating a matching evaluation is a two-step flow that replaces the former combined `POST /v1/jobs/bulk-analyze-compatibility` endpoint. `POST /v1/jobs/evaluation` inserts one evaluation per resolved user at status `new` and starts no workflow; API key callers may omit `user_ids` to resolve all users linked to the job, while Clerk callers cannot supply them because their user comes from the verified token. `POST /v1/matching-evaluations/bulk-generate-evaluation` takes evaluation IDs and starts the Temporal match-job workflow only for rows at status `new` or `failed`, flipping them to `queued` or `queued_retry` respectively after a successful start; Clerk callers may only trigger evaluations they own and API key callers supply `user_id` per item. `success` is terminal and can never be re-triggered. `POST /v1/matching-evaluations/{id}/retry-report` re-queues report generation for one evaluation: it accepts both Clerk and API key callers, and a Clerk caller receives `403` when the evaluation belongs to another user. Report, resume, and cover-letter statuses are unaffected by this lifecycle. Each response item is a summary that includes the evaluation ID, its status, and (where resolved) the user ID.
+
 ### Applications and documents
 
 ```text

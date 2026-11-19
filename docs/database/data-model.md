@@ -8,7 +8,7 @@
 
 1. `jobs` is a shared pool of listing facts.
 2. Evaluation/verdicts and application lifecycle are per-user.
-3. Evaluation history is append-oriented. A retry of the same evaluation is idempotent; a new evaluation creates a new record.
+3. Each user/job pair has exactly one matching evaluation. A retry updates that row in place; a successful evaluation is terminal.
 4. Every user-owned row carries an internal user key.
 5. Composite foreign keys should prevent cross-tenant references where a row relates to another user-owned row.
 6. Preserve audit/activity history. Archive listings rather than deleting rows referenced by application history.
@@ -36,17 +36,27 @@ Use an internal UUID primary key for users. Store the Clerk subject as a unique 
 
 The API derives the current user from a verified Clerk token and resolves it to the internal `users.id`. All tenant-owned queries use that internal ID.
 
-## 4. Evaluation idempotency and history
+## 4. Evaluation idempotency and lifecycle
 
-Each evaluation attempt has a stable `evaluation_id`. A retry of the same attempt reuses that ID. A genuinely new run (for example, a new prompt version or new user-triggered re-evaluation) receives a new ID.
+Each user/job pair has exactly one `matching_evaluations` row, keyed by `user_job_id`. Retrying a failed evaluation updates that row in place and never creates a second row. A `success` evaluation is terminal and is never re-evaluated.
 
-Recommended uniqueness rule:
+Uniqueness rule:
 
 ```sql
-UNIQUE (user_id, job_id, evaluation_id)
+UNIQUE (user_job_id)
 ```
 
-This allows multiple historical evaluations for one user/job while preventing duplicate writes from activity retries. Do not use a unique constraint on only `(user_id, job_id)`.
+This deliberately reverses the earlier `UNIQUE (user_id, job_id, evaluation_id)` rule and the multiple-historical-evaluations model. Migration `000018_single_evaluation.sql` collapses duplicate rows to the latest by `created_at`, adds the `user_job_id` unique constraint, and drops `user_jobs.latest_evaluation_id` (and its index); the evaluation is now joined directly through `user_job_id`.
+
+The evaluation status lifecycle is:
+
+```text
+insert            new
+trigger        -> queued  -> pending -> success   (terminal)
+failed retry   -> queued_retry -> pending -> success | failed
+```
+
+The insert endpoint creates a row only when none exists for the `user_job_id` and leaves an existing row's status unchanged, which keeps `success` terminal. The trigger starts the workflow first and flips the status only after a successful start (`new → queued` on a first run, `failed → queued_retry` on a retry), so a `queued` row always has a workflow behind it. A retry clears the evaluation-result columns but leaves report, resume, and cover-letter columns and their statuses untouched.
 
 Store audit metadata such as:
 - `evaluation_id`
