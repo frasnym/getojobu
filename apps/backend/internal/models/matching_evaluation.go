@@ -17,6 +17,7 @@ type GetEvaluationResponse struct {
 	EvaluationStatus    string                 `json:"evaluation_status"`
 	ReportStatus        string                 `json:"report_status"`
 	ResumeStatus        string                 `json:"resume_status"`
+	CoverLetterStatus   string                 `json:"cover_letter_status"`
 	CandidateProfile    map[string]interface{} `json:"candidate_profile"`
 	JobProfile          map[string]interface{} `json:"job_profile"`
 	EvaluationResults   map[string]interface{} `json:"evaluation_results"`

@@ -85,6 +85,7 @@ func (s *matchingService) GetEvaluation(ctx context.Context, id uuid.UUID) (*mod
 		EvaluationStatus:    eval.EvaluationStatus,
 		ReportStatus:        utils.PtrStringOrEmpty(eval.ReportStatus),
 		ResumeStatus:        utils.PtrStringOrEmpty(eval.ResumeStatus),
+		CoverLetterStatus:   utils.PtrStringOrEmpty(eval.CoverLetterStatus),
 		CandidateProfile:    candidate,
 		JobProfile:          jobProfile,
 		EvaluationResults:   evidence,

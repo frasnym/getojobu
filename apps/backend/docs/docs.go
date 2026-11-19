@@ -3374,6 +3374,9 @@ const docTemplate = `{
                     "type": "object",
                     "additionalProperties": true
                 },
+                "cover_letter_status": {
+                    "type": "string"
+                },
                 "eligibility_status": {
                     "type": "string"
                 },
