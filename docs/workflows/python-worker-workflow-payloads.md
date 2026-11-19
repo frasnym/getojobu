@@ -10,7 +10,6 @@ Source of truth is `workers/python/workflows/*.py` plus the activity validators 
 |---|---|---|---|---|---|---|
 | JobAnalyzeWorkflow | job-evaluation | `slug` | yes | No | — | Job slug for the Go API lookup and status transitions. |
 | MatchJobWorkflow | job-evaluation | `evaluation_id` | yes | No | — | Evaluation row updated with status, result, and metadata. |
-| MatchJobWorkflow | job-evaluation | `slug` | no | No | — | Declared in the Go and Python input types but not set by the Go trigger and unused by the worker. |
 | MatchJobWorkflow | job-evaluation | `candidate_profile` | yes | Yes | [ ] | Candidate data passed to the LLM match activity. |
 | MatchJobWorkflow | job-evaluation | `job_profile` | yes | Yes | [ ] | Job data passed to the LLM match activity. |
 | MatchJobWorkflow | job-evaluation | `evaluation_config` | yes | Yes | [ ] | Scoring and prompt config passed to the LLM match activity. |
@@ -81,6 +80,7 @@ Source of truth is `workers/python/workflows/*.py` plus the activity validators 
 |---|---|---|
 | [x] | Python | Remove `job_description` from the `JobAnalyzeWorkflow` payload and from `AnalyzeJob.analyze()`; the JD is fetched by slug. |
 | [x] | Go | Remove the unused `job_id` field from `JobAnalyzeWorkflowInput`; only `slug` remains. |
+| [x] | Go | Remove the unused `slug` field from `MatchJobWorkflowInput`. |
 | [ ] | API | Add worker-auth `GET /v1/matching-evaluations/{id}` returning `candidate_profile_data`, `job_profile_data`, `evaluation_data`, `scoring_config_id`, and recomposed `facts`. |
 | [ ] | API | Regenerate the OpenAPI spec and TypeScript client after adding the endpoint. |
 | [ ] | Python | Add `get_evaluation(evaluation_id)` to the `GetojobuAPI` protocol and client in `workers/python/repository/getojobu_api.py`. |

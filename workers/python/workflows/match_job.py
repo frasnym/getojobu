@@ -42,7 +42,6 @@ class MatchJobWorkflow:
         Input:
             {
                 "evaluation_id": str,
-                "slug": str,
                 "candidate_profile": dict,
                 "job_profile": dict,
                 "evaluation_config": dict,

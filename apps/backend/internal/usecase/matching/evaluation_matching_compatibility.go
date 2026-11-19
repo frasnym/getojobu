@@ -25,7 +25,6 @@ type UpdateEvaluationRequest struct {
 // MatchJobWorkflowInput defines the payload passed to Temporal MatchJobWorkflow.
 type MatchJobWorkflowInput struct {
 	EvaluationID     string                 `json:"evaluation_id"`
-	Slug             string                 `json:"slug"`
 	CandidateProfile map[string]interface{} `json:"candidate_profile"`
 	JobProfile       map[string]interface{} `json:"job_profile"`
 	EvaluationConfig map[string]interface{} `json:"evaluation_config"`
