@@ -285,20 +285,16 @@ func TestQueueCoverLetter_RequiresSuccessfulPrerequisites(t *testing.T) {
 	for _, tc := range []struct {
 		name         string
 		reportStatus *string
-		resumeStatus *string
 		want         string
 	}{
-		{name: "missing report", reportStatus: nil, resumeStatus: utils.PtrString("success"), want: "report must be successful"},
-		{name: "failed report", reportStatus: utils.PtrString("failed"), resumeStatus: utils.PtrString("success"), want: "report must be successful"},
-		{name: "missing resume", reportStatus: utils.PtrString("success"), resumeStatus: nil, want: "resume must be successful"},
-		{name: "failed resume", reportStatus: utils.PtrString("success"), resumeStatus: utils.PtrString("failed"), want: "resume must be successful"},
+		{name: "missing report", reportStatus: nil, want: "report must be successful"},
+		{name: "failed report", reportStatus: utils.PtrString("failed"), want: "report must be successful"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			d := newCoverLetterDeps(t)
 			evalID, userJobID := uuid.New(), uuid.New()
 			eval := successfulEvaluation(evalID, userJobID)
 			eval.ReportStatus = tc.reportStatus
-			eval.ResumeStatus = tc.resumeStatus
 
 			d.evalRepo.EXPECT().GetByID(ctx, evalID).Return(eval, nil)
 			d.workflowsRepo.EXPECT().StartLimiterWorkItem(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
@@ -307,6 +303,44 @@ func TestQueueCoverLetter_RequiresSuccessfulPrerequisites(t *testing.T) {
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), tc.want)
 			assert.Nil(t, res)
+		})
+	}
+}
+
+func TestQueueCoverLetter_DoesNotRequireSuccessfulResume(t *testing.T) {
+	ctx := context.Background()
+	caller := &models.Principal{ActorType: "worker", ID: "worker-1"}
+
+	for _, tc := range []struct {
+		name         string
+		resumeStatus *string
+	}{
+		{name: "missing resume", resumeStatus: nil},
+		{name: "failed resume", resumeStatus: utils.PtrString("failed")},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			d := newCoverLetterDeps(t)
+			evalID, userJobID, userID := uuid.New(), uuid.New(), uuid.New()
+			eval := successfulEvaluation(evalID, userJobID)
+			eval.ResumeStatus = tc.resumeStatus
+
+			d.evalRepo.EXPECT().GetByID(ctx, evalID).Return(eval, nil)
+			d.userJobsRepo.EXPECT().GetByID(ctx, userJobID).Return(&models.UserJob{ID: userJobID, UserID: userID}, nil)
+			d.usersRepo.EXPECT().FindByID(ctx, userID.String()).Return(onboardedUser(userID), nil)
+			d.evalRepo.EXPECT().UpdateCoverLetter(ctx, evalID, gomock.Any()).DoAndReturn(
+				func(_ context.Context, _ uuid.UUID, params models.UpdateMatchingEvaluationCoverLetterParams) (*models.MatchingEvaluation, error) {
+					queued := successfulEvaluation(evalID, userJobID)
+					queued.CoverLetterStatus = utils.PtrString(params.CoverLetterStatus)
+					return queued, nil
+				},
+			)
+			d.workflowsRepo.EXPECT().StartLimiterWorkItem(ctx, fmt.Sprintf("cover-letter-gen-%s", evalID.String()), models.LimiterJobTypeCoverLetter, gomock.Any()).
+				Return("wf-cover-letter-1", nil)
+
+			res, err := d.service.QueueCoverLetter(ctx, evalID, matching.QueueCoverLetterRequest{Variant: "short"}, caller)
+			require.NoError(t, err)
+			require.NotNil(t, res)
+			assert.Equal(t, "queued", *res.CoverLetterStatus)
 		})
 	}
 }
