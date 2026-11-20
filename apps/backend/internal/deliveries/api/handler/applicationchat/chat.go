@@ -17,6 +17,7 @@ import (
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/constants"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/ctxval"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/httpx"
+	"github.com/frasnym/getojobu/apps/backend/internal/utils/logging"
 )
 
 const (
@@ -133,7 +134,10 @@ func (h *handler) Chat(w http.ResponseWriter, r *http.Request) error {
 
 	answer, err := h.chatSvc.Answer(requestCtx, input)
 	if err != nil {
-		return fmt.Errorf("application chat failed: %w", err)
+		// Keep upstream details in server logs only; the client gets no
+		// OmniRoute status, URL, or error text.
+		logging.Error(ctx, "application chat failed", err, "slug", slug)
+		return httpx.Envelope(httpx.CodeInternal, "could not generate an answer", "")
 	}
 	return httpx.RespondJSON(w, r, http.StatusOK, chatResponse{Answer: answer})
 }
