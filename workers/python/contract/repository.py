@@ -15,6 +15,7 @@ from repository.scraper.glassdoor_jobspy import GlassdoorJobspyScraper
 from repository.scraper.linkedin_apify_curious_coder import (
     LinkedinApifyCuriousCoderScraper,
 )
+from repository.scraper.remoteusa_sitemap import RemoteUsaSitemapScraper
 from repository.storage import R2StorageRepository, StorageRepository
 
 
@@ -52,5 +53,6 @@ def new(cfg: Config) -> RepositoryContract:
         "linkedin-apify-curious_coder": LinkedinApifyCuriousCoderScraper(),
         "glassdoor-apify-valig": GlassdoorApifyValigScraper(),
         "glassdoor-jobspy": GlassdoorJobspyScraper(),
+        "remoteusa-sitemap": RemoteUsaSitemapScraper(),
     }
     return RepositoryContract(api=api, storage=storage, scrapers=scrapers)
