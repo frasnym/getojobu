@@ -152,6 +152,10 @@ func (rec *envelopeRecorder) Write(b []byte) (int, error) {
 	return len(b), nil
 }
 
+// Unwrap lets http.ResponseController reach the real writer for per-route
+// deadline overrides.
+func (rec *envelopeRecorder) Unwrap() http.ResponseWriter { return rec.ResponseWriter }
+
 // nameOf returns a best-effort name for a handler, used for route introspection.
 func nameOf(h HandlerFunc) string {
 	return fmt.Sprintf("%T", h)

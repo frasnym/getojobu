@@ -188,6 +188,10 @@ type statusRecorder struct {
 	truncated bool
 }
 
+// Unwrap lets http.ResponseController reach the real writer for per-route
+// deadline overrides.
+func (rec *statusRecorder) Unwrap() http.ResponseWriter { return rec.ResponseWriter }
+
 func (rec *statusRecorder) WriteHeader(code int) {
 	rec.status = code
 	rec.wrote = true

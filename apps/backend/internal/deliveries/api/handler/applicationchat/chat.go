@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/frasnym/getojobu/apps/backend/internal/config"
 	"github.com/frasnym/getojobu/apps/backend/internal/contract"
@@ -80,6 +81,10 @@ func (h *handler) Route(g *httpx.Router) {
 // @security ApiKeyAuth
 // @Router /v1/jobs/{slug}/chat [post]
 func (h *handler) Chat(w http.ResponseWriter, r *http.Request) error {
+	// The global WriteTimeout is 10s; OmniRoute can take longer. Extend the
+	// deadline for this request only, via the Unwrap chain on our writers.
+	extendWriteDeadline(w, h.cfg.OmniRoute.Timeout+30*time.Second)
+
 	ctx := r.Context()
 	principal := ctxval.PrincipalFromContext(ctx)
 	if principal == nil {
@@ -140,6 +145,10 @@ func (h *handler) Chat(w http.ResponseWriter, r *http.Request) error {
 		return httpx.Envelope(httpx.CodeInternal, "could not generate an answer", "")
 	}
 	return httpx.RespondJSON(w, r, http.StatusOK, chatResponse{Answer: answer})
+}
+
+func extendWriteDeadline(w http.ResponseWriter, timeout time.Duration) {
+	_ = http.NewResponseController(w).SetWriteDeadline(time.Now().Add(timeout))
 }
 
 func (r *chatRequest) validate() error {
