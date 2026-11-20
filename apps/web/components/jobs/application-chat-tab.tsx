@@ -124,7 +124,7 @@ export function ApplicationChatTab({ job }: ApplicationChatTabProps) {
 			</div>
 
 			{error && (
-				<div className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+				<div className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive dark:border-red-500/40 dark:bg-red-500/10 dark:text-red-300">
 					<AlertCircle className="h-3.5 w-3.5 shrink-0" />
 					<span>{error}</span>
 				</div>
