@@ -6,6 +6,8 @@ import {
   generateCoverLetter,
   triggerJobCompatibility,
   bulkGenerateReport,
+  analyzeJob,
+  queueJobAnalysis,
 } from "@/lib/api/endpoints";
 
 const originalFetch = global.fetch;
@@ -24,6 +26,44 @@ function mockFetch(response: unknown, status = 200) {
 }
 
 describe("API endpoints", () => {
+  it("queueJobAnalysis forwards the requested force value", async () => {
+    mockFetch({
+      success: true,
+      data: { workflow_ids: ["job-analyze-1"] },
+      meta: { timestamp: "2026-11-20T10:00:00Z", requestId: "req-1" },
+      error: null,
+    });
+
+    await queueJobAnalysis("go-stripe", "test-token", true);
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.stringContaining("/v1/jobs/bulk-queue-analyze"),
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify([{ slug: "go-stripe", force: true }]),
+      })
+    );
+  });
+
+  it("analyzeJob posts the new job slug with force false", async () => {
+    mockFetch({
+      success: true,
+      data: { workflow_ids: ["job-analyze-1"] },
+      meta: { timestamp: "2026-11-20T10:00:00Z", requestId: "req-1" },
+      error: null,
+    });
+
+    await analyzeJob("go-stripe", "test-token");
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.stringContaining("/v1/jobs/bulk-queue-analyze"),
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify([{ slug: "go-stripe", force: false }]),
+      })
+    );
+  });
+
   it("getJobs returns a list of jobs with match score information and pagination", async () => {
     const mockJobsData = [
       {

@@ -3,6 +3,7 @@ import { useAuth } from "@clerk/nextjs";
 import { UserJob, ApiPagination } from "@/lib/api/types";
 import {
   getUserJobs,
+  analyzeJob,
   retryJobAnalysis,
   setUserJobHideStatus,
   setUserJobsHideStatus,
@@ -371,6 +372,21 @@ export function useUserJobs(explicitToken?: string | null) {
     [explicitToken, getToken]
   );
 
+  const analyzeNewJob = useCallback(
+    async (userJobId: string) => {
+      const target = userJobs.find((uj) => uj.id === userJobId);
+      if (!target) return;
+      const token = explicitToken !== undefined ? explicitToken : await getToken();
+      await analyzeJob(target.job.slug, token);
+      setUserJobs((prev) =>
+        prev.map((uj) =>
+          uj.id === userJobId ? { ...uj, job: { ...uj.job, status: "queued" } } : uj
+        )
+      );
+    },
+    [explicitToken, getToken, userJobs]
+  );
+
   const retryJob = useCallback(
     async (userJobId: string) => {
       const target = userJobs.find((uj) => uj.id === userJobId);
@@ -481,6 +497,7 @@ export function useUserJobs(explicitToken?: string | null) {
     setCoverLetterStatusFilter: handleCoverLetterStatusChange,
     hideJob,
     bulkHideJob,
+    analyzeJob: analyzeNewJob,
     retryJob,
     refetch: () => load(),
     isFiltersChanged,

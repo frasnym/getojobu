@@ -1,7 +1,7 @@
 import React from "react";
 import Link from "next/link";
 import { JobStatus, UserJob } from "@/lib/api/types";
-import { MapPin, Globe, Clock, ArrowRight, Eye, EyeOff, RotateCcw } from "lucide-react";
+import { MapPin, Globe, Clock, ArrowRight, Eye, EyeOff, RotateCcw, Play } from "lucide-react";
 import { EvaluationStatusTag, EligibilityTag, RecommendationTag, StatusTag } from "@/components/jobs/evaluation-tags";
 
 interface JobCardProps {
@@ -18,6 +18,8 @@ interface JobCardProps {
 	isChecked?: boolean;
 	/** Called when the checkbox toggles. */
 	onCheckChange?: (checked: boolean) => void;
+	/** Called when the user starts analysis for a new job. */
+	onAnalyze?: (userJobId: string) => void | Promise<void>;
 	/** Called when the user retries a failed job analysis. */
 	onRetry?: (userJobId: string) => void | Promise<void>;
 	/** Called when the user retries a failed URL scrape. */
@@ -30,6 +32,7 @@ export function JobCard({
 	onSelect,
 	isSelected,
 	onHideToggle,
+	onAnalyze,
 	onRetry,
 	onScrapeRetry,
 	canOpenDetail = true,
@@ -194,6 +197,20 @@ export function JobCard({
 								message={userJob.evaluation.cover_letter_failure_message}
 							/>
 						</>
+					)}
+					{job.status === JobStatus.New && onAnalyze && (
+						<button
+							type="button"
+							onClick={(e) => {
+								e.stopPropagation();
+								onAnalyze(userJob.id);
+							}}
+							className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3.5 py-1.5 text-xs font-semibold text-foreground hover:bg-secondary transition-colors"
+							aria-label="Analyze Job"
+						>
+							<Play className="h-3.5 w-3.5 text-primary" />
+							<span>Analyze Job</span>
+						</button>
 					)}
 					{retryLabel && onRetry && (
 						<button

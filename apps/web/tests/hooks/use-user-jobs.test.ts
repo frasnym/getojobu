@@ -375,4 +375,40 @@ describe("useUserJobs hook and filterUserJobs", () => {
       expect(result.current.jobs[0].evaluation?.resume_status).toBe("queued_retry");
     });
   });
+
+  it("analyzeJob queues analysis by slug and moves the new job to queued locally", async () => {
+    const newJob: UserJob = {
+      ...mockUserJobs[0],
+      job: { ...mockUserJobs[0].job, status: "new" },
+    };
+    vi.spyOn(endpoints, "getUserJobs").mockResolvedValue({
+      data: [newJob],
+      pagination: {
+        page: 1,
+        limit: 10,
+        totalItems: 1,
+        totalPages: 1,
+        hasNext: false,
+        hasPrev: false,
+      },
+    });
+    const analyzeSpy = vi
+      .spyOn(endpoints, "analyzeJob")
+      .mockResolvedValue({ workflow_ids: ["job-analyze-1"] });
+
+    const { result } = renderHook(() => useUserJobs());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    await act(async () => {
+      await result.current.analyzeJob(newJob.id);
+    });
+
+    expect(analyzeSpy).toHaveBeenCalledWith("go-stripe", "test-token");
+    await waitFor(() => {
+      expect(result.current.jobs[0].job.status).toBe("queued");
+    });
+  });
 });

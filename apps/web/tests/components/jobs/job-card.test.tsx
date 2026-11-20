@@ -459,3 +459,40 @@ describe("JobCard retry", () => {
     expect(screen.queryByRole("button", { name: /^Retry /i })).not.toBeInTheDocument();
   });
 });
+
+describe("JobCard analyze", () => {
+  const newJob: UserJob = {
+    ...mockUserJob,
+    job: { ...mockUserJob.job, status: "new" },
+  };
+
+  it("shows an Analyze button for a new job when a handler is provided", () => {
+    render(<JobCard userJob={newJob} onAnalyze={vi.fn()} />);
+    expect(screen.getByRole("button", { name: /Analyze Job/i })).toBeInTheDocument();
+  });
+
+  it("calls onAnalyze with the user job id without opening the detail view", () => {
+    const onAnalyze = vi.fn();
+    const onSelect = vi.fn();
+    render(<JobCard userJob={newJob} onAnalyze={onAnalyze} onSelect={onSelect} />);
+    fireEvent.click(screen.getByRole("button", { name: /Analyze Job/i }));
+    expect(onAnalyze).toHaveBeenCalledWith(newJob.id);
+    expect(onSelect).not.toHaveBeenCalled();
+  });
+
+  it("places the Analyze button beside the bottom status tags", () => {
+    render(<JobCard userJob={newJob} onAnalyze={vi.fn()} />);
+    const statusRow = screen.getAllByTestId("evaluation-status-tag")[0].parentElement;
+    expect(statusRow).toContainElement(screen.getByRole("button", { name: /Analyze Job/i }));
+  });
+
+  it("does not show an Analyze button for a non-new job", () => {
+    render(<JobCard userJob={mockUserJob} onAnalyze={vi.fn()} />);
+    expect(screen.queryByRole("button", { name: /Analyze Job/i })).not.toBeInTheDocument();
+  });
+
+  it("does not show an Analyze button when no handler is provided", () => {
+    render(<JobCard userJob={newJob} />);
+    expect(screen.queryByRole("button", { name: /Analyze Job/i })).not.toBeInTheDocument();
+  });
+});

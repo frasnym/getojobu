@@ -140,19 +140,37 @@ export async function getJobBySlug(slug: string, token?: string | null): Promise
   return apiClient<Job>(`/v1/jobs/${slug}`, { token });
 }
 
-/** Re-queue analysis for a failed job. The backend sets its status to queued_retry. */
-export async function retryJobAnalysis(
+type QueueAnalysisResult = {
+  workflow_ids: string[];
+  failed?: { slug: string; error: string }[];
+};
+
+export async function queueJobAnalysis(
+  slug: string,
+  token: string | null | undefined,
+  force: boolean
+): Promise<QueueAnalysisResult> {
+  return apiClient<QueueAnalysisResult>("/v1/jobs/bulk-queue-analyze", {
+    method: "POST",
+    token,
+    body: JSON.stringify([{ slug, force }]),
+  });
+}
+
+/** Queue analysis for a new job. The backend sets its status to queued. */
+export function analyzeJob(
   slug: string,
   token?: string | null
-): Promise<{ workflow_ids: string[]; failed?: { slug: string; error: string }[] }> {
-  return apiClient<{ workflow_ids: string[]; failed?: { slug: string; error: string }[] }>(
-    "/v1/jobs/bulk-queue-analyze",
-    {
-      method: "POST",
-      token,
-      body: JSON.stringify([{ slug, force: true }]),
-    }
-  );
+): Promise<QueueAnalysisResult> {
+  return queueJobAnalysis(slug, token, false);
+}
+
+/** Re-queue analysis for a failed job. The backend sets its status to queued_retry. */
+export function retryJobAnalysis(
+  slug: string,
+  token?: string | null
+): Promise<QueueAnalysisResult> {
+  return queueJobAnalysis(slug, token, true);
 }
 
 export async function triggerJobCompatibility(

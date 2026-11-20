@@ -34,6 +34,7 @@ export default function UserJobsPage() {
 		setHideFilter,
 		hideJob,
 		bulkHideJob,
+		analyzeJob,
 		retryJob,
 		refetch,
 		isFiltersChanged,
@@ -343,6 +344,7 @@ export default function UserJobsPage() {
 							canOpenDetail={userJob.job.status === JobStatus.Analyzed}
 							isSelected={selectedRow?.id === userJob.id}
 							onHideToggle={hideJob}
+							onAnalyze={analyzeJob}
 							onRetry={retryJob}
 							onScrapeRetry={handleScrapeRetry}
 							selectable
