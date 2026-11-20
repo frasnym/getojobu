@@ -99,9 +99,11 @@ func Logging(next http.Handler) http.Handler {
 }
 
 // skipBodyLog reports whether bodies must never be logged for this path.
-// Webhook payloads and responses carry third-party secrets.
+// Webhook payloads carry third-party secrets; application-chat payloads carry
+// candidate profile data and generated answers.
 func skipBodyLog(r *http.Request) bool {
-	return strings.HasPrefix(r.URL.Path, "/v1/webhooks")
+	return strings.HasPrefix(r.URL.Path, "/v1/webhooks") ||
+		(strings.HasPrefix(r.URL.Path, "/v1/jobs/") && strings.HasSuffix(r.URL.Path, "/chat"))
 }
 
 // logRequestBodyAllowed reports whether the request body is safe and useful to
@@ -184,6 +186,16 @@ type statusRecorder struct {
 	body      []byte
 	size      int
 	truncated bool
+}
+
+// Unwrap lets http.ResponseController reach the real writer for deadlines.
+func (rec *statusRecorder) Unwrap() http.ResponseWriter { return rec.ResponseWriter }
+
+// Flush forwards to the underlying writer so SSE frames are pushed immediately.
+func (rec *statusRecorder) Flush() {
+	if flusher, ok := rec.ResponseWriter.(http.Flusher); ok {
+		flusher.Flush()
+	}
 }
 
 func (rec *statusRecorder) WriteHeader(code int) {

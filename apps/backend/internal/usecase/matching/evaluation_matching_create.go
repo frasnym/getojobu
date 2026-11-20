@@ -80,7 +80,7 @@ func (s *matchingService) CreateEvaluations(
 			targetUserIDs = users
 		}
 
-		jobProfile, err := deriveJobProfile(job)
+		jobProfile, err := DeriveJobProfile(job)
 		if err != nil {
 			errStr := fmt.Sprintf("parse job analyze_result: %s", err.Error())
 			summaries = append(summaries, &models.MatchingEvaluationSummary{

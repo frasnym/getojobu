@@ -9,6 +9,7 @@ import { JobDetailTab } from "@/components/jobs/job-detail-tab";
 import { MatchReportTab } from "@/components/matching/match-report-tab";
 import { ResumeTab } from "@/components/resume/resume-tab";
 import { CoverLetterTab } from "@/components/cover-letter/cover-letter-tab";
+import { ApplicationChatTab } from "@/components/jobs/application-chat-tab";
 import { getUserJobEvaluation } from "@/lib/api/endpoints";
 import { EvaluationDetail } from "@/lib/api/types";
 import { EvaluationStatusTag, EligibilityTag, RecommendationTag, StatusTag } from "@/components/jobs/evaluation-tags";
@@ -53,6 +54,7 @@ const TABS: { id: ReportTab; label: string }[] = [
 	{ id: "report", label: "Match Report" },
 	{ id: "resume", label: "Tailored Resume" },
 	{ id: "cover-letter", label: "Cover Letter" },
+	{ id: "chat", label: "Application Helper" },
 ];
 
 export function JobDetailDrawer({
@@ -353,6 +355,7 @@ export function JobDetailDrawer({
 									onQueued={refreshEvaluation}
 								/>
 							)}
+							{tab === "chat" && <ApplicationChatTab job={job} />}
 						</>
 					) : (
 						<div className="space-y-6">

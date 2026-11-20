@@ -63,7 +63,7 @@ func (s *matchingService) GetEvaluation(ctx context.Context, id uuid.UUID) (*mod
 		facts = map[string]interface{}{}
 	}
 
-	jobProfile, err := deriveJobProfile(job)
+	jobProfile, err := DeriveJobProfile(job)
 	if err != nil {
 		return nil, err
 	}

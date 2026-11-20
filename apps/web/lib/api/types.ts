@@ -235,3 +235,9 @@ export interface UpdateAccountInput {
   linkedin_url: string | null;
   github_url: string | null;
 }
+
+// A chat turn kept in browser memory only; nothing is persisted server-side.
+export interface ApplicationChatMessage {
+  role: "user" | "assistant";
+  content: string;
+}

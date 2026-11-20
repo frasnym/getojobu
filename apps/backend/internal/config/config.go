@@ -24,7 +24,18 @@ type Config struct {
 	MachineAuth MachineAuth
 	Temporal    TemporalConfig
 	R2          R2Config
+	OmniRoute   OmniRouteConfig
 	Telemetry   TelemetryConfig
+}
+
+// OmniRouteConfig holds the OpenAI-compatible gateway settings used by the
+// application-form chat endpoint. This is the only Go path that calls an LLM
+// directly; all other LLM work stays in the Python worker.
+type OmniRouteConfig struct {
+	BaseURL string
+	APIKey  string
+	Model   string
+	Timeout time.Duration
 }
 
 // TelemetryConfig holds OpenTelemetry export settings. An empty OTLPEndpoint
@@ -206,6 +217,11 @@ func Load() (*Config, error) {
 	cfg.Temporal.Host = envString("TEMPORAL_HOST", "localhost:7233")
 	cfg.Temporal.Namespace = envString("TEMPORAL_NAMESPACE", "default")
 	cfg.Temporal.TaskQueue = envString("TEMPORAL_TASK_QUEUE_JOB_ANALYZE", "job-evaluation")
+
+	cfg.OmniRoute.BaseURL = envString("OMNIROUTE_BASE_URL", "http://omniroute:20128")
+	cfg.OmniRoute.APIKey = os.Getenv("OMNIROUTE_API_KEY")
+	cfg.OmniRoute.Model = envString("OMNIROUTE_MODEL", "use-combo")
+	cfg.OmniRoute.Timeout = envDuration("OMNIROUTE_CHAT_TIMEOUT", 60*time.Second)
 
 	cfg.Telemetry.OTLPEndpoint = envString("OTEL_EXPORTER_OTLP_ENDPOINT", "")
 

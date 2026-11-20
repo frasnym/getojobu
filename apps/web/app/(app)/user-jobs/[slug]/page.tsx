@@ -10,6 +10,7 @@ import { MatchReportTab } from "@/components/matching/match-report-tab";
 import { ResumeTab } from "@/components/resume/resume-tab";
 import { CoverLetterTab } from "@/components/cover-letter/cover-letter-tab";
 import { JobDetailDrawer } from "@/components/jobs/job-detail-drawer";
+import { ApplicationChatTab } from "@/components/jobs/application-chat-tab";
 import { getUserJobEvaluation } from "@/lib/api/endpoints";
 import { setUserJobsHideStatus } from "@/lib/api/endpoints";
 import { EvaluationDetail } from "@/lib/api/types";
@@ -91,7 +92,7 @@ export default function UserJobDetailPage({ params }: UserJobDetailPageProps) {
   );
 
   useEffect(() => {
-    if (tabParam && ["details", "report", "resume", "cover-letter"].includes(tabParam)) {
+    if (tabParam && ["details", "report", "resume", "cover-letter", "chat"].includes(tabParam)) {
       setActiveTab(tabParam);
     }
   }, [tabParam]);
@@ -238,6 +239,9 @@ export default function UserJobDetailPage({ params }: UserJobDetailPageProps) {
             onQueued={refreshEvaluation}
           />
         )}
+
+        {/* Tab 5: Application Helper */}
+        {activeTab === "chat" && <ApplicationChatTab job={job} />}
       </main>
     </div>
   );

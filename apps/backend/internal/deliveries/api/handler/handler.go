@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/frasnym/getojobu/apps/backend/internal/contract"
+	handlerApplicationChat "github.com/frasnym/getojobu/apps/backend/internal/deliveries/api/handler/applicationchat"
 	"github.com/frasnym/getojobu/apps/backend/internal/deliveries/api/handler/experiences"
 	"github.com/frasnym/getojobu/apps/backend/internal/deliveries/api/handler/jobs"
 	"github.com/frasnym/getojobu/apps/backend/internal/deliveries/api/handler/matching"
@@ -69,6 +70,9 @@ func (h *handler) Route(rt *httpx.Router) {
 
 	// Job routes (CRUD + bulk create + scrape orchestration).
 	jobs.NewHandler(h.contract).Route(v1.Group("/jobs"))
+
+	// Application-form chat (direct LLM call; the only such Go path).
+	handlerApplicationChat.NewHandler(h.contract).Route(v1.Group("/jobs"))
 
 	// Scoring configuration routes (CRU only; machine API key only).
 	scoringConfigs.NewHandler(h.contract).Route(v1.Group("/scoring-configs"))

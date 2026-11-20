@@ -46,6 +46,8 @@ The API authenticates the caller, enforces authorization, performs short databas
 
 These are four logical application deployables. They may share repository packages and infrastructure, but should run as separate processes/containers so they can be deployed, restarted, scaled, and resource-limited independently.
 
+Approved exception (2026-11-20): `POST /v1/jobs/{slug}/chat` calls OmniRoute directly from the Go API so application-form answers can stream to the browser. It is the only Go path that calls an LLM; all other LLM work stays in `worker-python` activities behind Temporal. The endpoint writes no state, uses the caller's Clerk identity plus the shared job profile, and returns a single sentence.
+
 Temporal Server, Temporal UI, Temporal persistence DB, Neon, R2, Caddy, and monitoring are infrastructure services.
 
 ## 4. Backend shape

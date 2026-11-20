@@ -1,5 +1,21 @@
 basePath: /
 definitions:
+  applicationchat.chatMessage:
+    properties:
+      content:
+        type: string
+      role:
+        type: string
+    type: object
+  applicationchat.chatRequest:
+    properties:
+      history:
+        items:
+          $ref: '#/definitions/applicationchat.chatMessage'
+        type: array
+      question:
+        type: string
+    type: object
   dto.CreateJobResponse:
     properties:
       added_to_user_list:
@@ -1167,6 +1183,48 @@ paths:
       security:
       - ApiKeyAuth: []
       summary: Update job status
+      tags:
+      - jobs
+  /v1/jobs/{slug}/chat:
+    post:
+      consumes:
+      - application/json
+      description: Streams a one-sentence answer grounded in the caller's career profile
+        and the analyzed job profile.
+      parameters:
+      - description: Job slug
+        in: path
+        name: slug
+        required: true
+        type: string
+      - description: Question and optional in-memory history
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/applicationchat.chatRequest'
+      produces:
+      - text/event-stream
+      responses:
+        "200":
+          description: SSE data frames with delta, then done
+          schema:
+            type: string
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpx.Error'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpx.Error'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httpx.Error'
+      security:
+      - ApiKeyAuth: []
+      summary: Answer an application form question
       tags:
       - jobs
   /v1/jobs/bulk:

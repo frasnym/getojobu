@@ -4,7 +4,7 @@ import { Job, MatchReport } from "@/lib/api/types";
 import { ArrowLeft, ChevronLeft, ChevronRight, Globe, MapPin, Clock, Eye, EyeOff, RefreshCw } from "lucide-react";
 import { EvaluationStatusTag, EligibilityTag, RecommendationTag, StatusTag } from "@/components/jobs/evaluation-tags";
 
-export type ReportTab = "details" | "report" | "resume" | "cover-letter";
+export type ReportTab = "details" | "report" | "resume" | "cover-letter" | "chat";
 
 interface JobReportHeaderProps {
 	job: Job;
@@ -46,6 +46,7 @@ export function JobReportHeader({
 		{ id: "report", label: "Match Report" },
 		{ id: "resume", label: "Tailored Resume" },
 		{ id: "cover-letter", label: "Cover Letter" },
+		{ id: "chat", label: "Application Helper" },
 	];
 
 	return (

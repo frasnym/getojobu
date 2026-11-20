@@ -8,10 +8,10 @@ import (
 	"github.com/frasnym/getojobu/apps/backend/internal/utils"
 )
 
-// deriveJobProfile builds the worker-facing job profile from the shared job
+// DeriveJobProfile builds the worker-facing job profile from the shared job
 // listing. Service metadata is stripped and title/company/location are copied
 // from the listing, so the result is the same wherever it is built.
-func deriveJobProfile(job *models.Job) (map[string]interface{}, error) {
+func DeriveJobProfile(job *models.Job) (map[string]interface{}, error) {
 	var profile map[string]interface{}
 	if err := json.Unmarshal(utils.StripJSONKeys(job.AnalyzeResult, "metadata"), &profile); err != nil {
 		return nil, err

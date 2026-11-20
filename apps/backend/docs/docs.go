@@ -793,6 +793,70 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/jobs/{slug}/chat": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Streams a one-sentence answer grounded in the caller's career profile and the analyzed job profile.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "text/event-stream"
+                ],
+                "tags": [
+                    "jobs"
+                ],
+                "summary": "Answer an application form question",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Job slug",
+                        "name": "slug",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Question and optional in-memory history",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/applicationchat.chatRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "SSE data frames with delta, then done",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpx.Error"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/httpx.Error"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httpx.Error"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/maintenance/retry-failed-jobs": {
             "post": {
                 "security": [
@@ -2556,6 +2620,31 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "applicationchat.chatMessage": {
+            "type": "object",
+            "properties": {
+                "content": {
+                    "type": "string"
+                },
+                "role": {
+                    "type": "string"
+                }
+            }
+        },
+        "applicationchat.chatRequest": {
+            "type": "object",
+            "properties": {
+                "history": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/applicationchat.chatMessage"
+                    }
+                },
+                "question": {
+                    "type": "string"
+                }
+            }
+        },
         "dto.CreateJobResponse": {
             "type": "object",
             "properties": {
