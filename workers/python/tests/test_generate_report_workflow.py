@@ -5,6 +5,7 @@ from unittest.mock import patch
 
 import pytest
 from temporalio import activity
+from temporalio.exceptions import ActivityError
 from temporalio.testing import WorkflowEnvironment
 from temporalio.worker import Worker
 
@@ -89,13 +90,8 @@ async def test_generate_report_workflow_unit_failure():
         "workflows.generate_report.workflow.execute_activity",
         side_effect=fake_execute_activity,
     ):
-        res = await wf.run({"evaluation_id": "eval-unit-fail"})
-
-    assert res["workflow"] == "GenerateReportWorkflow"
-    assert res["evaluation_id"] == "eval-unit-fail"
-    assert res["report_status"] == "failed"
-    assert res["report"] is None
-    assert "rate limit" in res["report_error"]
+        with pytest.raises(RuntimeError, match="rate limit"):
+            await wf.run({"evaluation_id": "eval-unit-fail"})
 
     assert len(executed_activities) == 4
     assert executed_activities[0][0] == "fetch_report_input_activity"
@@ -107,6 +103,59 @@ async def test_generate_report_workflow_unit_failure():
     assert executed_activities[3][0] == "update_report_status_activity"
     assert executed_activities[3][1]["report_status"] == "failed"
     assert "rate limit" in executed_activities[3][1]["report_failure_message"]
+
+
+@pytest.mark.asyncio
+async def test_generate_report_workflow_failure_keeps_validation_detail() -> None:
+    wf = GenerateReportWorkflow()
+    fail_payloads: list[dict[str, Any]] = []
+    validation_message = (
+        "1 validation error for MatchReportOutput\n"
+        "experience_assessment\n"
+        "  Field required"
+    )
+
+    async def fake_execute_activity(act, input_data, **kwargs):
+        if act.__name__ == "fetch_report_input_activity":
+            return {
+                "status": "ready",
+                "report_status": "queued_retry",
+                "candidate_profile": {"skills": ["go"]},
+                "job_profile": {"title": "Senior Go Engineer"},
+                "evaluation_results": {"evaluations": []},
+                "overall_score": 75.0,
+                "eligibility_status": "eligible",
+                "recommendation_label": "worth_applying",
+            }
+        if act.__name__ == "generate_report_activity":
+            err = ActivityError(
+                "Activity task failed",
+                scheduled_event_id=1,
+                started_event_id=2,
+                identity="worker-1",
+                activity_type="generate_report_activity",
+                activity_id="act-1",
+                retry_state=None,
+            )
+            object.__setattr__(
+                err, "_failure", type("Failure", (), {"message": validation_message})()
+            )
+            raise err
+        if act.__name__ == "update_report_status_activity":
+            if input_data.get("report_status") == "failed":
+                fail_payloads.append(input_data)
+            return {"report_status": input_data.get("report_status")}
+        return {"report_status": input_data.get("report_status")}
+
+    with patch(
+        "workflows.generate_report.workflow.execute_activity",
+        side_effect=fake_execute_activity,
+    ):
+        with pytest.raises(ActivityError):
+            await wf.run({"evaluation_id": "eval-validation-fail"})
+
+    assert len(fail_payloads) == 1
+    assert fail_payloads[0]["report_failure_message"] == validation_message
 
 
 @pytest.mark.asyncio

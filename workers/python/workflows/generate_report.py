@@ -25,6 +25,31 @@ DEFAULT_RETRY_POLICY = RetryPolicy(
     maximum_interval=timedelta(seconds=30),
 )
 
+_GENERIC_ACTIVITY_MESSAGES = {
+    "Activity task failed",
+    "Activity error",
+    "Encoded failure",
+    "",
+}
+
+
+def _activity_error_message(exc: BaseException) -> str:
+    """Return the underlying reason for an activity failure.
+
+    Temporal wraps activity failures in ActivityError/FailureError whose
+    ``str()`` can be the generic wrapper (e.g. "Activity task failed") rather
+    than the real cause. The real reason is carried on the wrapped failure
+    proto; fall back to ``str(exc)`` when it isn't available.
+    """
+    message = str(exc).strip()
+    if message in _GENERIC_ACTIVITY_MESSAGES:
+        failure = getattr(exc, "failure", None)
+        if failure is not None:
+            proto_message = getattr(failure, "message", None)
+            if proto_message and proto_message not in _GENERIC_ACTIVITY_MESSAGES:
+                message = proto_message
+    return message
+
 
 @workflow.defn(name="GenerateReportWorkflow")
 class GenerateReportWorkflow:
@@ -106,7 +131,7 @@ class GenerateReportWorkflow:
                 retry_policy=DEFAULT_RETRY_POLICY,
             )
         except Exception as exc:  # noqa: BLE001
-            report_error = str(exc)
+            report_error = _activity_error_message(exc)
             report_failed_input: dict[str, Any] = {
                 "evaluation_id": evaluation_id,
                 "report_status": "failed",
@@ -118,6 +143,8 @@ class GenerateReportWorkflow:
                 start_to_close_timeout=timedelta(seconds=30),
                 retry_policy=DEFAULT_RETRY_POLICY,
             )
+            # A failed generation must end the workflow as failed, not completed.
+            raise
 
         return {
             "workflow": "GenerateReportWorkflow",
