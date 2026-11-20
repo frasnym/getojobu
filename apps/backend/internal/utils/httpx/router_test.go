@@ -146,28 +146,6 @@ func TestRouter_EnvelopeHandler_passes_through_successful_response(t *testing.T)
 	assert.Equal(t, "<html>ok</html>", w.Body.String(), "expected body to pass through")
 }
 
-func TestRouter_EnvelopeHandler_passes_through_event_stream(t *testing.T) {
-	rt := New()
-	rt.POST("/v1/jobs/{slug}/chat", func(w http.ResponseWriter, r *http.Request) error {
-		w.Header().Set("Content-Type", "text/event-stream")
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte("data: first\n\n"))
-		if flusher, ok := w.(http.Flusher); ok {
-			flusher.Flush()
-		}
-		_, _ = w.Write([]byte("data: second\n\n"))
-		return nil
-	})
-	h := rt.EnvelopeHandler(rt.Mux())
-
-	req := httptest.NewRequest(http.MethodPost, "/v1/jobs/job-1/chat", nil)
-	w := httptest.NewRecorder()
-	h.ServeHTTP(w, req)
-
-	assert.Equal(t, http.StatusOK, w.Code)
-	assert.Equal(t, "data: first\n\ndata: second\n\n", w.Body.String())
-}
-
 func TestRouter_trailing_slash_pattern_matches_subpaths(t *testing.T) {
 	// Arrange.
 	rt := New()

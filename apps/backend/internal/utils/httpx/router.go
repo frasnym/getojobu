@@ -3,7 +3,6 @@ package httpx
 import (
 	"fmt"
 	"net/http"
-	"strings"
 )
 
 // Route describes a registered route for introspection.
@@ -115,10 +114,6 @@ func (r *Router) EnvelopeHandler(h http.Handler) http.Handler {
 		rec := &envelopeRecorder{ResponseWriter: w}
 		h.ServeHTTP(rec, req)
 
-		if rec.streaming {
-			return
-		}
-
 		switch rec.status {
 		case http.StatusNotFound:
 			Envelope(CodeNotFound, "route not found", "").writeJSON(w, req)
@@ -134,25 +129,16 @@ func (r *Router) EnvelopeHandler(h http.Handler) http.Handler {
 }
 
 // envelopeRecorder buffers the response so 404/405 can be rewritten as JSON.
-// Event-stream responses are written through directly so chunks reach the
-// client as they are produced; they are never buffered or rewritten.
 type envelopeRecorder struct {
 	http.ResponseWriter
-	status    int
-	wrote     bool
-	buffer    []byte
-	streaming bool
+	status int
+	wrote  bool
+	buffer []byte
 }
 
 func (rec *envelopeRecorder) WriteHeader(code int) {
 	rec.status = code
 	rec.wrote = true
-	if strings.HasPrefix(rec.Header().Get("Content-Type"), "text/event-stream") {
-		rec.streaming = true
-		// Headers cannot be deferred: the body must follow them immediately.
-		rec.ResponseWriter.WriteHeader(code)
-		return
-	}
 	// Defer writing headers until EnvelopeHandler decides whether to rewrite.
 }
 
@@ -162,22 +148,9 @@ func (rec *envelopeRecorder) Write(b []byte) (int, error) {
 	if !rec.wrote {
 		rec.WriteHeader(http.StatusOK)
 	}
-	if rec.streaming {
-		return rec.ResponseWriter.Write(b)
-	}
 	rec.buffer = append(rec.buffer, b...)
 	return len(b), nil
 }
-
-// Flush forwards to the underlying writer so SSE handlers can push chunks.
-func (rec *envelopeRecorder) Flush() {
-	if flusher, ok := rec.ResponseWriter.(http.Flusher); ok {
-		flusher.Flush()
-	}
-}
-
-// Unwrap lets http.ResponseController reach the real writer for deadlines.
-func (rec *envelopeRecorder) Unwrap() http.ResponseWriter { return rec.ResponseWriter }
 
 // nameOf returns a best-effort name for a handler, used for route introspection.
 func nameOf(h HandlerFunc) string {

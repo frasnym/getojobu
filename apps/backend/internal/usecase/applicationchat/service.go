@@ -1,7 +1,6 @@
 package applicationchat
 
 import (
-	"bufio"
 	"bytes"
 	"context"
 	"embed"
@@ -40,7 +39,7 @@ type Input struct {
 }
 
 // Service calls OmniRoute directly to answer one application-form question.
-// It is the only Go path that performs an LLM call.
+// It is the only Go path that calls an LLM.
 type Service struct {
 	cfg    config.OmniRouteConfig
 	client *http.Client
@@ -55,20 +54,18 @@ func NewService(cfg config.OmniRouteConfig) *Service {
 	return &Service{cfg: cfg, client: &http.Client{Timeout: timeout}}
 }
 
-// StreamAnswer asks OmniRoute for a one-sentence answer and calls emit for each
-// text chunk. SSE is used when the gateway returns text/event-stream; a plain
-// JSON completion is accepted as a single chunk otherwise.
-func (s *Service) StreamAnswer(ctx context.Context, in Input, emit func(string) error) error {
+// Answer asks OmniRoute for a one-sentence answer to the question.
+func (s *Service) Answer(ctx context.Context, in Input) (string, error) {
 	if s.cfg.APIKey == "" {
-		return errors.New("omniroute api key is not configured")
+		return "", errors.New("omniroute api key is not configured")
 	}
 	if in.Candidate == nil {
-		return errors.New("candidate profile is required")
+		return "", errors.New("candidate profile is required")
 	}
 
 	system, err := s.renderPrompt(in)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	messages := make([]map[string]string, 0, len(in.History)+2)
@@ -80,41 +77,54 @@ func (s *Service) StreamAnswer(ctx context.Context, in Input, emit func(string) 
 
 	body, err := json.Marshal(map[string]interface{}{
 		"model":       s.cfg.Model,
-		"stream":      true,
+		"stream":      false,
 		"temperature": 0,
 		"max_tokens":  200,
 		"messages":    messages,
 	})
 	if err != nil {
-		return fmt.Errorf("marshal omniroute payload: %w", err)
+		return "", fmt.Errorf("marshal omniroute payload: %w", err)
 	}
 
 	url := strings.TrimRight(s.cfg.BaseURL, "/") + "/v1/chat/completions"
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
 	if err != nil {
-		return fmt.Errorf("build omniroute request: %w", err)
+		return "", fmt.Errorf("build omniroute request: %w", err)
 	}
 	req.Header.Set("Authorization", "Bearer "+s.cfg.APIKey)
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Accept", "text/event-stream, application/json")
 	// OmniRoute's persistent memory must not inject unrelated context here.
 	req.Header.Set("x-omniroute-no-memory", "true")
 
 	resp, err := s.client.Do(req)
 	if err != nil {
-		return fmt.Errorf("omniroute request failed: %w", err)
+		return "", fmt.Errorf("omniroute request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
 		_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 512))
-		return fmt.Errorf("omniroute returned status %d", resp.StatusCode)
+		return "", fmt.Errorf("omniroute returned status %d", resp.StatusCode)
 	}
 
-	if strings.Contains(resp.Header.Get("Content-Type"), "text/event-stream") {
-		return streamSSE(resp.Body, emit)
+	var completion struct {
+		Choices []struct {
+			Message struct {
+				Content string `json:"content"`
+			} `json:"message"`
+		} `json:"choices"`
 	}
-	return streamJSON(resp.Body, emit)
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&completion); err != nil {
+		return "", fmt.Errorf("decode omniroute response: %w", err)
+	}
+	if len(completion.Choices) == 0 {
+		return "", errors.New("omniroute returned no choices")
+	}
+	answer := completion.Choices[0].Message.Content
+	if answer == "" {
+		return "", errors.New("omniroute returned an empty answer")
+	}
+	return answer, nil
 }
 
 func (s *Service) renderPrompt(in Input) (string, error) {
@@ -164,60 +174,4 @@ func truncate(value string, limit int) string {
 		return value
 	}
 	return value[:limit] + "\n[truncated]"
-}
-
-func streamSSE(r io.Reader, emit func(string) error) error {
-	scanner := bufio.NewScanner(r)
-	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
-	for scanner.Scan() {
-		line := scanner.Text()
-		if !strings.HasPrefix(line, "data:") {
-			continue
-		}
-		data := strings.TrimSpace(strings.TrimPrefix(line, "data:"))
-		if data == "" || data == "[DONE]" {
-			continue
-		}
-		var chunk struct {
-			Choices []struct {
-				Delta struct {
-					Content string `json:"content"`
-				} `json:"delta"`
-			} `json:"choices"`
-		}
-		// Progress and metadata frames are not answer text; skip them.
-		if err := json.Unmarshal([]byte(data), &chunk); err != nil {
-			continue
-		}
-		for _, choice := range chunk.Choices {
-			if choice.Delta.Content == "" {
-				continue
-			}
-			if err := emit(choice.Delta.Content); err != nil {
-				return err
-			}
-		}
-	}
-	return scanner.Err()
-}
-
-func streamJSON(r io.Reader, emit func(string) error) error {
-	var response struct {
-		Choices []struct {
-			Message struct {
-				Content string `json:"content"`
-			} `json:"message"`
-		} `json:"choices"`
-	}
-	if err := json.NewDecoder(io.LimitReader(r, 1<<20)).Decode(&response); err != nil {
-		return fmt.Errorf("decode omniroute response: %w", err)
-	}
-	if len(response.Choices) == 0 {
-		return errors.New("omniroute returned no choices")
-	}
-	text := response.Choices[0].Message.Content
-	if text == "" {
-		return errors.New("omniroute returned an empty answer")
-	}
-	return emit(text)
 }

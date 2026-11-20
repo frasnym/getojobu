@@ -2,12 +2,10 @@ package applicationchat
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/frasnym/getojobu/apps/backend/internal/config"
 	"github.com/frasnym/getojobu/apps/backend/internal/contract"
@@ -37,6 +35,11 @@ type chatRequest struct {
 	History  []chatMessage `json:"history"`
 }
 
+// chatResponse is the single-sentence answer returned to the client.
+type chatResponse struct {
+	Answer string `json:"answer"`
+}
+
 type handler struct {
 	cfg     *config.Config
 	chatSvc *ucApplicationChat.Service
@@ -61,15 +64,15 @@ func (h *handler) Route(g *httpx.Router) {
 }
 
 // Chat answers one application-form question from the authenticated user's
-// profile and the analyzed job profile. It streams plain-text SSE frames.
+// profile and the analyzed job profile.
 // @Summary Answer an application form question
-// @Description Streams a one-sentence answer grounded in the caller's career profile and the analyzed job profile.
+// @Description Returns a one-sentence answer grounded in the caller's career profile and the analyzed job profile.
 // @Tags jobs
 // @Accept json
-// @Produce text/event-stream
+// @Produce json
 // @Param slug path string true "Job slug"
 // @Param payload body chatRequest true "Question and optional in-memory history"
-// @Success 200 {string} string "SSE data frames with delta, then done"
+// @Success 200 {object} chatResponse
 // @Failure 400 {object} httpx.Error
 // @Failure 401 {object} httpx.Error
 // @Failure 404 {object} httpx.Error
@@ -125,48 +128,14 @@ func (h *handler) Chat(w http.ResponseWriter, r *http.Request) error {
 		History:    history,
 	}
 
-	streamCtx, cancel := context.WithTimeout(ctx, h.cfg.OmniRoute.Timeout)
+	requestCtx, cancel := context.WithTimeout(ctx, h.cfg.OmniRoute.Timeout)
 	defer cancel()
 
-	started := false
-	controller := http.NewResponseController(w)
-	emit := func(text string) error {
-		if !started {
-			w.Header().Set("Content-Type", "text/event-stream")
-			w.Header().Set("Cache-Control", "no-cache")
-			w.Header().Set("Connection", "keep-alive")
-			w.Header().Set("X-Accel-Buffering", "no")
-			w.WriteHeader(http.StatusOK)
-			started = true
-		}
-		frame, err := json.Marshal(map[string]string{"delta": text})
-		if err != nil {
-			return err
-		}
-		if _, err := fmt.Fprintf(w, "data: %s\n\n", frame); err != nil {
-			return err
-		}
-		// The server's global write timeout would otherwise cut a slow stream.
-		_ = controller.SetWriteDeadline(time.Now().Add(15 * time.Second))
-		if flusher, ok := w.(http.Flusher); ok {
-			flusher.Flush()
-		}
-		return nil
+	answer, err := h.chatSvc.Answer(requestCtx, input)
+	if err != nil {
+		return fmt.Errorf("application chat failed: %w", err)
 	}
-
-	if err := h.chatSvc.StreamAnswer(streamCtx, input, emit); err != nil {
-		if !started {
-			return fmt.Errorf("application chat failed: %w", err)
-		}
-		frame, _ := json.Marshal(map[string]string{"error": "answer generation failed"})
-		_, _ = fmt.Fprintf(w, "data: %s\n\n", frame)
-		return nil
-	}
-
-	if _, err := fmt.Fprint(w, "data: {\"done\":true}\n\n"); err != nil {
-		return err
-	}
-	return nil
+	return httpx.RespondJSON(w, r, http.StatusOK, chatResponse{Answer: answer})
 }
 
 func (r *chatRequest) validate() error {

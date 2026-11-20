@@ -7,38 +7,32 @@ afterEach(() => {
   global.fetch = originalFetch;
 });
 
-function streamResponse(frames: string[]): Response {
-  const encoder = new TextEncoder();
-  return new Response(
-    new ReadableStream({
-      start(controller) {
-        for (const frame of frames) controller.enqueue(encoder.encode(frame));
-        controller.close();
-      },
-    }),
-    { status: 200, headers: { "Content-Type": "text/event-stream" } }
-  );
-}
-
 describe("answerApplicationQuestion", () => {
-  it("streams deltas and stops at the done frame", async () => {
+  it("returns the answer from the response envelope", async () => {
     const fetchMock = vi.fn(async () =>
-      streamResponse([
-        'data: {"delta":"Five years"}\n\n',
-        'data: {"delta":" of Go."}\n\ndata: {"done":true}\n\n',
-      ])
+      new Response(
+        JSON.stringify({
+          success: true,
+          data: { answer: "Five years of Go." },
+          meta: { timestamp: "", requestId: "" },
+          error: null,
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      )
     );
     global.fetch = fetchMock as any;
 
-    const deltas: string[] = [];
-    await answerApplicationQuestion("job-1", "How many years?", [], "test-token", (delta) =>
-      deltas.push(delta)
+    const answer = await answerApplicationQuestion(
+      "job-1",
+      "How many years?",
+      [],
+      "test-token"
     );
 
-    expect(deltas).toEqual(["Five years", " of Go."]);
-    const [url, options] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(answer).toBe("Five years of Go.");
+    const [url, options] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toBe("/v1/jobs/job-1/chat");
-    expect((options.headers as Record<string, string>).Authorization).toBe("Bearer test-token");
+    expect(new Headers(options.headers).get("Authorization")).toBe("Bearer test-token");
     expect(JSON.parse(options.body as string)).toEqual({
       question: "How many years?",
       history: [],
@@ -54,7 +48,7 @@ describe("answerApplicationQuestion", () => {
     ) as any;
 
     await expect(
-      answerApplicationQuestion("job-1", "", [], null, () => {})
+      answerApplicationQuestion("job-1", "", [], null)
     ).rejects.toThrow("question is required");
   });
 });

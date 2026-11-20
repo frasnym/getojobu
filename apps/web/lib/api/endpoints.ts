@@ -304,64 +304,20 @@ export async function deactivateMe(token?: string | null): Promise<AccountUser> 
   });
 }
 
-/**
- * Ask for a one-sentence answer to an application form question.
- * Uses the same-origin /v1 rewrite; the token is passed explicitly by the caller.
- */
+/** Ask for a one-sentence answer to an application form question. */
 export async function answerApplicationQuestion(
   slug: string,
   question: string,
   history: ApplicationChatMessage[],
-  token: string | null,
-  onDelta: (text: string) => void
-): Promise<void> {
-  const response = await fetch(`/v1/jobs/${encodeURIComponent(slug)}/chat`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Accept: "text/event-stream",
-      Authorization: `Bearer ${token ?? ""}`,
-    },
-    body: JSON.stringify({ question, history }),
-  });
-
-  if (!response.ok) {
-    const body = (await response.json().catch(() => ({}))) as {
-      error?: { message?: string };
-      message?: string;
-    };
-    throw new Error(
-      body.error?.message || body.message || `API request failed with status ${response.status}`
-    );
-  }
-
-  const reader = response.body?.getReader();
-  if (!reader) {
-    throw new Error("This browser does not support streaming responses");
-  }
-
-  const decoder = new TextDecoder();
-  let buffer = "";
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-    const frames = buffer.split("\n\n");
-    buffer = frames.pop() ?? "";
-    for (const frame of frames) {
-      const line = frame.split("\n").find((part) => part.startsWith("data:"));
-      if (!line) continue;
-      const data = line.slice(5).trim();
-      if (!data) continue;
-      const payload = JSON.parse(data) as {
-        delta?: string;
-        done?: boolean;
-        error?: string;
-      };
-      if (payload.error) throw new Error(payload.error);
-      if (payload.delta) onDelta(payload.delta);
-      if (payload.done) return;
+  token?: string | null
+): Promise<string> {
+  const result = await apiClient<{ answer: string }>(
+    `/v1/jobs/${encodeURIComponent(slug)}/chat`,
+    {
+      method: "POST",
+      token,
+      body: JSON.stringify({ question, history }),
     }
-  }
+  );
+  return result.answer;
 }

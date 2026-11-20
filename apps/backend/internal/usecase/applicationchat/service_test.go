@@ -34,16 +34,14 @@ func testInput() Input {
 
 func strPtr(value string) *string { return &value }
 
-func TestStreamAnswer_SSE(t *testing.T) {
+func TestAnswer(t *testing.T) {
 	var gotPayload map[string]interface{}
 	var gotHeader string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotHeader = r.Header.Get("x-omniroute-no-memory")
 		require.NoError(t, json.NewDecoder(r.Body).Decode(&gotPayload))
-		w.Header().Set("Content-Type", "text/event-stream")
-		_, _ = w.Write([]byte("data: {\"choices\":[{\"delta\":{\"content\":\"Five years\"}}]}\n\n"))
-		_, _ = w.Write([]byte("data: {\"choices\":[{\"delta\":{\"content\":\" of Go.\"}}]}\n\n"))
-		_, _ = w.Write([]byte("data: [DONE]\n\n"))
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"Five years of Go."}}]}`))
 	}))
 	defer server.Close()
 
@@ -54,17 +52,13 @@ func TestStreamAnswer_SSE(t *testing.T) {
 		Timeout: 5 * time.Second,
 	})
 
-	var chunks []string
-	err := svc.StreamAnswer(context.Background(), testInput(), func(chunk string) error {
-		chunks = append(chunks, chunk)
-		return nil
-	})
+	answer, err := svc.Answer(context.Background(), testInput())
 
 	require.NoError(t, err)
-	assert.Equal(t, []string{"Five years", " of Go."}, chunks)
+	assert.Equal(t, "Five years of Go.", answer)
 	assert.Equal(t, "true", gotHeader)
 	assert.Equal(t, "use-combo", gotPayload["model"])
-	assert.Equal(t, true, gotPayload["stream"])
+	assert.Equal(t, false, gotPayload["stream"])
 	assert.Equal(t, float64(200), gotPayload["max_tokens"])
 
 	messages := gotPayload["messages"].([]interface{})
@@ -78,26 +72,7 @@ func TestStreamAnswer_SSE(t *testing.T) {
 	assert.Equal(t, testInput().Question, messages[len(messages)-1].(map[string]interface{})["content"])
 }
 
-func TestStreamAnswer_JSONFallback(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"Five years of Go."}}]}`))
-	}))
-	defer server.Close()
-
-	svc := NewService(config.OmniRouteConfig{BaseURL: server.URL, APIKey: "k", Model: "m", Timeout: time.Second})
-
-	var chunks []string
-	err := svc.StreamAnswer(context.Background(), testInput(), func(chunk string) error {
-		chunks = append(chunks, chunk)
-		return nil
-	})
-
-	require.NoError(t, err)
-	assert.Equal(t, []string{"Five years of Go."}, chunks)
-}
-
-func TestStreamAnswer_UpstreamError(t *testing.T) {
+func TestAnswer_UpstreamError(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadGateway)
 		_, _ = w.Write([]byte("upstream unavailable"))
@@ -105,7 +80,7 @@ func TestStreamAnswer_UpstreamError(t *testing.T) {
 	defer server.Close()
 
 	svc := NewService(config.OmniRouteConfig{BaseURL: server.URL, APIKey: "k", Model: "m", Timeout: time.Second})
-	err := svc.StreamAnswer(context.Background(), testInput(), func(string) error { return nil })
+	_, err := svc.Answer(context.Background(), testInput())
 	require.Error(t, err)
 	assert.True(t, strings.Contains(err.Error(), "502"))
 }

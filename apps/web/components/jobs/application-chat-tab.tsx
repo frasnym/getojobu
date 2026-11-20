@@ -32,34 +32,18 @@ export function ApplicationChatTab({ job }: ApplicationChatTabProps) {
 		setInput("");
 		setError(null);
 		setLoading(true);
-		setMessages([
-			...history,
-			{ role: "user", content: question },
-			{ role: "assistant", content: "" },
-		]);
+		setMessages([...history, { role: "user", content: question }]);
 
 		try {
 			const token = await getToken();
-			await answerApplicationQuestion(job.slug, question, history, token, (delta) => {
-				setMessages((previous) => {
-					const next = [...previous];
-					const last = next[next.length - 1];
-					next[next.length - 1] = {
-						role: "assistant",
-						content: last.content + delta,
-					};
-					return next;
-				});
-			});
+			const answer = await answerApplicationQuestion(job.slug, question, history, token);
+			setMessages([
+				...history,
+				{ role: "user", content: question },
+				{ role: "assistant", content: answer },
+			]);
 		} catch (err) {
 			setError(err instanceof Error ? err.message : "Could not get an answer");
-			setMessages((previous) => {
-				const last = previous[previous.length - 1];
-				if (last?.role === "assistant" && last.content === "") {
-					return previous.slice(0, -1);
-				}
-				return previous;
-			});
 		} finally {
 			setLoading(false);
 		}
@@ -109,13 +93,7 @@ export function ApplicationChatTab({ job }: ApplicationChatTabProps) {
 										: "border border-border/60 bg-card text-foreground"
 								}`}
 							>
-								{message.role === "assistant" && message.content === "" && loading ? (
-									<span className="inline-flex items-center gap-2 text-muted-foreground">
-										<Loader2 className="h-3.5 w-3.5 animate-spin" /> Writing answer...
-									</span>
-								) : (
-									<span className="whitespace-pre-wrap">{message.content}</span>
-								)}
+								<span className="whitespace-pre-wrap">{message.content}</span>
 								{message.role === "assistant" && message.content && (
 									<button
 										type="button"
@@ -134,6 +112,13 @@ export function ApplicationChatTab({ job }: ApplicationChatTabProps) {
 							</div>
 						</div>
 					))
+				)}
+				{loading && (
+					<div className="flex justify-start">
+						<div className="inline-flex items-center gap-2 rounded-xl border border-border/60 bg-card px-4 py-2.5 text-sm text-muted-foreground">
+							<Loader2 className="h-3.5 w-3.5 animate-spin" /> Writing answer...
+						</div>
+					</div>
 				)}
 				<div ref={bottomRef} />
 			</div>

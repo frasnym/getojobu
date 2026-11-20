@@ -800,12 +800,12 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Streams a one-sentence answer grounded in the caller's career profile and the analyzed job profile.",
+                "description": "Returns a one-sentence answer grounded in the caller's career profile and the analyzed job profile.",
                 "consumes": [
                     "application/json"
                 ],
                 "produces": [
-                    "text/event-stream"
+                    "application/json"
                 ],
                 "tags": [
                     "jobs"
@@ -831,9 +831,9 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "SSE data frames with delta, then done",
+                        "description": "OK",
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/definitions/applicationchat.chatResponse"
                         }
                     },
                     "400": {
@@ -2641,6 +2641,14 @@ const docTemplate = `{
                     }
                 },
                 "question": {
+                    "type": "string"
+                }
+            }
+        },
+        "applicationchat.chatResponse": {
+            "type": "object",
+            "properties": {
+                "answer": {
                     "type": "string"
                 }
             }

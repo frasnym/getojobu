@@ -188,16 +188,6 @@ type statusRecorder struct {
 	truncated bool
 }
 
-// Unwrap lets http.ResponseController reach the real writer for deadlines.
-func (rec *statusRecorder) Unwrap() http.ResponseWriter { return rec.ResponseWriter }
-
-// Flush forwards to the underlying writer so SSE frames are pushed immediately.
-func (rec *statusRecorder) Flush() {
-	if flusher, ok := rec.ResponseWriter.(http.Flusher); ok {
-		flusher.Flush()
-	}
-}
-
 func (rec *statusRecorder) WriteHeader(code int) {
 	rec.status = code
 	rec.wrote = true
