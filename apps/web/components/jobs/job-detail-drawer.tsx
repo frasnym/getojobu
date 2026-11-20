@@ -42,7 +42,7 @@ interface JobDetailDrawerProps {
 	onTabChange?: (tab: ReportTab) => void;
 	evalId?: string | null;
 	showOwnedActions?: boolean;
-	/** When true (job is hidden by the user), grey out the job title in the drawer header. */
+	/** When true (job is hidden by the user), grey out the whole drawer header. */
 	isHidden?: boolean;
 	/** Toggle hide on the user↔job link (bulk endpoint). Receives (userJobId, isHidden). */
 	onHideToggle?: (userJobId: string, isHidden: boolean) => void | Promise<void>;
@@ -166,7 +166,7 @@ export function JobDetailDrawer({
 				className="fixed z-50 flex top-0 right-0 bottom-0 w-full max-w-full lg:max-w-[80vw] flex-col bg-card border-l border-border shadow-2xl animate-in slide-in-from-right duration-300"
 			>
 				{/* Drawer Header — same four rows as the job card */}
-				<div className="border-b border-border/60 p-6 space-y-4">
+				<div className={`border-b border-border/60 p-6 space-y-4 ${isHidden ? "opacity-60 grayscale" : ""}`}>
 					<div className="flex flex-wrap items-center gap-2">
 						<span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{job.company}</span>
 						{job.is_remote && (

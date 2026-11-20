@@ -112,6 +112,19 @@ describe("JobReportHeader component", () => {
     expect(screen.getByRole("button", { name: /Refresh/i })).toBeDisabled();
   });
 
+  it("greys the whole header when the job is hidden", () => {
+    const { container } = render(
+      <JobReportHeader
+        job={mockJob}
+        activeTab="details"
+        onTabChange={() => {}}
+        isHidden
+      />
+    );
+
+    expect(container.firstChild).toHaveClass("opacity-60", "grayscale");
+  });
+
   it("does not render a Refresh button without an onRefresh handler", () => {
     render(
       <JobReportHeader

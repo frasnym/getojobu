@@ -13,7 +13,7 @@ interface JobReportHeaderProps {
 	prevSlug?: string;
 	nextSlug?: string;
 	basePath?: string;
-	/** When true, the job title greys out (user hidden the job). */
+	/** When true, the whole header greys out (user hidden the job). */
 	isHidden?: boolean;
 	/** The user↔job link id. Required to show the Hide/Unhide button. */
 	userJobId?: string;
@@ -49,7 +49,7 @@ export function JobReportHeader({
 	];
 
 	return (
-		<div className="border-b border-border/40 bg-card/60 backdrop-blur pb-0 pt-6">
+		<div className={`border-b border-border/40 bg-card/60 backdrop-blur pb-0 pt-6 ${isHidden ? "opacity-60 grayscale" : ""}`}>
 			<div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 space-y-6">
 				{/* Navigation & Controls */}
 				<div className="flex items-center justify-between">
