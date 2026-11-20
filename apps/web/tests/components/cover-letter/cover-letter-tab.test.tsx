@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import React from "react";
 import { CoverLetterTab } from "@/components/cover-letter/cover-letter-tab";
 import * as api from "@/lib/api/endpoints";
@@ -103,65 +103,6 @@ describe("CoverLetterTab component", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("keeps the print DOM until afterprint, then cleans up the letter and style", () => {
-    const printSpy = vi.spyOn(window, "print").mockImplementation(() => {
-      expect(document.title).toBe(fileName);
-      expect(document.getElementById("cover-letter-print-root")).not.toBeNull();
-    });
-
-    render(
-      <CoverLetterTab
-        evalId="eval-001"
-        status="success"
-        text={readyLetter}
-        fileName={fileName}
-      />
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: /Download/i }));
-
-    expect(printSpy).toHaveBeenCalledTimes(1);
-    // window.print() returns before the preview renders: cleanup must be
-    // deferred, otherwise the PDF is blank.
-    expect(document.title).toBe(fileName);
-    expect(document.getElementById("cover-letter-print-root")).not.toBeNull();
-    expect(document.querySelector("style[data-cover-letter-print]")).not.toBeNull();
-
-    document.dispatchEvent(new Event("afterprint"));
-
-    expect(document.title).not.toBe(fileName);
-    expect(document.getElementById("cover-letter-print-root")).toBeNull();
-    expect(document.querySelector("style[data-cover-letter-print]")).toBeNull();
-    printSpy.mockRestore();
-  });
-
-  it("injects print CSS that collapses hidden page content and suppresses browser header/footer", () => {
-    const printSpy = vi.spyOn(window, "print").mockImplementation(() => {});
-
-    render(
-      <CoverLetterTab
-        evalId="eval-001"
-        status="success"
-        text={readyLetter}
-        fileName={fileName}
-      />
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: /Download PDF/i }));
-
-    const css =
-      document.querySelector("style[data-cover-letter-print]")?.textContent ?? "";
-    expect(css).toContain(
-      "body > *:not(#cover-letter-print-root) { display: none !important; }"
-    );
-    expect(css).toContain("@page { margin: 0; }");
-    expect(css).not.toContain("visibility: hidden");
-    expect(css).not.toContain("position: absolute");
-
-    document.dispatchEvent(new Event("afterprint"));
-    printSpy.mockRestore();
-  });
-
   it("copies the cover letter text and shows feedback when Copy is clicked", async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, "clipboard", {
@@ -186,29 +127,4 @@ describe("CoverLetterTab component", () => {
     });
   });
 
-  it("falls back to a timeout when afterprint never fires", () => {
-    vi.useFakeTimers();
-    const printSpy = vi.spyOn(window, "print").mockImplementation(() => {});
-
-    render(
-      <CoverLetterTab
-        evalId="eval-001"
-        status="success"
-        text={readyLetter}
-        fileName={fileName}
-      />
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: /Download/i }));
-    expect(document.getElementById("cover-letter-print-root")).not.toBeNull();
-
-    act(() => {
-      vi.advanceTimersByTime(5000);
-    });
-
-    expect(document.getElementById("cover-letter-print-root")).toBeNull();
-    expect(document.title).not.toBe(fileName);
-    printSpy.mockRestore();
-    vi.useRealTimers();
-  });
 });

@@ -2,6 +2,7 @@
 
 import React from "react";
 import { Download } from "lucide-react";
+import { jsPDF } from "jspdf";
 
 interface DownloadCoverLetterButtonProps {
   text: string;
@@ -9,84 +10,96 @@ interface DownloadCoverLetterButtonProps {
   className?: string;
 }
 
-const PRINT_ROOT_ID = "cover-letter-print-root";
-// Fallback for browsers that do not emit afterprint (e.g. a cancelled dialog).
-const PRINT_CLEANUP_FALLBACK_MS = 5000;
+interface PdfLayoutOptions {
+  pageWidth: number;
+  pageHeight: number;
+  margin: number;
+  lineHeight: number;
+}
 
-/**
- * Creates the PDF on demand through the browser's print dialog. A print-only
- * stylesheet hides the rest of the app and shows just the letter, and the
- * document title becomes the download file name offered by the print dialog.
- * No PDF library, server endpoint, or object storage is involved.
- */
+interface PositionedLine {
+  text: string;
+  x: number;
+  y: number;
+  page: number;
+}
+
+const MARGIN_MM = 20;
+const FONT_SIZE_PT = 12;
+const LINE_HEIGHT_MM = 6.5;
+
+/** The standard PDF fonts cannot draw these characters, so use ASCII equivalents. */
+export function toPdfSafeText(text: string): string {
+  return text
+    .replace(/[\u2018\u2019\u201A\u201B]/g, "'")
+    .replace(/[\u201C\u201D\u201E\u201F]/g, '"')
+    .replace(/[\u2013\u2014\u2015]/g, "-")
+    .replace(/\u2026/g, "...")
+    .replace(/\u00A0/g, " ")
+    .replace(/[^\x20-\x7E\xA0-\xFF\n]/gu, "?");
+}
+
+/** Wrap the letter into lines placed inside the page margins, across pages. */
+export function layoutCoverLetter(
+  text: string,
+  splitLine: (line: string, maxWidth: number) => string[],
+  { pageWidth, pageHeight, margin, lineHeight }: PdfLayoutOptions
+): PositionedLine[] {
+  const contentWidth = pageWidth - margin * 2;
+  const lines: PositionedLine[] = [];
+  let y = margin;
+  let page = 1;
+
+  for (const paragraph of text.split("\n")) {
+    const wrapped = paragraph.length ? splitLine(paragraph, contentWidth) : [""];
+    for (const line of wrapped) {
+      if (y + lineHeight > pageHeight - margin) {
+        page += 1;
+        y = margin;
+      }
+      if (line) lines.push({ text: line, x: margin, y, page });
+      y += lineHeight;
+    }
+  }
+
+  return lines;
+}
+
+export function buildCoverLetterPdf(text: string): jsPDF {
+  const doc = new jsPDF({ unit: "mm", format: "a4" });
+  doc.setFont("times", "normal");
+  doc.setFontSize(FONT_SIZE_PT);
+
+  const lines = layoutCoverLetter(
+    toPdfSafeText(text),
+    (line, maxWidth) => doc.splitTextToSize(line, maxWidth),
+    {
+      pageWidth: doc.internal.pageSize.getWidth(),
+      pageHeight: doc.internal.pageSize.getHeight(),
+      margin: MARGIN_MM,
+      lineHeight: LINE_HEIGHT_MM,
+    }
+  );
+
+  let currentPage = 1;
+  for (const line of lines) {
+    if (line.page !== currentPage) {
+      doc.addPage();
+      currentPage = line.page;
+    }
+    doc.text(line.text, line.x, line.y);
+  }
+
+  return doc;
+}
+
 export function DownloadCoverLetterButton({
   text,
   fileName,
   className = "",
 }: DownloadCoverLetterButtonProps) {
   const handleDownload = () => {
-    const previousTitle = document.title;
-
-    const style = document.createElement("style");
-    style.setAttribute("data-cover-letter-print", "true");
-    style.textContent = `
-      @page { margin: 0; }
-      @media print {
-        html, body { margin: 0 !important; padding: 0 !important; }
-        body > *:not(#${PRINT_ROOT_ID}) { display: none !important; }
-        #${PRINT_ROOT_ID} {
-          display: block !important;
-          width: auto !important;
-          margin: 0 !important;
-          padding: 2cm !important;
-          box-sizing: border-box !important;
-        }
-        #${PRINT_ROOT_ID} .cover-letter-print-text {
-          white-space: pre-wrap !important;
-          font-family: Georgia, "Times New Roman", serif !important;
-          font-size: 12pt !important;
-          line-height: 1.6 !important;
-          color: #000 !important;
-        }
-      }
-    `;
-
-    const root = document.createElement("div");
-    root.id = PRINT_ROOT_ID;
-    const content = document.createElement("div");
-    content.className = "cover-letter-print-text";
-    content.textContent = text;
-    root.appendChild(content);
-
-    document.head.appendChild(style);
-    document.body.appendChild(root);
-    document.title = fileName || "Cover Letter.pdf";
-
-    let cleanedUp = false;
-    let fallbackTimer: number | undefined;
-    const cleanup = () => {
-      if (cleanedUp) return;
-      cleanedUp = true;
-      document.removeEventListener("afterprint", cleanup);
-      if (fallbackTimer !== undefined) window.clearTimeout(fallbackTimer);
-      document.title = previousTitle;
-      root.remove();
-      style.remove();
-    };
-
-    // window.print() resolves before the print preview has rendered. Removing
-    // the injected DOM here would produce a blank PDF, so defer cleanup until
-    // the dialog closes. The timeout covers browsers that never emit the event.
-    document.addEventListener("afterprint", cleanup, { once: true });
-    fallbackTimer = window.setTimeout(cleanup, PRINT_CLEANUP_FALLBACK_MS);
-
-    try {
-      window.print();
-    } catch {
-      // Exception safety only: when print() throws, afterprint will not fire,
-      // so clean up now instead of leaving injected DOM/styles behind.
-      cleanup();
-    }
+    buildCoverLetterPdf(text).save(fileName);
   };
 
   return (
