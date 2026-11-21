@@ -96,7 +96,13 @@ async def test_generate_resume_records_default_prompt_version() -> None:
     llm.generate_resume = AsyncMock(return_value=_draft())
     llm.critique_resume = AsyncMock(return_value={"passed": True, "issues": []})
     service = GenerateResume(llm=llm)
-    with patch("usecase.generate_resume.service.render_pdf", return_value=b"%PDF"):
+    with (
+        patch("usecase.generate_resume.service.render_pdf", return_value=b"%PDF"),
+        patch(
+            "usecase.generate_resume.service.fit_resume_to_char_limit",
+            side_effect=lambda draft, **kwargs: draft,
+        ),
+    ):
         result = await service.generate(
             candidate_profile={"skills": ["go"]},
             job_profile={"title": "Engineer"},
@@ -118,9 +124,15 @@ async def test_generate_resume_runs_critique_before_rendering() -> None:
     llm.generate_resume = AsyncMock(return_value=_draft())
     llm.critique_resume = AsyncMock(return_value={"passed": True, "issues": []})
     service = GenerateResume(llm=llm)
-    with patch(
-        "usecase.generate_resume.service.render_pdf", return_value=b"%PDF"
-    ) as render:
+    with (
+        patch(
+            "usecase.generate_resume.service.render_pdf", return_value=b"%PDF"
+        ) as render,
+        patch(
+            "usecase.generate_resume.service.fit_resume_to_char_limit",
+            side_effect=lambda draft, **kwargs: draft,
+        ),
+    ):
         result = await service.generate(
             candidate_profile={"skills": ["go"]},
             job_profile={"title": "Engineer"},
@@ -147,9 +159,15 @@ async def test_generate_resume_retries_on_critique_failure() -> None:
         ]
     )
     service = GenerateResume(llm=llm)
-    with patch(
-        "usecase.generate_resume.service.render_pdf", return_value=b"%PDF"
-    ) as render:
+    with (
+        patch(
+            "usecase.generate_resume.service.render_pdf", return_value=b"%PDF"
+        ) as render,
+        patch(
+            "usecase.generate_resume.service.fit_resume_to_char_limit",
+            side_effect=lambda draft, **kwargs: draft,
+        ),
+    ):
         result = await service.generate(
             candidate_profile={"skills": ["go"]},
             job_profile={"title": "Engineer"},

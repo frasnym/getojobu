@@ -13,6 +13,8 @@ from usecase.generate_resume.templates import (
     list_templates,
 )
 
+MAX_RESUME_CHARS = 2900
+
 
 class _PDFDocument(Protocol):
     def write_pdf(self) -> bytes | None: ...
@@ -26,6 +28,45 @@ def render_html(
     """Render a ResumeDraft to an HTML string using the chosen template."""
     renderer = get_template(template_name)
     return renderer(draft, facts)
+
+
+def count_resume_chars(draft: ResumeDraft) -> int:
+    """Count the characters of the resume text that is actually rendered."""
+    parts: list[str] = [draft.headline, draft.education, draft.contact, *draft.skills]
+    for role in draft.jobs.values():
+        if not role.selected:
+            continue
+        parts.extend(value for value in (role.company, role.role, role.period) if value)
+        parts.extend(role.bullets)
+    return sum(len(part) for part in parts)
+
+
+def fit_resume_to_char_limit(
+    draft: ResumeDraft, limit: int = MAX_RESUME_CHARS
+) -> ResumeDraft:
+    """Trim the least relevant content until the resume is within the char limit."""
+    fitted = draft.model_copy(deep=True)
+    if count_resume_chars(fitted) <= limit:
+        return fitted
+
+    selected_ids = [rid for rid, role in fitted.jobs.items() if role.selected]
+    for index in range(len(selected_ids) - 1, -1, -1):
+        role = fitted.jobs[selected_ids[index]]
+        min_bullets = 1 if index == 0 else 0
+        while len(role.bullets) > min_bullets and count_resume_chars(fitted) > limit:
+            del role.bullets[-1]
+        if count_resume_chars(fitted) <= limit:
+            return fitted
+        if index == 0:
+            break
+        role.selected = False
+        role.bullets = []
+
+    while len(fitted.skills) > 1 and count_resume_chars(fitted) > limit:
+        del fitted.skills[-1]
+    if count_resume_chars(fitted) > limit:
+        raise ValueError(f"resume exceeds {limit} characters")
+    return fitted
 
 
 def render_pdf(
@@ -52,4 +93,12 @@ def render_pdf(
     return pdf_bytes
 
 
-__all__ = ["DEFAULT_TEMPLATE", "list_templates", "render_html", "render_pdf"]
+__all__ = [
+    "DEFAULT_TEMPLATE",
+    "MAX_RESUME_CHARS",
+    "count_resume_chars",
+    "fit_resume_to_char_limit",
+    "list_templates",
+    "render_html",
+    "render_pdf",
+]

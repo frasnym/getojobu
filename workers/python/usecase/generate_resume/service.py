@@ -7,7 +7,11 @@ from typing import Any, Protocol
 
 from models.resume import ResumeCritique, ResumeDraft, validate_resume_draft
 from usecase.generate_resume.content import build_resume_content
-from usecase.generate_resume.renderer import render_html, render_pdf
+from usecase.generate_resume.renderer import (
+    fit_resume_to_char_limit,
+    render_html,
+    render_pdf,
+)
 
 
 class ResumeLLMClient(Protocol):
@@ -66,7 +70,10 @@ class GenerateResume:
                 )
             )
             if not critique.passed:
-                raise ValueError("resume critique failed: " + "; ".join(critique.issues))
+                raise ValueError(
+                    "resume critique failed: " + "; ".join(critique.issues)
+                )
+        draft = fit_resume_to_char_limit(draft)
         return {
             "resume": draft.model_dump(),
             "critique": critique.model_dump(),
