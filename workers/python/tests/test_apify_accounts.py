@@ -1,9 +1,29 @@
 """Unit tests for Apify account failover and token rotation."""
 
 import json
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
+from urllib.error import URLError
+
+import pytest
 
 from repository.scraper import apify_accounts
+
+
+def _limits_response(limit: float, used: float) -> MagicMock:
+    payload = json.dumps(
+        {
+            "data": {
+                "limits": {"maxMonthlyUsageUsd": limit},
+                "current": {"monthlyUsageUsd": used},
+                "monthlyUsageCycle": {"endAt": "2099-12-31T00:00:00.000Z"},
+            }
+        }
+    ).encode()
+    response = MagicMock()
+    response.__enter__.return_value = response
+    response.__exit__.return_value = False
+    response.read.return_value = payload
+    return response
 
 
 def test_tokens_parsing():
@@ -119,6 +139,63 @@ def test_pick_token_returns_none_when_all_accounts_underfunded(tmp_path):
         assert token is None
         assert label is None
         assert stats == {}
+
+
+def test_usage_retries_transient_failure():
+    attempts = 0
+
+    def fake_urlopen(_req, timeout):
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            raise URLError("temporary network error")
+        return _limits_response(limit=5.0, used=1.0)
+
+    with (
+        patch("urllib.request.urlopen", side_effect=fake_urlopen),
+        patch("time.sleep"),
+    ):
+        result = apify_accounts._usage("tok1")
+
+    assert result == {
+        "credit_limit_usd": 5.0,
+        "credit_used_usd": 1.0,
+        "credit_remaining_usd": 4.0,
+        "credit_cycle_end": "2099-12-31",
+    }
+    assert attempts == 2
+
+
+def test_usage_gives_up_after_three_attempts():
+    attempts = 0
+
+    def fake_urlopen(_req, timeout):
+        nonlocal attempts
+        attempts += 1
+        raise URLError("apify down")
+
+    with (
+        patch("urllib.request.urlopen", side_effect=fake_urlopen),
+        patch("time.sleep"),
+    ):
+        result = apify_accounts._usage("tok1")
+
+    assert result == {}
+    assert attempts == 3
+
+
+def test_pick_token_raises_when_all_balance_lookups_fail(tmp_path):
+    env = {
+        "APIFY_API_TOKENS": "tok1,tok2",
+        "APIFY_MIN_CREDIT_USD": "0.50",
+        "APIFY_ACCOUNT_STATE_DIR": str(tmp_path),
+    }
+    with (
+        patch.dict("os.environ", env, clear=True),
+        patch.object(apify_accounts, "_usage", return_value={}),
+    ):
+        with pytest.raises(RuntimeError, match="could not check Apify balance"):
+            apify_accounts.pick_token()
 
 
 def test_record_balance_updates_state(tmp_path):

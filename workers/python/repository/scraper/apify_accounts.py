@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import os
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -25,6 +26,12 @@ logger = get_logger("scraper.apify_accounts")
 APIFY_BASE = "https://api.apify.com/v2"
 DEFAULT_MIN_CREDIT = 0.50
 STATE_FILENAME = "apify_accounts.json"
+USAGE_ATTEMPTS = 3
+USAGE_RETRY_DELAY_SECONDS = 0.5
+
+
+class BalanceCheckError(RuntimeError):
+    """No Apify balance could be measured for any configured account."""
 
 
 def _state_dir() -> str:
@@ -92,31 +99,37 @@ def _profile(token: str) -> dict[str, Any]:
 
 
 def _usage(token: str) -> dict[str, Any]:
-    """Apify /users/me/limits."""
-    try:
-        url = f"{APIFY_BASE}/users/me/limits?token={urllib.parse.quote(token)}"
-        req = urllib.request.Request(url)
-        with urllib.request.urlopen(req, timeout=20) as resp:
-            data = json.loads(resp.read().decode()).get("data", {})
-        limit = float(data.get("limits", {}).get("maxMonthlyUsageUsd") or 0)
-        used = float(data.get("current", {}).get("monthlyUsageUsd") or 0)
-        end = (data.get("monthlyUsageCycle", {}).get("endAt") or "")[:10]
-        return {
-            "credit_limit_usd": round(limit, 2),
-            "credit_used_usd": round(used, 2),
-            "credit_remaining_usd": round(max(limit - used, 0), 2),
-            "credit_cycle_end": end,
-        }
-    except (
-        urllib.error.URLError,
-        OSError,
-        json.JSONDecodeError,
-        KeyError,
-        ValueError,
-        TypeError,
-    ) as e:
-        logger.warning("usage lookup failed", error=str(e))
-        return {}
+    """Apify /users/me/limits, retried on transient failure."""
+    url = f"{APIFY_BASE}/users/me/limits?token={urllib.parse.quote(token)}"
+    for attempt in range(USAGE_ATTEMPTS):
+        try:
+            req = urllib.request.Request(url)
+            with urllib.request.urlopen(req, timeout=20) as resp:
+                data = json.loads(resp.read().decode()).get("data", {})
+            limit = float(data.get("limits", {}).get("maxMonthlyUsageUsd") or 0)
+            used = float(data.get("current", {}).get("monthlyUsageUsd") or 0)
+            end = (data.get("monthlyUsageCycle", {}).get("endAt") or "")[:10]
+            return {
+                "credit_limit_usd": round(limit, 2),
+                "credit_used_usd": round(used, 2),
+                "credit_remaining_usd": round(max(limit - used, 0), 2),
+                "credit_cycle_end": end,
+            }
+        except (
+            urllib.error.URLError,
+            OSError,
+            json.JSONDecodeError,
+            KeyError,
+            ValueError,
+            TypeError,
+        ) as e:
+            if attempt == USAGE_ATTEMPTS - 1:
+                logger.warning(
+                    "usage lookup failed", error=str(e), attempts=USAGE_ATTEMPTS
+                )
+                return {}
+            time.sleep(USAGE_RETRY_DELAY_SECONDS * (attempt + 1))
+    return {}
 
 
 def get_usage(token: str) -> dict[str, Any]:
@@ -179,9 +192,7 @@ def pick_token(
     credit_source = env_val if env_val is not None else min_credit_val
     try:
         min_credit = (
-            float(credit_source)
-            if credit_source is not None
-            else DEFAULT_MIN_CREDIT
+            float(credit_source) if credit_source is not None else DEFAULT_MIN_CREDIT
         )
     except (TypeError, ValueError):
         min_credit = DEFAULT_MIN_CREDIT
@@ -215,6 +226,7 @@ def pick_token(
         return token, label, stats
 
     # Step 2: probe from active onward, wrap to start
+    any_measured = False
     order = list(range(active_idx, len(tokens))) + list(range(active_idx))
     for idx in order:
         acct_key = str(idx)
@@ -239,6 +251,8 @@ def pick_token(
         # probe for real
         usage = _usage(tokens[idx])
         remaining = usage.get("credit_remaining_usd")
+        if remaining is not None:
+            any_measured = True
         cycle_end = usage.get("credit_cycle_end", "")
 
         state.setdefault("accounts", {})
@@ -254,6 +268,11 @@ def pick_token(
             label = _label_for_index(idx, tokens, _ensure_email(state, idx, tokens))
             _save_state(state)
             return token, label, usage
+
+    if not any_measured:
+        raise BalanceCheckError(
+            "could not check Apify balance for any account: all lookups failed"
+        )
 
     # If no account has >= min_credit, do not fall back. Fail fast per spec.
     _save_state(state)
