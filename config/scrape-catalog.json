@@ -1,0 +1,34 @@
+{
+  "locations": [
+    { "value": "austria", "label": "Austria" },
+    { "value": "australia", "label": "Australia" },
+    { "value": "belgium", "label": "Belgium" },
+    { "value": "canada", "label": "Canada" },
+    { "value": "denmark", "label": "Denmark" },
+    { "value": "finland", "label": "Finland" },
+    { "value": "france", "label": "France" },
+    { "value": "germany", "label": "Germany" },
+    { "value": "indonesia", "label": "Indonesia" },
+    { "value": "ireland", "label": "Ireland" },
+    { "value": "japan", "label": "Japan" },
+    { "value": "malaysia", "label": "Malaysia" },
+    { "value": "netherlands", "label": "Netherlands" },
+    { "value": "new zealand", "label": "New Zealand" },
+    { "value": "norway", "label": "Norway" },
+    { "value": "poland", "label": "Poland" },
+    { "value": "portugal", "label": "Portugal" },
+    { "value": "singapore", "label": "Singapore" },
+    { "value": "spain", "label": "Spain" },
+    { "value": "sweden", "label": "Sweden" },
+    { "value": "switzerland", "label": "Switzerland" },
+    { "value": "united arab emirates", "label": "United Arab Emirates" },
+    { "value": "united kingdom", "label": "United Kingdom" },
+    { "value": "united states", "label": "United States" }
+  ],
+  "boards": [
+    { "value": "linkedin", "label": "LinkedIn" },
+    { "value": "glassdoor", "label": "Glassdoor" },
+    { "value": "arbeitnow", "label": "Arbeitnow" },
+    { "value": "remoteusa", "label": "Remote USA" }
+  ]
+}

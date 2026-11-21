@@ -3,6 +3,7 @@ package repository
 import (
 	"errors"
 
+	"github.com/frasnym/getojobu/apps/backend/internal/config"
 	"github.com/frasnym/getojobu/apps/backend/internal/contract/common"
 	repo "github.com/frasnym/getojobu/apps/backend/internal/repository"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/database"
@@ -31,7 +32,7 @@ type Contract struct {
 // NewRepository creates the repository layer contract from the common
 // infrastructure contract. It instantiates concrete repository types backed
 // by the shared database connection.
-func NewRepository(comm *common.Contract) (*Contract, error) {
+func NewRepository(comm *common.Contract, cfg *config.Config) (*Contract, error) {
 	if comm == nil || comm.DB == nil {
 		return nil, errors.New("common database is required")
 	}
@@ -47,13 +48,13 @@ func NewRepository(comm *common.Contract) (*Contract, error) {
 		ProjectSkillsRepository:       repo.NewProjectSkillsRepository(comm.DB),
 		JobsRepository:                repo.NewJobsRepository(pg),
 		UserJobsRepository:            repo.NewUserJobsRepository(pg),
-		WorkflowsRepository:           repo.NewWorkflowsRepository(comm.Temporal, comm.TemporalTaskQueue),
+		WorkflowsRepository:           repo.NewWorkflowsRepository(comm.Temporal, cfg.Temporal.TaskQueue),
 		ScoringConfigsRepository:      repo.NewScoringConfigsRepository(pg),
 		UserPreferencesRepository:     repo.NewUserPreferencesRepository(pg),
 		MatchingEvaluationsRepository: repo.NewMatchingEvaluationsRepository(pg),
 		RetryRepository:               repo.NewRetryRepository(pg),
 		EducationsRepository:          repo.NewEducationsRepository(comm.DB),
-		StorageRepository:             comm.Storage,
+		StorageRepository:             repo.NewR2StorageRepository(cfg.R2),
 	}
 	return c, nil
 }

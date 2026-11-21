@@ -18,14 +18,22 @@ type Config struct {
 		ShutdownTimeout time.Duration
 		SwaggerToken    string // bearer token required to open Swagger UI; empty = no auth (local dev)
 	}
-	Log         LogConfig
-	DB          DBConfig
-	Clerk       ClerkConfig
-	MachineAuth MachineAuth
-	Temporal    TemporalConfig
-	R2          R2Config
-	OmniRoute   OmniRouteConfig
-	Telemetry   TelemetryConfig
+	Log           LogConfig
+	DB            DBConfig
+	Clerk         ClerkConfig
+	MachineAuth   MachineAuth
+	Temporal      TemporalConfig
+	R2            R2Config
+	OmniRoute     OmniRouteConfig
+	Telemetry     TelemetryConfig
+	ScrapeCatalog ScrapeCatalogConfig
+}
+
+// ScrapeCatalogConfig holds the scrape catalog together with the path it is
+// loaded from.
+type ScrapeCatalogConfig struct {
+	Catalog *ScrapeCatalog
+	Path    string
 }
 
 // OmniRouteConfig holds the OpenAI-compatible gateway settings used by the
@@ -233,6 +241,13 @@ func Load() (*Config, error) {
 	if cfg.R2.EndpointURL == "" && cfg.R2.AccountID != "" {
 		cfg.R2.EndpointURL = fmt.Sprintf("https://%s.r2.cloudflarestorage.com", cfg.R2.AccountID)
 	}
+
+	cfg.ScrapeCatalog.Path = envString("SCRAPE_CATALOG_PATH", "../../config/scrape-catalog.json")
+	catalog, err := LoadScrapeCatalog(cfg.ScrapeCatalog.Path)
+	if err != nil {
+		return nil, fmt.Errorf("load scrape catalog: %w", err)
+	}
+	cfg.ScrapeCatalog.Catalog = catalog
 
 	return cfg, nil
 }

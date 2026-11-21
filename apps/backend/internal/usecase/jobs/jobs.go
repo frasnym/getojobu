@@ -12,6 +12,7 @@ import (
 	"github.com/frasnym/getojobu/apps/backend/internal/contract/repository"
 	"github.com/frasnym/getojobu/apps/backend/internal/models"
 	repo "github.com/frasnym/getojobu/apps/backend/internal/repository"
+	"github.com/frasnym/getojobu/apps/backend/internal/usecase/jobs/scrape"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/constants"
 	"github.com/frasnym/getojobu/apps/backend/internal/utils/database"
 )
@@ -45,6 +46,7 @@ type jobService struct {
 	userJobs        repo.UserJobs
 	workflows       repo.Workflows
 	userPreferences repo.UserPreferences
+	registry        *scrape.JobScrapeRegistry
 }
 
 // NewJobService creates a job service backed by repositories.
@@ -55,6 +57,7 @@ func NewJobService(r *repository.Contract) Job {
 		userJobs:        r.UserJobsRepository,
 		workflows:       r.WorkflowsRepository,
 		userPreferences: r.UserPreferencesRepository,
+		registry:        scrape.NewJobScrapeRegistry(),
 	}
 }
 

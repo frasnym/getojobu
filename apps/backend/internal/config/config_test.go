@@ -10,6 +10,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestMain(m *testing.M) {
+	// Tests run from this package directory; the catalog lives at the repo root.
+	os.Setenv("SCRAPE_CATALOG_PATH", "../../../../config/scrape-catalog.json")
+	os.Exit(m.Run())
+}
+
 func TestLoad_applies_default_ports_and_timeouts(t *testing.T) {
 	// Arrange.
 	os.Setenv("DATABASE_URL", "postgres://user:pass@localhost:5432/db?sslmode=require")

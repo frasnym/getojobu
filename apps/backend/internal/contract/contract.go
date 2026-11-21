@@ -64,7 +64,7 @@ func New(cfg *config.Config) (*Contract, Stopper, error) {
 	stoppers = append(stoppers, commonStopper)
 
 	// Initialize the repository layer from the common infrastructure contract.
-	repositoryContract, err := repository.NewRepository(commonContract)
+	repositoryContract, err := repository.NewRepository(commonContract, cfg)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to initialize repository layer: %w", err)
 	}
